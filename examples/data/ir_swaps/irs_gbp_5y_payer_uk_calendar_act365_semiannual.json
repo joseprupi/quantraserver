@@ -121,8 +121,9 @@
   "swaps": [
     {
       "vanilla_swap": {
-        "swap_type": "Payer",
         "fixed_leg": {
+          "pay_receive": "Pay",
+          "currency": "GBP",
           "notional": 10000000.0,
           "schedule": {
             "calendar": "UnitedKingdom",
@@ -134,11 +135,17 @@
             "date_generation_rule": "Forward",
             "end_of_month": false
           },
-          "rate": 0.0435,
           "day_counter": "Actual365Fixed",
-          "payment_convention": "ModifiedFollowing"
+          "payment_convention": "ModifiedFollowing",
+          "coupons_type": "FixedCoupons",
+          "coupons": {
+            "rate": 0.0435
+          },
+          "discounting_curve": "GBP_DISC"
         },
         "floating_leg": {
+          "pay_receive": "Receive",
+          "currency": "GBP",
           "notional": 10000000.0,
           "schedule": {
             "calendar": "UnitedKingdom",
@@ -150,16 +157,19 @@
             "date_generation_rule": "Forward",
             "end_of_month": false
           },
-          "index": {
-            "id": "GBP_6M"
-          },
-          "spread": 0.0,
           "day_counter": "Actual365Fixed",
-          "payment_convention": "ModifiedFollowing"
+          "payment_convention": "ModifiedFollowing",
+          "coupons_type": "IborCoupons",
+          "coupons": {
+            "index": {
+              "id": "GBP_6M"
+            },
+            "spread": 0.0
+          },
+          "discounting_curve": "GBP_DISC",
+          "forwarding_curve": "GBP_DISC"
         }
-      },
-      "discounting_curve": "GBP_DISC",
-      "forwarding_curve": "GBP_DISC"
+      }
     }
   ]
 }

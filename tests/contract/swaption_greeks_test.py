@@ -66,7 +66,8 @@ def _native_greeks(request):
 
     annuity = swaption.annuity()
     forward = built["swap"].fairRate()
-    strike = sw_data["swaption"]["underlying"]["fixed_leg"]["rate"]
+    underlying = sw_data["swaption"]["underlying"]
+    strike = underlying["fixed_leg"]["coupons"]["rate"]
     exercise_date = swaption.exercise().dates()[0]
     assert base["day_counter"] == "Actual365Fixed"
     expiry_time = ql.Actual365Fixed().yearFraction(
@@ -74,9 +75,10 @@ def _native_greeks(request):
     )
     vol = base["constant_vol"]
     std_dev = vol * math.sqrt(expiry_time)
+    # A payer swaption = the right to PAY the fixed leg (a call on the rate).
     option_type = (
         ql.Option.Call
-        if sw_data["swaption"]["underlying"]["swap_type"] == "Payer"
+        if underlying["fixed_leg"]["pay_receive"] == "Pay"
         else ql.Option.Put
     )
     displacement = base.get("displacement", 0.0)

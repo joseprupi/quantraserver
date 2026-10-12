@@ -739,70 +739,70 @@
         "leg1": {
           "pay_receive": "Pay",
           "currency": "USD",
+          "notional": 10850000.0,
+          "schedule": {
+            "calendar": "TARGET",
+            "effective_date": "2025-01-17",
+            "termination_date": "2030-01-17",
+            "frequency": "Quarterly",
+            "convention": "ModifiedFollowing",
+            "termination_date_convention": "ModifiedFollowing",
+            "date_generation_rule": "Forward",
+            "end_of_month": false
+          },
+          "payment_convention": "ModifiedFollowing",
+          "payment_calendar": "TARGET",
+          "payment_lag": 0,
           "coupons_type": "OvernightCoupons",
           "coupons": {
-            "notional": 10850000.0,
-            "schedule": {
-              "calendar": "TARGET",
-              "effective_date": "2025-01-17",
-              "termination_date": "2030-01-17",
-              "frequency": "Quarterly",
-              "convention": "ModifiedFollowing",
-              "termination_date_convention": "ModifiedFollowing",
-              "date_generation_rule": "Forward",
-              "end_of_month": false
-            },
             "index": {
               "id": "USD_SOFR"
             },
             "spread": 0.0,
-            "payment_convention": "ModifiedFollowing",
-            "payment_calendar": "TARGET",
-            "payment_lag": 0,
             "averaging_method": "Compound",
             "lookback_days": 0,
             "lockout_days": 0,
             "apply_observation_shift": false,
             "telescopic_value_dates": false
           },
-          "initial_exchange": false,
-          "final_exchange": true,
           "discounting_curve": "USD_SOFR_OIS",
-          "forwarding_curve": "USD_SOFR_OIS"
+          "forwarding_curve": "USD_SOFR_OIS",
+          "initial_exchange": false,
+          "final_exchange": true
         },
         "leg2": {
           "pay_receive": "Receive",
           "currency": "EUR",
+          "notional": 10000000.0,
+          "schedule": {
+            "calendar": "TARGET",
+            "effective_date": "2025-01-17",
+            "termination_date": "2030-01-17",
+            "frequency": "Quarterly",
+            "convention": "ModifiedFollowing",
+            "termination_date_convention": "ModifiedFollowing",
+            "date_generation_rule": "Forward",
+            "end_of_month": false
+          },
+          "payment_convention": "ModifiedFollowing",
+          "payment_calendar": "TARGET",
+          "payment_lag": 0,
           "coupons_type": "OvernightCoupons",
           "coupons": {
-            "notional": 10000000.0,
-            "schedule": {
-              "calendar": "TARGET",
-              "effective_date": "2025-01-17",
-              "termination_date": "2030-01-17",
-              "frequency": "Quarterly",
-              "convention": "ModifiedFollowing",
-              "termination_date_convention": "ModifiedFollowing",
-              "date_generation_rule": "Forward",
-              "end_of_month": false
-            },
             "index": {
               "id": "EUR_ESTR"
             },
             "spread": -0.0015,
-            "payment_convention": "ModifiedFollowing",
-            "payment_calendar": "TARGET",
-            "payment_lag": 0,
             "averaging_method": "Compound",
             "lookback_days": 0,
             "lockout_days": 0,
             "apply_observation_shift": false,
             "telescopic_value_dates": false
           },
-          "initial_exchange": false,
-          "final_exchange": true,
           "discounting_curve": "EUR_USD_COLLATERAL",
-          "forwarding_curve": "EUR_ESTR_OIS"
+          "forwarding_curve": "EUR_ESTR_OIS",
+          "initial_exchange": false,
+          "final_exchange": true
         }
       },
       "fx_spot": "EURUSD_SPOT",

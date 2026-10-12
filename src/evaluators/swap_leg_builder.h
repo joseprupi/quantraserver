@@ -3,14 +3,15 @@
 
 /**
  * Shared QuantLib leg construction for the swap evaluators (vanilla, OIS,
- * basis and the unified `price-swap`). One place builds a fixed-rate leg, an
- * IBOR leg and an overnight leg from plain leg descriptions, so the products
- * cannot drift apart in schedule / payment-adjustment / pricer details and a
- * single-currency swap priced through `price-swap` reproduces the dedicated
- * endpoint bit-for-bit. The builders return the QuantLib::Leg exactly as
- * QuantLib's own instruments assemble it: FixedRateLeg / IborLeg as
- * QuantLib::VanillaSwap, FixedRateLeg (with payment lag and calendar) /
- * OvernightLeg as QuantLib::OvernightIndexedSwap.
+ * basis, cross-currency). One place builds a fixed-rate leg, an IBOR leg and
+ * an overnight leg from plain leg descriptions, so the products cannot drift
+ * apart in schedule / payment-adjustment / pricer details and the same
+ * `SwapLeg` prices identically on every endpoint. The builders return the
+ * QuantLib::Leg exactly as QuantLib's own instruments assemble it:
+ * FixedRateLeg / IborLeg as QuantLib::VanillaSwap, FixedRateLeg (with payment
+ * lag and calendar) / OvernightLeg as QuantLib::OvernightIndexedSwap.
+ * swap_leg_pricer.h turns a whole `SwapLegData` (coupons, exchanges, curves)
+ * into a valued leg on top of these.
  *
  * FlatBuffers-free by construction (it is included from evaluators, which
  * Suite 0 greps).
@@ -26,6 +27,7 @@
 #include <ql/time/schedule.hpp>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -58,7 +60,16 @@ struct FloatingLegSpec {
     double spread = 0.0;
     QuantLib::DayCounter dayCounter;
     QuantLib::BusinessDayConvention paymentConvention = QuantLib::ModifiedFollowing;
-    int fixingDays = 2;
+    /// Calendar the payment dates are adjusted (and lagged) on; empty = the
+    /// schedule's calendar (IborLeg's own default).
+    QuantLib::Calendar paymentCalendar;
+    /// Payment lag in business days after each accrual end; 0 = paid on the
+    /// adjusted accrual end.
+    int paymentLag = 0;
+    /// Fixing lag in business days before each accrual start; nullopt = the
+    /// index's own fixing days (QuantLib's IborLeg default, what
+    /// QuantLib::VanillaSwap uses).
+    std::optional<int> fixingDays;
     bool inArrears = false;
 };
 
@@ -95,8 +106,9 @@ struct OvernightLegSpec {
 QuantLib::Leg BuildFixedRateLeg(const FixedRateLegSpec& spec);
 
 /// IborLeg on `index` (already cloned onto its forwarding curve) with the
-/// spec's notionals, payment day counter / adjustment, spread, fixing days
-/// and in-arrears flag. The coupons carry a Black pricer with a zero
+/// spec's notionals, payment day counter / adjustment / calendar / lag,
+/// spread, fixing days (only when the spec overrides the index's own) and
+/// in-arrears flag. The coupons carry a Black pricer with a zero
 /// constant optionlet volatility: in advance it reproduces the plain forward
 /// (QuantLib::VanillaSwap's own pricing bit-for-bit); in arrears it reads the
 /// end-of-period fixing with no convexity adjustment (none is priced — no
@@ -107,9 +119,9 @@ QuantLib::Leg BuildIborLeg(
 /// OvernightLeg on `index` (already cloned onto its forwarding curve) with
 /// the spec's notionals, spread, payment convention / calendar / lag,
 /// averaging method, lookback, lockout and observation shift: the chain
-/// QuantLib::OvernightIndexedSwap builds its overnight leg with, so the OIS
-/// endpoint and `price-swap` share one construction. The coupons take the
-/// index's day counter and carry QuantLib's own compounding pricer.
+/// QuantLib::OvernightIndexedSwap builds its overnight leg with, so every
+/// swap endpoint shares one construction. The coupons take the index's day
+/// counter and carry QuantLib's own compounding pricer.
 QuantLib::Leg BuildOvernightLeg(
     const OvernightLegSpec& spec, const std::shared_ptr<QuantLib::OvernightIndex>& index);
 
@@ -143,14 +155,19 @@ struct SwapLegFlowPlain {
     std::string fixingDate;
     double indexFixing = 0.0;
     double spread = 0.0;
+    /// CMS coupons only: the CMS swap-rate fixing (= indexFixing), reported
+    /// as `cms_swap_rate`.
+    bool hasCmsSwapRate = false;
+    double cmsSwapRate = 0.0;
 };
 
 /**
  * Pre-serialize every flow of `leg` that has not occurred at `asOf`, in leg
  * order: fixed and floating coupons as Coupon records (with their accrual,
- * rate, and for floating coupons fixing date / index fixing / spread; a
- * fixing that cannot be read is NaN, which the mapper omits), any other cash
- * flow (the SimpleCashFlow notional exchanges) as a NotionalExchange record.
+ * rate, and for floating coupons fixing date / index fixing / spread, for
+ * CMS coupons also the swap-rate fixing; a fixing that cannot be read is
+ * NaN, which the mapper omits), any other cash flow (the SimpleCashFlow
+ * notional exchanges) as a NotionalExchange record.
  */
 void ExtractSwapLegFlows(
     const QuantLib::Leg& leg,

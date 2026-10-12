@@ -39,11 +39,11 @@ def test_vanilla_swap_in_arrears_differs_and_matches_ql(client, data_dir):
     """An in-arrears floating leg must (a) price differently from the same swap
     fixed in advance and (b) match a QuantLib reference built with inArrears."""
     in_arrears = load_json(data_dir / "ir_swaps/irs_eur_5y_payer_euribor6m_in_arrears.json")
-    assert in_arrears["swaps"][0]["vanilla_swap"]["floating_leg"]["in_arrears"] is True
+    assert in_arrears["swaps"][0]["vanilla_swap"]["floating_leg"]["coupons"]["in_arrears"] is True
 
     # In-advance twin: identical request with the in-arrears flag turned off.
     in_advance = copy.deepcopy(in_arrears)
-    in_advance["swaps"][0]["vanilla_swap"]["floating_leg"]["in_arrears"] = False
+    in_advance["swaps"][0]["vanilla_swap"]["floating_leg"]["coupons"]["in_arrears"] = False
 
     npv_arrears = api_npv(client.price("vanilla_swap", in_arrears), "swaps")
     npv_advance = api_npv(client.price("vanilla_swap", in_advance), "swaps")

@@ -1,15 +1,22 @@
-include "enums.fbs";
-include "vanilla_swap.fbs";
+include "swap_leg.fbs";
 
 namespace quantra;
 
-/// Basis swap with two floating legs (e.g., 3M vs 6M).
+/// Basis swap: two floating `SwapLeg`s in one currency (400 otherwise), e.g.
+/// 3M vs 6M IBOR or IBOR vs overnight, one paid and one received
+/// (`SwapLeg.pay_receive`; 400 when both take the same side). Each leg's
+/// `coupons` is `IborCoupons` or `OvernightCoupons`; the legs name their own
+/// discounting and forwarding curves (the usual multi-curve setup discounts
+/// both on the OIS curve and projects each on its tenor curve). Priced as two
+/// QuantLib legs (IborLeg with a zero-volatility Black pricer / OvernightLeg)
+/// on their discount curves, plus the notional exchanges when a leg asks for
+/// them (see `BasisSwapResponse`).
 table BasisSwap {
-    /// Payer/receiver refer to leg1. Presence-required: an omitted type is a
-    /// 400, never the alphabetical-0 default (Payer).
-    swap_type:enums.SwapType = null;
-    leg1:IborCoupons;
-    leg2:IborCoupons;
+    /// First floating leg. Required. Reported as `legs[0]`.
+    leg1:SwapLeg (required);
+    /// Second floating leg. Required. Reported as `legs[1]`; by convention
+    /// the leg `fair_spread` refers to when neither leg carries a spread.
+    leg2:SwapLeg (required);
 }
 
 root_type BasisSwap;

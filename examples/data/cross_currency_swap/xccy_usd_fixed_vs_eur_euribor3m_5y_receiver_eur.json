@@ -754,54 +754,54 @@
         "leg1": {
           "pay_receive": "Receive",
           "currency": "USD",
+          "notional": 10850000.0,
+          "schedule": {
+            "calendar": "TARGET",
+            "effective_date": "2025-01-17",
+            "termination_date": "2030-01-17",
+            "frequency": "Semiannual",
+            "convention": "ModifiedFollowing",
+            "termination_date_convention": "ModifiedFollowing",
+            "date_generation_rule": "Forward",
+            "end_of_month": false
+          },
+          "day_counter": "Thirty360",
+          "payment_convention": "ModifiedFollowing",
           "coupons_type": "FixedCoupons",
           "coupons": {
-            "notional": 10850000.0,
-            "schedule": {
-              "calendar": "TARGET",
-              "effective_date": "2025-01-17",
-              "termination_date": "2030-01-17",
-              "frequency": "Semiannual",
-              "convention": "ModifiedFollowing",
-              "termination_date_convention": "ModifiedFollowing",
-              "date_generation_rule": "Forward",
-              "end_of_month": false
-            },
-            "rate": 0.041,
-            "day_counter": "Thirty360",
-            "payment_convention": "ModifiedFollowing"
+            "rate": 0.041
           },
+          "discounting_curve": "USD_SOFR_OIS",
           "initial_exchange": true,
-          "final_exchange": true,
-          "discounting_curve": "USD_SOFR_OIS"
+          "final_exchange": true
         },
         "leg2": {
           "pay_receive": "Pay",
           "currency": "EUR",
+          "notional": 10000000.0,
+          "schedule": {
+            "calendar": "TARGET",
+            "effective_date": "2025-01-17",
+            "termination_date": "2030-01-17",
+            "frequency": "Quarterly",
+            "convention": "ModifiedFollowing",
+            "termination_date_convention": "ModifiedFollowing",
+            "date_generation_rule": "Forward",
+            "end_of_month": false
+          },
+          "day_counter": "Actual360",
+          "payment_convention": "ModifiedFollowing",
           "coupons_type": "IborCoupons",
           "coupons": {
-            "notional": 10000000.0,
-            "schedule": {
-              "calendar": "TARGET",
-              "effective_date": "2025-01-17",
-              "termination_date": "2030-01-17",
-              "frequency": "Quarterly",
-              "convention": "ModifiedFollowing",
-              "termination_date_convention": "ModifiedFollowing",
-              "date_generation_rule": "Forward",
-              "end_of_month": false
-            },
             "index": {
               "id": "EUR_3M"
             },
-            "spread": 0.0,
-            "day_counter": "Actual360",
-            "payment_convention": "ModifiedFollowing"
+            "spread": 0.0
           },
-          "initial_exchange": true,
-          "final_exchange": true,
           "discounting_curve": "EUR_USD_COLLATERAL",
-          "forwarding_curve": "EUR_ESTR_OIS"
+          "forwarding_curve": "EUR_ESTR_OIS",
+          "initial_exchange": true,
+          "final_exchange": true
         }
       },
       "fx_spot": "EURUSD_SPOT",

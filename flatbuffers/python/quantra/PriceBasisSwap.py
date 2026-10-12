@@ -6,7 +6,9 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Single basis swap pricing context with curve references.
+# One basis swap to price. The legs name their own discounting and
+# forwarding curves (`SwapLeg`); every reference is by id into `pricing`.
+# The NPV is reported in the legs' currency.
 class PriceBasisSwap(object):
     __slots__ = ['_tab']
 
@@ -25,6 +27,7 @@ class PriceBasisSwap(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # The swap. Required.
     # PriceBasisSwap
     def BasisSwap(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -36,29 +39,8 @@ class PriceBasisSwap(object):
             return obj
         return None
 
-    # PriceBasisSwap
-    def DiscountingCurve(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
-        if o != 0:
-            return self._tab.String(o + self._tab.Pos)
-        return None
-
-    # PriceBasisSwap
-    def ForwardingCurveLeg1(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            return self._tab.String(o + self._tab.Pos)
-        return None
-
-    # PriceBasisSwap
-    def ForwardingCurveLeg2(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
-        if o != 0:
-            return self._tab.String(o + self._tab.Pos)
-        return None
-
 def PriceBasisSwapStart(builder):
-    builder.StartObject(4)
+    builder.StartObject(1)
 
 def Start(builder):
     PriceBasisSwapStart(builder)
@@ -68,24 +50,6 @@ def PriceBasisSwapAddBasisSwap(builder, basisSwap):
 
 def AddBasisSwap(builder, basisSwap):
     PriceBasisSwapAddBasisSwap(builder, basisSwap)
-
-def PriceBasisSwapAddDiscountingCurve(builder, discountingCurve):
-    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(discountingCurve), 0)
-
-def AddDiscountingCurve(builder, discountingCurve):
-    PriceBasisSwapAddDiscountingCurve(builder, discountingCurve)
-
-def PriceBasisSwapAddForwardingCurveLeg1(builder, forwardingCurveLeg1):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(forwardingCurveLeg1), 0)
-
-def AddForwardingCurveLeg1(builder, forwardingCurveLeg1):
-    PriceBasisSwapAddForwardingCurveLeg1(builder, forwardingCurveLeg1)
-
-def PriceBasisSwapAddForwardingCurveLeg2(builder, forwardingCurveLeg2):
-    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(forwardingCurveLeg2), 0)
-
-def AddForwardingCurveLeg2(builder, forwardingCurveLeg2):
-    PriceBasisSwapAddForwardingCurveLeg2(builder, forwardingCurveLeg2)
 
 def PriceBasisSwapEnd(builder):
     return builder.EndObject()
@@ -103,9 +67,6 @@ class PriceBasisSwapT(object):
     # PriceBasisSwapT
     def __init__(self):
         self.basisSwap = None  # type: Optional[BasisSwapT]
-        self.discountingCurve = None  # type: str
-        self.forwardingCurveLeg1 = None  # type: str
-        self.forwardingCurveLeg2 = None  # type: str
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -130,28 +91,13 @@ class PriceBasisSwapT(object):
             return
         if priceBasisSwap.BasisSwap() is not None:
             self.basisSwap = BasisSwapT.InitFromObj(priceBasisSwap.BasisSwap())
-        self.discountingCurve = priceBasisSwap.DiscountingCurve()
-        self.forwardingCurveLeg1 = priceBasisSwap.ForwardingCurveLeg1()
-        self.forwardingCurveLeg2 = priceBasisSwap.ForwardingCurveLeg2()
 
     # PriceBasisSwapT
     def Pack(self, builder):
         if self.basisSwap is not None:
             basisSwap = self.basisSwap.Pack(builder)
-        if self.discountingCurve is not None:
-            discountingCurve = builder.CreateString(self.discountingCurve)
-        if self.forwardingCurveLeg1 is not None:
-            forwardingCurveLeg1 = builder.CreateString(self.forwardingCurveLeg1)
-        if self.forwardingCurveLeg2 is not None:
-            forwardingCurveLeg2 = builder.CreateString(self.forwardingCurveLeg2)
         PriceBasisSwapStart(builder)
         if self.basisSwap is not None:
             PriceBasisSwapAddBasisSwap(builder, basisSwap)
-        if self.discountingCurve is not None:
-            PriceBasisSwapAddDiscountingCurve(builder, discountingCurve)
-        if self.forwardingCurveLeg1 is not None:
-            PriceBasisSwapAddForwardingCurveLeg1(builder, forwardingCurveLeg1)
-        if self.forwardingCurveLeg2 is not None:
-            PriceBasisSwapAddForwardingCurveLeg2(builder, forwardingCurveLeg2)
         priceBasisSwap = PriceBasisSwapEnd(builder)
         return priceBasisSwap

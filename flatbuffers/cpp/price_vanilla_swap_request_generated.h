@@ -30,42 +30,29 @@ struct PriceVanillaSwapRequestT;
 struct PriceVanillaSwapT : public ::flatbuffers::NativeTable {
   typedef PriceVanillaSwap TableType;
   std::unique_ptr<quantra::VanillaSwapT> vanilla_swap{};
-  std::string discounting_curve{};
-  std::string forwarding_curve{};
   PriceVanillaSwapT() = default;
   PriceVanillaSwapT(const PriceVanillaSwapT &o);
   PriceVanillaSwapT(PriceVanillaSwapT&&) FLATBUFFERS_NOEXCEPT = default;
   PriceVanillaSwapT &operator=(PriceVanillaSwapT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Single vanilla swap pricing context with curve references.
+/// One vanilla swap to price. The legs name their own discounting and
+/// forwarding curves (`SwapLeg`); every reference is by id into `pricing`.
+/// The NPV is reported in the legs' currency.
 struct PriceVanillaSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceVanillaSwapT NativeTableType;
   typedef PriceVanillaSwapBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_VANILLA_SWAP = 4,
-    VT_DISCOUNTING_CURVE = 6,
-    VT_FORWARDING_CURVE = 8
+    VT_VANILLA_SWAP = 4
   };
+  /// The swap. Required.
   const quantra::VanillaSwap *vanilla_swap() const {
     return GetPointer<const quantra::VanillaSwap *>(VT_VANILLA_SWAP);
   }
-  /// Reference to curve in pricing.rates.curves by id.
-  const ::flatbuffers::String *discounting_curve() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNTING_CURVE);
-  }
-  /// Reference to curve in pricing.rates.curves for forward rates by id.
-  const ::flatbuffers::String *forwarding_curve() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_FORWARDING_CURVE);
-  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyOffset(verifier, VT_VANILLA_SWAP) &&
+           VerifyOffsetRequired(verifier, VT_VANILLA_SWAP) &&
            verifier.VerifyTable(vanilla_swap()) &&
-           VerifyOffset(verifier, VT_DISCOUNTING_CURVE) &&
-           verifier.VerifyString(discounting_curve()) &&
-           VerifyOffset(verifier, VT_FORWARDING_CURVE) &&
-           verifier.VerifyString(forwarding_curve()) &&
            verifier.EndTable();
   }
   PriceVanillaSwapT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -80,12 +67,6 @@ struct PriceVanillaSwapBuilder {
   void add_vanilla_swap(::flatbuffers::Offset<quantra::VanillaSwap> vanilla_swap) {
     fbb_.AddOffset(PriceVanillaSwap::VT_VANILLA_SWAP, vanilla_swap);
   }
-  void add_discounting_curve(::flatbuffers::Offset<::flatbuffers::String> discounting_curve) {
-    fbb_.AddOffset(PriceVanillaSwap::VT_DISCOUNTING_CURVE, discounting_curve);
-  }
-  void add_forwarding_curve(::flatbuffers::Offset<::flatbuffers::String> forwarding_curve) {
-    fbb_.AddOffset(PriceVanillaSwap::VT_FORWARDING_CURVE, forwarding_curve);
-  }
   explicit PriceVanillaSwapBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -93,34 +74,17 @@ struct PriceVanillaSwapBuilder {
   ::flatbuffers::Offset<PriceVanillaSwap> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<PriceVanillaSwap>(end);
+    fbb_.Required(o, PriceVanillaSwap::VT_VANILLA_SWAP);
     return o;
   }
 };
 
 inline ::flatbuffers::Offset<PriceVanillaSwap> CreatePriceVanillaSwap(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<quantra::VanillaSwap> vanilla_swap = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> discounting_curve = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> forwarding_curve = 0) {
+    ::flatbuffers::Offset<quantra::VanillaSwap> vanilla_swap = 0) {
   PriceVanillaSwapBuilder builder_(_fbb);
-  builder_.add_forwarding_curve(forwarding_curve);
-  builder_.add_discounting_curve(discounting_curve);
   builder_.add_vanilla_swap(vanilla_swap);
   return builder_.Finish();
-}
-
-inline ::flatbuffers::Offset<PriceVanillaSwap> CreatePriceVanillaSwapDirect(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<quantra::VanillaSwap> vanilla_swap = 0,
-    const char *discounting_curve = nullptr,
-    const char *forwarding_curve = nullptr) {
-  auto discounting_curve__ = discounting_curve ? _fbb.CreateString(discounting_curve) : 0;
-  auto forwarding_curve__ = forwarding_curve ? _fbb.CreateString(forwarding_curve) : 0;
-  return quantra::CreatePriceVanillaSwap(
-      _fbb,
-      vanilla_swap,
-      discounting_curve__,
-      forwarding_curve__);
 }
 
 ::flatbuffers::Offset<PriceVanillaSwap> CreatePriceVanillaSwap(::flatbuffers::FlatBufferBuilder &_fbb, const PriceVanillaSwapT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -136,7 +100,7 @@ struct PriceVanillaSwapRequestT : public ::flatbuffers::NativeTable {
   PriceVanillaSwapRequestT &operator=(PriceVanillaSwapRequestT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Request to price one or more vanilla swaps.
+/// Request to price one or more vanilla swaps against one market.
 struct PriceVanillaSwapRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceVanillaSwapRequestT NativeTableType;
   typedef PriceVanillaSwapRequestBuilder Builder;
@@ -151,7 +115,8 @@ struct PriceVanillaSwapRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceVanillaSwap>> *swaps() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceVanillaSwap>> *>(VT_SWAPS);
   }
-  /// Include detailed cashflows in response.
+  /// When true every response row lists each leg's future flows (coupons
+  /// and notional exchanges) in payment order.
   bool include_flows() const {
     return GetField<uint8_t>(VT_INCLUDE_FLOWS, 0) != 0;
   }
@@ -222,15 +187,11 @@ inline ::flatbuffers::Offset<PriceVanillaSwapRequest> CreatePriceVanillaSwapRequ
 ::flatbuffers::Offset<PriceVanillaSwapRequest> CreatePriceVanillaSwapRequest(::flatbuffers::FlatBufferBuilder &_fbb, const PriceVanillaSwapRequestT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 inline PriceVanillaSwapT::PriceVanillaSwapT(const PriceVanillaSwapT &o)
-      : vanilla_swap((o.vanilla_swap) ? new quantra::VanillaSwapT(*o.vanilla_swap) : nullptr),
-        discounting_curve(o.discounting_curve),
-        forwarding_curve(o.forwarding_curve) {
+      : vanilla_swap((o.vanilla_swap) ? new quantra::VanillaSwapT(*o.vanilla_swap) : nullptr) {
 }
 
 inline PriceVanillaSwapT &PriceVanillaSwapT::operator=(PriceVanillaSwapT o) FLATBUFFERS_NOEXCEPT {
   std::swap(vanilla_swap, o.vanilla_swap);
-  std::swap(discounting_curve, o.discounting_curve);
-  std::swap(forwarding_curve, o.forwarding_curve);
   return *this;
 }
 
@@ -244,8 +205,6 @@ inline void PriceVanillaSwap::UnPackTo(PriceVanillaSwapT *_o, const ::flatbuffer
   (void)_o;
   (void)_resolver;
   { auto _e = vanilla_swap(); if (_e) { if(_o->vanilla_swap) { _e->UnPackTo(_o->vanilla_swap.get(), _resolver); } else { _o->vanilla_swap = std::unique_ptr<quantra::VanillaSwapT>(_e->UnPack(_resolver)); } } else if (_o->vanilla_swap) { _o->vanilla_swap.reset(); } }
-  { auto _e = discounting_curve(); if (_e) _o->discounting_curve = _e->str(); }
-  { auto _e = forwarding_curve(); if (_e) _o->forwarding_curve = _e->str(); }
 }
 
 inline ::flatbuffers::Offset<PriceVanillaSwap> PriceVanillaSwap::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceVanillaSwapT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -257,13 +216,9 @@ inline ::flatbuffers::Offset<PriceVanillaSwap> CreatePriceVanillaSwap(::flatbuff
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceVanillaSwapT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _vanilla_swap = _o->vanilla_swap ? CreateVanillaSwap(_fbb, _o->vanilla_swap.get(), _rehasher) : 0;
-  auto _discounting_curve = _o->discounting_curve.empty() ? 0 : _fbb.CreateString(_o->discounting_curve);
-  auto _forwarding_curve = _o->forwarding_curve.empty() ? 0 : _fbb.CreateString(_o->forwarding_curve);
   return quantra::CreatePriceVanillaSwap(
       _fbb,
-      _vanilla_swap,
-      _discounting_curve,
-      _forwarding_curve);
+      _vanilla_swap);
 }
 
 inline PriceVanillaSwapRequestT::PriceVanillaSwapRequestT(const PriceVanillaSwapRequestT &o)

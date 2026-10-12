@@ -6,7 +6,21 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Basis swap pricing response (two floating legs).
+# Basis swap pricing result. With, for leg i, L_i the leg's flows in its
+# own frame (coupons +, initial exchange -N_i at the schedule start, final
+# exchange +N_i with the last coupon; no exchanges unless the leg asks for
+# them), D_i its discounting curve and s_i = -1 for `Pay` / +1 for
+# `Receive`:
+#   legs[i].npv           = s_i * CashFlows::npv(L_i, D_i)
+#   legs[i].npv_reporting = legs[i].npv                (one currency)
+#   npv                   = legs[0].npv + legs[1].npv
+# `fair_spread` holds the other leg and every exchange fixed and solves the
+# linear equation in the spread of leg k with that leg's signed annuity
+# B_k = s_k * CashFlows::bps(coupons of leg k, D_k) (exchanges excluded):
+#   fair_spread = spread_k - npv * 1e-4 / B_k
+# so repricing leg k at `fair_spread` gives npv = 0 to rounding. Every
+# value is as of the evaluation date (the curves' reference date); flows on
+# that date are excluded. Positive `npv` is in favour of the reported party.
 class BasisSwapResponse(object):
     __slots__ = ['_tab']
 
@@ -25,6 +39,8 @@ class BasisSwapResponse(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # Total present value in the legs' currency, positive in favour of the
+    # reported party.
     # BasisSwapResponse
     def Npv(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -32,101 +48,47 @@ class BasisSwapResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Par spread of the leg that carries the request's spread, the other
+    # leg's spread and every exchange held fixed: leg k = `leg1` when only
+    # `leg1.coupons.spread` is non-zero, `leg2` otherwise (both spreads
+    # zero or both non-zero: `leg2`, the quoted leg by market convention).
+    # Absent when that leg's annuity is zero or the value is not finite.
     # BasisSwapResponse
-    def Leg1Bps(self):
+    def FairSpread(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
+    # One result per leg, in request order (`leg1` then `leg2`): the leg's
+    # signed NPV and, with `include_flows`, its flows.
     # BasisSwapResponse
-    def Leg2Bps(self):
+    def Legs(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-    # BasisSwapResponse
-    def Leg1Npv(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-    # BasisSwapResponse
-    def Leg2Npv(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-    # Par spread for leg1 keeping leg2 spread fixed.
-    # BasisSwapResponse
-    def FairSpreadLeg1(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-    # Par spread for leg2 keeping leg1 spread fixed.
-    # BasisSwapResponse
-    def FairSpreadLeg2(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-    # BasisSwapResponse
-    def Leg1Flows(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
-        if o != 0:
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            from quantra.SwapLegFlow import SwapLegFlow
-            obj = SwapLegFlow()
+            from quantra.SwapLegResult import SwapLegResult
+            obj = SwapLegResult()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
     # BasisSwapResponse
-    def Leg1FlowsLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+    def LegsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
     # BasisSwapResponse
-    def Leg1FlowsIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
-        return o == 0
-
-    # BasisSwapResponse
-    def Leg2Flows(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
-        if o != 0:
-            x = self._tab.Vector(o)
-            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
-            x = self._tab.Indirect(x)
-            obj = SwapLegFlow()
-            obj.Init(self._tab.Bytes, x)
-            return obj
-        return None
-
-    # BasisSwapResponse
-    def Leg2FlowsLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
-        if o != 0:
-            return self._tab.VectorLen(o)
-        return 0
-
-    # BasisSwapResponse
-    def Leg2FlowsIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+    def LegsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         return o == 0
 
 def BasisSwapResponseStart(builder):
-    builder.StartObject(9)
+    builder.StartObject(3)
 
 def Start(builder):
     BasisSwapResponseStart(builder)
@@ -137,65 +99,23 @@ def BasisSwapResponseAddNpv(builder, npv):
 def AddNpv(builder, npv):
     BasisSwapResponseAddNpv(builder, npv)
 
-def BasisSwapResponseAddLeg1Bps(builder, leg1Bps):
-    builder.PrependFloat64Slot(1, leg1Bps, 0.0)
+def BasisSwapResponseAddFairSpread(builder, fairSpread):
+    builder.PrependFloat64Slot(1, fairSpread, None)
 
-def AddLeg1Bps(builder, leg1Bps):
-    BasisSwapResponseAddLeg1Bps(builder, leg1Bps)
+def AddFairSpread(builder, fairSpread):
+    BasisSwapResponseAddFairSpread(builder, fairSpread)
 
-def BasisSwapResponseAddLeg2Bps(builder, leg2Bps):
-    builder.PrependFloat64Slot(2, leg2Bps, 0.0)
+def BasisSwapResponseAddLegs(builder, legs):
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(legs), 0)
 
-def AddLeg2Bps(builder, leg2Bps):
-    BasisSwapResponseAddLeg2Bps(builder, leg2Bps)
+def AddLegs(builder, legs):
+    BasisSwapResponseAddLegs(builder, legs)
 
-def BasisSwapResponseAddLeg1Npv(builder, leg1Npv):
-    builder.PrependFloat64Slot(3, leg1Npv, 0.0)
-
-def AddLeg1Npv(builder, leg1Npv):
-    BasisSwapResponseAddLeg1Npv(builder, leg1Npv)
-
-def BasisSwapResponseAddLeg2Npv(builder, leg2Npv):
-    builder.PrependFloat64Slot(4, leg2Npv, 0.0)
-
-def AddLeg2Npv(builder, leg2Npv):
-    BasisSwapResponseAddLeg2Npv(builder, leg2Npv)
-
-def BasisSwapResponseAddFairSpreadLeg1(builder, fairSpreadLeg1):
-    builder.PrependFloat64Slot(5, fairSpreadLeg1, 0.0)
-
-def AddFairSpreadLeg1(builder, fairSpreadLeg1):
-    BasisSwapResponseAddFairSpreadLeg1(builder, fairSpreadLeg1)
-
-def BasisSwapResponseAddFairSpreadLeg2(builder, fairSpreadLeg2):
-    builder.PrependFloat64Slot(6, fairSpreadLeg2, 0.0)
-
-def AddFairSpreadLeg2(builder, fairSpreadLeg2):
-    BasisSwapResponseAddFairSpreadLeg2(builder, fairSpreadLeg2)
-
-def BasisSwapResponseAddLeg1Flows(builder, leg1Flows):
-    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(leg1Flows), 0)
-
-def AddLeg1Flows(builder, leg1Flows):
-    BasisSwapResponseAddLeg1Flows(builder, leg1Flows)
-
-def BasisSwapResponseStartLeg1FlowsVector(builder, numElems):
+def BasisSwapResponseStartLegsVector(builder, numElems):
     return builder.StartVector(4, numElems, 4)
 
-def StartLeg1FlowsVector(builder, numElems):
-    return BasisSwapResponseStartLeg1FlowsVector(builder, numElems)
-
-def BasisSwapResponseAddLeg2Flows(builder, leg2Flows):
-    builder.PrependUOffsetTRelativeSlot(8, flatbuffers.number_types.UOffsetTFlags.py_type(leg2Flows), 0)
-
-def AddLeg2Flows(builder, leg2Flows):
-    BasisSwapResponseAddLeg2Flows(builder, leg2Flows)
-
-def BasisSwapResponseStartLeg2FlowsVector(builder, numElems):
-    return builder.StartVector(4, numElems, 4)
-
-def StartLeg2FlowsVector(builder, numElems):
-    return BasisSwapResponseStartLeg2FlowsVector(builder, numElems)
+def StartLegsVector(builder, numElems):
+    return BasisSwapResponseStartLegsVector(builder, numElems)
 
 def BasisSwapResponseEnd(builder):
     return builder.EndObject()
@@ -213,14 +133,8 @@ class BasisSwapResponseT(object):
     # BasisSwapResponseT
     def __init__(self):
         self.npv = 0.0  # type: float
-        self.leg1Bps = 0.0  # type: float
-        self.leg2Bps = 0.0  # type: float
-        self.leg1Npv = 0.0  # type: float
-        self.leg2Npv = 0.0  # type: float
-        self.fairSpreadLeg1 = 0.0  # type: float
-        self.fairSpreadLeg2 = 0.0  # type: float
-        self.leg1Flows = None  # type: List[SwapLegFlowT]
-        self.leg2Flows = None  # type: List[SwapLegFlowT]
+        self.fairSpread = None  # type: Optional[float]
+        self.legs = None  # type: List[SwapLegResultT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -244,58 +158,30 @@ class BasisSwapResponseT(object):
         if basisSwapResponse is None:
             return
         self.npv = basisSwapResponse.Npv()
-        self.leg1Bps = basisSwapResponse.Leg1Bps()
-        self.leg2Bps = basisSwapResponse.Leg2Bps()
-        self.leg1Npv = basisSwapResponse.Leg1Npv()
-        self.leg2Npv = basisSwapResponse.Leg2Npv()
-        self.fairSpreadLeg1 = basisSwapResponse.FairSpreadLeg1()
-        self.fairSpreadLeg2 = basisSwapResponse.FairSpreadLeg2()
-        if not basisSwapResponse.Leg1FlowsIsNone():
-            self.leg1Flows = []
-            for i in range(basisSwapResponse.Leg1FlowsLength()):
-                if basisSwapResponse.Leg1Flows(i) is None:
-                    self.leg1Flows.append(None)
+        self.fairSpread = basisSwapResponse.FairSpread()
+        if not basisSwapResponse.LegsIsNone():
+            self.legs = []
+            for i in range(basisSwapResponse.LegsLength()):
+                if basisSwapResponse.Legs(i) is None:
+                    self.legs.append(None)
                 else:
-                    swapLegFlow_ = SwapLegFlowT.InitFromObj(basisSwapResponse.Leg1Flows(i))
-                    self.leg1Flows.append(swapLegFlow_)
-        if not basisSwapResponse.Leg2FlowsIsNone():
-            self.leg2Flows = []
-            for i in range(basisSwapResponse.Leg2FlowsLength()):
-                if basisSwapResponse.Leg2Flows(i) is None:
-                    self.leg2Flows.append(None)
-                else:
-                    swapLegFlow_ = SwapLegFlowT.InitFromObj(basisSwapResponse.Leg2Flows(i))
-                    self.leg2Flows.append(swapLegFlow_)
+                    swapLegResult_ = SwapLegResultT.InitFromObj(basisSwapResponse.Legs(i))
+                    self.legs.append(swapLegResult_)
 
     # BasisSwapResponseT
     def Pack(self, builder):
-        if self.leg1Flows is not None:
-            leg1Flowslist = []
-            for i in range(len(self.leg1Flows)):
-                leg1Flowslist.append(self.leg1Flows[i].Pack(builder))
-            BasisSwapResponseStartLeg1FlowsVector(builder, len(self.leg1Flows))
-            for i in reversed(range(len(self.leg1Flows))):
-                builder.PrependUOffsetTRelative(leg1Flowslist[i])
-            leg1Flows = builder.EndVector()
-        if self.leg2Flows is not None:
-            leg2Flowslist = []
-            for i in range(len(self.leg2Flows)):
-                leg2Flowslist.append(self.leg2Flows[i].Pack(builder))
-            BasisSwapResponseStartLeg2FlowsVector(builder, len(self.leg2Flows))
-            for i in reversed(range(len(self.leg2Flows))):
-                builder.PrependUOffsetTRelative(leg2Flowslist[i])
-            leg2Flows = builder.EndVector()
+        if self.legs is not None:
+            legslist = []
+            for i in range(len(self.legs)):
+                legslist.append(self.legs[i].Pack(builder))
+            BasisSwapResponseStartLegsVector(builder, len(self.legs))
+            for i in reversed(range(len(self.legs))):
+                builder.PrependUOffsetTRelative(legslist[i])
+            legs = builder.EndVector()
         BasisSwapResponseStart(builder)
         BasisSwapResponseAddNpv(builder, self.npv)
-        BasisSwapResponseAddLeg1Bps(builder, self.leg1Bps)
-        BasisSwapResponseAddLeg2Bps(builder, self.leg2Bps)
-        BasisSwapResponseAddLeg1Npv(builder, self.leg1Npv)
-        BasisSwapResponseAddLeg2Npv(builder, self.leg2Npv)
-        BasisSwapResponseAddFairSpreadLeg1(builder, self.fairSpreadLeg1)
-        BasisSwapResponseAddFairSpreadLeg2(builder, self.fairSpreadLeg2)
-        if self.leg1Flows is not None:
-            BasisSwapResponseAddLeg1Flows(builder, leg1Flows)
-        if self.leg2Flows is not None:
-            BasisSwapResponseAddLeg2Flows(builder, leg2Flows)
+        BasisSwapResponseAddFairSpread(builder, self.fairSpread)
+        if self.legs is not None:
+            BasisSwapResponseAddLegs(builder, legs)
         basisSwapResponse = BasisSwapResponseEnd(builder)
         return basisSwapResponse

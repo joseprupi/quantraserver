@@ -312,7 +312,7 @@
     },
     "quantra_SwapLegFlow" : {
       "type" : "object",
-      "description" : "Cashflow for a swap leg.",
+      "description" : "One cash flow of a swap leg (`SwapLegResult.flows` and the zero-coupon /\ninflation swap flow lists).",
       "properties" : {
         "payment_date" : {
                 "type" : "string"
@@ -361,99 +361,9 @@
               },
         "kind" : {
                 "$ref" : "#/definitions/quantra_enums_SwapFlowKind",
-                "description" : "Kind of flow. Set on every flow of a `SwapLeg` result\n(`SwapLegResult.flows`), whose lists mix coupons and notional exchanges\n(a NotionalExchange flow has `payment_date`, `amount`, `discount`,\n`present_value` and `kind` only). Absent on the other swap endpoints,\nwhose flows are all coupons."
+                "description" : "Kind of flow. Set on every flow of a `SwapLeg` result\n(`SwapLegResult.flows`, every swap endpoint), whose lists mix coupons\nand notional exchanges (a NotionalExchange flow has `payment_date`,\n`amount`, `discount`, `present_value` and `kind` only). Absent on the\nzero-coupon and inflation swap endpoints, whose flows are all coupons."
               }
       },
-      "additionalProperties" : false
-    },
-    "quantra_SwapLegResponse" : {
-      "type" : "object",
-      "description" : "Response for a single swap leg.",
-      "properties" : {
-        "npv" : {
-                "type" : "number"
-              },
-        "bps" : {
-                "type" : "number"
-              },
-        "flows" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwapLegFlow"}
-              }
-      },
-      "additionalProperties" : false
-    },
-    "quantra_VanillaSwapResponse" : {
-      "type" : "object",
-      "description" : "Full vanilla swap pricing response.",
-      "properties" : {
-        "npv" : {
-                "type" : "number"
-              },
-        "fair_rate" : {
-                "type" : "number"
-              },
-        "fair_spread" : {
-                "type" : "number"
-              },
-        "fixed_leg_bps" : {
-                "type" : "number"
-              },
-        "floating_leg_bps" : {
-                "type" : "number"
-              },
-        "fixed_leg_npv" : {
-                "type" : "number"
-              },
-        "floating_leg_npv" : {
-                "type" : "number"
-              },
-        "fixed_leg_flows" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwapLegFlow"},
-                "description" : "Optional detailed flows per leg."
-              },
-        "floating_leg_flows" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwapLegFlow"}
-              },
-        "used_cms_pricer_type" : {
-                "$ref" : "#/definitions/quantra_enums_CmsPricerType",
-                "description" : "Effective CMS pricer type used for CMS leg valuation."
-              },
-        "used_cms_yield_curve_model" : {
-                "$ref" : "#/definitions/quantra_enums_CmsYieldCurveModel",
-                "description" : "Effective yield-curve model used by CMS Hagan-family pricers."
-              },
-        "used_cms_mean_reversion" : {
-                "type" : "number",
-                "description" : "Effective CMS mean reversion used by pricer. Absent when no CMS leg."
-              },
-        "used_cms_hagan_lower_limit" : {
-                "type" : "number",
-                "description" : "Effective Numeric Hagan lower integration limit. Absent when not applicable."
-              },
-        "used_cms_hagan_upper_limit" : {
-                "type" : "number",
-                "description" : "Effective Numeric Hagan upper integration limit. Absent when not applicable."
-              },
-        "used_cms_hagan_precision" : {
-                "type" : "number",
-                "description" : "Effective Numeric Hagan integration precision. Absent when not applicable."
-              },
-        "used_cms_hagan_hard_upper_limit" : {
-                "type" : "number",
-                "description" : "Effective Numeric Hagan hard upper integration limit. Absent when not applicable."
-              }
-      },
-      "additionalProperties" : false
-    },
-    "quantra_PriceVanillaSwapResponse" : {
-      "type" : "object",
-      "description" : "Response wrapper for multiple vanilla swaps.",
-      "properties" : {
-        "swaps" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_VanillaSwapResponse"}
-              }
-      },
-      "required" : ["swaps"],
       "additionalProperties" : false
     },
     "quantra_YearOnYearInflationSwapResponse" : {

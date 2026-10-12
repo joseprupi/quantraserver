@@ -14,9 +14,8 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
              "Non-compatible flatbuffers version included");
 
 #include "enums_generated.h"
-#include "ois_swap_generated.h"
-#include "vanilla_swap_generated.h"
-#include "vanilla_swap_response_generated.h"
+#include "swap_coupons_generated.h"
+#include "swap_leg_flow_generated.h"
 
 namespace quantra {
 
@@ -28,21 +27,28 @@ struct SwapLegResult;
 struct SwapLegResultBuilder;
 struct SwapLegResultT;
 
-/// The coupons of one swap leg: exactly one of the coupon tables the swap
-/// endpoints share. In JSON a union is written as two fields, the tag and the
-/// value: `"coupons_type": "FixedCoupons", "coupons": { ... }` (the tag must
-/// precede the value).
-///   FixedCoupons     fixed rate (`rate`): `price-vanilla-swap`'s fixed_leg.
-///   IborCoupons      one IBOR fixing per period (+ `spread`); the index must
-///                    be an IBOR index (an overnight index is a 400 naming
+/// The kind-specific part of one swap leg's coupons: exactly one of the
+/// coupon tables the swap endpoints share (the shared fields — notional,
+/// schedule, day count, payment conventions — are on the `SwapLeg`). In JSON
+/// a union is written as two fields, the tag and the value:
+/// `"coupons_type": "FixedCoupons", "coupons": { "rate": 0.03 }` (the tag
+/// must precede the value). Which members an endpoint accepts on which leg
+/// is fixed by the leg's role (400 naming the field otherwise):
+///   FixedCoupons     a fixed rate (`rate`): `VanillaSwap.fixed_leg`,
+///                    `OisSwap.fixed_leg`, either `CrossCurrencySwap` leg.
+///   IborCoupons      one IBOR fixing per period (+ `spread`):
+///                    `VanillaSwap.floating_leg`, either `BasisSwap` leg,
+///                    either `CrossCurrencySwap` leg; the index must be an
+///                    IBOR index (an overnight index is a 400 naming
 ///                    OvernightCoupons).
 ///   OvernightCoupons daily overnight fixings compounded / averaged over each
 ///                    period with payment lag, lookback, lockout and
-///                    observation shift (`price-ois-swap`'s overnight_leg,
-///                    built by the same code); the index must be an overnight
-///                    index (an IBOR index is a 400 naming IborCoupons).
-///   CmsCoupons       constant-maturity swap-rate coupons; not supported on
-///                    `price-cross-currency-swap` in this version (400).
+///                    observation shift: `OisSwap.overnight_leg`, either
+///                    `BasisSwap` leg, either `CrossCurrencySwap` leg; the
+///                    index must be an overnight index (an IBOR index is a
+///                    400 naming IborCoupons).
+///   CmsCoupons       constant-maturity swap-rate coupons:
+///                    `VanillaSwap.floating_leg` only.
 enum SwapCoupons : uint8_t {
   SwapCoupons_NONE = 0,
   SwapCoupons_FixedCoupons = 1,
@@ -193,17 +199,34 @@ struct SwapLegT : public ::flatbuffers::NativeTable {
   typedef SwapLeg TableType;
   ::flatbuffers::Optional<quantra::enums::PayReceive> pay_receive = ::flatbuffers::nullopt;
   std::string currency{};
+  ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
+  std::vector<double> notionals{};
+  std::unique_ptr<quantra::ScheduleT> schedule{};
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Calendar> payment_calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt;
   quantra::SwapCouponsUnion coupons{};
   std::string discounting_curve{};
   std::string forwarding_curve{};
   ::flatbuffers::Optional<bool> initial_exchange = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<bool> final_exchange = ::flatbuffers::nullopt;
+  SwapLegT() = default;
+  SwapLegT(const SwapLegT &o);
+  SwapLegT(SwapLegT&&) FLATBUFFERS_NOEXCEPT = default;
+  SwapLegT &operator=(SwapLegT o) FLATBUFFERS_NOEXCEPT;
 };
 
 /// One leg of a swap: a coupon stream in one currency, discounted on its own
 /// curve, with its own principal exchanges, paid or received by the party
-/// whose NPV is reported. This is the leg model of `price-cross-currency-swap`
-/// (0.9.0) and, from 0.10.0, of every swap endpoint.
+/// whose NPV is reported. The fields every coupon kind shares (notional,
+/// schedule, day count, payment conventions) live on the leg, as in the
+/// FpML / ORE leg model; `coupons` holds only what is specific to the kind.
+/// This is the leg model of every swap endpoint:
+/// `VanillaSwap`, `OisSwap`, `BasisSwap` (one currency, no spot) and
+/// `CrossCurrencySwap` (two currencies) are each two `SwapLeg`s under
+/// role-named fields, and a swaption underlying is a `VanillaSwap` or an
+/// `OisSwap` made of them.
 ///
 /// Principal exchanges follow the leg: the party that RECEIVES the leg's
 /// coupons PAYS the leg's notional on the schedule's start date (initial
@@ -218,31 +241,91 @@ struct SwapLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_PAY_RECEIVE = 4,
     VT_CURRENCY = 6,
-    VT_COUPONS_TYPE = 8,
-    VT_COUPONS = 10,
-    VT_DISCOUNTING_CURVE = 12,
-    VT_FORWARDING_CURVE = 14,
-    VT_INITIAL_EXCHANGE = 16,
-    VT_FINAL_EXCHANGE = 18
+    VT_NOTIONAL = 8,
+    VT_NOTIONALS = 10,
+    VT_SCHEDULE = 12,
+    VT_DAY_COUNTER = 14,
+    VT_PAYMENT_CONVENTION = 16,
+    VT_PAYMENT_CALENDAR = 18,
+    VT_PAYMENT_LAG = 20,
+    VT_COUPONS_TYPE = 22,
+    VT_COUPONS = 24,
+    VT_DISCOUNTING_CURVE = 26,
+    VT_FORWARDING_CURVE = 28,
+    VT_INITIAL_EXCHANGE = 30,
+    VT_FINAL_EXCHANGE = 32
   };
   /// Whether the reported party pays (`Pay`) or receives (`Receive`) this
   /// leg's coupons. Presence-required; the two legs of a swap must take
-  /// opposite values (400 otherwise).
+  /// opposite values (400 otherwise). Replaces the pre-0.10.0 `swap_type`
+  /// (Payer = pay the fixed leg / leg1).
   ::flatbuffers::Optional<quantra::enums::PayReceive> pay_receive() const {
     return GetOptional<int8_t, quantra::enums::PayReceive>(VT_PAY_RECEIVE);
   }
   /// ISO 4217 code of the leg's currency (three uppercase letters). A
   /// floating leg's index must carry the same `IndexDef.currency` (400
-  /// otherwise). Required.
+  /// otherwise). The two legs of a vanilla, OIS or basis swap must be in
+  /// one currency, the two legs of a cross-currency swap in two. Required.
   const ::flatbuffers::String *currency() const {
     return GetPointer<const ::flatbuffers::String *>(VT_CURRENCY);
+  }
+  /// Constant notional of the coupons and of the principal exchanges.
+  /// Presence-required and must be > 0 unless the per-period `notionals`
+  /// vector is supplied (then optional). A bare double would default to a
+  /// silent zero notional.
+  ::flatbuffers::Optional<double> notional() const {
+    return GetOptional<double, double>(VT_NOTIONAL);
+  }
+  /// Optional per-period notionals, one entry per coupon period in schedule
+  /// order, each > 0. Present => amortizing / step-up leg (overrides
+  /// `notional` for the coupons; the first entry is the exchanged
+  /// notional); absent => constant `notional`. Accepted on the legs of
+  /// `price-vanilla-swap`; rejected (400) on `price-ois-swap`,
+  /// `price-basis-swap`, `price-cross-currency-swap` and a swaption
+  /// underlying.
+  const ::flatbuffers::Vector<double> *notionals() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_NOTIONALS);
+  }
+  /// Accrual schedule of the coupons. Required.
+  const quantra::Schedule *schedule() const {
+    return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
+  }
+  /// Accrual day count of the coupons. Presence-required with
+  /// `FixedCoupons`, `IborCoupons` and `CmsCoupons`; accepted but not read
+  /// with `OvernightCoupons` (the overnight index's day counter applies, as
+  /// in QuantLib's OvernightIndexedSwap).
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
+  }
+  /// Business-day convention applied to the payment dates.
+  /// Presence-required. Not read for a swaption underlying, whose
+  /// QuantLib::VanillaSwap / OvernightIndexedSwap adjusts both legs with
+  /// the floating schedule's convention.
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_PAYMENT_CONVENTION);
+  }
+  /// Calendar the payment dates are adjusted (and lagged) on. Absent = the
+  /// schedule's calendar. Presence-required on both legs of
+  /// `price-ois-swap` (an OIS pays with the overnight calendar and lag);
+  /// optional elsewhere; rejected with `CmsCoupons` (400 when present).
+  ::flatbuffers::Optional<quantra::enums::Calendar> payment_calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_PAYMENT_CALENDAR);
+  }
+  /// Payment lag in business days (on `payment_calendar`) between each
+  /// accrual end and its payment. Absent = 0: pay on the adjusted accrual
+  /// end. Presence-required on both legs of `price-ois-swap` (QuantLib's
+  /// OvernightIndexedSwap applies one lag to both legs; the leg model makes
+  /// it a per-leg convention); optional elsewhere; rejected with
+  /// `CmsCoupons` (400 when present). Must be >= 0.
+  ::flatbuffers::Optional<int32_t> payment_lag() const {
+    return GetOptional<int32_t, int32_t>(VT_PAYMENT_LAG);
   }
   quantra::SwapCoupons coupons_type() const {
     return static_cast<quantra::SwapCoupons>(GetField<uint8_t>(VT_COUPONS_TYPE, 0));
   }
-  /// The coupons (see `SwapCoupons`). Required; the tag `coupons_type` is
-  /// required with it. Constant `notional` only: a per-period `notionals`
-  /// vector is rejected (400) in this version.
+  /// What the leg pays each period (see `SwapCoupons`): the kind-specific
+  /// fields only (rate; index, spread, fixing...). Required; the tag
+  /// `coupons_type` is required with it.
   const void *coupons() const {
     return GetPointer<const void *>(VT_COUPONS);
   }
@@ -261,26 +344,32 @@ struct SwapLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   }
   /// Id of the curve in `pricing.rates.curves` that discounts every flow of
   /// this leg (coupons and exchanges). For a collateralised cross-currency
-  /// trade, the currency's collateral-adjusted curve. Required.
+  /// trade, the currency's collateral-adjusted curve. A swaption underlying
+  /// needs one discount curve: both of its legs must name the same id.
+  /// Required.
   const ::flatbuffers::String *discounting_curve() const {
     return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNTING_CURVE);
   }
   /// Id of the curve in `pricing.rates.curves` the floating index projects
-  /// off. Required with `IborCoupons` / `OvernightCoupons` (400 when
-  /// missing), rejected with `FixedCoupons` (400 when present: a fixed leg
-  /// projects nothing).
+  /// off (for `CmsCoupons`, the curve the swap index's IBOR leg projects
+  /// off). Required with `IborCoupons` / `OvernightCoupons` / `CmsCoupons`
+  /// (400 when missing), rejected with `FixedCoupons` (400 when present: a
+  /// fixed leg projects nothing).
   const ::flatbuffers::String *forwarding_curve() const {
     return GetPointer<const ::flatbuffers::String *>(VT_FORWARDING_CURVE);
   }
   /// Whether the leg's notional is exchanged on its schedule's start date
-  /// (paid by the receiver of the leg's coupons). Presence-required on every
-  /// leg (`false` on both legs of an ordinary single-currency swap).
+  /// (paid by the receiver of the leg's coupons). Presence-required on
+  /// `price-cross-currency-swap`; on the single-currency endpoints absent =
+  /// false (an explicit `true` is priced: the exchange becomes a
+  /// NotionalExchange flow of the leg). Rejected when true on a swaption
+  /// underlying.
   ::flatbuffers::Optional<bool> initial_exchange() const {
     return GetOptional<uint8_t, bool>(VT_INITIAL_EXCHANGE);
   }
   /// Whether the leg's notional is exchanged on the last coupon's payment
-  /// date (received by the receiver of the leg's coupons).
-  /// Presence-required on every leg.
+  /// date (received by the receiver of the leg's coupons). Same presence
+  /// rule as `initial_exchange`.
   ::flatbuffers::Optional<bool> final_exchange() const {
     return GetOptional<uint8_t, bool>(VT_FINAL_EXCHANGE);
   }
@@ -289,6 +378,15 @@ struct SwapLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<int8_t>(verifier, VT_PAY_RECEIVE, 1) &&
            VerifyOffsetRequired(verifier, VT_CURRENCY) &&
            verifier.VerifyString(currency()) &&
+           VerifyField<double>(verifier, VT_NOTIONAL, 8) &&
+           VerifyOffset(verifier, VT_NOTIONALS) &&
+           verifier.VerifyVector(notionals()) &&
+           VerifyOffsetRequired(verifier, VT_SCHEDULE) &&
+           verifier.VerifyTable(schedule()) &&
+           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
+           VerifyField<int8_t>(verifier, VT_PAYMENT_CONVENTION, 1) &&
+           VerifyField<int8_t>(verifier, VT_PAYMENT_CALENDAR, 1) &&
+           VerifyField<int32_t>(verifier, VT_PAYMENT_LAG, 4) &&
            VerifyField<uint8_t>(verifier, VT_COUPONS_TYPE, 1) &&
            VerifyOffsetRequired(verifier, VT_COUPONS) &&
            VerifySwapCoupons(verifier, coupons(), coupons_type()) &&
@@ -331,6 +429,27 @@ struct SwapLegBuilder {
   void add_currency(::flatbuffers::Offset<::flatbuffers::String> currency) {
     fbb_.AddOffset(SwapLeg::VT_CURRENCY, currency);
   }
+  void add_notional(double notional) {
+    fbb_.AddElement<double>(SwapLeg::VT_NOTIONAL, notional);
+  }
+  void add_notionals(::flatbuffers::Offset<::flatbuffers::Vector<double>> notionals) {
+    fbb_.AddOffset(SwapLeg::VT_NOTIONALS, notionals);
+  }
+  void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
+    fbb_.AddOffset(SwapLeg::VT_SCHEDULE, schedule);
+  }
+  void add_day_counter(quantra::enums::DayCounter day_counter) {
+    fbb_.AddElement<int8_t>(SwapLeg::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
+  }
+  void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
+    fbb_.AddElement<int8_t>(SwapLeg::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
+  }
+  void add_payment_calendar(quantra::enums::Calendar payment_calendar) {
+    fbb_.AddElement<int8_t>(SwapLeg::VT_PAYMENT_CALENDAR, static_cast<int8_t>(payment_calendar));
+  }
+  void add_payment_lag(int32_t payment_lag) {
+    fbb_.AddElement<int32_t>(SwapLeg::VT_PAYMENT_LAG, payment_lag);
+  }
   void add_coupons_type(quantra::SwapCoupons coupons_type) {
     fbb_.AddElement<uint8_t>(SwapLeg::VT_COUPONS_TYPE, static_cast<uint8_t>(coupons_type), 0);
   }
@@ -357,6 +476,7 @@ struct SwapLegBuilder {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<SwapLeg>(end);
     fbb_.Required(o, SwapLeg::VT_CURRENCY);
+    fbb_.Required(o, SwapLeg::VT_SCHEDULE);
     fbb_.Required(o, SwapLeg::VT_COUPONS);
     fbb_.Required(o, SwapLeg::VT_DISCOUNTING_CURVE);
     return o;
@@ -367,6 +487,13 @@ inline ::flatbuffers::Offset<SwapLeg> CreateSwapLeg(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<quantra::enums::PayReceive> pay_receive = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::String> currency = 0,
+    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> notionals = 0,
+    ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> payment_calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt,
     quantra::SwapCoupons coupons_type = quantra::SwapCoupons_NONE,
     ::flatbuffers::Offset<void> coupons = 0,
     ::flatbuffers::Offset<::flatbuffers::String> discounting_curve = 0,
@@ -374,13 +501,20 @@ inline ::flatbuffers::Offset<SwapLeg> CreateSwapLeg(
     ::flatbuffers::Optional<bool> initial_exchange = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<bool> final_exchange = ::flatbuffers::nullopt) {
   SwapLegBuilder builder_(_fbb);
+  if(notional) { builder_.add_notional(*notional); }
   builder_.add_forwarding_curve(forwarding_curve);
   builder_.add_discounting_curve(discounting_curve);
   builder_.add_coupons(coupons);
+  if(payment_lag) { builder_.add_payment_lag(*payment_lag); }
+  builder_.add_schedule(schedule);
+  builder_.add_notionals(notionals);
   builder_.add_currency(currency);
   if(final_exchange) { builder_.add_final_exchange(*final_exchange); }
   if(initial_exchange) { builder_.add_initial_exchange(*initial_exchange); }
   builder_.add_coupons_type(coupons_type);
+  if(payment_calendar) { builder_.add_payment_calendar(*payment_calendar); }
+  if(payment_convention) { builder_.add_payment_convention(*payment_convention); }
+  if(day_counter) { builder_.add_day_counter(*day_counter); }
   if(pay_receive) { builder_.add_pay_receive(*pay_receive); }
   return builder_.Finish();
 }
@@ -389,6 +523,13 @@ inline ::flatbuffers::Offset<SwapLeg> CreateSwapLegDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<quantra::enums::PayReceive> pay_receive = ::flatbuffers::nullopt,
     const char *currency = nullptr,
+    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
+    const std::vector<double> *notionals = nullptr,
+    ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> payment_calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt,
     quantra::SwapCoupons coupons_type = quantra::SwapCoupons_NONE,
     ::flatbuffers::Offset<void> coupons = 0,
     const char *discounting_curve = nullptr,
@@ -396,12 +537,20 @@ inline ::flatbuffers::Offset<SwapLeg> CreateSwapLegDirect(
     ::flatbuffers::Optional<bool> initial_exchange = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<bool> final_exchange = ::flatbuffers::nullopt) {
   auto currency__ = currency ? _fbb.CreateString(currency) : 0;
+  auto notionals__ = notionals ? _fbb.CreateVector<double>(*notionals) : 0;
   auto discounting_curve__ = discounting_curve ? _fbb.CreateString(discounting_curve) : 0;
   auto forwarding_curve__ = forwarding_curve ? _fbb.CreateString(forwarding_curve) : 0;
   return quantra::CreateSwapLeg(
       _fbb,
       pay_receive,
       currency__,
+      notional,
+      notionals__,
+      schedule,
+      day_counter,
+      payment_convention,
+      payment_calendar,
+      payment_lag,
       coupons_type,
       coupons,
       discounting_curve__,
@@ -438,12 +587,13 @@ struct SwapLegResult FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   /// pays the leg (`Pay`) and +1 when it receives it (`Receive`). A paid leg
   /// is therefore negative only when it is worth paying for: paying a 2.55%
   /// fixed leg (with its exchanges) on a 3% curve is in the payer's favour
-  /// and positive.
+  /// and positive. The swap's `npv` is the sum of its legs' values.
   double npv() const {
     return GetField<double>(VT_NPV, 0.0);
   }
   /// `npv` converted to the swap's reporting currency at the as-of exchange
-  /// rate (unchanged when the leg is in the reporting currency).
+  /// rate. Equal to `npv` on a single-currency swap (vanilla, OIS, basis),
+  /// whose reporting currency is the legs' currency.
   double npv_reporting() const {
     return GetField<double>(VT_NPV_REPORTING, 0.0);
   }
@@ -453,7 +603,8 @@ struct SwapLegResult FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   /// sum of their `present_value`s is `npv / s` (s = -1 for `Pay`, +1 for
   /// `Receive`). For an overnight coupon `rate` is the compounded rate (plus
   /// spread) and `index_fixing` the fixing on the coupon's first fixing
-  /// date, as on `price-ois-swap`.
+  /// date; for a CMS coupon `index_fixing` and `cms_swap_rate` are the CMS
+  /// swap-rate fixing.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *flows() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *>(VT_FLOWS);
   }
@@ -522,6 +673,41 @@ inline ::flatbuffers::Offset<SwapLegResult> CreateSwapLegResultDirect(
 
 ::flatbuffers::Offset<SwapLegResult> CreateSwapLegResult(::flatbuffers::FlatBufferBuilder &_fbb, const SwapLegResultT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+inline SwapLegT::SwapLegT(const SwapLegT &o)
+      : pay_receive(o.pay_receive),
+        currency(o.currency),
+        notional(o.notional),
+        notionals(o.notionals),
+        schedule((o.schedule) ? new quantra::ScheduleT(*o.schedule) : nullptr),
+        day_counter(o.day_counter),
+        payment_convention(o.payment_convention),
+        payment_calendar(o.payment_calendar),
+        payment_lag(o.payment_lag),
+        coupons(o.coupons),
+        discounting_curve(o.discounting_curve),
+        forwarding_curve(o.forwarding_curve),
+        initial_exchange(o.initial_exchange),
+        final_exchange(o.final_exchange) {
+}
+
+inline SwapLegT &SwapLegT::operator=(SwapLegT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(pay_receive, o.pay_receive);
+  std::swap(currency, o.currency);
+  std::swap(notional, o.notional);
+  std::swap(notionals, o.notionals);
+  std::swap(schedule, o.schedule);
+  std::swap(day_counter, o.day_counter);
+  std::swap(payment_convention, o.payment_convention);
+  std::swap(payment_calendar, o.payment_calendar);
+  std::swap(payment_lag, o.payment_lag);
+  std::swap(coupons, o.coupons);
+  std::swap(discounting_curve, o.discounting_curve);
+  std::swap(forwarding_curve, o.forwarding_curve);
+  std::swap(initial_exchange, o.initial_exchange);
+  std::swap(final_exchange, o.final_exchange);
+  return *this;
+}
+
 inline SwapLegT *SwapLeg::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<SwapLegT>(new SwapLegT());
   UnPackTo(_o.get(), _resolver);
@@ -533,6 +719,13 @@ inline void SwapLeg::UnPackTo(SwapLegT *_o, const ::flatbuffers::resolver_functi
   (void)_resolver;
   { auto _e = pay_receive(); _o->pay_receive = _e; }
   { auto _e = currency(); if (_e) _o->currency = _e->str(); }
+  { auto _e = notional(); _o->notional = _e; }
+  { auto _e = notionals(); if (_e) { _o->notionals.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->notionals[_i] = _e->Get(_i); } } else { _o->notionals.resize(0); } }
+  { auto _e = schedule(); if (_e) { if(_o->schedule) { _e->UnPackTo(_o->schedule.get(), _resolver); } else { _o->schedule = std::unique_ptr<quantra::ScheduleT>(_e->UnPack(_resolver)); } } else if (_o->schedule) { _o->schedule.reset(); } }
+  { auto _e = day_counter(); _o->day_counter = _e; }
+  { auto _e = payment_convention(); _o->payment_convention = _e; }
+  { auto _e = payment_calendar(); _o->payment_calendar = _e; }
+  { auto _e = payment_lag(); _o->payment_lag = _e; }
   { auto _e = coupons_type(); _o->coupons.type = _e; }
   { auto _e = coupons(); if (_e) _o->coupons.value = quantra::SwapCouponsUnion::UnPack(_e, coupons_type(), _resolver); }
   { auto _e = discounting_curve(); if (_e) _o->discounting_curve = _e->str(); }
@@ -551,6 +744,13 @@ inline ::flatbuffers::Offset<SwapLeg> CreateSwapLeg(::flatbuffers::FlatBufferBui
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SwapLegT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _pay_receive = _o->pay_receive;
   auto _currency = _fbb.CreateString(_o->currency);
+  auto _notional = _o->notional;
+  auto _notionals = _o->notionals.size() ? _fbb.CreateVector(_o->notionals) : 0;
+  auto _schedule = _o->schedule ? CreateSchedule(_fbb, _o->schedule.get(), _rehasher) : 0;
+  auto _day_counter = _o->day_counter;
+  auto _payment_convention = _o->payment_convention;
+  auto _payment_calendar = _o->payment_calendar;
+  auto _payment_lag = _o->payment_lag;
   auto _coupons_type = _o->coupons.type;
   auto _coupons = _o->coupons.Pack(_fbb);
   auto _discounting_curve = _fbb.CreateString(_o->discounting_curve);
@@ -561,6 +761,13 @@ inline ::flatbuffers::Offset<SwapLeg> CreateSwapLeg(::flatbuffers::FlatBufferBui
       _fbb,
       _pay_receive,
       _currency,
+      _notional,
+      _notionals,
+      _schedule,
+      _day_counter,
+      _payment_convention,
+      _payment_calendar,
+      _payment_lag,
       _coupons_type,
       _coupons,
       _discounting_curve,

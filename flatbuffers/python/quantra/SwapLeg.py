@@ -8,8 +8,14 @@ np = import_numpy()
 
 # One leg of a swap: a coupon stream in one currency, discounted on its own
 # curve, with its own principal exchanges, paid or received by the party
-# whose NPV is reported. This is the leg model of `price-cross-currency-swap`
-# (0.9.0) and, from 0.10.0, of every swap endpoint.
+# whose NPV is reported. The fields every coupon kind shares (notional,
+# schedule, day count, payment conventions) live on the leg, as in the
+# FpML / ORE leg model; `coupons` holds only what is specific to the kind.
+# This is the leg model of every swap endpoint:
+# `VanillaSwap`, `OisSwap`, `BasisSwap` (one currency, no spot) and
+# `CrossCurrencySwap` (two currencies) are each two `SwapLeg`s under
+# role-named fields, and a swaption underlying is a `VanillaSwap` or an
+# `OisSwap` made of them.
 #
 # Principal exchanges follow the leg: the party that RECEIVES the leg's
 # coupons PAYS the leg's notional on the schedule's start date (initial
@@ -38,7 +44,8 @@ class SwapLeg(object):
 
     # Whether the reported party pays (`Pay`) or receives (`Receive`) this
     # leg's coupons. Presence-required; the two legs of a swap must take
-    # opposite values (400 otherwise).
+    # opposite values (400 otherwise). Replaces the pre-0.10.0 `swap_type`
+    # (Payer = pay the fixed leg / leg1).
     # SwapLeg
     def PayReceive(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -48,7 +55,8 @@ class SwapLeg(object):
 
     # ISO 4217 code of the leg's currency (three uppercase letters). A
     # floating leg's index must carry the same `IndexDef.currency` (400
-    # otherwise). Required.
+    # otherwise). The two legs of a vanilla, OIS or basis swap must be in
+    # one currency, the two legs of a cross-currency swap in two. Required.
     # SwapLeg
     def Currency(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -56,19 +64,122 @@ class SwapLeg(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Constant notional of the coupons and of the principal exchanges.
+    # Presence-required and must be > 0 unless the per-period `notionals`
+    # vector is supplied (then optional). A bare double would default to a
+    # silent zero notional.
+    # SwapLeg
+    def Notional(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
+    # Optional per-period notionals, one entry per coupon period in schedule
+    # order, each > 0. Present => amortizing / step-up leg (overrides
+    # `notional` for the coupons; the first entry is the exchanged
+    # notional); absent => constant `notional`. Accepted on the legs of
+    # `price-vanilla-swap`; rejected (400) on `price-ois-swap`,
+    # `price-basis-swap`, `price-cross-currency-swap` and a swaption
+    # underlying.
+    # SwapLeg
+    def Notionals(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            a = self._tab.Vector(o)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
+        return 0
+
+    # SwapLeg
+    def NotionalsAsNumpy(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
+        return 0
+
+    # SwapLeg
+    def NotionalsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # SwapLeg
+    def NotionalsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        return o == 0
+
+    # Accrual schedule of the coupons. Required.
+    # SwapLeg
+    def Schedule(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.Schedule import Schedule
+            obj = Schedule()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # Accrual day count of the coupons. Presence-required with
+    # `FixedCoupons`, `IborCoupons` and `CmsCoupons`; accepted but not read
+    # with `OvernightCoupons` (the overnight index's day counter applies, as
+    # in QuantLib's OvernightIndexedSwap).
+    # SwapLeg
+    def DayCounter(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return None
+
+    # Business-day convention applied to the payment dates.
+    # Presence-required. Not read for a swaption underlying, whose
+    # QuantLib::VanillaSwap / OvernightIndexedSwap adjusts both legs with
+    # the floating schedule's convention.
+    # SwapLeg
+    def PaymentConvention(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return None
+
+    # Calendar the payment dates are adjusted (and lagged) on. Absent = the
+    # schedule's calendar. Presence-required on both legs of
+    # `price-ois-swap` (an OIS pays with the overnight calendar and lag);
+    # optional elsewhere; rejected with `CmsCoupons` (400 when present).
+    # SwapLeg
+    def PaymentCalendar(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return None
+
+    # Payment lag in business days (on `payment_calendar`) between each
+    # accrual end and its payment. Absent = 0: pay on the adjusted accrual
+    # end. Presence-required on both legs of `price-ois-swap` (QuantLib's
+    # OvernightIndexedSwap applies one lag to both legs; the leg model makes
+    # it a per-leg convention); optional elsewhere; rejected with
+    # `CmsCoupons` (400 when present). Must be >= 0.
+    # SwapLeg
+    def PaymentLag(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
+        return None
+
     # SwapLeg
     def CouponsType(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Uint8Flags, o + self._tab.Pos)
         return 0
 
-    # The coupons (see `SwapCoupons`). Required; the tag `coupons_type` is
-    # required with it. Constant `notional` only: a per-period `notionals`
-    # vector is rejected (400) in this version.
+    # What the leg pays each period (see `SwapCoupons`): the kind-specific
+    # fields only (rate; index, spread, fixing...). Required; the tag
+    # `coupons_type` is required with it.
     # SwapLeg
     def Coupons(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
         if o != 0:
             from flatbuffers.table import Table
             obj = Table(bytearray(), 0)
@@ -78,47 +189,53 @@ class SwapLeg(object):
 
     # Id of the curve in `pricing.rates.curves` that discounts every flow of
     # this leg (coupons and exchanges). For a collateralised cross-currency
-    # trade, the currency's collateral-adjusted curve. Required.
+    # trade, the currency's collateral-adjusted curve. A swaption underlying
+    # needs one discount curve: both of its legs must name the same id.
+    # Required.
     # SwapLeg
     def DiscountingCurve(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
         return None
 
     # Id of the curve in `pricing.rates.curves` the floating index projects
-    # off. Required with `IborCoupons` / `OvernightCoupons` (400 when
-    # missing), rejected with `FixedCoupons` (400 when present: a fixed leg
-    # projects nothing).
+    # off (for `CmsCoupons`, the curve the swap index's IBOR leg projects
+    # off). Required with `IborCoupons` / `OvernightCoupons` / `CmsCoupons`
+    # (400 when missing), rejected with `FixedCoupons` (400 when present: a
+    # fixed leg projects nothing).
     # SwapLeg
     def ForwardingCurve(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
         return None
 
     # Whether the leg's notional is exchanged on its schedule's start date
-    # (paid by the receiver of the leg's coupons). Presence-required on every
-    # leg (`false` on both legs of an ordinary single-currency swap).
+    # (paid by the receiver of the leg's coupons). Presence-required on
+    # `price-cross-currency-swap`; on the single-currency endpoints absent =
+    # false (an explicit `true` is priced: the exchange becomes a
+    # NotionalExchange flow of the leg). Rejected when true on a swaption
+    # underlying.
     # SwapLeg
     def InitialExchange(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return None
 
     # Whether the leg's notional is exchanged on the last coupon's payment
-    # date (received by the receiver of the leg's coupons).
-    # Presence-required on every leg.
+    # date (received by the receiver of the leg's coupons). Same presence
+    # rule as `initial_exchange`.
     # SwapLeg
     def FinalExchange(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(32))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return None
 
 def SwapLegStart(builder):
-    builder.StartObject(8)
+    builder.StartObject(15)
 
 def Start(builder):
     SwapLegStart(builder)
@@ -135,38 +252,86 @@ def SwapLegAddCurrency(builder, currency):
 def AddCurrency(builder, currency):
     SwapLegAddCurrency(builder, currency)
 
+def SwapLegAddNotional(builder, notional):
+    builder.PrependFloat64Slot(2, notional, None)
+
+def AddNotional(builder, notional):
+    SwapLegAddNotional(builder, notional)
+
+def SwapLegAddNotionals(builder, notionals):
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(notionals), 0)
+
+def AddNotionals(builder, notionals):
+    SwapLegAddNotionals(builder, notionals)
+
+def SwapLegStartNotionalsVector(builder, numElems):
+    return builder.StartVector(8, numElems, 8)
+
+def StartNotionalsVector(builder, numElems):
+    return SwapLegStartNotionalsVector(builder, numElems)
+
+def SwapLegAddSchedule(builder, schedule):
+    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(schedule), 0)
+
+def AddSchedule(builder, schedule):
+    SwapLegAddSchedule(builder, schedule)
+
+def SwapLegAddDayCounter(builder, dayCounter):
+    builder.PrependInt8Slot(5, dayCounter, None)
+
+def AddDayCounter(builder, dayCounter):
+    SwapLegAddDayCounter(builder, dayCounter)
+
+def SwapLegAddPaymentConvention(builder, paymentConvention):
+    builder.PrependInt8Slot(6, paymentConvention, None)
+
+def AddPaymentConvention(builder, paymentConvention):
+    SwapLegAddPaymentConvention(builder, paymentConvention)
+
+def SwapLegAddPaymentCalendar(builder, paymentCalendar):
+    builder.PrependInt8Slot(7, paymentCalendar, None)
+
+def AddPaymentCalendar(builder, paymentCalendar):
+    SwapLegAddPaymentCalendar(builder, paymentCalendar)
+
+def SwapLegAddPaymentLag(builder, paymentLag):
+    builder.PrependInt32Slot(8, paymentLag, None)
+
+def AddPaymentLag(builder, paymentLag):
+    SwapLegAddPaymentLag(builder, paymentLag)
+
 def SwapLegAddCouponsType(builder, couponsType):
-    builder.PrependUint8Slot(2, couponsType, 0)
+    builder.PrependUint8Slot(9, couponsType, 0)
 
 def AddCouponsType(builder, couponsType):
     SwapLegAddCouponsType(builder, couponsType)
 
 def SwapLegAddCoupons(builder, coupons):
-    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(coupons), 0)
+    builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(coupons), 0)
 
 def AddCoupons(builder, coupons):
     SwapLegAddCoupons(builder, coupons)
 
 def SwapLegAddDiscountingCurve(builder, discountingCurve):
-    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(discountingCurve), 0)
+    builder.PrependUOffsetTRelativeSlot(11, flatbuffers.number_types.UOffsetTFlags.py_type(discountingCurve), 0)
 
 def AddDiscountingCurve(builder, discountingCurve):
     SwapLegAddDiscountingCurve(builder, discountingCurve)
 
 def SwapLegAddForwardingCurve(builder, forwardingCurve):
-    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(forwardingCurve), 0)
+    builder.PrependUOffsetTRelativeSlot(12, flatbuffers.number_types.UOffsetTFlags.py_type(forwardingCurve), 0)
 
 def AddForwardingCurve(builder, forwardingCurve):
     SwapLegAddForwardingCurve(builder, forwardingCurve)
 
 def SwapLegAddInitialExchange(builder, initialExchange):
-    builder.PrependBoolSlot(6, initialExchange, None)
+    builder.PrependBoolSlot(13, initialExchange, None)
 
 def AddInitialExchange(builder, initialExchange):
     SwapLegAddInitialExchange(builder, initialExchange)
 
 def SwapLegAddFinalExchange(builder, finalExchange):
-    builder.PrependBoolSlot(7, finalExchange, None)
+    builder.PrependBoolSlot(14, finalExchange, None)
 
 def AddFinalExchange(builder, finalExchange):
     SwapLegAddFinalExchange(builder, finalExchange)
@@ -178,7 +343,7 @@ def End(builder):
     return SwapLegEnd(builder)
 
 try:
-    from typing import Union
+    from typing import List, Optional, Union
 except:
     pass
 
@@ -188,6 +353,13 @@ class SwapLegT(object):
     def __init__(self):
         self.payReceive = None  # type: Optional[int]
         self.currency = None  # type: str
+        self.notional = None  # type: Optional[float]
+        self.notionals = None  # type: List[float]
+        self.schedule = None  # type: Optional[ScheduleT]
+        self.dayCounter = None  # type: Optional[int]
+        self.paymentConvention = None  # type: Optional[int]
+        self.paymentCalendar = None  # type: Optional[int]
+        self.paymentLag = None  # type: Optional[int]
         self.couponsType = 0  # type: int
         self.coupons = None  # type: Union[None, FixedCouponsT, IborCouponsT, OvernightCouponsT, CmsCouponsT]
         self.discountingCurve = None  # type: str
@@ -218,6 +390,20 @@ class SwapLegT(object):
             return
         self.payReceive = swapLeg.PayReceive()
         self.currency = swapLeg.Currency()
+        self.notional = swapLeg.Notional()
+        if not swapLeg.NotionalsIsNone():
+            if np is None:
+                self.notionals = []
+                for i in range(swapLeg.NotionalsLength()):
+                    self.notionals.append(swapLeg.Notionals(i))
+            else:
+                self.notionals = swapLeg.NotionalsAsNumpy()
+        if swapLeg.Schedule() is not None:
+            self.schedule = ScheduleT.InitFromObj(swapLeg.Schedule())
+        self.dayCounter = swapLeg.DayCounter()
+        self.paymentConvention = swapLeg.PaymentConvention()
+        self.paymentCalendar = swapLeg.PaymentCalendar()
+        self.paymentLag = swapLeg.PaymentLag()
         self.couponsType = swapLeg.CouponsType()
         self.coupons = SwapCouponsCreator(self.couponsType, swapLeg.Coupons())
         self.discountingCurve = swapLeg.DiscountingCurve()
@@ -229,6 +415,16 @@ class SwapLegT(object):
     def Pack(self, builder):
         if self.currency is not None:
             currency = builder.CreateString(self.currency)
+        if self.notionals is not None:
+            if np is not None and type(self.notionals) is np.ndarray:
+                notionals = builder.CreateNumpyVector(self.notionals)
+            else:
+                SwapLegStartNotionalsVector(builder, len(self.notionals))
+                for i in reversed(range(len(self.notionals))):
+                    builder.PrependFloat64(self.notionals[i])
+                notionals = builder.EndVector()
+        if self.schedule is not None:
+            schedule = self.schedule.Pack(builder)
         if self.coupons is not None:
             coupons = self.coupons.Pack(builder)
         if self.discountingCurve is not None:
@@ -239,6 +435,15 @@ class SwapLegT(object):
         SwapLegAddPayReceive(builder, self.payReceive)
         if self.currency is not None:
             SwapLegAddCurrency(builder, currency)
+        SwapLegAddNotional(builder, self.notional)
+        if self.notionals is not None:
+            SwapLegAddNotionals(builder, notionals)
+        if self.schedule is not None:
+            SwapLegAddSchedule(builder, schedule)
+        SwapLegAddDayCounter(builder, self.dayCounter)
+        SwapLegAddPaymentConvention(builder, self.paymentConvention)
+        SwapLegAddPaymentCalendar(builder, self.paymentCalendar)
+        SwapLegAddPaymentLag(builder, self.paymentLag)
         SwapLegAddCouponsType(builder, self.couponsType)
         if self.coupons is not None:
             SwapLegAddCoupons(builder, coupons)

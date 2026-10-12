@@ -220,8 +220,10 @@
   "swaps": [
     {
       "vanilla_swap": {
-        "swap_type": "Payer",
         "fixed_leg": {
+          "pay_receive": "Pay",
+          "currency": "EUR",
+          "notional": 10000000,
           "schedule": {
             "calendar": "TARGET",
             "effective_date": "2024-01-17",
@@ -232,12 +234,18 @@
             "date_generation_rule": "Forward",
             "end_of_month": false
           },
-          "notional": 10000000,
-          "rate": 0.034,
           "day_counter": "Thirty360",
-          "payment_convention": "ModifiedFollowing"
+          "payment_convention": "ModifiedFollowing",
+          "coupons_type": "FixedCoupons",
+          "coupons": {
+            "rate": 0.034
+          },
+          "discounting_curve": "EUR_OIS"
         },
         "floating_leg": {
+          "pay_receive": "Receive",
+          "currency": "EUR",
+          "notional": 10000000,
           "schedule": {
             "calendar": "TARGET",
             "effective_date": "2024-01-17",
@@ -248,17 +256,19 @@
             "date_generation_rule": "Forward",
             "end_of_month": false
           },
-          "notional": 10000000,
-          "index": {
-            "id": "EUR_6M"
-          },
-          "spread": 0.0,
           "day_counter": "Actual360",
-          "payment_convention": "ModifiedFollowing"
+          "payment_convention": "ModifiedFollowing",
+          "coupons_type": "IborCoupons",
+          "coupons": {
+            "index": {
+              "id": "EUR_6M"
+            },
+            "spread": 0.0
+          },
+          "discounting_curve": "EUR_OIS",
+          "forwarding_curve": "EUR_6M_CURVE"
         }
-      },
-      "discounting_curve": "EUR_OIS",
-      "forwarding_curve": "EUR_6M_CURVE"
+      }
     }
   ]
 }

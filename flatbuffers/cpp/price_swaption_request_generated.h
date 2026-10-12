@@ -30,8 +30,6 @@ struct PriceSwaptionRequestT;
 struct PriceSwaptionT : public ::flatbuffers::NativeTable {
   typedef PriceSwaption TableType;
   std::unique_ptr<quantra::SwaptionT> swaption{};
-  std::string discounting_curve{};
-  std::string forwarding_curve{};
   std::string volatility{};
   std::string model{};
   PriceSwaptionT() = default;
@@ -40,27 +38,21 @@ struct PriceSwaptionT : public ::flatbuffers::NativeTable {
   PriceSwaptionT &operator=(PriceSwaptionT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Single swaption pricing request with curve/vol/model references.
+/// One swaption to price with its vol and model references. The curves come
+/// from the underlying swap's legs (`SwapLeg.discounting_curve`, which both
+/// legs must name identically, and the floating / overnight leg's
+/// `forwarding_curve`); every reference is by id into `pricing`.
 struct PriceSwaption FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceSwaptionT NativeTableType;
   typedef PriceSwaptionBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_SWAPTION = 4,
-    VT_DISCOUNTING_CURVE = 6,
-    VT_FORWARDING_CURVE = 8,
-    VT_VOLATILITY = 10,
-    VT_MODEL = 12
+    VT_VOLATILITY = 6,
+    VT_MODEL = 8
   };
+  /// The swaption (exercise, settlement and the underlying swap). Required.
   const quantra::Swaption *swaption() const {
     return GetPointer<const quantra::Swaption *>(VT_SWAPTION);
-  }
-  /// Reference to curve in pricing.rates.curves by id.
-  const ::flatbuffers::String *discounting_curve() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNTING_CURVE);
-  }
-  /// Reference to curve in pricing.rates.curves for forward rates by id.
-  const ::flatbuffers::String *forwarding_curve() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_FORWARDING_CURVE);
   }
   /// Reference to volatility in pricing.volatility.vol_surfaces by id.
   const ::flatbuffers::String *volatility() const {
@@ -74,10 +66,6 @@ struct PriceSwaption FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_SWAPTION) &&
            verifier.VerifyTable(swaption()) &&
-           VerifyOffset(verifier, VT_DISCOUNTING_CURVE) &&
-           verifier.VerifyString(discounting_curve()) &&
-           VerifyOffset(verifier, VT_FORWARDING_CURVE) &&
-           verifier.VerifyString(forwarding_curve()) &&
            VerifyOffset(verifier, VT_VOLATILITY) &&
            verifier.VerifyString(volatility()) &&
            VerifyOffset(verifier, VT_MODEL) &&
@@ -95,12 +83,6 @@ struct PriceSwaptionBuilder {
   ::flatbuffers::uoffset_t start_;
   void add_swaption(::flatbuffers::Offset<quantra::Swaption> swaption) {
     fbb_.AddOffset(PriceSwaption::VT_SWAPTION, swaption);
-  }
-  void add_discounting_curve(::flatbuffers::Offset<::flatbuffers::String> discounting_curve) {
-    fbb_.AddOffset(PriceSwaption::VT_DISCOUNTING_CURVE, discounting_curve);
-  }
-  void add_forwarding_curve(::flatbuffers::Offset<::flatbuffers::String> forwarding_curve) {
-    fbb_.AddOffset(PriceSwaption::VT_FORWARDING_CURVE, forwarding_curve);
   }
   void add_volatility(::flatbuffers::Offset<::flatbuffers::String> volatility) {
     fbb_.AddOffset(PriceSwaption::VT_VOLATILITY, volatility);
@@ -122,15 +104,11 @@ struct PriceSwaptionBuilder {
 inline ::flatbuffers::Offset<PriceSwaption> CreatePriceSwaption(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Swaption> swaption = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> discounting_curve = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> forwarding_curve = 0,
     ::flatbuffers::Offset<::flatbuffers::String> volatility = 0,
     ::flatbuffers::Offset<::flatbuffers::String> model = 0) {
   PriceSwaptionBuilder builder_(_fbb);
   builder_.add_model(model);
   builder_.add_volatility(volatility);
-  builder_.add_forwarding_curve(forwarding_curve);
-  builder_.add_discounting_curve(discounting_curve);
   builder_.add_swaption(swaption);
   return builder_.Finish();
 }
@@ -138,19 +116,13 @@ inline ::flatbuffers::Offset<PriceSwaption> CreatePriceSwaption(
 inline ::flatbuffers::Offset<PriceSwaption> CreatePriceSwaptionDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Swaption> swaption = 0,
-    const char *discounting_curve = nullptr,
-    const char *forwarding_curve = nullptr,
     const char *volatility = nullptr,
     const char *model = nullptr) {
-  auto discounting_curve__ = discounting_curve ? _fbb.CreateString(discounting_curve) : 0;
-  auto forwarding_curve__ = forwarding_curve ? _fbb.CreateString(forwarding_curve) : 0;
   auto volatility__ = volatility ? _fbb.CreateString(volatility) : 0;
   auto model__ = model ? _fbb.CreateString(model) : 0;
   return quantra::CreatePriceSwaption(
       _fbb,
       swaption,
-      discounting_curve__,
-      forwarding_curve__,
       volatility__,
       model__);
 }
@@ -256,16 +228,12 @@ inline ::flatbuffers::Offset<PriceSwaptionRequest> CreatePriceSwaptionRequestDir
 
 inline PriceSwaptionT::PriceSwaptionT(const PriceSwaptionT &o)
       : swaption((o.swaption) ? new quantra::SwaptionT(*o.swaption) : nullptr),
-        discounting_curve(o.discounting_curve),
-        forwarding_curve(o.forwarding_curve),
         volatility(o.volatility),
         model(o.model) {
 }
 
 inline PriceSwaptionT &PriceSwaptionT::operator=(PriceSwaptionT o) FLATBUFFERS_NOEXCEPT {
   std::swap(swaption, o.swaption);
-  std::swap(discounting_curve, o.discounting_curve);
-  std::swap(forwarding_curve, o.forwarding_curve);
   std::swap(volatility, o.volatility);
   std::swap(model, o.model);
   return *this;
@@ -281,8 +249,6 @@ inline void PriceSwaption::UnPackTo(PriceSwaptionT *_o, const ::flatbuffers::res
   (void)_o;
   (void)_resolver;
   { auto _e = swaption(); if (_e) { if(_o->swaption) { _e->UnPackTo(_o->swaption.get(), _resolver); } else { _o->swaption = std::unique_ptr<quantra::SwaptionT>(_e->UnPack(_resolver)); } } else if (_o->swaption) { _o->swaption.reset(); } }
-  { auto _e = discounting_curve(); if (_e) _o->discounting_curve = _e->str(); }
-  { auto _e = forwarding_curve(); if (_e) _o->forwarding_curve = _e->str(); }
   { auto _e = volatility(); if (_e) _o->volatility = _e->str(); }
   { auto _e = model(); if (_e) _o->model = _e->str(); }
 }
@@ -296,15 +262,11 @@ inline ::flatbuffers::Offset<PriceSwaption> CreatePriceSwaption(::flatbuffers::F
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceSwaptionT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _swaption = _o->swaption ? CreateSwaption(_fbb, _o->swaption.get(), _rehasher) : 0;
-  auto _discounting_curve = _o->discounting_curve.empty() ? 0 : _fbb.CreateString(_o->discounting_curve);
-  auto _forwarding_curve = _o->forwarding_curve.empty() ? 0 : _fbb.CreateString(_o->forwarding_curve);
   auto _volatility = _o->volatility.empty() ? 0 : _fbb.CreateString(_o->volatility);
   auto _model = _o->model.empty() ? 0 : _fbb.CreateString(_o->model);
   return quantra::CreatePriceSwaption(
       _fbb,
       _swaption,
-      _discounting_curve,
-      _forwarding_curve,
       _volatility,
       _model);
 }

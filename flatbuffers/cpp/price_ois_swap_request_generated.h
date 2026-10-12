@@ -29,40 +29,29 @@ struct PriceOisSwapRequestT;
 struct PriceOisSwapT : public ::flatbuffers::NativeTable {
   typedef PriceOisSwap TableType;
   std::unique_ptr<quantra::OisSwapT> ois_swap{};
-  std::string discounting_curve{};
-  std::string forwarding_curve{};
   PriceOisSwapT() = default;
   PriceOisSwapT(const PriceOisSwapT &o);
   PriceOisSwapT(PriceOisSwapT&&) FLATBUFFERS_NOEXCEPT = default;
   PriceOisSwapT &operator=(PriceOisSwapT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Single OIS swap pricing context with curve references.
+/// One overnight indexed swap to price. The legs name their own discounting
+/// and forwarding curves (`SwapLeg`); every reference is by id into
+/// `pricing`. The NPV is reported in the legs' currency.
 struct PriceOisSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceOisSwapT NativeTableType;
   typedef PriceOisSwapBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_OIS_SWAP = 4,
-    VT_DISCOUNTING_CURVE = 6,
-    VT_FORWARDING_CURVE = 8
+    VT_OIS_SWAP = 4
   };
+  /// The swap. Required.
   const quantra::OisSwap *ois_swap() const {
     return GetPointer<const quantra::OisSwap *>(VT_OIS_SWAP);
   }
-  const ::flatbuffers::String *discounting_curve() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNTING_CURVE);
-  }
-  const ::flatbuffers::String *forwarding_curve() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_FORWARDING_CURVE);
-  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyOffset(verifier, VT_OIS_SWAP) &&
+           VerifyOffsetRequired(verifier, VT_OIS_SWAP) &&
            verifier.VerifyTable(ois_swap()) &&
-           VerifyOffset(verifier, VT_DISCOUNTING_CURVE) &&
-           verifier.VerifyString(discounting_curve()) &&
-           VerifyOffset(verifier, VT_FORWARDING_CURVE) &&
-           verifier.VerifyString(forwarding_curve()) &&
            verifier.EndTable();
   }
   PriceOisSwapT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -77,12 +66,6 @@ struct PriceOisSwapBuilder {
   void add_ois_swap(::flatbuffers::Offset<quantra::OisSwap> ois_swap) {
     fbb_.AddOffset(PriceOisSwap::VT_OIS_SWAP, ois_swap);
   }
-  void add_discounting_curve(::flatbuffers::Offset<::flatbuffers::String> discounting_curve) {
-    fbb_.AddOffset(PriceOisSwap::VT_DISCOUNTING_CURVE, discounting_curve);
-  }
-  void add_forwarding_curve(::flatbuffers::Offset<::flatbuffers::String> forwarding_curve) {
-    fbb_.AddOffset(PriceOisSwap::VT_FORWARDING_CURVE, forwarding_curve);
-  }
   explicit PriceOisSwapBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -90,34 +73,17 @@ struct PriceOisSwapBuilder {
   ::flatbuffers::Offset<PriceOisSwap> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<PriceOisSwap>(end);
+    fbb_.Required(o, PriceOisSwap::VT_OIS_SWAP);
     return o;
   }
 };
 
 inline ::flatbuffers::Offset<PriceOisSwap> CreatePriceOisSwap(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<quantra::OisSwap> ois_swap = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> discounting_curve = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> forwarding_curve = 0) {
+    ::flatbuffers::Offset<quantra::OisSwap> ois_swap = 0) {
   PriceOisSwapBuilder builder_(_fbb);
-  builder_.add_forwarding_curve(forwarding_curve);
-  builder_.add_discounting_curve(discounting_curve);
   builder_.add_ois_swap(ois_swap);
   return builder_.Finish();
-}
-
-inline ::flatbuffers::Offset<PriceOisSwap> CreatePriceOisSwapDirect(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<quantra::OisSwap> ois_swap = 0,
-    const char *discounting_curve = nullptr,
-    const char *forwarding_curve = nullptr) {
-  auto discounting_curve__ = discounting_curve ? _fbb.CreateString(discounting_curve) : 0;
-  auto forwarding_curve__ = forwarding_curve ? _fbb.CreateString(forwarding_curve) : 0;
-  return quantra::CreatePriceOisSwap(
-      _fbb,
-      ois_swap,
-      discounting_curve__,
-      forwarding_curve__);
 }
 
 ::flatbuffers::Offset<PriceOisSwap> CreatePriceOisSwap(::flatbuffers::FlatBufferBuilder &_fbb, const PriceOisSwapT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -133,7 +99,7 @@ struct PriceOisSwapRequestT : public ::flatbuffers::NativeTable {
   PriceOisSwapRequestT &operator=(PriceOisSwapRequestT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Request to price one or more OIS swaps.
+/// Request to price one or more OIS swaps against one market.
 struct PriceOisSwapRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceOisSwapRequestT NativeTableType;
   typedef PriceOisSwapRequestBuilder Builder;
@@ -148,6 +114,8 @@ struct PriceOisSwapRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceOisSwap>> *swaps() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceOisSwap>> *>(VT_SWAPS);
   }
+  /// When true every response row lists each leg's future flows (coupons
+  /// and notional exchanges) in payment order.
   bool include_flows() const {
     return GetField<uint8_t>(VT_INCLUDE_FLOWS, 0) != 0;
   }
@@ -218,15 +186,11 @@ inline ::flatbuffers::Offset<PriceOisSwapRequest> CreatePriceOisSwapRequestDirec
 ::flatbuffers::Offset<PriceOisSwapRequest> CreatePriceOisSwapRequest(::flatbuffers::FlatBufferBuilder &_fbb, const PriceOisSwapRequestT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 inline PriceOisSwapT::PriceOisSwapT(const PriceOisSwapT &o)
-      : ois_swap((o.ois_swap) ? new quantra::OisSwapT(*o.ois_swap) : nullptr),
-        discounting_curve(o.discounting_curve),
-        forwarding_curve(o.forwarding_curve) {
+      : ois_swap((o.ois_swap) ? new quantra::OisSwapT(*o.ois_swap) : nullptr) {
 }
 
 inline PriceOisSwapT &PriceOisSwapT::operator=(PriceOisSwapT o) FLATBUFFERS_NOEXCEPT {
   std::swap(ois_swap, o.ois_swap);
-  std::swap(discounting_curve, o.discounting_curve);
-  std::swap(forwarding_curve, o.forwarding_curve);
   return *this;
 }
 
@@ -240,8 +204,6 @@ inline void PriceOisSwap::UnPackTo(PriceOisSwapT *_o, const ::flatbuffers::resol
   (void)_o;
   (void)_resolver;
   { auto _e = ois_swap(); if (_e) { if(_o->ois_swap) { _e->UnPackTo(_o->ois_swap.get(), _resolver); } else { _o->ois_swap = std::unique_ptr<quantra::OisSwapT>(_e->UnPack(_resolver)); } } else if (_o->ois_swap) { _o->ois_swap.reset(); } }
-  { auto _e = discounting_curve(); if (_e) _o->discounting_curve = _e->str(); }
-  { auto _e = forwarding_curve(); if (_e) _o->forwarding_curve = _e->str(); }
 }
 
 inline ::flatbuffers::Offset<PriceOisSwap> PriceOisSwap::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceOisSwapT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -253,13 +215,9 @@ inline ::flatbuffers::Offset<PriceOisSwap> CreatePriceOisSwap(::flatbuffers::Fla
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceOisSwapT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _ois_swap = _o->ois_swap ? CreateOisSwap(_fbb, _o->ois_swap.get(), _rehasher) : 0;
-  auto _discounting_curve = _o->discounting_curve.empty() ? 0 : _fbb.CreateString(_o->discounting_curve);
-  auto _forwarding_curve = _o->forwarding_curve.empty() ? 0 : _fbb.CreateString(_o->forwarding_curve);
   return quantra::CreatePriceOisSwap(
       _fbb,
-      _ois_swap,
-      _discounting_curve,
-      _forwarding_curve);
+      _ois_swap);
 }
 
 inline PriceOisSwapRequestT::PriceOisSwapRequestT(const PriceOisSwapRequestT &o)

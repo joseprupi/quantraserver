@@ -1,61 +1,59 @@
-include "common.fbs";
-include "enums.fbs";
+include "swap_leg.fbs";
 
 namespace quantra;
 
-/// Cashflow for a swap leg.
-table SwapLegFlow {
-    payment_date:string;
-    accrual_start_date:string;
-    accrual_end_date:string;
-    amount:double;
-    /// Accrual year fraction used by the coupon.
-    accrual_year_fraction:double;
-    /// Coupon gearing multiplier (1.0 for fixed coupons).
-    gearing:double = 1.0;
-    discount:double;
-    present_value:double;
-    /// Floating leg metadata. For overnight coupons this may not represent the compounded effective coupon rate.
-    fixing_date:string;
-    /// Underlying index fixing. For CMS coupons this is the CMS swap-rate fixing.
-    index_fixing:double;
-    /// CMS swap-rate fixing for a CMS coupon. Absent for non-CMS coupons.
-    cms_swap_rate:double = null;
-    spread:double;
-    /// Coupon rate: fixed-leg rate or effective floating coupon rate.
-    rate:double;
-    /// Kind of flow. Set on every flow of a `SwapLeg` result
-    /// (`SwapLegResult.flows`), whose lists mix coupons and notional exchanges
-    /// (a NotionalExchange flow has `payment_date`, `amount`, `discount`,
-    /// `present_value` and `kind` only). Absent on the other swap endpoints,
-    /// whose flows are all coupons.
-    kind:enums.SwapFlowKind = null;
-}
-
-/// Response for a single swap leg.
-table SwapLegResponse {
-    npv:double;
-    bps:double;
-    flows:[SwapLegFlow];
-}
-
-/// Full vanilla swap pricing response.
+/// Vanilla swap pricing result. With, for leg i, L_i the leg's flows in its
+/// own frame (coupons +, initial exchange -N_i at the schedule start, final
+/// exchange +N_i with the last coupon; no exchanges unless the leg asks for
+/// them), D_i its discounting curve and s_i = -1 for `Pay` / +1 for
+/// `Receive`:
+///   legs[i].npv           = s_i * CashFlows::npv(L_i, D_i)
+///   legs[i].npv_reporting = legs[i].npv                (one currency)
+///   npv                   = legs[0].npv + legs[1].npv
+/// `fair_rate` holds the floating leg and every exchange fixed and solves the
+/// linear equation in the fixed rate with the fixed leg's signed annuity
+/// B_0 = s_0 * CashFlows::bps(coupons of leg 0, D_0) (exchanges excluded):
+///   fair_rate = rate_0 - npv / (B_0 / 1e-4)
+/// which is QuantLib::VanillaSwap's own fair-rate formula, so repricing at
+/// `fair_rate` gives npv = 0 to rounding (for a CMS floating leg the same
+/// formula applies, the CMS coupons being held fixed). `fair_spread` is the
+/// mirror image on the floating leg: with B_1 = s_1 * CashFlows::bps(coupons
+/// of leg 1, D_1),
+///   fair_spread = spread_1 - npv / (B_1 / 1e-4)
+/// which is QuantLib::VanillaSwap's own fair-spread formula. Every value is
+/// as of the evaluation date (the curves' reference date); flows on that
+/// date are excluded, as for every swap. Positive `npv` is in favour of the
+/// reported party (the one whose `pay_receive` sides were given).
 table VanillaSwapResponse {
+    /// Total present value in the legs' currency, positive in favour of the
+    /// reported party.
     npv:double;
-    fair_rate:double;
-    fair_spread:double;
-    fixed_leg_bps:double;
-    floating_leg_bps:double;
-    fixed_leg_npv:double;
-    floating_leg_npv:double;
-    /// Optional detailed flows per leg.
-    fixed_leg_flows:[SwapLegFlow];
-    floating_leg_flows:[SwapLegFlow];
-    /// Effective CMS pricer type used for CMS leg valuation.
-    used_cms_pricer_type:enums.CmsPricerType = LinearTsr;
-    /// Effective yield-curve model used by CMS Hagan-family pricers.
-    used_cms_yield_curve_model:enums.CmsYieldCurveModel = Standard;
-    /// Effective CMS mean reversion used by pricer. Absent when no CMS leg.
+    /// The fixed rate that zeroes `npv`, the floating leg and every exchange
+    /// held fixed. Absent when the fixed leg's annuity is zero (nothing to
+    /// solve for) or the value is not finite.
+    fair_rate:double = null;
+    /// The spread on the floating leg (`IborCoupons` or `CmsCoupons`) that
+    /// zeroes `npv`, the fixed leg and every exchange held fixed (the
+    /// floating coupons' forwards unchanged). Present on every priced vanilla
+    /// swap whose floating leg's annuity is non-zero and the value finite,
+    /// as for every swap endpoint: `fair_rate` iff exactly one leg carries
+    /// `FixedCoupons`, `fair_spread` iff a leg carries `IborCoupons`,
+    /// `OvernightCoupons` or `CmsCoupons`. For a CMS leg with a `cap` or
+    /// `floor` the cap / floor strikes are held where the request put them
+    /// (the linear solve on the coupon annuity), so repricing a capped or
+    /// floored CMS leg at `fair_spread` zeroes `npv` only to first order.
+    fair_spread:double = null;
+    /// One result per leg, in request order (`fixed_leg` then
+    /// `floating_leg`): the leg's signed NPV and, with `include_flows`, its
+    /// flows.
+    legs:[SwapLegResult] (required);
+    /// Effective CMS pricer type used for CMS leg valuation. Present only
+    /// when the floating leg carries `CmsCoupons`.
+    used_cms_pricer_type:enums.CmsPricerType = null;
+    /// Effective yield-curve model used by CMS Hagan-family pricers. Present
+    /// only when the floating leg carries `CmsCoupons`.
+    used_cms_yield_curve_model:enums.CmsYieldCurveModel = null;
+    /// Effective CMS mean reversion used by the pricer. Absent when no CMS leg.
     used_cms_mean_reversion:double = null;
     /// Effective Numeric Hagan lower integration limit. Absent when not applicable.
     used_cms_hagan_lower_limit:double = null;
@@ -67,7 +65,7 @@ table VanillaSwapResponse {
     used_cms_hagan_hard_upper_limit:double = null;
 }
 
-/// Response wrapper for multiple vanilla swaps.
+/// Response wrapper for multiple vanilla swaps, in request order.
 table PriceVanillaSwapResponse {
     swaps:[VanillaSwapResponse] (required);
 }

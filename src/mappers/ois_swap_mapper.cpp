@@ -1,123 +1,43 @@
 #include "ois_swap_mapper.h"
 
-#include "enum_convert.h"
 #include "error.h"
-#include "request_validation.h"
-#include "schedule_parser.h"
-
-#include <cmath>
+#include "swap_leg_mapper.h"
 
 namespace quantra {
 
 namespace {
 
+/// `OisSwap.fixed_leg` takes FixedCoupons, `overnight_leg` OvernightCoupons;
+/// both legs state their `payment_calendar` / `payment_lag` (an OIS pays
+/// with the overnight calendar and lag); no per-period notionals, exchange
+/// flags optional (absent = false).
+SwapLegRules legRules(SwapLegData::Kind kind) {
+    SwapLegRules rules;
+    rules.allowedKinds = {kind};
+    rules.paymentLagRequired = true;
+    rules.endpoint = "price-ois-swap";
+    return rules;
+}
+
 OisSwapTrade extractTrade(const quantra::PriceOisSwap* pricing) {
     if (pricing == nullptr) {
         QUANTRA_INVALID_ARGUMENT("PriceOisSwap entry is null");
     }
-    if (!pricing->ois_swap()) {
+    const auto* swap = pricing->ois_swap();
+    if (!swap) {
         QUANTRA_INVALID_ARGUMENT("PriceOisSwap.ois_swap is required");
     }
-    if (!pricing->discounting_curve() || pricing->discounting_curve()->str().empty()) {
-        QUANTRA_INVALID_ARGUMENT("PriceOisSwap.discounting_curve is required");
-    }
-    if (!pricing->forwarding_curve() || pricing->forwarding_curve()->str().empty()) {
-        QUANTRA_INVALID_ARGUMENT("PriceOisSwap.forwarding_curve is required");
-    }
-
-    const auto* swap = pricing->ois_swap();
-    if (!swap->swap_type().has_value()) {
-        QUANTRA_INVALID_ARGUMENT("OisSwap.swap_type is required");
-    }
-    if (!swap->fixed_leg()) {
-        QUANTRA_INVALID_ARGUMENT("OisSwap.fixed_leg is required");
-    }
-    if (!swap->overnight_leg()) {
-        QUANTRA_INVALID_ARGUMENT("OisSwap.overnight_leg is required");
-    }
-
-    const auto* fixedFb = swap->fixed_leg();
-    if (!fixedFb->schedule()) {
-        QUANTRA_INVALID_ARGUMENT("OisSwap.fixed_leg.schedule is required");
-    }
-    if (!fixedFb->day_counter().has_value()) {
-        QUANTRA_INVALID_ARGUMENT("SwapFixedLeg.day_counter is required");
-    }
-    // The OIS swap path does not support per-period notionals yet.
-    rejectUnsupportedNotionals(fixedFb->notionals(), "OisSwap fixed leg");
-
-    const auto* overnightFb = swap->overnight_leg();
-    if (!overnightFb->schedule()) {
-        QUANTRA_INVALID_ARGUMENT("OisSwap.overnight_leg.schedule is required");
-    }
-    if (!overnightFb->index() || !overnightFb->index()->id()) {
-        QUANTRA_INVALID_ARGUMENT("OisSwap.overnight_leg.index.id is required");
-    }
-
-    ScheduleParser scheduleParser;
-
     OisSwapTrade trade;
-    trade.swapType = OvernightIndexedSwapTypeToQL(swap->swap_type().value());
-    trade.discountingCurveId = pricing->discounting_curve()->str();
-    trade.forwardingCurveId = pricing->forwarding_curve()->str();
-
-    auto fixedSchedule = scheduleParser.parse(fixedFb->schedule());
-    trade.fixed.schedule = *fixedSchedule;
-    trade.fixed.notional = requirePositive(fixedFb->notional(), "SwapFixedLeg.notional");
-    trade.fixed.rate = fixedFb->rate();
-    trade.fixed.dayCounter = DayCounterToQL(fixedFb->day_counter().value());
-
-    auto overnightSchedule = scheduleParser.parse(overnightFb->schedule());
-    trade.overnight.schedule = *overnightSchedule;
-    trade.overnight.notional = requirePositive(overnightFb->notional(), "OisFloatingLeg.notional");
-    trade.overnight.indexId = overnightFb->index()->id()->str();
-    trade.overnight.spread = overnightFb->spread();
-    // OisFloatingLeg.day_counter is accepted-but-unused: QuantLib's
-    // OvernightIndexedSwap takes the overnight leg's day counter from the
-    // overnight index itself, so the field is deliberately not read here.
-    trade.overnight.paymentConvention = ConventionToQL(
-        requireEnum(overnightFb->payment_convention(), "OisFloatingLeg.payment_convention"));
-    trade.overnight.paymentCalendar = CalendarToQL(
-        requireEnum(overnightFb->payment_calendar(), "OisFloatingLeg.payment_calendar"));
-    trade.overnight.paymentLag =
-        requireNonNegativeInt(overnightFb->payment_lag(), "OisFloatingLeg.payment_lag");
-    trade.overnight.averagingMethod = RateAveragingToQL(
-        requireEnum(overnightFb->averaging_method(), "OisFloatingLeg.averaging_method"));
-    trade.overnight.lookbackDays =
-        requireNonNegativeInt(overnightFb->lookback_days(), "OisFloatingLeg.lookback_days");
-    trade.overnight.lockoutDays =
-        requireNonNegativeInt(overnightFb->lockout_days(), "OisFloatingLeg.lockout_days");
-    trade.overnight.applyObservationShift = requireBool(
-        overnightFb->apply_observation_shift(), "OisFloatingLeg.apply_observation_shift");
-    trade.overnight.telescopicValueDates = overnightFb->telescopic_value_dates();
+    trade.fixedLeg =
+        DecodeSwapLeg(swap->fixed_leg(), "OisSwap.fixed_leg", legRules(SwapLegData::Kind::Fixed));
+    trade.overnightLeg = DecodeSwapLeg(
+        swap->overnight_leg(), "OisSwap.overnight_leg", legRules(SwapLegData::Kind::Overnight));
+    RequireOppositeSides(
+        trade.fixedLeg, "OisSwap.fixed_leg", trade.overnightLeg, "OisSwap.overnight_leg");
+    RequireOneCurrency(
+        trade.fixedLeg, "OisSwap.fixed_leg", trade.overnightLeg, "OisSwap.overnight_leg",
+        "price-ois-swap");
     return trade;
-}
-
-flatbuffers::Offset<quantra::SwapLegFlow> serializeFlow(
-    flatbuffers::grpc::MessageBuilder& builder, const OisSwapFlowPlain& f) {
-    auto paymentDate = builder.CreateString(f.paymentDate);
-    auto accrualStart = builder.CreateString(f.accrualStartDate);
-    auto accrualEnd = builder.CreateString(f.accrualEndDate);
-    flatbuffers::Offset<flatbuffers::String> fixingDate = 0;
-    if (f.isFloating) {
-        fixingDate = builder.CreateString(f.fixingDate);
-    }
-
-    quantra::SwapLegFlowBuilder fb(builder);
-    fb.add_payment_date(paymentDate);
-    fb.add_accrual_start_date(accrualStart);
-    fb.add_accrual_end_date(accrualEnd);
-    fb.add_accrual_year_fraction(f.accrualYearFraction);
-    fb.add_amount(f.amount);
-    fb.add_discount(f.discount);
-    fb.add_present_value(f.presentValue);
-    fb.add_rate(f.rate);
-    if (f.isFloating) {
-        fb.add_fixing_date(fixingDate);
-        if (std::isfinite(f.indexFixing)) fb.add_index_fixing(f.indexFixing);
-        fb.add_spread(f.spread);
-    }
-    return fb.Finish();
 }
 
 } // namespace
@@ -143,49 +63,23 @@ OisSwapInputs OisSwapMapper::toInputs(const quantra::PriceOisSwapRequest* req) c
 flatbuffers::Offset<quantra::PriceOisSwapResponse> OisSwapMapper::toResponse(
     flatbuffers::grpc::MessageBuilder& builder, const OisSwapResult& result) const {
 
-    std::vector<flatbuffers::Offset<quantra::OisSwapResponse>> swapsVector;
-    swapsVector.reserve(result.swaps.size());
+    std::vector<flatbuffers::Offset<quantra::OisSwapResponse>> rows;
+    rows.reserve(result.swaps.size());
 
     for (const auto& swap : result.swaps) {
-        std::vector<flatbuffers::Offset<quantra::SwapLegFlow>> fixedFlowOffsets;
-        std::vector<flatbuffers::Offset<quantra::SwapLegFlow>> overnightFlowOffsets;
-        flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::SwapLegFlow>>>
-            fixedFlows = 0;
-        flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::SwapLegFlow>>>
-            overnightFlows = 0;
-        if (swap.includeFlows) {
-            fixedFlowOffsets.reserve(swap.fixedFlows.size());
-            for (const auto& f : swap.fixedFlows) {
-                fixedFlowOffsets.push_back(serializeFlow(builder, f));
-            }
-            overnightFlowOffsets.reserve(swap.overnightFlows.size());
-            for (const auto& f : swap.overnightFlows) {
-                overnightFlowOffsets.push_back(serializeFlow(builder, f));
-            }
-            fixedFlows = builder.CreateVector(fixedFlowOffsets);
-            overnightFlows = builder.CreateVector(overnightFlowOffsets);
-        }
+        auto legs = SerializeSwapLegResults(builder, swap.legs, swap.includeFlows);
 
         quantra::OisSwapResponseBuilder rb(builder);
         rb.add_npv(swap.npv);
-        // fairRate/fairSpread divide by leg BPS; a zero-BPS leg (e.g. notional 0)
-        // yields NaN/inf, which is not valid JSON. Omit rather than emit `nan`.
-        if (std::isfinite(swap.fairRate)) rb.add_fair_rate(swap.fairRate);
-        if (std::isfinite(swap.fairSpread)) rb.add_fair_spread(swap.fairSpread);
-        rb.add_fixed_leg_bps(swap.fixedLegBps);
-        rb.add_overnight_leg_bps(swap.overnightLegBps);
-        rb.add_fixed_leg_npv(swap.fixedLegNpv);
-        rb.add_overnight_leg_npv(swap.overnightLegNpv);
-        if (swap.includeFlows) {
-            rb.add_fixed_leg_flows(fixedFlows);
-            rb.add_overnight_leg_flows(overnightFlows);
-        }
-        swapsVector.push_back(rb.Finish());
+        if (swap.fairRate) rb.add_fair_rate(*swap.fairRate);
+        if (swap.fairSpread) rb.add_fair_spread(*swap.fairSpread);
+        rb.add_legs(legs);
+        rows.push_back(rb.Finish());
     }
 
-    auto swapsVec = builder.CreateVector(swapsVector);
+    auto rowsVec = builder.CreateVector(rows);
     quantra::PriceOisSwapResponseBuilder rb(builder);
-    rb.add_swaps(swapsVec);
+    rb.add_swaps(rowsVec);
     return rb.Finish();
 }
 

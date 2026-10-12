@@ -2,6 +2,7 @@
 
 #include "date_convert.h"
 
+#include <ql/cashflows/cmscoupon.hpp>
 #include <ql/cashflows/coupon.hpp>
 #include <ql/cashflows/couponpricer.hpp>
 #include <ql/cashflows/fixedratecoupon.hpp>
@@ -37,13 +38,26 @@ QuantLib::Leg BuildFixedRateLeg(const FixedRateLegSpec& spec) {
 
 QuantLib::Leg BuildIborLeg(
     const FloatingLegSpec& spec, const std::shared_ptr<QuantLib::IborIndex>& index) {
-    QuantLib::Leg leg = QuantLib::IborLeg(spec.schedule, index)
-                            .withNotionals(spec.notionals)
-                            .withPaymentDayCounter(spec.dayCounter)
-                            .withPaymentAdjustment(spec.paymentConvention)
-                            .withSpreads(spec.spread)
-                            .withFixingDays(static_cast<QuantLib::Natural>(spec.fixingDays))
-                            .inArrears(spec.inArrears);
+    // An empty payment calendar means the schedule's own and a zero lag a
+    // plain adjustment (IborLeg's defaults); both are passed explicitly so a
+    // lagged leg and a plain one go through the identical chain.
+    const QuantLib::Calendar paymentCalendar =
+        spec.paymentCalendar.empty() ? spec.schedule.calendar() : spec.paymentCalendar;
+    QuantLib::IborLeg builder = QuantLib::IborLeg(spec.schedule, index)
+                                    .withNotionals(spec.notionals)
+                                    .withPaymentDayCounter(spec.dayCounter)
+                                    .withPaymentAdjustment(spec.paymentConvention)
+                                    .withPaymentCalendar(paymentCalendar)
+                                    .withPaymentLag(spec.paymentLag)
+                                    .withSpreads(spec.spread)
+                                    .inArrears(spec.inArrears);
+    // An absent override leaves IborLeg's fixing days unset, so every coupon
+    // fixes on the index's own fixing days exactly as QuantLib::VanillaSwap's
+    // floating leg does.
+    if (spec.fixingDays) {
+        builder.withFixingDays(static_cast<QuantLib::Natural>(*spec.fixingDays));
+    }
+    QuantLib::Leg leg = builder;
 
     // IBOR coupons need a pricer to compute their forward rate; a zero-vol
     // Black pricer reproduces VanillaSwap's own internal pricing for an
@@ -121,6 +135,10 @@ void ExtractSwapLegFlows(
             double fixing = std::numeric_limits<double>::quiet_NaN();
             try {
                 fixing = frc->indexFixing();
+                if (std::dynamic_pointer_cast<QuantLib::CmsCoupon>(frc)) {
+                    f.hasCmsSwapRate = true;
+                    f.cmsSwapRate = fixing;
+                }
             } catch (...) {
             }
             f.indexFixing = fixing;

@@ -392,20 +392,142 @@ def _ec_del_schedule_field(arr_key, product_key, field):
 
 
 def _ec_del_swap_leg_field(arr_key, swap_key, leg_key, field):
-    """Drop a convention field from a swap leg. The swap-leg convention enums
-    (day_counter, payment_convention) are presence-required: an omitted
-    convention is an error, never an alphabetical-0 default."""
+    """Drop a kind-specific field from a swap leg's coupon body
+    (`<swap>.<leg>.coupons.<field>`: rate, index, spread, averaging_method,
+    apply_observation_shift, ...). The presence-required ones are an error
+    when omitted, never an alphabetical-0 default. The fields every coupon
+    kind shares (notional, schedule, day_counter, payment_*) live on the leg
+    itself: use `_ec_del_leg_attr` for those."""
+    def f(req):
+        req[arr_key][0][swap_key][leg_key]["coupons"].pop(field, None)
+        return req
+    return f
+
+
+def _ec_set_swap_leg_field(arr_key, swap_key, leg_key, field, value):
+    """Set a kind-specific field of a swap leg's coupon body
+    (`<swap>.<leg>.coupons.<field>`) to an invalid value (e.g. a negative
+    day count that would wrap into QuantLib's unsigned Natural)."""
+    def f(req):
+        req[arr_key][0][swap_key][leg_key]["coupons"][field] = value
+        return req
+    return f
+
+
+def _ec_set_leg_attr(arr_key, swap_key, leg_key, field, value):
+    """Set a SwapLeg-level field on one leg of the first swap: the fields
+    every coupon kind shares (notional, notionals, schedule, day_counter,
+    payment_convention, payment_calendar, payment_lag) plus pay_receive,
+    currency, coupons_type, discounting_curve, forwarding_curve and the
+    initial/final_exchange flags. Not the kind-specific coupon body."""
+    def f(req):
+        req[arr_key][0][swap_key][leg_key][field] = value
+        return req
+    return f
+
+
+def _ec_del_leg_attr(arr_key, swap_key, leg_key, field):
+    """Drop a SwapLeg-level field (shared coupon field, side, currency,
+    curve id, ...) from one leg of the first swap. The shared convention
+    enums (day_counter, payment_convention, OIS payment_calendar /
+    payment_lag) are presence-required: an omitted value is a 400 naming
+    `<Swap>.<leg>.<field>`, never an alphabetical-0 default."""
     def f(req):
         req[arr_key][0][swap_key][leg_key].pop(field, None)
         return req
     return f
 
 
-def _ec_set_swap_leg_field(arr_key, swap_key, leg_key, field, value):
-    """Set a field on a swap leg to an invalid value (e.g. a negative day
-    count that would wrap into QuantLib's unsigned Natural)."""
+def _ec_set_swaption_leg_attr(leg_key, field, value):
+    """Set a SwapLeg-level field on one leg of the swaption's underlying."""
     def f(req):
-        req[arr_key][0][swap_key][leg_key][field] = value
+        req["swaptions"][0]["swaption"]["underlying"][leg_key][field] = value
+        return req
+    return f
+
+
+def _ec_set_swaption_leg_coupon_field(leg_key, field, value):
+    """Set a kind-specific coupon-body field (`coupons.<field>`) on one leg
+    of the swaption's underlying."""
+    def f(req):
+        req["swaptions"][0]["swaption"]["underlying"][leg_key]["coupons"][field] = value
+        return req
+    return f
+
+
+def _ec_ibor_body(coupons):
+    """The IborCoupons body equivalent of another floating coupon body (same
+    index and spread; the shared fields - notional, schedule, conventions -
+    stay on the leg and need no change). The JSON parser reads a leg's
+    `coupons` as the table its `coupons_type` names, so a leg whose kind is
+    changed needs a body that table can parse; the role / index-kind checks
+    of the mapper and pricer then do the rejecting."""
+    return {k: coupons[k] for k in ("index", "spread")}
+
+
+def _ec_vanilla_fixed_leg_as_ibor():
+    """Give the vanilla swap's fixed leg IborCoupons (a copy of the floating
+    leg's body). The fixed-leg role accepts FixedCoupons only."""
+    def f(req):
+        swap = req["swaps"][0]["vanilla_swap"]
+        swap["fixed_leg"]["coupons_type"] = "IborCoupons"
+        swap["fixed_leg"]["coupons"] = _ec_ibor_body(swap["floating_leg"]["coupons"])
+        return req
+    return f
+
+
+def _ec_ois_overnight_leg_as_ibor():
+    """Give the OIS overnight leg IborCoupons on its overnight index. The
+    overnight-leg role accepts OvernightCoupons only (rejected before any
+    market data is looked at)."""
+    def f(req):
+        leg = req["swaps"][0]["ois_swap"]["overnight_leg"]
+        leg["coupons_type"] = "IborCoupons"
+        leg["coupons"] = _ec_ibor_body(leg["coupons"])
+        return req
+    return f
+
+
+def _ec_vanilla_with_ibor_coupons_on_overnight_index():
+    """Build a price-vanilla-swap request out of the OIS fixture: the floating
+    leg carries IborCoupons but names the overnight index (ESTR). The role
+    accepts IborCoupons, so this is caught only once the index is resolved:
+    an IBOR coupon on an overnight index is a 400 naming OvernightCoupons."""
+    def f(req):
+        ois = req["swaps"][0].pop("ois_swap")
+        floating = ois["overnight_leg"]
+        floating["coupons_type"] = "IborCoupons"
+        floating["coupons"] = _ec_ibor_body(floating["coupons"])
+        req["swaps"][0]["vanilla_swap"] = {
+            "fixed_leg": ois["fixed_leg"], "floating_leg": floating}
+        return req
+    return f
+
+
+def _ec_basis_leg_as_fixed():
+    """Give basis leg1 FixedCoupons (a basis swap is floating vs floating).
+    The leg keeps its notional / schedule / conventions; only the coupon
+    body changes to the one FixedCoupons parses (a rate)."""
+    def f(req):
+        leg = req["swaps"][0]["basis_swap"]["leg1"]
+        leg["coupons_type"] = "FixedCoupons"
+        leg["coupons"] = {"rate": 0.03}
+        leg.pop("forwarding_curve", None)
+        return req
+    return f
+
+
+def _ec_swaption_floating_leg_as_cms():
+    """Give the swaption underlying's floating leg CmsCoupons (the leg keeps
+    its shared fields; the body is the CmsCoupons table's required ids). A
+    swaption is priced from a QuantLib::VanillaSwap, whose floating leg is
+    an IBOR leg."""
+    def f(req):
+        leg = req["swaptions"][0]["swaption"]["underlying"]["floating_leg"]
+        leg["coupons_type"] = "CmsCoupons"
+        leg["coupons"] = {
+            "swap_index_id": "EUR_SWAP_6M", "swap_tenor": {"n": 10, "unit": "Years"},
+            "swaption_vol_id": "swaption_vol"}
         return req
     return f
 
@@ -599,7 +721,8 @@ def _ec_callable_bad_call_date():
 
 
 def _ec_set_leg_notionals(arr_key, product_key, leg_key, values):
-    """Set the optional per-period notionals vector on a swap leg (or bond)."""
+    """Set the optional per-period `notionals` vector on a swap leg (a
+    leg-level field, next to the scalar `notional`)."""
     def f(req):
         req[arr_key][0][product_key][leg_key]["notionals"] = values
         return req
@@ -607,9 +730,10 @@ def _ec_set_leg_notionals(arr_key, product_key, leg_key, values):
 
 
 def _ec_set_cms_cap_floor(cap, floor):
-    """Set cap/floor on the first swap's CMS leg (presence-based fields)."""
+    """Set cap/floor on the first swap's CMS coupons (the floating leg of a
+    vanilla swap with coupons_type CmsCoupons; presence-based fields)."""
     def f(req):
-        cms = req["swaps"][0]["vanilla_swap"]["cms_leg"]
+        cms = req["swaps"][0]["vanilla_swap"]["floating_leg"]["coupons"]
         cms["cap"] = cap
         cms["floor"] = floor
         return req
@@ -617,9 +741,11 @@ def _ec_set_cms_cap_floor(cap, floor):
 
 
 def _ec_set_swaption_underlying_notionals(values):
-    """Set the notionals vector on the swaption underlying swap's fixed leg."""
+    """Set the per-period notionals vector on the swaption underlying's fixed
+    leg (a leg-level field)."""
     def f(req):
-        req["swaptions"][0]["swaption"]["underlying"]["fixed_leg"]["notionals"] = values
+        underlying = req["swaptions"][0]["swaption"]["underlying"]
+        underlying["fixed_leg"]["notionals"] = values
         return req
     return f
 
@@ -635,6 +761,18 @@ def _ec_body_contains(substr):
         if substr in body_text:
             return None
         return f"expected body to contain {substr!r}, got: {body_text[:200]}"
+    return check
+
+
+def _ec_body_contains_all(*substrs):
+    """Body validator: every substring must appear in the (error) body. Used
+    where the field path and the reason are both pinned but the exact text
+    between them is not (e.g. the amortizing-notionals 400s)."""
+    def check(body_text):
+        for substr in substrs:
+            if substr not in body_text:
+                return f"expected body to contain {substr!r}, got: {body_text[:200]}"
+        return None
     return check
 
 
@@ -739,8 +877,36 @@ SCENARIOS = [
      "fixed_rate_bond_request.json", 404, _ec_set_field("bonds", "discounting_curve", "no_such_curve")),
     ("ec:404 floating_rate_bond forwarding_curve missing", "floating_rate_bond",
      "floating_rate_bond_request.json", 404, _ec_set_field("bonds", "forwarding_curve", "no_such_curve")),
-    ("ec:404 vanilla_swap discounting_curve missing", "vanilla_swap",
-     "vanilla_swap_request.json", 404, _ec_set_field("swaps", "discounting_curve", "no_such_curve")),
+    # The curve ids live on the legs (SwapLeg.discounting_curve /
+    # forwarding_curve); an unknown id is a 404 naming the leg and the role.
+    ("ec:404 vanilla_swap fixed leg discounting_curve missing", "vanilla_swap",
+     "vanilla_swap_request.json", 404,
+     _ec_set_leg_attr("swaps", "vanilla_swap", "fixed_leg", "discounting_curve",
+                      "no_such_curve"),
+     _ec_body_contains("VanillaSwap.fixed_leg discounting curve not found: no_such_curve")),
+    ("ec:404 vanilla_swap floating leg forwarding_curve missing", "vanilla_swap",
+     "vanilla_swap_request.json", 404,
+     _ec_set_leg_attr("swaps", "vanilla_swap", "floating_leg", "forwarding_curve",
+                      "no_such_curve"),
+     _ec_body_contains("VanillaSwap.floating_leg forwarding curve not found: no_such_curve")),
+    ("ec:404 vanilla_swap floating leg index missing", "vanilla_swap",
+     "vanilla_swap_request.json", 404,
+     _ec_set_swap_leg_field("swaps", "vanilla_swap", "floating_leg", "index",
+                            {"id": "NO_SUCH_INDEX"}),
+     _ec_body_contains("Index not found: NO_SUCH_INDEX")),
+    ("ec:404 ois_swap overnight leg discounting_curve missing", "ois_swap",
+     "ois_swap_request.json", 404,
+     _ec_set_leg_attr("swaps", "ois_swap", "overnight_leg", "discounting_curve",
+                      "no_such_curve"),
+     _ec_body_contains("OisSwap.overnight_leg discounting curve not found: no_such_curve")),
+    ("ec:404 basis_swap leg2 forwarding_curve missing", "basis_swap",
+     "basis_swap_request.json", 404,
+     _ec_set_leg_attr("swaps", "basis_swap", "leg2", "forwarding_curve", "no_such_curve"),
+     _ec_body_contains("BasisSwap.leg2 forwarding curve not found: no_such_curve")),
+    ("ec:404 swaption underlying discounting_curve missing", "swaption",
+     "swaption_request.json", 404,
+     lambda req: _ec_set_swaption_leg_attr("floating_leg", "discounting_curve", "no_such_curve")(
+         _ec_set_swaption_leg_attr("fixed_leg", "discounting_curve", "no_such_curve")(req))),
     ("ec:404 fra forwarding_curve missing", "fra",
      "fra_request.json", 404, _ec_set_field("fras", "forwarding_curve", "no_such_curve")),
     ("ec:404 swaption model missing", "swaption",
@@ -780,14 +946,33 @@ SCENARIOS = [
     # ---- 400 INVALID_ARGUMENT: swap-leg convention presence ----
     # A swap-leg convention enum omitted from the request must be rejected, not
     # silently defaulted to the alphabetical-0 value.
+    # The conventions every coupon kind shares live on the leg itself
+    # (`<Swap>.<leg>.day_counter`, not under `coupons`).
     ("ec:400 vanilla_swap fixed leg missing day_counter", "vanilla_swap",
      "vanilla_swap_request.json", 400,
-     _ec_del_swap_leg_field("swaps", "vanilla_swap", "fixed_leg", "day_counter"),
-     _ec_body_contains("SwapFixedLeg.day_counter is required")),
+     _ec_del_leg_attr("swaps", "vanilla_swap", "fixed_leg", "day_counter"),
+     _ec_body_contains("VanillaSwap.fixed_leg.day_counter is required")),
     ("ec:400 vanilla_swap fixed leg missing payment_convention", "vanilla_swap",
      "vanilla_swap_request.json", 400,
-     _ec_del_swap_leg_field("swaps", "vanilla_swap", "fixed_leg", "payment_convention"),
-     _ec_body_contains("SwapFixedLeg.payment_convention is required")),
+     _ec_del_leg_attr("swaps", "vanilla_swap", "fixed_leg", "payment_convention"),
+     _ec_body_contains("VanillaSwap.fixed_leg.payment_convention is required")),
+    ("ec:400 vanilla_swap floating leg missing day_counter", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_del_leg_attr("swaps", "vanilla_swap", "floating_leg", "day_counter"),
+     _ec_body_contains("VanillaSwap.floating_leg.day_counter is required")),
+    # The notional is a `= null` scalar on the leg: absent is a named 400,
+    # never a silently-priced zero (a bare double would default to 0).
+    ("ec:400 vanilla_swap fixed leg missing notional", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_del_leg_attr("swaps", "vanilla_swap", "fixed_leg", "notional"),
+     _ec_body_contains("VanillaSwap.fixed_leg.notional is required")),
+    # SwapLeg.schedule is a `(required)` table in the schema: a leg without
+    # one never reaches the mapper, the JSON parser rejects the request
+    # (a 400 naming the missing field and the table).
+    ("ec:400 vanilla_swap fixed leg missing schedule", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_del_leg_attr("swaps", "vanilla_swap", "fixed_leg", "schedule"),
+     _ec_body_contains("required field is missing: schedule in SwapLeg")),
     # ---- 400 INVALID_ARGUMENT: hard-coded convention-default presence ----
     # Conventions that previously carried a hard-coded default (recovery 0.4,
     # fixing_days 2, calendar TARGET, period unit Months, schedule end-of-month,
@@ -849,10 +1034,12 @@ SCENARIOS = [
      "fixed_rate_bond_request.json", 400,
      _ec_del_curve_point_field("BondHelper", "schedule"),
      _ec_body_contains("BondHelper.schedule is required")),
-    ("ec:400 vanilla_swap missing discounting_curve reference", "vanilla_swap",
+    # SwapLeg.discounting_curve is a `(required)` string in the schema: a leg
+    # without one never reaches the mapper, the JSON parser rejects the request.
+    ("ec:400 vanilla_swap fixed leg missing discounting_curve", "vanilla_swap",
      "vanilla_swap_request.json", 400,
-     _ec_del_field("swaps", "discounting_curve"),
-     _ec_body_contains("PriceVanillaSwap.discounting_curve is required")),
+     _ec_del_leg_attr("swaps", "vanilla_swap", "fixed_leg", "discounting_curve"),
+     _ec_body_contains("discounting_curve")),
     ("ec:400 cds missing credit_curve_id reference", "cds",
      "cds_request.json", 400,
      _ec_del_field("cds_list", "credit_curve_id"),
@@ -1013,47 +1200,180 @@ SCENARIOS = [
      "cds_request.json", 400,
      _ec_del_instrument_field("cds_list", "cds", "side"),
      _ec_body_contains("CDS.side is required")),
+    # ---- 400 INVALID_ARGUMENT: SwapLeg shape (vanilla / OIS / basis / swaption) ----
+    # Every leg is a SwapLeg: pay_receive, currency, coupons_type + coupons,
+    # discounting_curve, forwarding_curve (floating kinds only). The mapper
+    # rejects a malformed leg with a 400 naming `<Swap>.<leg>.<field>`.
+    # pay_receive decides which way round the trade is booked: an omitted
+    # value is a 400, never a default side; one leg is paid, the other received.
+    ("ec:400 vanilla_swap fixed leg missing pay_receive", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_del_leg_attr("swaps", "vanilla_swap", "fixed_leg", "pay_receive"),
+     _ec_body_contains("VanillaSwap.fixed_leg.pay_receive is required (Pay or Receive)")),
+    ("ec:400 vanilla_swap both legs Pay", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_set_leg_attr("swaps", "vanilla_swap", "floating_leg", "pay_receive", "Pay"),
+     _ec_body_contains("VanillaSwap.fixed_leg.pay_receive and VanillaSwap.floating_leg."
+                       "pay_receive are both Pay: one leg must be paid and the other "
+                       "received")),
+    ("ec:400 ois_swap fixed leg missing pay_receive", "ois_swap",
+     "ois_swap_request.json", 400,
+     _ec_del_leg_attr("swaps", "ois_swap", "fixed_leg", "pay_receive"),
+     _ec_body_contains("OisSwap.fixed_leg.pay_receive is required (Pay or Receive)")),
+    ("ec:400 ois_swap both legs Receive", "ois_swap",
+     "ois_swap_request.json", 400,
+     _ec_set_leg_attr("swaps", "ois_swap", "fixed_leg", "pay_receive", "Receive"),
+     _ec_body_contains("OisSwap.fixed_leg.pay_receive and OisSwap.overnight_leg.pay_receive "
+                       "are both Receive")),
+    ("ec:400 basis_swap leg1 missing pay_receive", "basis_swap",
+     "basis_swap_request.json", 400,
+     _ec_del_leg_attr("swaps", "basis_swap", "leg1", "pay_receive"),
+     _ec_body_contains("BasisSwap.leg1.pay_receive is required (Pay or Receive)")),
+    ("ec:400 swaption underlying missing pay_receive", "swaption",
+     "swaption_request.json", 400,
+     lambda req: (req["swaptions"][0]["swaption"]["underlying"]["fixed_leg"]
+                  .pop("pay_receive") and req) or req,
+     _ec_body_contains("Swaption.underlying.fixed_leg.pay_receive is required")),
+    # The role decides the coupon kind: a fixed leg carries FixedCoupons, an
+    # OIS overnight leg OvernightCoupons, a basis leg IborCoupons or
+    # OvernightCoupons. The 400 names the role's allowed kinds and the one sent.
+    ("ec:400 vanilla_swap fixed leg with IborCoupons", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_vanilla_fixed_leg_as_ibor(),
+     _ec_body_contains("VanillaSwap.fixed_leg.coupons must be FixedCoupons (got IborCoupons)")),
+    ("ec:400 ois_swap overnight leg with IborCoupons", "ois_swap",
+     "ois_swap_request.json", 400,
+     _ec_ois_overnight_leg_as_ibor(),
+     _ec_body_contains(
+         "OisSwap.overnight_leg.coupons must be OvernightCoupons (got IborCoupons)")),
+    ("ec:400 basis_swap leg with FixedCoupons", "basis_swap",
+     "basis_swap_request.json", 400,
+     _ec_basis_leg_as_fixed(),
+     _ec_body_contains(
+         "BasisSwap.leg1.coupons must be IborCoupons or OvernightCoupons (got FixedCoupons)")),
+    ("ec:400 swaption underlying floating leg with CmsCoupons", "swaption",
+     "swaption_request.json", 400,
+     _ec_swaption_floating_leg_as_cms(),
+     _ec_body_contains(
+         "Swaption.underlying.floating_leg.coupons must be IborCoupons (got CmsCoupons)")),
+    # The coupon kind must match the index kind (checked once the index is
+    # resolved, so after market data; still a 400 naming the other kind).
+    ("ec:400 vanilla_swap IborCoupons on an overnight index", "vanilla_swap",
+     "ois_swap_request.json", 400,
+     _ec_vanilla_with_ibor_coupons_on_overnight_index(),
+     _ec_body_contains("VanillaSwap.floating_leg.coupons is IborCoupons but its index 'ESTR' "
+                       "is an overnight index: use OvernightCoupons")),
+    ("ec:400 ois_swap OvernightCoupons on an IBOR index", "ois_swap",
+     "ois_swap_request.json", 400,
+     _ec_set_swap_leg_field("swaps", "ois_swap", "overnight_leg", "index", {"id": "EUR_6M"}),
+     _ec_body_contains("OisSwap.overnight_leg.coupons is OvernightCoupons but its index "
+                       "'EUR_6M' is not an overnight index: use IborCoupons")),
+    # Curves: a floating leg must say what it projects on; a fixed leg
+    # projects nothing, so a forwarding_curve there is a mistake, not noise.
+    ("ec:400 vanilla_swap forwarding_curve on the fixed leg", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_set_leg_attr("swaps", "vanilla_swap", "fixed_leg", "forwarding_curve", "discount"),
+     _ec_body_contains("VanillaSwap.fixed_leg.forwarding_curve must be absent with "
+                       "FixedCoupons")),
+    ("ec:400 vanilla_swap floating leg missing forwarding_curve", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_del_leg_attr("swaps", "vanilla_swap", "floating_leg", "forwarding_curve"),
+     _ec_body_contains("VanillaSwap.floating_leg.forwarding_curve is required with "
+                       "IborCoupons")),
+    ("ec:400 ois_swap overnight leg missing forwarding_curve", "ois_swap",
+     "ois_swap_request.json", 400,
+     _ec_del_leg_attr("swaps", "ois_swap", "overnight_leg", "forwarding_curve"),
+     _ec_body_contains("OisSwap.overnight_leg.forwarding_curve is required with "
+                       "OvernightCoupons")),
+    # Currency: explicit ISO code on every leg, one currency per
+    # single-currency endpoint, and the index's own currency on a floating leg
+    # (the engine never infers a currency from an index id).
+    ("ec:400 vanilla_swap currency not ISO", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_set_leg_attr("swaps", "vanilla_swap", "fixed_leg", "currency", "eur"),
+     _ec_body_contains("VanillaSwap.fixed_leg.currency must be a three-letter uppercase ISO "
+                       "currency code, got 'eur'")),
+    ("ec:400 vanilla_swap two currencies", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_set_leg_attr("swaps", "vanilla_swap", "floating_leg", "currency", "USD"),
+     _ec_body_contains("VanillaSwap.fixed_leg.currency 'EUR' and VanillaSwap.floating_leg."
+                       "currency 'USD' must be equal on price-vanilla-swap")),
+    ("ec:400 basis_swap two currencies", "basis_swap",
+     "basis_swap_request.json", 400,
+     _ec_set_leg_attr("swaps", "basis_swap", "leg2", "currency", "USD"),
+     _ec_body_contains("BasisSwap.leg1.currency 'EUR' and BasisSwap.leg2.currency 'USD' "
+                       "must be equal on price-basis-swap")),
+    ("ec:400 vanilla_swap leg currency differs from the index currency", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     lambda req: _ec_set_leg_attr("swaps", "vanilla_swap", "floating_leg", "currency", "USD")(
+         _ec_set_leg_attr("swaps", "vanilla_swap", "fixed_leg", "currency", "USD")(req)),
+     _ec_body_contains("VanillaSwap.floating_leg.currency 'USD' does not match the currency "
+                       "EUR of its index 'EUR_6M' (IndexDef.currency)")),
+    # A swaption underlying is a QuantLib::VanillaSwap: one discount curve,
+    # no principal exchange, in-advance fixings.
+    ("ec:400 swaption underlying legs on different discounting curves", "swaption",
+     "swaption_request.json", 400,
+     _ec_set_swaption_leg_attr("floating_leg", "discounting_curve", "other_discount"),
+     _ec_body_contains("Swaption.underlying.fixed_leg.discounting_curve 'discount' and "
+                       "Swaption.underlying.floating_leg.discounting_curve 'other_discount' "
+                       "must be equal: a swaption is priced on one discount curve")),
+    ("ec:400 swaption underlying final_exchange true", "swaption",
+     "swaption_request.json", 400,
+     _ec_set_swaption_leg_attr("fixed_leg", "final_exchange", True),
+     _ec_body_contains("Swaption.underlying.fixed_leg.final_exchange must be absent or false: "
+                       "a swaption underlying leg carries no principal exchange")),
+    ("ec:400 swaption underlying floating leg in_arrears", "swaption",
+     "swaption_request.json", 400,
+     _ec_set_swaption_leg_coupon_field("floating_leg", "in_arrears", True),
+     _ec_body_contains("Swaption.underlying.floating_leg.coupons.in_arrears is not supported "
+                       "on a swaption underlying")),
     # ---- 400 INVALID_ARGUMENT: swap-direction discriminator presence ----
-    # swap_type decides which way round the trade is booked. An omitted value is
+    # swap_type decides which way round an inflation swap is booked. An omitted value is
     # indistinguishable from the alphabetical-0 default (Payer), so it must be
     # rejected rather than silently pricing the trade in the wrong direction.
-    ("ec:400 vanilla_swap missing swap_type", "vanilla_swap",
-     "vanilla_swap_request.json", 400,
-     _ec_del_instrument_field("swaps", "vanilla_swap", "swap_type"),
-     _ec_body_contains("VanillaSwap.swap_type is required")),
-    ("ec:400 ois_swap missing swap_type", "ois_swap",
-     "ois_swap_request.json", 400,
-     _ec_del_instrument_field("swaps", "ois_swap", "swap_type"),
-     _ec_body_contains("OisSwap.swap_type is required")),
     # ---- 400 INVALID_ARGUMENT: OIS payment-lag / overnight-coupon presence ----
     # The payment-lag and overnight-coupon parameters shift every payment /
     # fixing date, so an omitted value must be a named 400, never a silent
     # default; a negative day count would wrap into QuantLib's unsigned
     # Natural, so it is rejected explicitly. Locked on both the priced leg
-    # (OvernightCoupons) and the curve helper (OISHelper).
-    ("ec:400 ois_swap leg missing payment_lag", "ois_swap",
+    # (OvernightCoupons) and the curve helper (OISHelper). payment_calendar /
+    # payment_lag are leg-level fields, presence-required on BOTH legs of
+    # price-ois-swap (both legs pay on the lagged dates).
+    ("ec:400 ois_swap overnight leg missing payment_lag", "ois_swap",
      "ois_swap_request.json", 400,
-     _ec_del_swap_leg_field("swaps", "ois_swap", "overnight_leg", "payment_lag"),
-     _ec_body_contains("OisFloatingLeg.payment_lag is required")),
+     _ec_del_leg_attr("swaps", "ois_swap", "overnight_leg", "payment_lag"),
+     _ec_body_contains("OisSwap.overnight_leg.payment_lag is required")),
+    ("ec:400 ois_swap overnight leg missing payment_calendar", "ois_swap",
+     "ois_swap_request.json", 400,
+     _ec_del_leg_attr("swaps", "ois_swap", "overnight_leg", "payment_calendar"),
+     _ec_body_contains("OisSwap.overnight_leg.payment_calendar is required")),
+    ("ec:400 ois_swap fixed leg missing payment_lag", "ois_swap",
+     "ois_swap_request.json", 400,
+     _ec_del_leg_attr("swaps", "ois_swap", "fixed_leg", "payment_lag"),
+     _ec_body_contains("OisSwap.fixed_leg.payment_lag is required")),
+    ("ec:400 ois_swap fixed leg missing payment_calendar", "ois_swap",
+     "ois_swap_request.json", 400,
+     _ec_del_leg_attr("swaps", "ois_swap", "fixed_leg", "payment_calendar"),
+     _ec_body_contains("OisSwap.fixed_leg.payment_calendar is required")),
     ("ec:400 ois_swap leg missing averaging_method", "ois_swap",
      "ois_swap_request.json", 400,
      _ec_del_swap_leg_field("swaps", "ois_swap", "overnight_leg", "averaging_method"),
-     _ec_body_contains("OisFloatingLeg.averaging_method is required")),
+     _ec_body_contains("OisSwap.overnight_leg.coupons.averaging_method is required")),
     ("ec:400 ois_swap leg missing apply_observation_shift", "ois_swap",
      "ois_swap_request.json", 400,
      _ec_del_swap_leg_field("swaps", "ois_swap", "overnight_leg",
                             "apply_observation_shift"),
-     _ec_body_contains("OisFloatingLeg.apply_observation_shift is required")),
+     _ec_body_contains("OisSwap.overnight_leg.coupons.apply_observation_shift is required")),
     ("ec:400 ois_swap leg negative lockout_days", "ois_swap",
      "ois_swap_request.json", 400,
      _ec_set_swap_leg_field("swaps", "ois_swap", "overnight_leg",
                             "lockout_days", -1),
-     _ec_body_contains("OisFloatingLeg.lockout_days must be non-negative")),
+     _ec_body_contains("OisSwap.overnight_leg.coupons.lockout_days must be non-negative")),
     ("ec:400 ois_swap leg negative lookback_days", "ois_swap",
      "ois_swap_request.json", 400,
      _ec_set_swap_leg_field("swaps", "ois_swap", "overnight_leg",
                             "lookback_days", -1),
-     _ec_body_contains("OisFloatingLeg.lookback_days must be non-negative")),
+     _ec_body_contains("OisSwap.overnight_leg.coupons.lookback_days must be non-negative")),
     ("ec:400 ois helper missing payment_lag", "ois_swap",
      "ir_swaps/ois_eur_5y_payer_estr.json", 400,
      _ec_del_curve_point_field("OISHelper", "payment_lag"),
@@ -1074,10 +1394,6 @@ SCENARIOS = [
      "ir_swaps/ois_eur_5y_payer_estr.json", 400,
      _ec_set_curve_point_field("OISHelper", "lookback_days", -1),
      _ec_body_contains("OISHelper.lookback_days must be non-negative")),
-    ("ec:400 basis_swap missing swap_type", "basis_swap",
-     "basis_swap_request.json", 400,
-     _ec_del_instrument_field("swaps", "basis_swap", "swap_type"),
-     _ec_body_contains("BasisSwap.swap_type is required")),
     ("ec:400 zero_coupon_inflation_swap missing swap_type",
      "zero_coupon_inflation_swap",
      "inflation/zciis_eur_5y_payer_linear_obs.json", 400,
@@ -1213,7 +1529,7 @@ SCENARIOS = [
     ("ec:400 basis_swap negative notional rejected", "basis_swap",
      "basis_swap_request.json", 400,
      _ec_basis_swap_negative_notional(),
-     _ec_body_contains("SwapFloatingLeg.notional must be positive")),
+     _ec_body_contains("BasisSwap.leg1.notional must be positive")),
     # ---- 501 UNIMPLEMENTED: valid request, feature not built yet ----
     ("ec:501 swaption curve uses unimplemented helper", "swaption",
      "swaption_request.json", 501, _ec_unimplemented_curve_point()),
@@ -1246,38 +1562,45 @@ SCENARIOS = [
      "vanilla_swap_request.json", 400,
      _ec_set_leg_notionals("swaps", "vanilla_swap", "fixed_leg",
                            [1e7, 1e7, 1e7, 1e7]),
-     _ec_body_contains("SwapFixedLeg.notionals has 4 entries but the schedule has 5 periods")),
+     _ec_body_contains_all("VanillaSwap.fixed_leg.notionals",
+                           "has 4 entries but the schedule has 5 periods")),
     ("ec:400 vanilla_swap notionals too long", "vanilla_swap",
      "vanilla_swap_request.json", 400,
      _ec_set_leg_notionals("swaps", "vanilla_swap", "fixed_leg",
                            [1e7, 1e7, 1e7, 1e7, 1e7, 1e7]),
-     _ec_body_contains("SwapFixedLeg.notionals has 6 entries but the schedule has 5 periods")),
+     _ec_body_contains_all("VanillaSwap.fixed_leg.notionals",
+                           "has 6 entries but the schedule has 5 periods")),
     ("ec:400 vanilla_swap notionals empty", "vanilla_swap",
      "vanilla_swap_request.json", 400,
      _ec_set_leg_notionals("swaps", "vanilla_swap", "fixed_leg", []),
-     _ec_body_contains("SwapFixedLeg.notionals must be non-empty when present")),
+     _ec_body_contains_all("VanillaSwap.fixed_leg.notionals",
+                           "must be non-empty when present")),
     ("ec:400 vanilla_swap notionals non-positive entry", "vanilla_swap",
      "vanilla_swap_request.json", 400,
      _ec_set_leg_notionals("swaps", "vanilla_swap", "fixed_leg",
                            [1e7, 1e7, 1e7, 1e7, 0.0]),
-     _ec_body_contains("SwapFixedLeg.notionals entries must be positive")),
-    # ---- 400 INVALID_ARGUMENT: shared-table paths reject amortizing notionals ----
-    # FixedCoupons / IborCoupons are shared with the OIS, basis and
-    # swaption-underlying paths, which do not support amortizing notionals yet.
-    # A present notionals vector must be rejected, never silently ignored.
+     _ec_body_contains_all("VanillaSwap.fixed_leg.notionals",
+                           "entries must be positive")),
+    # ---- 400 INVALID_ARGUMENT: only the vanilla swap takes amortizing notionals ----
+    # The same SwapLeg table serves the OIS, basis and swaption-underlying
+    # legs, which do not support amortizing notionals yet.
+    # A present notionals vector must be rejected naming the endpoint, never
+    # silently ignored.
     ("ec:400 ois_swap fixed leg notionals rejected", "ois_swap",
      "ois_swap_request.json", 400,
      _ec_set_leg_notionals("swaps", "ois_swap", "fixed_leg", [1e7]),
-     _ec_body_contains("OisSwap fixed leg does not support amortizing notionals yet")),
+     _ec_body_contains("OisSwap.fixed_leg.notionals (price-ois-swap) does not support "
+                       "amortizing notionals yet")),
     ("ec:400 basis_swap leg notionals rejected", "basis_swap",
      "basis_swap_request.json", 400,
      _ec_set_leg_notionals("swaps", "basis_swap", "leg1", [1e7]),
-     _ec_body_contains("BasisSwap leg1 does not support amortizing notionals yet")),
+     _ec_body_contains("BasisSwap.leg1.notionals (price-basis-swap) does not support "
+                       "amortizing notionals yet")),
     ("ec:400 swaption underlying notionals rejected", "swaption",
      "swaption_request.json", 400,
      _ec_set_swaption_underlying_notionals([1e7]),
-     _ec_body_contains(
-         "Swaption underlying VanillaSwap fixed leg does not support amortizing notionals yet")),
+     _ec_body_contains("Swaption.underlying.fixed_leg.notionals (swaption underlying) "
+                       "does not support amortizing notionals yet")),
     # ---- 400 INVALID_ARGUMENT: zero-coupon bond convention / date presence ----
     # A zero-coupon bond convention enum omitted from the request must be
     # rejected, not silently defaulted to the alphabetical-0 value; wire dates
@@ -1327,7 +1650,15 @@ SCENARIOS = [
     ("ec:400 vanilla_swap CMS cap below floor rejected", "vanilla_swap",
      "ir_swaps/cms_eur_5y_payer_cms10y_collared_lineartsr.json", 400,
      _ec_set_cms_cap_floor(0.02, 0.03),
-     _ec_body_contains("SwapCmsLeg.cap must be >= floor")),
+     _ec_body_contains("VanillaSwap.floating_leg.coupons.cap must be >= floor")),
+    # A CMS leg pays on its schedule dates: the leg-level payment_calendar /
+    # payment_lag (optional on the other vanilla legs) are rejected rather
+    # than silently ignored.
+    ("ec:400 vanilla_swap CMS leg with payment_lag rejected", "vanilla_swap",
+     "ir_swaps/cms_eur_5y_payer_cms10y_vs_fixed_lineartsr.json", 400,
+     _ec_set_leg_attr("swaps", "vanilla_swap", "floating_leg", "payment_lag", 2),
+     _ec_body_contains("VanillaSwap.floating_leg.payment_lag is not supported with "
+                       "CmsCoupons")),
 
     # The year-on-year inflation cap/floor: cap_floor_type / day_counter /
     # payment_convention are presence-required; the strike set must match the

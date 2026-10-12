@@ -1,0 +1,34 @@
+include "common.fbs";
+include "enums.fbs";
+
+namespace quantra;
+
+/// One cash flow of a swap leg (`SwapLegResult.flows` and the zero-coupon /
+/// inflation swap flow lists).
+table SwapLegFlow {
+    payment_date:string;
+    accrual_start_date:string;
+    accrual_end_date:string;
+    amount:double;
+    /// Accrual year fraction used by the coupon.
+    accrual_year_fraction:double;
+    /// Coupon gearing multiplier (1.0 for fixed coupons).
+    gearing:double = 1.0;
+    discount:double;
+    present_value:double;
+    /// Floating leg metadata. For overnight coupons this may not represent the compounded effective coupon rate.
+    fixing_date:string;
+    /// Underlying index fixing. For CMS coupons this is the CMS swap-rate fixing.
+    index_fixing:double;
+    /// CMS swap-rate fixing for a CMS coupon. Absent for non-CMS coupons.
+    cms_swap_rate:double = null;
+    spread:double;
+    /// Coupon rate: fixed-leg rate or effective floating coupon rate.
+    rate:double;
+    /// Kind of flow. Set on every flow of a `SwapLeg` result
+    /// (`SwapLegResult.flows`, every swap endpoint), whose lists mix coupons
+    /// and notional exchanges (a NotionalExchange flow has `payment_date`,
+    /// `amount`, `discount`, `present_value` and `kind` only). Absent on the
+    /// zero-coupon and inflation swap endpoints, whose flows are all coupons.
+    kind:enums.SwapFlowKind = null;
+}

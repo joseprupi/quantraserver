@@ -65,24 +65,27 @@ public:
                     std::cout << std::fixed << std::setprecision(2);
                     std::cout << "NPV:              " << std::setw(15) << swap->npv() << " EUR"
                               << std::endl;
+                    // fair_rate is reported when the fixed leg has a non-zero
+                    // annuity (it is `= null` on the wire).
                     std::cout << std::fixed << std::setprecision(6);
-                    std::cout << "Fair Rate:        " << std::setw(15) << swap->fair_rate() * 100
-                              << " %" << std::endl;
-                    std::cout << "Fair Spread:      " << std::setw(15)
-                              << swap->fair_spread() * 10000 << " bps" << std::endl;
+                    if (swap->fair_rate().has_value()) {
+                        std::cout << "Fair Rate:        " << std::setw(15)
+                                  << swap->fair_rate().value() * 100 << " %" << std::endl;
+                    }
+                    // legs[0] = fixed_leg, legs[1] = floating_leg; each NPV is
+                    // signed from the reported party's view (paid legs negative).
+                    const auto* fixed_leg = swap->legs()->Get(0);
+                    const auto* floating_leg = swap->legs()->Get(1);
                     std::cout << std::fixed << std::setprecision(2);
-                    std::cout << "Fixed Leg NPV:    " << std::setw(15) << swap->fixed_leg_npv()
-                              << " EUR" << std::endl;
-                    std::cout << "Floating Leg NPV: " << std::setw(15) << swap->floating_leg_npv()
-                              << " EUR" << std::endl;
-                    std::cout << "Fixed Leg BPS:    " << std::setw(15) << swap->fixed_leg_bps()
-                              << " EUR" << std::endl;
-                    std::cout << "Floating Leg BPS: " << std::setw(15) << swap->floating_leg_bps()
+                    std::cout << "Fixed Leg NPV:    " << std::setw(15) << fixed_leg->npv() << " EUR"
+                              << std::endl;
+                    std::cout << "Floating Leg NPV: " << std::setw(15) << floating_leg->npv()
                               << " EUR" << std::endl;
                     std::cout << "========================================" << std::endl;
 
-                    // Print fixed leg flows
-                    auto fixed_flows = swap->fixed_leg_flows();
+                    // Print fixed leg flows (present with include_flows; every
+                    // flow carries its kind: Coupon or NotionalExchange)
+                    auto fixed_flows = fixed_leg->flows();
                     if (fixed_flows && fixed_flows->size() > 0) {
                         std::cout << std::endl;
                         std::cout << "FIXED LEG CASHFLOWS:" << std::endl;
@@ -105,7 +108,7 @@ public:
                     }
 
                     // Print floating leg flows
-                    auto float_flows = swap->floating_leg_flows();
+                    auto float_flows = floating_leg->flows();
                     if (float_flows && float_flows->size() > 0) {
                         std::cout << std::endl;
                         std::cout << "FLOATING LEG CASHFLOWS:" << std::endl;
@@ -163,7 +166,7 @@ int main(int argc, char** argv) {
     std::cout << "========================================" << std::endl;
     std::cout << std::endl;
     std::cout << "Swap Details:" << std::endl;
-    std::cout << "  Type:        Payer (pay fixed, receive floating)" << std::endl;
+    std::cout << "  Type:        Payer (fixed_leg Pay, floating_leg Receive)" << std::endl;
     std::cout << "  Notional:    10,000,000 EUR" << std::endl;
     std::cout << "  Fixed Rate:  3.50%" << std::endl;
     std::cout << "  Float Index: 6M Euribor" << std::endl;

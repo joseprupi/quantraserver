@@ -25,6 +25,7 @@ pricers/helpers from here; conftest.py exposes the client/data-dir fixtures.
 """
 
 import bisect
+import collections
 import contextlib
 import functools
 import inspect
@@ -1190,112 +1191,369 @@ def price_floating_rate_bond_ql(request: dict) -> float:
     return ql_bond.NPV()
 
 
-def price_vanilla_swap_ql(request: dict) -> float:
-    """Price vanilla swap using QuantLib."""
+# =============================================================================
+# Swap legs — the `SwapLeg` model shared by price-vanilla-swap, price-ois-swap,
+# price-basis-swap and the swaption underlying (0.10.0)
+# =============================================================================
+#
+# Every single-currency swap endpoint is two `SwapLeg`s under role-named
+# fields (VanillaSwap.fixed_leg / floating_leg, OisSwap.fixed_leg /
+# overnight_leg, BasisSwap.leg1 / leg2). The leg is flat: the fields every
+# coupon kind shares (`notional` / `notionals`, `schedule`, `day_counter`,
+# `payment_convention`, `payment_calendar`, `payment_lag`) sit on the leg
+# itself, as in FpML / ORE, and `coupons` (the `coupons_type` union member)
+# carries only the kind-specific ones. The reference reads each leg exactly
+# as the engine does (src/mappers/swap_leg_mapper.cpp decodeShared +
+# decodeFixed/Ibor/Overnight/Cms, src/evaluators/swap_leg_pricer.cpp): the
+# side from `pay_receive`, the curves from the leg itself, the principal
+# exchanges from `initial_exchange` / `final_exchange`. No converter sits in
+# between.
+
+_SwapLegView = collections.namedtuple(
+    "_SwapLegView",
+    "coupons pay discounting_curve forwarding_curve currency kind "
+    "notional notionals amortizing schedule day_counter payment_convention "
+    "payment_calendar payment_lag initial_exchange final_exchange")
+
+
+def _swap_leg(leg: dict) -> _SwapLegView:
+    """The one adapter from a wire `SwapLeg` to what the reference pricers
+    read. The leg is flat: the fields every coupon kind shares sit on the
+    leg itself and `coupons` holds only the kind-specific ones (the engine's
+    decodeShared / decodeFixed|Ibor|Overnight|Cms split). The view carries:
+
+      coupons             the body of the union member (`rate`; `index`,
+                          `spread`, `fixing_days`, `in_arrears`; the OIS
+                          conventions; the CMS fields) -- never a shared field
+      pay                 True for `pay_receive == "Pay"`
+      discounting_curve, forwarding_curve (None on a fixed leg), currency
+      kind                = `coupons_type`
+      notional            the exchanged notional (`_swap_leg_notionals`)
+      notionals           the per-period vector the leg builders take (one
+                          entry = constant)
+      amortizing          True when the leg states a `notionals` vector
+      schedule            the wire schedule dict (`_wire_schedule_from`)
+      day_counter         the enum name, or None (an overnight leg may omit it)
+      payment_convention  the enum name
+      payment_calendar    the enum name, or None (absent = the schedule's)
+      payment_lag         int, or None (absent = 0)
+      initial_exchange, final_exchange (absent = false)
+
+    A field the engine requires on every leg is read with [] here, so a
+    malformed request fails loudly in the reference."""
+    side = leg["pay_receive"]
+    if side not in ("Pay", "Receive"):
+        raise ValueError(f"SwapLeg.pay_receive must be Pay or Receive, got {side!r}")
+    kind = leg["coupons_type"]
+    if kind not in ("FixedCoupons", "IborCoupons", "OvernightCoupons", "CmsCoupons"):
+        raise ValueError(f"SwapLeg.coupons_type not supported: {kind!r}")
+    notionals, notional = _swap_leg_notionals(leg)
+    lag = leg.get("payment_lag")
+    return _SwapLegView(
+        coupons=leg["coupons"],
+        pay=(side == "Pay"),
+        discounting_curve=leg["discounting_curve"],
+        forwarding_curve=leg.get("forwarding_curve"),
+        currency=leg["currency"],
+        kind=kind,
+        notional=notional,
+        notionals=notionals,
+        amortizing=bool(leg.get("notionals")),
+        schedule=leg["schedule"],
+        day_counter=leg.get("day_counter"),
+        payment_convention=leg["payment_convention"],
+        payment_calendar=leg.get("payment_calendar"),
+        payment_lag=None if lag is None else int(lag),
+        initial_exchange=bool(leg.get("initial_exchange", False)),
+        final_exchange=bool(leg.get("final_exchange", False)),
+    )
+
+
+def _swap_leg_payment_calendar(view: _SwapLegView, schedule: ql.Schedule) -> ql.Calendar:
+    """The calendar a leg's coupons are paid on: `payment_calendar` when the
+    leg states one, else the schedule's own (QuantLib's and the engine's
+    default: swap_leg_builder.cpp)."""
+    if view.payment_calendar is not None:
+        return get_calendar(view.payment_calendar)
+    return schedule.calendar()
+
+
+def _swap_curve_resolver(request: dict, eval_date: ql.Date):
+    """`curve(id)` -> YieldTermStructureHandle built once per id from
+    `pricing.rates.curves`: every leg naming the same id gets the same handle,
+    as the engine's registry hands out."""
     pricing = _reference_pricing_view(request)
-    swap_data = request["swaps"][0]
-    swap = swap_data["vanilla_swap"]
+    built = {}
+
+    def curve(curve_id: str):
+        if curve_id not in built:
+            spec = next((c for c in pricing["curves"] if c["id"] == curve_id), None)
+            if spec is None:
+                raise ValueError(f"curve not found: {curve_id!r}")
+            built[curve_id] = build_curve_from_json(spec, eval_date, request)
+        return built[curve_id]
+
+    return curve
+
+
+def _swap_leg_notionals(leg: dict):
+    """(notionals vector, exchanged notional) of a wire `SwapLeg`, read as
+    the engine's decodeNotionals reads them off the leg: the per-period
+    `notionals` vector when present (the scalar is then optional; the
+    exchanged notional is the scalar when given, else the first period's),
+    the constant `notional` otherwise."""
+    vector = leg.get("notionals")
+    if vector:
+        notionals = [float(n) for n in vector]
+        constant = float(leg["notional"]) if leg.get("notional") is not None else notionals[0]
+        return notionals, constant
+    constant = float(leg["notional"])
+    return [constant], constant
+
+
+def _zero_vol_ibor_pricer(index) -> None:
+    """The zero-vol Black pricer the engine attaches to every IBOR coupon leg
+    (BuildIborLeg): reproduces VanillaSwap's own in-advance coupon pricing
+    and, in arrears, reads the shifted fixing with no convexity adjustment."""
+    vol = ql.ConstantOptionletVolatility(
+        0, index.fixingCalendar(), ql.ModifiedFollowing, 0.0, ql.Actual365Fixed())
+    pricer = ql.BlackIborCouponPricer()
+    pricer.setCapletVolatility(ql.OptionletVolatilityStructureHandle(vol))
+    return pricer
+
+
+def _swap_leg_coupons(leg: dict, request: dict, forward_curve, discount_curve=None):
+    """Coupon leg of one `SwapLeg`, built exactly as the engine's shared leg
+    builder (src/evaluators/swap_leg_builder.cpp + swap_leg_pricer.cpp) builds
+    it: the shared fields (`notional` / `notionals`, `schedule`,
+    `day_counter`, `payment_convention`, `payment_calendar`, `payment_lag`)
+    from the leg, the kind-specific ones from `coupons`:
+
+      FixedCoupons      FixedRateLeg at `coupons.rate`, paid with the leg's
+                        payment convention, `payment_calendar` (absent = the
+                        schedule's) and `payment_lag` (absent = 0);
+      IborCoupons       IborLeg with the zero-vol Black pricer, paid on the
+                        same leg-level calendar / lag; `coupons.fixing_days`
+                        absent = the index's own fixing days (QuantLib's
+                        default, what VanillaSwap always did), present = the
+                        override; `coupons.in_arrears` honoured;
+      OvernightCoupons  OvernightLeg with the OIS conventions (the leg's
+                        payment lag and calendar; averaging, lookback,
+                        lockout, observation shift from `coupons`) -- the
+                        chain QuantLib's OvernightIndexedSwap uses; the leg's
+                        `day_counter` is not read (the index's own applies);
+      CmsCoupons        CmsLeg on the swap index with the requested pricer
+                        (`_cms_coupons`; needs `discount_curve`).
+
+    `forward_curve` is the leg's forwarding curve handle (None for a fixed
+    leg). Returns (ql.Leg, schedule, exchanged notional, rate_or_spread,
+    is_fixed)."""
+    view = _swap_leg(leg)
+    f = view.coupons
+    schedule = _wire_schedule_from(view.schedule)
+    payment_calendar = _swap_leg_payment_calendar(view, schedule)
+    payment_lag = view.payment_lag or 0
+    conv = get_convention(view.payment_convention)
+    if view.kind == "FixedCoupons":
+        coupons = ql.FixedRateLeg(
+            schedule, get_day_counter(view.day_counter), view.notionals, [float(f["rate"])],
+            conv, paymentCalendar=payment_calendar, paymentLag=payment_lag)
+        return coupons, schedule, view.notional, float(f["rate"]), True
+    if view.kind == "CmsCoupons":
+        if discount_curve is None:
+            raise ValueError("a CMS leg needs its discounting curve (the swap index's)")
+        coupons = _cms_coupons(leg, request, forward_curve, discount_curve)
+        return coupons, schedule, view.notional, float(f.get("spread", 0.0)), False
+    spread = float(f.get("spread", 0.0))
+    idx_def = find_index_def(f["index"]["id"], request)
+    if idx_def is None:
+        raise ValueError(f"Index not found: {f['index']['id']}")
+    if view.kind == "OvernightCoupons":
+        if idx_def.get("index_type") != "Overnight":
+            raise ValueError("OvernightCoupons needs an overnight index")
+        index = build_overnight_index(idx_def, forward_curve)
+        lookback = int(f.get("lookback_days", 0))
+        coupons = ql.OvernightLeg(
+            view.notionals, schedule, index, index.dayCounter(), conv, [1.0], [spread],
+            bool(f.get("telescopic_value_dates", False)),
+            get_rate_averaging(f.get("averaging_method", "Compound")),
+            payment_calendar, payment_lag,
+            QL_NULL_NATURAL if lookback <= 0 else lookback, int(f.get("lockout_days", 0)),
+            bool(f.get("apply_observation_shift", False)))
+        return coupons, schedule, view.notional, spread, False
+    # IborCoupons
+    if idx_def.get("index_type") == "Overnight":
+        raise ValueError("IborCoupons needs an IBOR index")
+    index = build_ibor_index(idx_def, forward_curve)
+    # An absent override leaves IborLeg's fixing days unset (empty vector), so
+    # every coupon fixes on the index's own fixing days.
+    fixing_days = [int(f["fixing_days"])] if f.get("fixing_days") is not None else []
+    coupons = ql.IborLeg(view.notionals, schedule, index, get_day_counter(view.day_counter),
+                         conv, fixing_days, [1.0], [spread], [], [],
+                         bool(f.get("in_arrears", False)),
+                         paymentCalendar=payment_calendar, paymentLag=payment_lag)
+    ql.setCouponPricer(coupons, _zero_vol_ibor_pricer(index))
+    return coupons, schedule, view.notional, spread, False
+
+
+# Role-named leg fields of each single-currency swap endpoint, in `legs` order.
+_SWAP_LEG_ROLES = {
+    "vanilla_swap": ("fixed_leg", "floating_leg"),
+    "ois_swap": ("fixed_leg", "overnight_leg"),
+    "basis_swap": ("leg1", "leg2"),
+}
+
+
+def swap_legs_ql(request: dict, index: int = 0) -> dict:
+    """Price one swap of a price-vanilla-swap / price-ois-swap /
+    price-basis-swap request with the leg algebra of the engine
+    (src/evaluators/swap_leg_pricer.cpp and the three evaluators) on QuantLib
+    curves built from the request. For leg i (coupons C_i, exchanged notional
+    N_i, discounting curve D_i, own frame = as the receiver of the coupons
+    sees it, s_i = -1 for pay_receive Pay / +1 for Receive):
+
+      L_i = C_i + [initial] SimpleCashFlow(-N_i, schedule start)
+                + [final]   SimpleCashFlow(+N_i, last coupon payment date)
+      legs[i].npv = legs[i].npv_reporting = s_i * CashFlows.npv(L_i, D_i)
+      npv         = legs[0].npv + legs[1].npv
+      B_i         = s_i * CashFlows.bps(C_i, D_i)          (exchanges excluded)
+      fair_rate   = r_0 - npv / (B_0 / 1e-4)       vanilla / OIS (leg 0 = fixed)
+      fair_spread = q_1 - npv / (B_1 / 1e-4)       vanilla / OIS (leg 1 = floating)
+      fair_spread = q_k - npv * 1e-4 / B_k         basis; k = leg1 when only
+                    leg1 carries a spread, leg2 otherwise
+
+    Every value is as of the evaluation date, flows on that date excluded (as
+    QuantLib's DiscountingSwapEngine values a leg). A CMS floating leg goes
+    through the same algebra (the CMS coupons held fixed for `fair_rate`, the
+    CMS coupons' annuity for `fair_spread`). As on every swap endpoint,
+    `fair_rate` is present iff exactly one leg is fixed and `fair_spread` iff
+    a leg is floating.
+
+    Returns {npv, legs: [{npv, npv_reporting, pv_own, flows}], fair_rate?,
+    fair_spread?} with `flows` = (ISO payment date, amount, discount) of every
+    future flow of the full leg, in leg order (coupons first, then the
+    exchanges, as the engine lists them)."""
+    pricing = _reference_pricing_view(request)
+    entry = request["swaps"][index]
+    product = next((k for k in _SWAP_LEG_ROLES if k in entry), None)
+    if product is None:
+        raise ValueError("swap_legs_ql: entry holds no vanilla_swap / ois_swap / basis_swap")
+    swap = entry[product]
+
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+    curve = _swap_curve_resolver(request, eval_date)
+
+    def build(leg: dict):
+        view = _swap_leg(leg)
+        disc = curve(view.discounting_curve)
+        fwd = curve(view.forwarding_curve) if view.kind != "FixedCoupons" else None
+        coupons, schedule, notional, level, is_fixed = _swap_leg_coupons(
+            leg, request, fwd, disc)
+        full = list(coupons)
+        if view.initial_exchange:
+            full.append(ql.SimpleCashFlow(-notional, schedule.dates()[0]))
+        if view.final_exchange:
+            full.append(ql.SimpleCashFlow(notional, coupons[-1].date()))
+        yts = _xccy_term_structure(disc)
+        sign = -1.0 if view.pay else 1.0
+        pv_own = ql.CashFlows.npv(full, yts, False, eval_date, eval_date)
+        signed_bps = sign * ql.CashFlows.bps(coupons, yts, False, eval_date, eval_date)
+        flows = [(cf.date().ISO(), cf.amount(), yts.discount(cf.date()))
+                 for cf in full if not cf.hasOccurred(eval_date)]
+        return {"npv": sign * pv_own, "npv_reporting": sign * pv_own, "pv_own": pv_own,
+                "flows": flows, "signed_bps": signed_bps, "level": level,
+                "is_fixed": is_fixed}
+
+    legs = [build(swap[role]) for role in _SWAP_LEG_ROLES[product]]
+    npv = legs[0]["npv"] + legs[1]["npv"]
+    out = {"npv": npv,
+           "legs": [{k: leg[k] for k in ("npv", "npv_reporting", "pv_own", "flows")}
+                    for leg in legs]}
+    if product == "basis_swap":
+        k = 0 if (legs[0]["level"] != 0.0 and legs[1]["level"] == 0.0) else 1
+        if abs(legs[k]["signed_bps"]) > 1e-16:
+            fair = legs[k]["level"] - npv * 1e-4 / legs[k]["signed_bps"]
+            if math.isfinite(fair):
+                out["fair_spread"] = fair
+    else:
+        if legs[0]["signed_bps"] != 0.0:
+            fair = legs[0]["level"] - npv / (legs[0]["signed_bps"] / 1e-4)
+            if math.isfinite(fair):
+                out["fair_rate"] = fair
+        if legs[1]["signed_bps"] != 0.0:
+            fair = legs[1]["level"] - npv / (legs[1]["signed_bps"] / 1e-4)
+            if math.isfinite(fair):
+                out["fair_spread"] = fair
+    return out
+
+
+def price_vanilla_swap_ql(request: dict) -> float:
+    """Price a vanilla swap (`VanillaSwap { fixed_leg, floating_leg }`) using
+    QuantLib.
+
+    The native QuantLib::VanillaSwap is used whenever it expresses the request
+    exactly -- one discount curve for both legs, no principal exchange, no
+    per-period notionals, in-advance fixing on the index's own fixing days,
+    one notional, both legs paid on the floating schedule's convention (the
+    one VanillaSwap applies to both legs), no payment calendar / lag override
+    on either leg -- with the index projecting off the floating leg's
+    forwarding curve and the swap discounted on the legs' discounting curve.
+    Anything else (an in-arrears leg, amortizing notionals, a CMS floating
+    leg, exchanges, per-leg discount curves, a fixing-days override, a
+    payment lag) takes the engine's own leg algebra, `swap_legs_ql`."""
+    pricing = _reference_pricing_view(request)
+    swap = request["swaps"][0]["vanilla_swap"]
+    fixed = _swap_leg(swap["fixed_leg"])
+    floating = _swap_leg(swap["floating_leg"])
 
     eval_date = parse_date(pricing["as_of_date"])
     ql.Settings.instance().evaluationDate = eval_date
 
-    # Build discounting curve
-    curve_id = swap_data.get("discounting_curve", "discount")
-    curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
-    curve = build_curve_from_json(curve_json, eval_date, request)
-
-    # Forwarding curve for the floating index. Multicurve requests discount on
-    # a separate (typically OIS) curve; single-curve requests point both ids at
-    # the same curve, which keeps this identical to the single-curve behaviour.
-    forward_id = swap_data.get("forwarding_curve", curve_id)
-    if forward_id == curve_id:
-        forward_curve = curve
-    else:
-        forward_json = next((c for c in pricing["curves"] if c["id"] == forward_id), curve_json)
-        forward_curve = build_curve_from_json(forward_json, eval_date, request)
-
-    # Fixed leg
-    fixed_leg = swap["fixed_leg"]
-    fixed_sch = fixed_leg["schedule"]
-    fixed_schedule = ql.Schedule(
-        parse_date(fixed_sch["effective_date"]),
-        parse_date(fixed_sch["termination_date"]),
-        ql.Period(get_frequency(fixed_sch["frequency"])),
-        get_calendar(fixed_sch.get("calendar", "TARGET")),
-        get_convention(fixed_sch.get("convention", "ModifiedFollowing")),
-        get_convention(fixed_sch.get("termination_date_convention", "ModifiedFollowing")),
-        get_date_generation(fixed_sch.get("date_generation_rule", "Forward")),
-        # Mirrors the server's ScheduleParser: schedule->end_of_month()
-        # (FlatBuffers schema default false).
-        fixed_sch.get("end_of_month", False),
-        # Optional stub-period control (firstDate / nextToLastDate).
-        *_schedule_stub_dates(fixed_sch)
+    fc, xc = fixed.coupons, floating.coupons
+    exchanges = (fixed.initial_exchange or fixed.final_exchange or
+                 floating.initial_exchange or floating.final_exchange)
+    if floating.kind != "IborCoupons" or exchanges:
+        return swap_legs_ql(request)["npv"]
+    float_schedule = _wire_schedule_from(floating.schedule)
+    float_convention = float_schedule.businessDayConvention()
+    native = (
+        fixed.discounting_curve == floating.discounting_curve
+        and not fixed.amortizing and not floating.amortizing
+        and fixed.notional == floating.notional
+        and not xc.get("in_arrears", False)
+        and xc.get("fixing_days") is None
+        and fixed.payment_calendar is None and not fixed.payment_lag
+        and floating.payment_calendar is None and not floating.payment_lag
+        and get_convention(fixed.payment_convention) == float_convention
+        and get_convention(floating.payment_convention) == float_convention
     )
+    if not native:
+        return swap_legs_ql(request)["npv"]
 
-    # Float leg
-    float_leg = swap["floating_leg"]
-    float_sch = float_leg["schedule"]
-    float_schedule = ql.Schedule(
-        parse_date(float_sch["effective_date"]),
-        parse_date(float_sch["termination_date"]),
-        ql.Period(get_frequency(float_sch["frequency"])),
-        get_calendar(float_sch.get("calendar", "TARGET")),
-        get_convention(float_sch.get("convention", "ModifiedFollowing")),
-        get_convention(float_sch.get("termination_date_convention", "ModifiedFollowing")),
-        get_date_generation(float_sch.get("date_generation_rule", "Forward")),
-        float_sch.get("end_of_month", False),
-        # Optional stub-period control (firstDate / nextToLastDate).
-        *_schedule_stub_dates(float_sch)
-    )
-    
-    # Resolve the floating index exactly as the server does: from the request's
-    # IndexDef (tenor / calendar / conventions), projecting off the forwarding
-    # curve. Falls back to Euribor6M when the request carries no index def.
-    idx_ref = float_leg.get("index", {})
-    idx_id = idx_ref.get("id") if isinstance(idx_ref, dict) else None
-    if idx_id and find_index_def(idx_id, request):
-        index = resolve_index_from_id(idx_id, request, forward_curve)
-    else:
-        index = ql.Euribor6M(forward_curve)
-    swap_type = ql.VanillaSwap.Payer if swap["swap_type"] == "Payer" else ql.VanillaSwap.Receiver
-
-    # An in-arrears floating leg cannot be expressed by ql.VanillaSwap, so mirror
-    # the server's manual-leg path (vanilla_swap_evaluator.cpp priceIborManualLeg):
-    # FixedRateLeg + IborLeg(inArrears=True) priced as a generic Swap with a
-    # zero-vol Black pricer. The coupon fixes at the end of its accrual period; no
-    # convexity adjustment is applied (no caplet vol is supplied), so the only
-    # difference vs the in-advance swap is the shifted fixing date.
-    if bool(float_leg.get("in_arrears", False)):
-        fixed_dc = get_day_counter(fixed_leg.get("day_counter", "Thirty360"))
-        float_dc = get_day_counter(float_leg.get("day_counter", "Actual360"))
-        payment_convention = float_schedule.businessDayConvention()
-        ql_fixed_leg = ql.FixedRateLeg(
-            fixed_schedule, fixed_dc, [fixed_leg["notional"]],
-            [fixed_leg["rate"]], payment_convention)
-        ql_ibor_leg = ql.IborLeg(
-            [float_leg["notional"]], float_schedule, index, float_dc,
-            payment_convention, [float_leg.get("fixing_days", 2)], [1.0],
-            [float_leg.get("spread", 0.0)], [], [], True)
-        vol = ql.ConstantOptionletVolatility(
-            0, index.fixingCalendar(), ql.ModifiedFollowing, 0.0, ql.Actual365Fixed())
-        pricer = ql.BlackIborCouponPricer()
-        pricer.setCapletVolatility(ql.OptionletVolatilityStructureHandle(vol))
-        ql.setCouponPricer(ql_ibor_leg, pricer)
-        payer_fixed = swap["swap_type"] == "Payer"
-        ql_swap = ql.Swap([ql_fixed_leg, ql_ibor_leg], [payer_fixed, not payer_fixed])
-        ql_swap.setPricingEngine(ql.DiscountingSwapEngine(curve))
-        return ql_swap.NPV()
+    curve_of = _swap_curve_resolver(request, eval_date)
+    curve = curve_of(fixed.discounting_curve)
+    forward_curve = curve_of(floating.forwarding_curve)
+    fixed_schedule = _wire_schedule_from(fixed.schedule)
+    # The floating index exactly as the engine resolves it: from the request's
+    # IndexDef (tenor / calendar / conventions), projecting off the leg's
+    # forwarding curve.
+    idx_id = xc["index"]["id"]
+    if find_index_def(idx_id, request) is None:
+        raise ValueError(f"Index not found: {idx_id}")
+    index = resolve_index_from_id(idx_id, request, forward_curve)
+    swap_type = ql.VanillaSwap.Payer if fixed.pay else ql.VanillaSwap.Receiver
 
     ql_swap = ql.VanillaSwap(
         swap_type,
-        fixed_leg["notional"],
+        fixed.notional,
         fixed_schedule,
-        fixed_leg["rate"],
-        get_day_counter(fixed_leg.get("day_counter", "Thirty360")),
+        float(fc["rate"]),
+        get_day_counter(fixed.day_counter),
         float_schedule,
         index,
-        float_leg.get("spread", 0.0),
-        get_day_counter(float_leg.get("day_counter", "Actual360"))
+        float(xc.get("spread", 0.0)),
+        get_day_counter(floating.day_counter)
     )
     ql_swap.setPricingEngine(ql.DiscountingSwapEngine(curve))
 
@@ -1388,54 +1646,20 @@ def _build_swaption_vol_for_cms(pricing: dict, vol_id: str, eval_date: ql.Date):
     raise ValueError(f"swaption vol surface not found: {vol_id!r}")
 
 
-def price_cms_swap_ql(request: dict) -> float:
-    """Price a fixed-vs-CMS vanilla swap using QuantLib.
-
-    Mirrors the server's CMS branch (vanilla_swap_evaluator.cpp priceCmsBranch,
-    cms_leg_parser.cpp, swap_index_registry.cpp): a QuantLib::Swap of a fixed
-    leg vs a CmsLeg built on a SwapIndex (family name = swap_index_id, fixed-leg
-    tenor derived from the SwapIndexDef fixed frequency), with a Hagan-family or
-    LinearTsr coupon pricer fed by the request's swaption vol surface. fair_rate/
-    fair_spread are undefined for CMS, matching the server which reports 0.
-    """
+def _cms_coupons(leg: dict, request: dict, fwd_curve, disc_curve) -> ql.Leg:
+    """The CmsLeg of a `CmsCoupons` swap leg, mirroring the engine
+    (swap_leg_pricer.cpp buildCmsCoupons, swap_index_registry.cpp): a
+    QuantLib::SwapIndex (family name = swap_index_id, fixed-leg tenor from the
+    SwapIndexDef fixed frequency, IBOR leg projecting off the leg's forwarding
+    curve, discounted on the leg's discounting curve) with a Hagan-family or
+    LinearTsr coupon pricer fed by the request's swaption vol surface. `leg`
+    is the wire `SwapLeg`: notional, schedule, day counter and payment
+    convention come from the leg (a CMS leg takes no payment calendar / lag
+    and one constant notional), the CMS fields from `coupons`."""
     pricing = _reference_pricing_view(request)
-    swap_data = request["swaps"][0]
-    swap = swap_data["vanilla_swap"]
-    cms = swap["cms_leg"]
-
-    eval_date = parse_date(pricing["as_of_date"])
-    ql.Settings.instance().evaluationDate = eval_date
-
-    disc_id = swap_data["discounting_curve"]
-    disc_json = next((c for c in pricing["curves"] if c["id"] == disc_id),
-                     pricing["curves"][0])
-    disc_curve = build_curve_from_json(disc_json, eval_date, request)
-
-    fwd_id = swap_data.get("forwarding_curve", disc_id)
-    if fwd_id == disc_id:
-        fwd_curve = disc_curve
-    else:
-        fwd_json = next((c for c in pricing["curves"] if c["id"] == fwd_id), disc_json)
-        fwd_curve = build_curve_from_json(fwd_json, eval_date, request)
-
-    # Fixed leg (FixedRateLeg, matching priceCmsBranch's FixedRateLeg builder).
-    fixed_leg_j = swap["fixed_leg"]
-    fixed_sch = fixed_leg_j["schedule"]
-    fixed_schedule = ql.Schedule(
-        parse_date(fixed_sch["effective_date"]),
-        parse_date(fixed_sch["termination_date"]),
-        ql.Period(get_frequency(fixed_sch["frequency"])),
-        get_calendar(fixed_sch.get("calendar", "TARGET")),
-        get_convention(fixed_sch.get("convention", "ModifiedFollowing")),
-        get_convention(fixed_sch.get("termination_date_convention", "ModifiedFollowing")),
-        get_date_generation(fixed_sch.get("date_generation_rule", "Forward")),
-        fixed_sch.get("end_of_month", False))
-    fixed_leg = ql.FixedRateLeg(
-        fixed_schedule,
-        get_day_counter(fixed_leg_j.get("day_counter", "Thirty360")),
-        [fixed_leg_j["notional"]],
-        [fixed_leg_j["rate"]],
-        get_convention(fixed_leg_j.get("payment_convention", "ModifiedFollowing")))
+    eval_date = ql.Settings.instance().evaluationDate
+    view = _swap_leg(leg)
+    cms = view.coupons
 
     # Swap index (SwapIndexRegistry::getIborSwapIndexWithCurves).
     swap_index_id = cms["swap_index_id"]
@@ -1459,18 +1683,8 @@ def price_cms_swap_ql(request: dict) -> float:
         fixed_index_cal, fixed_leg_tenor, fixed_index_bdc, fixed_index_dc,
         ibor, disc_curve)
 
-    # CMS leg (cms_leg_parser / priceCmsBranch CmsLeg builder).
-    cms_sch = cms["schedule"]
-    cms_schedule = ql.Schedule(
-        parse_date(cms_sch["effective_date"]),
-        parse_date(cms_sch["termination_date"]),
-        ql.Period(get_frequency(cms_sch["frequency"])),
-        get_calendar(cms_sch.get("calendar", "TARGET")),
-        get_convention(cms_sch.get("convention", "ModifiedFollowing")),
-        get_convention(cms_sch.get("termination_date_convention", "ModifiedFollowing")),
-        get_date_generation(cms_sch.get("date_generation_rule", "Forward")),
-        cms_sch.get("end_of_month", False))
-
+    # CMS leg (the engine's CmsLeg builder).
+    cms_schedule = _wire_schedule_from(view.schedule)
     fixing_days = cms.get("fixing_days", -1)
     if fixing_days is None or fixing_days < 0:
         fixing_days = spot_days
@@ -1479,18 +1693,18 @@ def price_cms_swap_ql(request: dict) -> float:
     caps = [cms["cap"]] if cms.get("cap") is not None else []
     floors = [cms["floor"]] if cms.get("floor") is not None else []
     cms_leg = ql.CmsLeg(
-        [cms["notional"]],
+        [view.notional],
         cms_schedule,
         swap_index,
-        get_day_counter(cms["day_counter"]),
-        get_convention(cms["payment_convention"]),
+        get_day_counter(view.day_counter),
+        get_convention(view.payment_convention),
         [int(fixing_days)],
         [cms.get("gear", 1.0)],
         [cms.get("spread", 0.0)],
         caps,
         floors)
 
-    # Coupon pricer (cms_leg_parser::makeCouponPricer / buildCmsPricer).
+    # Coupon pricer (BuildCmsPricer).
     vol_handle = _build_swaption_vol_for_cms(pricing, cms["swaption_vol_id"], eval_date)
     pricer_spec = cms.get("pricer") or {}
     pricer_type = pricer_spec.get("pricer_type", "LinearTsr")
@@ -1513,11 +1727,18 @@ def price_cms_swap_ql(request: dict) -> float:
     else:
         raise ValueError(f"unsupported CMS pricer type: {pricer_type!r}")
     ql.setCouponPricer(cms_leg, pricer)
+    return cms_leg
 
-    payer_fixed = swap["swap_type"] == "Payer"
-    swap_inst = ql.Swap([fixed_leg, cms_leg], [payer_fixed, not payer_fixed])
-    swap_inst.setPricingEngine(ql.DiscountingSwapEngine(disc_curve))
-    return swap_inst.NPV()
+
+def price_cms_swap_ql(request: dict) -> float:
+    """Price a fixed-vs-CMS vanilla swap (`VanillaSwap.floating_leg` carrying
+    `CmsCoupons`) using QuantLib: the engine's leg algebra (`swap_legs_ql`)
+    with the CMS leg of `_cms_coupons`. A CMS swap reports a real `fair_rate`
+    (the CMS coupons held fixed), which `swap_legs_ql` also returns."""
+    swap = request["swaps"][0]["vanilla_swap"]
+    if swap["floating_leg"]["coupons_type"] != "CmsCoupons":
+        raise ValueError("price_cms_swap_ql: floating_leg.coupons_type must be CmsCoupons")
+    return swap_legs_ql(request)["npv"]
 
 
 def price_zero_coupon_bond_ql(request: dict) -> float:
@@ -1638,6 +1859,8 @@ def _wire_schedule_from(sch: dict) -> ql.Schedule:
         get_convention(sch.get("termination_date_convention", "ModifiedFollowing")),
         get_date_generation(sch.get("date_generation_rule", "Forward")),
         sch.get("end_of_month", False),
+        # Optional stub-period control (first_date / next_to_last_date).
+        *_schedule_stub_dates(sch)
     )
 
 
@@ -1745,197 +1968,98 @@ def price_amortizing_vanilla_swap_ql(request: dict) -> float:
     """Price an amortizing / step-up vanilla swap using QuantLib.
 
     QuantLib::VanillaSwap cannot carry per-period notionals, so both legs are
-    built explicitly with FixedRateLeg/IborLeg .withNotionals and priced as a
-    generic Swap — mirroring the server. A leg with no notionals vector uses its
-    constant scalar notional. A zero-vol Black pricer reproduces VanillaSwap's
-    own coupon pricing (no convexity/timing adjustment on plain coupons).
-    """
-    pricing = _reference_pricing_view(request)
-    swap_data = request["swaps"][0]
-    swap = swap_data["vanilla_swap"]
-
-    eval_date = parse_date(pricing["as_of_date"])
-    ql.Settings.instance().evaluationDate = eval_date
-
-    curve_id = swap_data.get("discounting_curve", "discount")
-    curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
-    curve = build_curve_from_json(curve_json, eval_date, request)
-
-    forward_id = swap_data.get("forwarding_curve", curve_id)
-    if forward_id == curve_id:
-        forward_curve = curve
-    else:
-        forward_json = next((c for c in pricing["curves"] if c["id"] == forward_id), curve_json)
-        forward_curve = build_curve_from_json(forward_json, eval_date, request)
-
-    fixed_leg = swap["fixed_leg"]
-    fixed_schedule = _wire_schedule_from(fixed_leg["schedule"])
-    float_leg = swap["floating_leg"]
-    float_schedule = _wire_schedule_from(float_leg["schedule"])
-
-    idx_ref = float_leg.get("index", {})
-    idx_id = idx_ref.get("id") if isinstance(idx_ref, dict) else None
-    if idx_id and find_index_def(idx_id, request):
-        index = resolve_index_from_id(idx_id, request, forward_curve)
-    else:
-        index = ql.Euribor6M(forward_curve)
-
-    fixed_notionals = [float(n) for n in (fixed_leg.get("notionals") or [fixed_leg["notional"]])]
-    float_notionals = [float(n) for n in (float_leg.get("notionals") or [float_leg["notional"]])]
-
-    payment_convention = float_schedule.businessDayConvention()
-    fixed_dc = get_day_counter(fixed_leg.get("day_counter", "Thirty360"))
-    float_dc = get_day_counter(float_leg.get("day_counter", "Actual360"))
-
-    ql_fixed_leg = ql.FixedRateLeg(
-        fixed_schedule, fixed_dc, fixed_notionals, [fixed_leg["rate"]], payment_convention)
-    ql_ibor_leg = ql.IborLeg(
-        float_notionals, float_schedule, index, float_dc, payment_convention,
-        [float_leg.get("fixing_days", 2)], [1.0], [float_leg.get("spread", 0.0)])
-
-    vol = ql.ConstantOptionletVolatility(
-        0, index.fixingCalendar(), ql.ModifiedFollowing, 0.0, ql.Actual365Fixed())
-    pricer = ql.BlackIborCouponPricer()
-    pricer.setCapletVolatility(ql.OptionletVolatilityStructureHandle(vol))
-    ql.setCouponPricer(ql_ibor_leg, pricer)
-
-    payer_fixed = swap["swap_type"] == "Payer"
-    ql_swap = ql.Swap([ql_fixed_leg, ql_ibor_leg], [payer_fixed, not payer_fixed])
-    ql_swap.setPricingEngine(ql.DiscountingSwapEngine(curve))
-    return ql_swap.NPV()
-
-
-def _build_overnight_index(idx_def: dict, curve):
-    idx_name = (idx_def or {}).get("name", "ON")
-    fixing_days = int((idx_def or {}).get("fixing_days", 0))
-    ccy = get_currency((idx_def or {}).get("currency", "USD"))
-    cal = get_calendar((idx_def or {}).get("calendar", "TARGET"))
-    dc = get_day_counter((idx_def or {}).get("day_counter", "Actual360"))
-    return ql.OvernightIndex(idx_name, fixing_days, ccy, cal, dc, curve)
+    built explicitly (FixedRateLeg / IborLeg with the leg's `notionals`
+    vector, a leg without one on its constant notional) and valued with the
+    engine's leg algebra -- exactly the path the engine takes for every swap
+    (`swap_legs_ql`)."""
+    return swap_legs_ql(request)["npv"]
 
 
 def price_ois_swap_ql(request: dict) -> float:
-    """Price OIS swap using QuantLib."""
+    """Price an OIS (`OisSwap { fixed_leg, overnight_leg }`) using QuantLib's
+    native OvernightIndexedSwap.
+
+    QuantLib::OvernightIndexedSwap applies ONE payment lag / calendar /
+    convention to both legs, so the request's two legs must state the same
+    leg-level `payment_calendar` / `payment_lag` / `payment_convention`
+    (price-ois-swap requires the calendar and the lag on both legs); the
+    reference passes the overnight leg's values and refuses a request where
+    the two legs differ (the engine prices such a leg pair with per-leg
+    conventions: see `swap_legs_ql`). Per-leg discount curves or principal
+    exchanges, which the native instrument cannot carry, take `swap_legs_ql`
+    as well."""
     pricing = _reference_pricing_view(request)
-    swap_data = request["swaps"][0]
-    swap = swap_data["ois_swap"]
+    swap = request["swaps"][0]["ois_swap"]
+    fixed = _swap_leg(swap["fixed_leg"])
+    overnight = _swap_leg(swap["overnight_leg"])
+    fc, oc = fixed.coupons, overnight.coupons
+
+    fixed_payment_calendar = fixed.payment_calendar or fixed.schedule["calendar"]
+    overnight_payment_calendar = overnight.payment_calendar or overnight.schedule["calendar"]
+    if (fixed_payment_calendar != overnight_payment_calendar
+            or (fixed.payment_lag or 0) != (overnight.payment_lag or 0)
+            or fixed.payment_convention != overnight.payment_convention):
+        raise ValueError(
+            "price_ois_swap_ql: QuantLib::OvernightIndexedSwap takes one payment "
+            "calendar / lag / convention for both legs; the fixed leg must state the "
+            "overnight leg's (fixed %r/%r/%r vs overnight %r/%r/%r)" % (
+                fixed_payment_calendar, fixed.payment_lag, fixed.payment_convention,
+                overnight_payment_calendar, overnight.payment_lag,
+                overnight.payment_convention))
+
+    exchanges = (fixed.initial_exchange or fixed.final_exchange or
+                 overnight.initial_exchange or overnight.final_exchange)
+    if fixed.discounting_curve != overnight.discounting_curve or exchanges:
+        return swap_legs_ql(request)["npv"]
 
     eval_date = parse_date(pricing["as_of_date"])
     ql.Settings.instance().evaluationDate = eval_date
+    curve_of = _swap_curve_resolver(request, eval_date)
+    discount_curve = curve_of(fixed.discounting_curve)
+    forward_curve = curve_of(overnight.forwarding_curve)
 
-    disc_id = swap_data.get("discounting_curve", "discount")
-    disc_json = next((c for c in pricing["curves"] if c["id"] == disc_id), pricing["curves"][0])
-    discount_curve = build_curve_from_json(disc_json, eval_date, request)
+    fixed_schedule = _wire_schedule_from(fixed.schedule)
+    overnight_schedule = _wire_schedule_from(overnight.schedule)
 
-    fwd_id = swap_data.get("forwarding_curve", disc_id)
-    fwd_json = next((c for c in pricing["curves"] if c["id"] == fwd_id), disc_json)
-    forward_curve = build_curve_from_json(fwd_json, eval_date, request)
+    idx_def = find_index_def(oc["index"]["id"], request)
+    if idx_def is None:
+        raise ValueError(f"Index not found: {oc['index']['id']}")
+    overnight_index = build_overnight_index(idx_def, forward_curve)
 
-    fixed = swap["fixed_leg"]
-    fs = fixed["schedule"]
-    fixed_schedule = ql.Schedule(
-        parse_date(fs["effective_date"]),
-        parse_date(fs["termination_date"]),
-        ql.Period(get_frequency(fs["frequency"])),
-        get_calendar(fs.get("calendar", "TARGET")),
-        get_convention(fs.get("convention", "ModifiedFollowing")),
-        get_convention(fs.get("termination_date_convention", "ModifiedFollowing")),
-        get_date_generation(fs.get("date_generation_rule", "Forward")),
-        # Mirrors the server's ScheduleParser: schedule->end_of_month().
-        fs.get("end_of_month", False),
-    )
-
-    overnight = swap["overnight_leg"]
-    os = overnight["schedule"]
-    overnight_schedule = ql.Schedule(
-        parse_date(os["effective_date"]),
-        parse_date(os["termination_date"]),
-        ql.Period(get_frequency(os["frequency"])),
-        get_calendar(os.get("calendar", "TARGET")),
-        get_convention(os.get("convention", "ModifiedFollowing")),
-        get_convention(os.get("termination_date_convention", "ModifiedFollowing")),
-        get_date_generation(os.get("date_generation_rule", "Forward")),
-        os.get("end_of_month", False),
-    )
-
-    idx_def = find_index_def(overnight["index"]["id"], request)
-    overnight_index = _build_overnight_index(idx_def, forward_curve)
-
-    swap_type = ql.OvernightIndexedSwap.Payer if swap["swap_type"] == "Payer" else ql.OvernightIndexedSwap.Receiver
+    swap_type = ql.OvernightIndexedSwap.Payer if fixed.pay else ql.OvernightIndexedSwap.Receiver
     # Wire lookback_days == 0 means "no lookback" = QuantLib Null<Natural>,
     # NOT a zero-day lookback — mirrors the server's mapping.
-    lookback = int(overnight.get("lookback_days", 0))
+    lookback = int(oc.get("lookback_days", 0))
     lookback = QL_NULL_NATURAL if lookback <= 0 else lookback
-    # Python bindings in our QuantLib wheel expose the one-schedule overload.
-    # For this request shape fixed and overnight schedules are aligned.
+    # Two-schedule constructor: each leg on its own schedule and notional.
     ql_swap = ql.OvernightIndexedSwap(
         swap_type,
-        fixed["notional"],
+        [fixed.notional],
+        fixed_schedule,
+        float(fc["rate"]),
+        get_day_counter(fixed.day_counter),
+        [overnight.notional],
         overnight_schedule,
-        fixed["rate"],
-        get_day_counter(fixed.get("day_counter", "Actual360")),
         overnight_index,
-        overnight.get("spread", 0.0),
-        overnight.get("payment_lag", 0),
-        get_convention(overnight.get("payment_convention", "Following")),
-        get_calendar(overnight.get("payment_calendar", "TARGET")),
-        overnight.get("telescopic_value_dates", False),
-        get_rate_averaging(overnight.get("averaging_method", "Compound")),
+        float(oc.get("spread", 0.0)),
+        overnight.payment_lag or 0,
+        get_convention(overnight.payment_convention),
+        get_calendar(overnight_payment_calendar),
+        bool(oc.get("telescopic_value_dates", False)),
+        get_rate_averaging(oc["averaging_method"]),
         lookback,
-        overnight.get("lockout_days", 0),
-        overnight.get("apply_observation_shift", False),
+        int(oc.get("lockout_days", 0)),
+        bool(oc.get("apply_observation_shift", False)),
     )
     ql_swap.setPricingEngine(ql.DiscountingSwapEngine(discount_curve))
     return ql_swap.NPV()
 
 
 def price_basis_swap_ql(request: dict) -> float:
-    """Price basis swap as two floating legs using QuantLib::Swap."""
-    pricing = _reference_pricing_view(request)
-    swap_data = request["swaps"][0]
-    swap = swap_data["basis_swap"]
-
-    eval_date = parse_date(pricing["as_of_date"])
-    ql.Settings.instance().evaluationDate = eval_date
-
-    disc_id = swap_data.get("discounting_curve", "discount")
-    disc_json = next((c for c in pricing["curves"] if c["id"] == disc_id), pricing["curves"][0])
-    discount_curve = build_curve_from_json(disc_json, eval_date, request)
-
-    fwd1_id = swap_data.get("forwarding_curve_leg1", disc_id)
-    fwd2_id = swap_data.get("forwarding_curve_leg2", disc_id)
-    fwd1_json = next((c for c in pricing["curves"] if c["id"] == fwd1_id), disc_json)
-    fwd2_json = next((c for c in pricing["curves"] if c["id"] == fwd2_id), disc_json)
-    fwd1_curve = build_curve_from_json(fwd1_json, eval_date, request)
-    fwd2_curve = build_curve_from_json(fwd2_json, eval_date, request)
-
-    leg1 = swap["leg1"]
-    leg2 = swap["leg2"]
-
-    def _build_leg(leg: dict, curve):
-        sch = leg["schedule"]
-        schedule = ql.Schedule(
-            parse_date(sch["effective_date"]),
-            parse_date(sch["termination_date"]),
-            ql.Period(get_frequency(sch["frequency"])),
-            get_calendar(sch.get("calendar", "TARGET")),
-            get_convention(sch.get("convention", "ModifiedFollowing")),
-            get_convention(sch.get("termination_date_convention", "ModifiedFollowing")),
-            get_date_generation(sch.get("date_generation_rule", "Forward")),
-            # Mirrors the server's ScheduleParser: schedule->end_of_month().
-            sch.get("end_of_month", False),
-        )
-        idx_def = find_index_def(leg["index"]["id"], request)
-        n, _ = _period_n_unit(idx_def, "tenor", 6, "Months")
-        index = ql.Euribor3M(curve) if n <= 3 else ql.Euribor6M(curve)
-        return ql.IborLeg([leg["notional"]], schedule, index, get_day_counter(leg.get("day_counter", "Actual360")), get_convention(leg.get("payment_convention", "ModifiedFollowing")), [leg.get("fixing_days", 2)], [1.0], [leg.get("spread", 0.0)], [], [], leg.get("in_arrears", False))
-
-    ql_leg1 = _build_leg(leg1, fwd1_curve)
-    ql_leg2 = _build_leg(leg2, fwd2_curve)
-    payer = [True, False] if swap["swap_type"] == "Payer" else [False, True]
-    ql_swap = ql.Swap([ql_leg1, ql_leg2], payer)
-    ql_swap.setPricingEngine(ql.DiscountingSwapEngine(discount_curve))
-    return ql_swap.NPV()
+    """Price a basis swap (`BasisSwap { leg1, leg2 }`, two floating legs each
+    projected off its own forwarding curve and discounted on its own
+    discounting curve) with the engine's leg algebra, `swap_legs_ql`."""
+    return swap_legs_ql(request)["npv"]
 
 
 def price_fra_ql(request: dict) -> float:
@@ -2114,58 +2238,6 @@ def _xccy_term_structure(curve):
     return curve.currentLink() if hasattr(curve, "currentLink") else curve
 
 
-def _xccy_coupon_leg(leg: dict, request: dict, forward_curve):
-    """Coupon leg of one SwapLeg, built exactly as the server's shared leg
-    builder (src/evaluators/swap_leg_builder.cpp) builds it from the
-    `coupons_type` / `coupons` union: FixedRateLeg, IborLeg with the zero-vol
-    Black pricer, or OvernightLeg with the OIS conventions (payment lag and
-    calendar, averaging, lookback, lockout, observation shift) -- the chain
-    QuantLib's OvernightIndexedSwap uses, so the leg is price-ois-swap's.
-    Returns (ql.Leg, schedule, notional, rate_or_spread, is_fixed)."""
-    kind = leg["coupons_type"]
-    f = leg["coupons"]
-    schedule = _wire_schedule_from(f["schedule"])
-    notional = float(f["notional"])
-    if kind == "FixedCoupons":
-        dc = get_day_counter(f["day_counter"])
-        conv = get_convention(f["payment_convention"])
-        coupons = ql.FixedRateLeg(schedule, dc, [notional], [float(f["rate"])], conv)
-        return coupons, schedule, notional, float(f["rate"]), True
-    spread = float(f.get("spread", 0.0))
-    idx_def = find_index_def(f["index"]["id"], request)
-    if idx_def is None:
-        raise ValueError(f"Index not found: {f['index']['id']}")
-    conv = get_convention(f["payment_convention"])
-    if kind == "OvernightCoupons":
-        if idx_def.get("index_type") != "Overnight":
-            raise ValueError("OvernightCoupons needs an overnight index")
-        index = build_overnight_index(idx_def, forward_curve)
-        lookback = int(f.get("lookback_days", 0))
-        coupons = ql.OvernightLeg(
-            [notional], schedule, index, index.dayCounter(), conv, [1.0], [spread],
-            bool(f.get("telescopic_value_dates", False)),
-            get_rate_averaging(f.get("averaging_method", "Compound")),
-            get_calendar(f["payment_calendar"]), int(f.get("payment_lag", 0)),
-            QL_NULL_NATURAL if lookback <= 0 else lookback, int(f.get("lockout_days", 0)),
-            bool(f.get("apply_observation_shift", False)))
-        return coupons, schedule, notional, spread, False
-    if kind != "IborCoupons":
-        raise ValueError(f"unsupported coupons_type {kind}")
-    if idx_def.get("index_type") == "Overnight":
-        raise ValueError("IborCoupons needs an IBOR index")
-    dc = get_day_counter(f["day_counter"])
-    index = build_ibor_index(idx_def, forward_curve)
-    coupons = ql.IborLeg([notional], schedule, index, dc, conv,
-                         [int(f.get("fixing_days", 2))], [1.0], [spread], [], [],
-                         bool(f.get("in_arrears", False)))
-    vol = ql.ConstantOptionletVolatility(
-        0, index.fixingCalendar(), ql.ModifiedFollowing, 0.0, ql.Actual365Fixed())
-    pricer = ql.BlackIborCouponPricer()
-    pricer.setCapletVolatility(ql.OptionletVolatilityStructureHandle(vol))
-    ql.setCouponPricer(coupons, pricer)
-    return coupons, schedule, notional, spread, False
-
-
 def cross_currency_swap_ql(request: dict, index: int = 0) -> dict:
     """Price one swap of a PriceCrossCurrencySwapRequest with the cash-flow
     algebra of src/evaluators/cross_currency_swap_evaluator.cpp on QuantLib
@@ -2180,7 +2252,8 @@ def cross_currency_swap_ql(request: dict, index: int = 0) -> dict:
       npv   = legs[0].npv_reporting + legs[1].npv_reporting
       A_i   = CashFlows.bps(C_i, D_i) / 1e-4
       fair_rate   = r_f - NPV[fixed ccy]   / (s_f * A_f)   (exactly one fixed leg)
-      fair_spread = q_1 - NPV[legs[1] ccy] / (s_1 * A_1)   (no fixed leg)
+      fair_spread = q_k - NPV[leg k ccy]   / (s_k * A_k)   (k = the floating leg of
+                    a fixed/float swap, legs[1] of a float/float one)
 
     Returns the scalar response fields ({npv, fair_rate?, fair_spread?,
     fx_spot_used, fx_as_of_rate, spot_date}) and "legs": one dict per leg
@@ -2207,7 +2280,7 @@ def cross_currency_swap_ql(request: dict, index: int = 0) -> dict:
     def build(leg):
         disc = curve(leg["discounting_curve"])
         fwd = curve(leg["forwarding_curve"]) if leg["coupons_type"] != "FixedCoupons" else None
-        coupons, schedule, notional, level, is_fixed = _xccy_coupon_leg(leg, request, fwd)
+        coupons, schedule, notional, level, is_fixed = _swap_leg_coupons(leg, request, fwd)
         full = list(coupons)
         if leg["initial_exchange"]:
             full.append(ql.SimpleCashFlow(-notional, schedule.dates()[0]))
@@ -2258,8 +2331,8 @@ def cross_currency_swap_ql(request: dict, index: int = 0) -> dict:
     if legs[0]["is_fixed"] != legs[1]["is_fixed"]:
         f = legs[0] if legs[0]["is_fixed"] else legs[1]
         out["fair_rate"] = f["level"] - npv_in(f["ccy"]) / (f["sign"] * f["annuity"])
-    elif not legs[0]["is_fixed"] and not legs[1]["is_fixed"]:
-        q = legs[1]
+    if not legs[0]["is_fixed"] or not legs[1]["is_fixed"]:
+        q = legs[0] if legs[1]["is_fixed"] else legs[1]
         out["fair_spread"] = q["level"] - npv_in(q["ccy"]) / (q["sign"] * q["annuity"])
     return out
 
@@ -2413,132 +2486,81 @@ def build_swaption_ql(request: dict) -> dict:
     
     eval_date = parse_date(pricing["as_of_date"])
     ql.Settings.instance().evaluationDate = eval_date
-    
-    # Build curve
-    curve_id = sw_data.get("discounting_curve", "discount")
-    curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
-    curve = build_curve_from_json(curve_json, eval_date, request)
-    
+
+    # The swaption's curves are the underlying legs' (both legs must name one
+    # discount curve, as the engine checks): discounting from the fixed leg,
+    # forwarding from the floating / overnight leg. The underlying is the
+    # native QuantLib::VanillaSwap / OvernightIndexedSwap the engine builds
+    # (swaption_evaluator.cpp buildUnderlyingSwap): the fixed leg's notional
+    # for both legs, the fixed leg's side as the swap type, both legs paid on
+    # the floating schedule's convention, the IBOR leg fixing on the index's
+    # own fixing days.
+    floating_role = "overnight_leg" if underlying_type == "OisSwap" else "floating_leg"
+    fixed = _swap_leg(underlying["fixed_leg"])
+    floating = _swap_leg(underlying[floating_role])
+    if fixed.discounting_curve != floating.discounting_curve:
+        raise ValueError(
+            "Swaption.underlying.fixed_leg.discounting_curve and "
+            f"{floating_role}.discounting_curve must be equal "
+            f"({fixed.discounting_curve!r} vs {floating.discounting_curve!r})")
+    curve_of = _swap_curve_resolver(request, eval_date)
+    curve = curve_of(fixed.discounting_curve)
+    forward_curve = curve_of(floating.forwarding_curve)
+
+    # Kind-specific fields (`rate`, `index`, `spread`, the OIS conventions)
+    # come from each leg's `coupons`; notional, schedule, day counter and the
+    # payment conventions from the leg itself.
+    fixed_leg = fixed.coupons
+    fixed_schedule = _wire_schedule_from(fixed.schedule)
+
     if underlying_type == "OisSwap":
-        fixed_leg = underlying["fixed_leg"]
-        fixed_sch = fixed_leg["schedule"]
-        fixed_schedule = ql.Schedule(
-            parse_date(fixed_sch["effective_date"]),
-            parse_date(fixed_sch["termination_date"]),
-            ql.Period(get_frequency(fixed_sch["frequency"])),
-            get_calendar(fixed_sch.get("calendar", "TARGET")),
-            get_convention(fixed_sch.get("convention", "ModifiedFollowing")),
-            get_convention(fixed_sch.get("termination_date_convention", "ModifiedFollowing")),
-            get_date_generation(fixed_sch.get("date_generation_rule", "Forward")),
-            False
-        )
-
-        on_leg = underlying["overnight_leg"]
-        on_sch = on_leg["schedule"]
-        on_schedule = ql.Schedule(
-            parse_date(on_sch["effective_date"]),
-            parse_date(on_sch["termination_date"]),
-            ql.Period(get_frequency(on_sch["frequency"])),
-            get_calendar(on_sch.get("calendar", "TARGET")),
-            get_convention(on_sch.get("convention", "ModifiedFollowing")),
-            get_convention(on_sch.get("termination_date_convention", "ModifiedFollowing")),
-            get_date_generation(on_sch.get("date_generation_rule", "Forward")),
-            False
-        )
-
-        on_index = resolve_index_from_id(on_leg["index"]["id"], request, curve)
-        swap_type = ql.OvernightIndexedSwap.Payer if underlying["swap_type"] == "Payer" else ql.OvernightIndexedSwap.Receiver
-        payment_calendar = get_calendar(on_leg.get("payment_calendar", on_sch.get("calendar", "TARGET")))
-        payment_lag = on_leg.get("payment_lag", 0)
-        averaging = get_rate_averaging(on_leg.get("averaging_method", "Compound"))
+        on_leg = floating.coupons
+        on_schedule = _wire_schedule_from(floating.schedule)
+        on_index = resolve_index_from_id(on_leg["index"]["id"], request, forward_curve)
+        swap_type = (ql.OvernightIndexedSwap.Payer if fixed.pay
+                     else ql.OvernightIndexedSwap.Receiver)
         # Wire lookback_days == 0 means "no lookback" = QuantLib Null<Natural>,
         # NOT a zero-day lookback — mirrors the server's mapping.
         lookback = int(on_leg.get("lookback_days", 0))
         lookback = QL_NULL_NATURAL if lookback <= 0 else lookback
-        lockout = on_leg.get("lockout_days", 0)
-        apply_shift = on_leg.get("apply_observation_shift", False)
-        telescopic = on_leg.get("telescopic_value_dates", False)
-
-        try:
-            swap = ql.OvernightIndexedSwap(
-                swap_type,
-                fixed_leg["notional"],
-                fixed_schedule,
-                fixed_leg["rate"],
-                get_day_counter(fixed_leg.get("day_counter", "Actual360")),
-                on_schedule,
-                on_index,
-                on_leg.get("spread", 0.0),
-                payment_lag,
-                get_convention(on_leg.get("payment_convention", "Following")),
-                payment_calendar,
-                telescopic,
-                averaging,
-                lookback,
-                lockout,
-                apply_shift
-            )
-        except Exception:
-            # Python QuantLib bindings might not expose the dual-schedule ctor
-            swap = ql.OvernightIndexedSwap(
-                swap_type,
-                fixed_leg["notional"],
-                fixed_schedule,
-                fixed_leg["rate"],
-                get_day_counter(fixed_leg.get("day_counter", "Actual360")),
-                on_index,
-                on_leg.get("spread", 0.0),
-                payment_lag,
-                get_convention(on_leg.get("payment_convention", "Following")),
-                payment_calendar,
-                telescopic,
-                averaging,
-                lookback,
-                lockout,
-                apply_shift
-            )
+        notional = fixed.notional
+        swap = ql.OvernightIndexedSwap(
+            swap_type,
+            [notional],
+            fixed_schedule,
+            float(fixed_leg["rate"]),
+            get_day_counter(fixed.day_counter),
+            [notional],
+            on_schedule,
+            on_index,
+            float(on_leg.get("spread", 0.0)),
+            floating.payment_lag or 0,
+            get_convention(floating.payment_convention),
+            _swap_leg_payment_calendar(floating, on_schedule),
+            bool(on_leg.get("telescopic_value_dates", False)),
+            get_rate_averaging(on_leg["averaging_method"]),
+            lookback,
+            int(on_leg.get("lockout_days", 0)),
+            bool(on_leg.get("apply_observation_shift", False)),
+        )
     else:
-        fixed_leg = underlying["fixed_leg"]
-        fixed_sch = fixed_leg["schedule"]
-        fixed_schedule = ql.Schedule(
-            parse_date(fixed_sch["effective_date"]),
-            parse_date(fixed_sch["termination_date"]),
-            ql.Period(get_frequency(fixed_sch["frequency"])),
-            get_calendar(fixed_sch.get("calendar", "TARGET")),
-            get_convention(fixed_sch.get("convention", "ModifiedFollowing")),
-            get_convention(fixed_sch.get("termination_date_convention", "ModifiedFollowing")),
-            get_date_generation(fixed_sch.get("date_generation_rule", "Forward")),
-            False
-        )
-
-        float_leg = underlying["floating_leg"]
-        float_sch = float_leg["schedule"]
-        float_schedule = ql.Schedule(
-            parse_date(float_sch["effective_date"]),
-            parse_date(float_sch["termination_date"]),
-            ql.Period(get_frequency(float_sch["frequency"])),
-            get_calendar(float_sch.get("calendar", "TARGET")),
-            get_convention(float_sch.get("convention", "ModifiedFollowing")),
-            get_convention(float_sch.get("termination_date_convention", "ModifiedFollowing")),
-            get_date_generation(float_sch.get("date_generation_rule", "Forward")),
-            False
-        )
-
-        index = resolve_index_from_id(float_leg["index"]["id"], request, curve)
-        swap_type = ql.VanillaSwap.Payer if underlying["swap_type"] == "Payer" else ql.VanillaSwap.Receiver
+        float_leg = floating.coupons
+        float_schedule = _wire_schedule_from(floating.schedule)
+        index = resolve_index_from_id(float_leg["index"]["id"], request, forward_curve)
+        swap_type = ql.VanillaSwap.Payer if fixed.pay else ql.VanillaSwap.Receiver
 
         swap = ql.VanillaSwap(
             swap_type,
-            fixed_leg["notional"],
+            fixed.notional,
             fixed_schedule,
-            fixed_leg["rate"],
-            get_day_counter(fixed_leg.get("day_counter", "Thirty360")),
+            float(fixed_leg["rate"]),
+            get_day_counter(fixed.day_counter),
             float_schedule,
             index,
-            float_leg.get("spread", 0.0),
-            get_day_counter(float_leg.get("day_counter", "Actual360"))
+            float(float_leg.get("spread", 0.0)),
+            get_day_counter(floating.day_counter)
         )
-    
+
     # Exercise construction mirrors the server's swaption evaluator
     # (buildSwaptionInstrument): European takes the single exercise_date,
     # Bermudan the exercise_dates list, and American opens the exercise

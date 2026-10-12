@@ -13,282 +13,57 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
-#include "enums_generated.h"
-#include "index_generated.h"
-#include "schedule_generated.h"
-#include "vanilla_swap_generated.h"
+#include "swap_leg_generated.h"
 
 namespace quantra {
-
-struct OvernightCoupons;
-struct OvernightCouponsBuilder;
-struct OvernightCouponsT;
 
 struct OisSwap;
 struct OisSwapBuilder;
 struct OisSwapT;
 
-struct OvernightCouponsT : public ::flatbuffers::NativeTable {
-  typedef OvernightCoupons TableType;
-  std::unique_ptr<quantra::ScheduleT> schedule{};
-  ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
-  std::unique_ptr<quantra::IndexRefT> index{};
-  double spread = 0.0;
-  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
-  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt;
-  ::flatbuffers::Optional<quantra::enums::Calendar> payment_calendar = ::flatbuffers::nullopt;
-  ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt;
-  ::flatbuffers::Optional<quantra::enums::RateAveragingType> averaging_method = ::flatbuffers::nullopt;
-  ::flatbuffers::Optional<int32_t> lookback_days = ::flatbuffers::nullopt;
-  ::flatbuffers::Optional<int32_t> lockout_days = ::flatbuffers::nullopt;
-  ::flatbuffers::Optional<bool> apply_observation_shift = ::flatbuffers::nullopt;
-  bool telescopic_value_dates = false;
-  OvernightCouponsT() = default;
-  OvernightCouponsT(const OvernightCouponsT &o);
-  OvernightCouponsT(OvernightCouponsT&&) FLATBUFFERS_NOEXCEPT = default;
-  OvernightCouponsT &operator=(OvernightCouponsT o) FLATBUFFERS_NOEXCEPT;
-};
-
-/// Overnight floating coupons of a swap leg: the daily fixings of an
-/// overnight `index` compounded (or averaged) over each period of `schedule`,
-/// paid `payment_lag` business days after the period end on
-/// `payment_calendar`, with the lookback / lockout / observation-shift
-/// conventions of the market. Used as `OisSwap.overnight_leg` and as the
-/// `OvernightCoupons` member of `SwapLeg.coupons` (built by the same code),
-/// where the index must be an overnight index (an IBOR index is a 400 naming
-/// `IborCoupons`). (Named `OisFloatingLeg` before 0.9.0; the field names are
-/// unchanged.)
-struct OvernightCoupons FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef OvernightCouponsT NativeTableType;
-  typedef OvernightCouponsBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_SCHEDULE = 4,
-    VT_NOTIONAL = 6,
-    VT_INDEX = 8,
-    VT_SPREAD = 10,
-    VT_DAY_COUNTER = 12,
-    VT_PAYMENT_CONVENTION = 14,
-    VT_PAYMENT_CALENDAR = 16,
-    VT_PAYMENT_LAG = 18,
-    VT_AVERAGING_METHOD = 20,
-    VT_LOOKBACK_DAYS = 22,
-    VT_LOCKOUT_DAYS = 24,
-    VT_APPLY_OBSERVATION_SHIFT = 26,
-    VT_TELESCOPIC_VALUE_DATES = 28
-  };
-  const quantra::Schedule *schedule() const {
-    return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
-  }
-  /// Notional. Presence-required and must be > 0 (a bare double would default
-  /// to a silent zero notional).
-  ::flatbuffers::Optional<double> notional() const {
-    return GetOptional<double, double>(VT_NOTIONAL);
-  }
-  /// Reference to an overnight IndexDef by id (e.g., "USD_SOFR").
-  const quantra::IndexRef *index() const {
-    return GetPointer<const quantra::IndexRef *>(VT_INDEX);
-  }
-  /// Spread over the compounded/averaged overnight rate. Keeps a literal 0.0
-  /// default on purpose: zero is the genuine market-standard value, not a
-  /// convention that could silently diverge.
-  double spread() const {
-    return GetField<double>(VT_SPREAD, 0.0);
-  }
-  /// DEPRECATED / accepted-but-unused. The overnight coupons take their day
-  /// counter from the overnight index itself (as QuantLib's
-  /// OvernightIndexedSwap does), so this field is ignored if present and may
-  /// be omitted. Kept optional for backward compatibility.
-  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
-    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
-  }
-  /// Payment-date business-day convention. Required.
-  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention() const {
-    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_PAYMENT_CONVENTION);
-  }
-  /// Payment-date adjustment calendar. Required.
-  ::flatbuffers::Optional<quantra::enums::Calendar> payment_calendar() const {
-    return GetOptional<int8_t, quantra::enums::Calendar>(VT_PAYMENT_CALENDAR);
-  }
-  /// Payment lag in business days between accrual end and payment. Required;
-  /// must be >= 0.
-  ::flatbuffers::Optional<int32_t> payment_lag() const {
-    return GetOptional<int32_t, int32_t>(VT_PAYMENT_LAG);
-  }
-  /// Compound or Simple averaging of the overnight fixings. Required.
-  ::flatbuffers::Optional<quantra::enums::RateAveragingType> averaging_method() const {
-    return GetOptional<int8_t, quantra::enums::RateAveragingType>(VT_AVERAGING_METHOD);
-  }
-  /// Fixing lookback in business days. Required; must be >= 0; 0 = no
-  /// lookback (the index's own fixing delay applies — QuantLib encodes this
-  /// as Null, not as a zero-day lookback).
-  ::flatbuffers::Optional<int32_t> lookback_days() const {
-    return GetOptional<int32_t, int32_t>(VT_LOOKBACK_DAYS);
-  }
-  /// Lockout (rate-cutoff) days at period end. Required; must be >= 0;
-  /// 0 = no lockout.
-  ::flatbuffers::Optional<int32_t> lockout_days() const {
-    return GetOptional<int32_t, int32_t>(VT_LOCKOUT_DAYS);
-  }
-  /// Whether the observation-shift convention applies to the lookback.
-  /// Required.
-  ::flatbuffers::Optional<bool> apply_observation_shift() const {
-    return GetOptional<uint8_t, bool>(VT_APPLY_OBSERVATION_SHIFT);
-  }
-  /// Performance toggle for QuantLib's telescopic value-dates optimization,
-  /// not a market convention — keeps a literal false default on purpose.
-  bool telescopic_value_dates() const {
-    return GetField<uint8_t>(VT_TELESCOPIC_VALUE_DATES, 0) != 0;
-  }
-  bool Verify(::flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyOffset(verifier, VT_SCHEDULE) &&
-           verifier.VerifyTable(schedule()) &&
-           VerifyField<double>(verifier, VT_NOTIONAL, 8) &&
-           VerifyOffsetRequired(verifier, VT_INDEX) &&
-           verifier.VerifyTable(index()) &&
-           VerifyField<double>(verifier, VT_SPREAD, 8) &&
-           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
-           VerifyField<int8_t>(verifier, VT_PAYMENT_CONVENTION, 1) &&
-           VerifyField<int8_t>(verifier, VT_PAYMENT_CALENDAR, 1) &&
-           VerifyField<int32_t>(verifier, VT_PAYMENT_LAG, 4) &&
-           VerifyField<int8_t>(verifier, VT_AVERAGING_METHOD, 1) &&
-           VerifyField<int32_t>(verifier, VT_LOOKBACK_DAYS, 4) &&
-           VerifyField<int32_t>(verifier, VT_LOCKOUT_DAYS, 4) &&
-           VerifyField<uint8_t>(verifier, VT_APPLY_OBSERVATION_SHIFT, 1) &&
-           VerifyField<uint8_t>(verifier, VT_TELESCOPIC_VALUE_DATES, 1) &&
-           verifier.EndTable();
-  }
-  OvernightCouponsT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(OvernightCouponsT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<OvernightCoupons> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const OvernightCouponsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct OvernightCouponsBuilder {
-  typedef OvernightCoupons Table;
-  ::flatbuffers::FlatBufferBuilder &fbb_;
-  ::flatbuffers::uoffset_t start_;
-  void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
-    fbb_.AddOffset(OvernightCoupons::VT_SCHEDULE, schedule);
-  }
-  void add_notional(double notional) {
-    fbb_.AddElement<double>(OvernightCoupons::VT_NOTIONAL, notional);
-  }
-  void add_index(::flatbuffers::Offset<quantra::IndexRef> index) {
-    fbb_.AddOffset(OvernightCoupons::VT_INDEX, index);
-  }
-  void add_spread(double spread) {
-    fbb_.AddElement<double>(OvernightCoupons::VT_SPREAD, spread, 0.0);
-  }
-  void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(OvernightCoupons::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
-  }
-  void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
-    fbb_.AddElement<int8_t>(OvernightCoupons::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
-  }
-  void add_payment_calendar(quantra::enums::Calendar payment_calendar) {
-    fbb_.AddElement<int8_t>(OvernightCoupons::VT_PAYMENT_CALENDAR, static_cast<int8_t>(payment_calendar));
-  }
-  void add_payment_lag(int32_t payment_lag) {
-    fbb_.AddElement<int32_t>(OvernightCoupons::VT_PAYMENT_LAG, payment_lag);
-  }
-  void add_averaging_method(quantra::enums::RateAveragingType averaging_method) {
-    fbb_.AddElement<int8_t>(OvernightCoupons::VT_AVERAGING_METHOD, static_cast<int8_t>(averaging_method));
-  }
-  void add_lookback_days(int32_t lookback_days) {
-    fbb_.AddElement<int32_t>(OvernightCoupons::VT_LOOKBACK_DAYS, lookback_days);
-  }
-  void add_lockout_days(int32_t lockout_days) {
-    fbb_.AddElement<int32_t>(OvernightCoupons::VT_LOCKOUT_DAYS, lockout_days);
-  }
-  void add_apply_observation_shift(bool apply_observation_shift) {
-    fbb_.AddElement<uint8_t>(OvernightCoupons::VT_APPLY_OBSERVATION_SHIFT, static_cast<uint8_t>(apply_observation_shift));
-  }
-  void add_telescopic_value_dates(bool telescopic_value_dates) {
-    fbb_.AddElement<uint8_t>(OvernightCoupons::VT_TELESCOPIC_VALUE_DATES, static_cast<uint8_t>(telescopic_value_dates), 0);
-  }
-  explicit OvernightCouponsBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ::flatbuffers::Offset<OvernightCoupons> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<OvernightCoupons>(end);
-    fbb_.Required(o, OvernightCoupons::VT_INDEX);
-    return o;
-  }
-};
-
-inline ::flatbuffers::Offset<OvernightCoupons> CreateOvernightCoupons(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
-    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
-    ::flatbuffers::Offset<quantra::IndexRef> index = 0,
-    double spread = 0.0,
-    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<quantra::enums::Calendar> payment_calendar = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<quantra::enums::RateAveragingType> averaging_method = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<int32_t> lookback_days = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<int32_t> lockout_days = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<bool> apply_observation_shift = ::flatbuffers::nullopt,
-    bool telescopic_value_dates = false) {
-  OvernightCouponsBuilder builder_(_fbb);
-  builder_.add_spread(spread);
-  if(notional) { builder_.add_notional(*notional); }
-  if(lockout_days) { builder_.add_lockout_days(*lockout_days); }
-  if(lookback_days) { builder_.add_lookback_days(*lookback_days); }
-  if(payment_lag) { builder_.add_payment_lag(*payment_lag); }
-  builder_.add_index(index);
-  builder_.add_schedule(schedule);
-  builder_.add_telescopic_value_dates(telescopic_value_dates);
-  if(apply_observation_shift) { builder_.add_apply_observation_shift(*apply_observation_shift); }
-  if(averaging_method) { builder_.add_averaging_method(*averaging_method); }
-  if(payment_calendar) { builder_.add_payment_calendar(*payment_calendar); }
-  if(payment_convention) { builder_.add_payment_convention(*payment_convention); }
-  if(day_counter) { builder_.add_day_counter(*day_counter); }
-  return builder_.Finish();
-}
-
-::flatbuffers::Offset<OvernightCoupons> CreateOvernightCoupons(::flatbuffers::FlatBufferBuilder &_fbb, const OvernightCouponsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
 struct OisSwapT : public ::flatbuffers::NativeTable {
   typedef OisSwap TableType;
-  ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt;
-  std::unique_ptr<quantra::FixedCouponsT> fixed_leg{};
-  std::unique_ptr<quantra::OvernightCouponsT> overnight_leg{};
+  std::unique_ptr<quantra::SwapLegT> fixed_leg{};
+  std::unique_ptr<quantra::SwapLegT> overnight_leg{};
   OisSwapT() = default;
   OisSwapT(const OisSwapT &o);
   OisSwapT(OisSwapT&&) FLATBUFFERS_NOEXCEPT = default;
   OisSwapT &operator=(OisSwapT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Overnight indexed swap: fixed vs compounded overnight.
+/// Overnight indexed swap: a fixed leg against a compounded (or averaged)
+/// overnight leg, both `SwapLeg`s in one currency (400 otherwise), one paid
+/// and one received (`SwapLeg.pay_receive`; 400 when both take the same
+/// side). The legs name their own discounting and forwarding curves. Priced
+/// as two QuantLib legs on their discount curves: FixedRateLeg with the fixed
+/// leg's own payment calendar and lag (`SwapLeg.payment_calendar` /
+/// `payment_lag`, presence-required on both legs of this endpoint: an OIS
+/// pays with the overnight calendar and lag) and OvernightLeg with the
+/// overnight conventions, the chains
+/// QuantLib::OvernightIndexedSwap builds, plus the notional exchanges when a
+/// leg asks for them (see `OisSwapResponse`).
 struct OisSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef OisSwapT NativeTableType;
   typedef OisSwapBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_SWAP_TYPE = 4,
-    VT_FIXED_LEG = 6,
-    VT_OVERNIGHT_LEG = 8
+    VT_FIXED_LEG = 4,
+    VT_OVERNIGHT_LEG = 6
   };
-  /// Payer/receiver refer to the fixed leg. Presence-required: an omitted
-  /// type is a 400, never the alphabetical-0 default (Payer).
-  ::flatbuffers::Optional<quantra::enums::SwapType> swap_type() const {
-    return GetOptional<int8_t, quantra::enums::SwapType>(VT_SWAP_TYPE);
+  /// The fixed leg: `coupons` must be `FixedCoupons`. Required. Reported as
+  /// `legs[0]`.
+  const quantra::SwapLeg *fixed_leg() const {
+    return GetPointer<const quantra::SwapLeg *>(VT_FIXED_LEG);
   }
-  const quantra::FixedCoupons *fixed_leg() const {
-    return GetPointer<const quantra::FixedCoupons *>(VT_FIXED_LEG);
-  }
-  const quantra::OvernightCoupons *overnight_leg() const {
-    return GetPointer<const quantra::OvernightCoupons *>(VT_OVERNIGHT_LEG);
+  /// The overnight leg: `coupons` must be `OvernightCoupons`. Required.
+  /// Reported as `legs[1]`.
+  const quantra::SwapLeg *overnight_leg() const {
+    return GetPointer<const quantra::SwapLeg *>(VT_OVERNIGHT_LEG);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<int8_t>(verifier, VT_SWAP_TYPE, 1) &&
-           VerifyOffset(verifier, VT_FIXED_LEG) &&
+           VerifyOffsetRequired(verifier, VT_FIXED_LEG) &&
            verifier.VerifyTable(fixed_leg()) &&
-           VerifyOffset(verifier, VT_OVERNIGHT_LEG) &&
+           VerifyOffsetRequired(verifier, VT_OVERNIGHT_LEG) &&
            verifier.VerifyTable(overnight_leg()) &&
            verifier.EndTable();
   }
@@ -301,13 +76,10 @@ struct OisSwapBuilder {
   typedef OisSwap Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
-  void add_swap_type(quantra::enums::SwapType swap_type) {
-    fbb_.AddElement<int8_t>(OisSwap::VT_SWAP_TYPE, static_cast<int8_t>(swap_type));
-  }
-  void add_fixed_leg(::flatbuffers::Offset<quantra::FixedCoupons> fixed_leg) {
+  void add_fixed_leg(::flatbuffers::Offset<quantra::SwapLeg> fixed_leg) {
     fbb_.AddOffset(OisSwap::VT_FIXED_LEG, fixed_leg);
   }
-  void add_overnight_leg(::flatbuffers::Offset<quantra::OvernightCoupons> overnight_leg) {
+  void add_overnight_leg(::flatbuffers::Offset<quantra::SwapLeg> overnight_leg) {
     fbb_.AddOffset(OisSwap::VT_OVERNIGHT_LEG, overnight_leg);
   }
   explicit OisSwapBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
@@ -317,127 +89,30 @@ struct OisSwapBuilder {
   ::flatbuffers::Offset<OisSwap> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<OisSwap>(end);
+    fbb_.Required(o, OisSwap::VT_FIXED_LEG);
+    fbb_.Required(o, OisSwap::VT_OVERNIGHT_LEG);
     return o;
   }
 };
 
 inline ::flatbuffers::Offset<OisSwap> CreateOisSwap(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt,
-    ::flatbuffers::Offset<quantra::FixedCoupons> fixed_leg = 0,
-    ::flatbuffers::Offset<quantra::OvernightCoupons> overnight_leg = 0) {
+    ::flatbuffers::Offset<quantra::SwapLeg> fixed_leg = 0,
+    ::flatbuffers::Offset<quantra::SwapLeg> overnight_leg = 0) {
   OisSwapBuilder builder_(_fbb);
   builder_.add_overnight_leg(overnight_leg);
   builder_.add_fixed_leg(fixed_leg);
-  if(swap_type) { builder_.add_swap_type(*swap_type); }
   return builder_.Finish();
 }
 
 ::flatbuffers::Offset<OisSwap> CreateOisSwap(::flatbuffers::FlatBufferBuilder &_fbb, const OisSwapT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-inline OvernightCouponsT::OvernightCouponsT(const OvernightCouponsT &o)
-      : schedule((o.schedule) ? new quantra::ScheduleT(*o.schedule) : nullptr),
-        notional(o.notional),
-        index((o.index) ? new quantra::IndexRefT(*o.index) : nullptr),
-        spread(o.spread),
-        day_counter(o.day_counter),
-        payment_convention(o.payment_convention),
-        payment_calendar(o.payment_calendar),
-        payment_lag(o.payment_lag),
-        averaging_method(o.averaging_method),
-        lookback_days(o.lookback_days),
-        lockout_days(o.lockout_days),
-        apply_observation_shift(o.apply_observation_shift),
-        telescopic_value_dates(o.telescopic_value_dates) {
-}
-
-inline OvernightCouponsT &OvernightCouponsT::operator=(OvernightCouponsT o) FLATBUFFERS_NOEXCEPT {
-  std::swap(schedule, o.schedule);
-  std::swap(notional, o.notional);
-  std::swap(index, o.index);
-  std::swap(spread, o.spread);
-  std::swap(day_counter, o.day_counter);
-  std::swap(payment_convention, o.payment_convention);
-  std::swap(payment_calendar, o.payment_calendar);
-  std::swap(payment_lag, o.payment_lag);
-  std::swap(averaging_method, o.averaging_method);
-  std::swap(lookback_days, o.lookback_days);
-  std::swap(lockout_days, o.lockout_days);
-  std::swap(apply_observation_shift, o.apply_observation_shift);
-  std::swap(telescopic_value_dates, o.telescopic_value_dates);
-  return *this;
-}
-
-inline OvernightCouponsT *OvernightCoupons::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<OvernightCouponsT>(new OvernightCouponsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
-}
-
-inline void OvernightCoupons::UnPackTo(OvernightCouponsT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = schedule(); if (_e) { if(_o->schedule) { _e->UnPackTo(_o->schedule.get(), _resolver); } else { _o->schedule = std::unique_ptr<quantra::ScheduleT>(_e->UnPack(_resolver)); } } else if (_o->schedule) { _o->schedule.reset(); } }
-  { auto _e = notional(); _o->notional = _e; }
-  { auto _e = index(); if (_e) { if(_o->index) { _e->UnPackTo(_o->index.get(), _resolver); } else { _o->index = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->index) { _o->index.reset(); } }
-  { auto _e = spread(); _o->spread = _e; }
-  { auto _e = day_counter(); _o->day_counter = _e; }
-  { auto _e = payment_convention(); _o->payment_convention = _e; }
-  { auto _e = payment_calendar(); _o->payment_calendar = _e; }
-  { auto _e = payment_lag(); _o->payment_lag = _e; }
-  { auto _e = averaging_method(); _o->averaging_method = _e; }
-  { auto _e = lookback_days(); _o->lookback_days = _e; }
-  { auto _e = lockout_days(); _o->lockout_days = _e; }
-  { auto _e = apply_observation_shift(); _o->apply_observation_shift = _e; }
-  { auto _e = telescopic_value_dates(); _o->telescopic_value_dates = _e; }
-}
-
-inline ::flatbuffers::Offset<OvernightCoupons> OvernightCoupons::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const OvernightCouponsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateOvernightCoupons(_fbb, _o, _rehasher);
-}
-
-inline ::flatbuffers::Offset<OvernightCoupons> CreateOvernightCoupons(::flatbuffers::FlatBufferBuilder &_fbb, const OvernightCouponsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const OvernightCouponsT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _schedule = _o->schedule ? CreateSchedule(_fbb, _o->schedule.get(), _rehasher) : 0;
-  auto _notional = _o->notional;
-  auto _index = _o->index ? CreateIndexRef(_fbb, _o->index.get(), _rehasher) : 0;
-  auto _spread = _o->spread;
-  auto _day_counter = _o->day_counter;
-  auto _payment_convention = _o->payment_convention;
-  auto _payment_calendar = _o->payment_calendar;
-  auto _payment_lag = _o->payment_lag;
-  auto _averaging_method = _o->averaging_method;
-  auto _lookback_days = _o->lookback_days;
-  auto _lockout_days = _o->lockout_days;
-  auto _apply_observation_shift = _o->apply_observation_shift;
-  auto _telescopic_value_dates = _o->telescopic_value_dates;
-  return quantra::CreateOvernightCoupons(
-      _fbb,
-      _schedule,
-      _notional,
-      _index,
-      _spread,
-      _day_counter,
-      _payment_convention,
-      _payment_calendar,
-      _payment_lag,
-      _averaging_method,
-      _lookback_days,
-      _lockout_days,
-      _apply_observation_shift,
-      _telescopic_value_dates);
-}
-
 inline OisSwapT::OisSwapT(const OisSwapT &o)
-      : swap_type(o.swap_type),
-        fixed_leg((o.fixed_leg) ? new quantra::FixedCouponsT(*o.fixed_leg) : nullptr),
-        overnight_leg((o.overnight_leg) ? new quantra::OvernightCouponsT(*o.overnight_leg) : nullptr) {
+      : fixed_leg((o.fixed_leg) ? new quantra::SwapLegT(*o.fixed_leg) : nullptr),
+        overnight_leg((o.overnight_leg) ? new quantra::SwapLegT(*o.overnight_leg) : nullptr) {
 }
 
 inline OisSwapT &OisSwapT::operator=(OisSwapT o) FLATBUFFERS_NOEXCEPT {
-  std::swap(swap_type, o.swap_type);
   std::swap(fixed_leg, o.fixed_leg);
   std::swap(overnight_leg, o.overnight_leg);
   return *this;
@@ -452,9 +127,8 @@ inline OisSwapT *OisSwap::UnPack(const ::flatbuffers::resolver_function_t *_reso
 inline void OisSwap::UnPackTo(OisSwapT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = swap_type(); _o->swap_type = _e; }
-  { auto _e = fixed_leg(); if (_e) { if(_o->fixed_leg) { _e->UnPackTo(_o->fixed_leg.get(), _resolver); } else { _o->fixed_leg = std::unique_ptr<quantra::FixedCouponsT>(_e->UnPack(_resolver)); } } else if (_o->fixed_leg) { _o->fixed_leg.reset(); } }
-  { auto _e = overnight_leg(); if (_e) { if(_o->overnight_leg) { _e->UnPackTo(_o->overnight_leg.get(), _resolver); } else { _o->overnight_leg = std::unique_ptr<quantra::OvernightCouponsT>(_e->UnPack(_resolver)); } } else if (_o->overnight_leg) { _o->overnight_leg.reset(); } }
+  { auto _e = fixed_leg(); if (_e) { if(_o->fixed_leg) { _e->UnPackTo(_o->fixed_leg.get(), _resolver); } else { _o->fixed_leg = std::unique_ptr<quantra::SwapLegT>(_e->UnPack(_resolver)); } } else if (_o->fixed_leg) { _o->fixed_leg.reset(); } }
+  { auto _e = overnight_leg(); if (_e) { if(_o->overnight_leg) { _e->UnPackTo(_o->overnight_leg.get(), _resolver); } else { _o->overnight_leg = std::unique_ptr<quantra::SwapLegT>(_e->UnPack(_resolver)); } } else if (_o->overnight_leg) { _o->overnight_leg.reset(); } }
 }
 
 inline ::flatbuffers::Offset<OisSwap> OisSwap::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const OisSwapT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -465,14 +139,54 @@ inline ::flatbuffers::Offset<OisSwap> CreateOisSwap(::flatbuffers::FlatBufferBui
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const OisSwapT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _swap_type = _o->swap_type;
-  auto _fixed_leg = _o->fixed_leg ? CreateFixedCoupons(_fbb, _o->fixed_leg.get(), _rehasher) : 0;
-  auto _overnight_leg = _o->overnight_leg ? CreateOvernightCoupons(_fbb, _o->overnight_leg.get(), _rehasher) : 0;
+  auto _fixed_leg = _o->fixed_leg ? CreateSwapLeg(_fbb, _o->fixed_leg.get(), _rehasher) : 0;
+  auto _overnight_leg = _o->overnight_leg ? CreateSwapLeg(_fbb, _o->overnight_leg.get(), _rehasher) : 0;
   return quantra::CreateOisSwap(
       _fbb,
-      _swap_type,
       _fixed_leg,
       _overnight_leg);
+}
+
+inline const quantra::OisSwap *GetOisSwap(const void *buf) {
+  return ::flatbuffers::GetRoot<quantra::OisSwap>(buf);
+}
+
+inline const quantra::OisSwap *GetSizePrefixedOisSwap(const void *buf) {
+  return ::flatbuffers::GetSizePrefixedRoot<quantra::OisSwap>(buf);
+}
+
+inline bool VerifyOisSwapBuffer(
+    ::flatbuffers::Verifier &verifier) {
+  return verifier.VerifyBuffer<quantra::OisSwap>(nullptr);
+}
+
+inline bool VerifySizePrefixedOisSwapBuffer(
+    ::flatbuffers::Verifier &verifier) {
+  return verifier.VerifySizePrefixedBuffer<quantra::OisSwap>(nullptr);
+}
+
+inline void FinishOisSwapBuffer(
+    ::flatbuffers::FlatBufferBuilder &fbb,
+    ::flatbuffers::Offset<quantra::OisSwap> root) {
+  fbb.Finish(root);
+}
+
+inline void FinishSizePrefixedOisSwapBuffer(
+    ::flatbuffers::FlatBufferBuilder &fbb,
+    ::flatbuffers::Offset<quantra::OisSwap> root) {
+  fbb.FinishSizePrefixed(root);
+}
+
+inline std::unique_ptr<quantra::OisSwapT> UnPackOisSwap(
+    const void *buf,
+    const ::flatbuffers::resolver_function_t *res = nullptr) {
+  return std::unique_ptr<quantra::OisSwapT>(GetOisSwap(buf)->UnPack(res));
+}
+
+inline std::unique_ptr<quantra::OisSwapT> UnPackSizePrefixedOisSwap(
+    const void *buf,
+    const ::flatbuffers::resolver_function_t *res = nullptr) {
+  return std::unique_ptr<quantra::OisSwapT>(GetSizePrefixedOisSwap(buf)->UnPack(res));
 }
 
 }  // namespace quantra

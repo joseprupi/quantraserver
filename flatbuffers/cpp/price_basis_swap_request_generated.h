@@ -29,47 +29,29 @@ struct PriceBasisSwapRequestT;
 struct PriceBasisSwapT : public ::flatbuffers::NativeTable {
   typedef PriceBasisSwap TableType;
   std::unique_ptr<quantra::BasisSwapT> basis_swap{};
-  std::string discounting_curve{};
-  std::string forwarding_curve_leg1{};
-  std::string forwarding_curve_leg2{};
   PriceBasisSwapT() = default;
   PriceBasisSwapT(const PriceBasisSwapT &o);
   PriceBasisSwapT(PriceBasisSwapT&&) FLATBUFFERS_NOEXCEPT = default;
   PriceBasisSwapT &operator=(PriceBasisSwapT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Single basis swap pricing context with curve references.
+/// One basis swap to price. The legs name their own discounting and
+/// forwarding curves (`SwapLeg`); every reference is by id into `pricing`.
+/// The NPV is reported in the legs' currency.
 struct PriceBasisSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceBasisSwapT NativeTableType;
   typedef PriceBasisSwapBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_BASIS_SWAP = 4,
-    VT_DISCOUNTING_CURVE = 6,
-    VT_FORWARDING_CURVE_LEG1 = 8,
-    VT_FORWARDING_CURVE_LEG2 = 10
+    VT_BASIS_SWAP = 4
   };
+  /// The swap. Required.
   const quantra::BasisSwap *basis_swap() const {
     return GetPointer<const quantra::BasisSwap *>(VT_BASIS_SWAP);
   }
-  const ::flatbuffers::String *discounting_curve() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNTING_CURVE);
-  }
-  const ::flatbuffers::String *forwarding_curve_leg1() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_FORWARDING_CURVE_LEG1);
-  }
-  const ::flatbuffers::String *forwarding_curve_leg2() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_FORWARDING_CURVE_LEG2);
-  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyOffset(verifier, VT_BASIS_SWAP) &&
+           VerifyOffsetRequired(verifier, VT_BASIS_SWAP) &&
            verifier.VerifyTable(basis_swap()) &&
-           VerifyOffset(verifier, VT_DISCOUNTING_CURVE) &&
-           verifier.VerifyString(discounting_curve()) &&
-           VerifyOffset(verifier, VT_FORWARDING_CURVE_LEG1) &&
-           verifier.VerifyString(forwarding_curve_leg1()) &&
-           VerifyOffset(verifier, VT_FORWARDING_CURVE_LEG2) &&
-           verifier.VerifyString(forwarding_curve_leg2()) &&
            verifier.EndTable();
   }
   PriceBasisSwapT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -84,15 +66,6 @@ struct PriceBasisSwapBuilder {
   void add_basis_swap(::flatbuffers::Offset<quantra::BasisSwap> basis_swap) {
     fbb_.AddOffset(PriceBasisSwap::VT_BASIS_SWAP, basis_swap);
   }
-  void add_discounting_curve(::flatbuffers::Offset<::flatbuffers::String> discounting_curve) {
-    fbb_.AddOffset(PriceBasisSwap::VT_DISCOUNTING_CURVE, discounting_curve);
-  }
-  void add_forwarding_curve_leg1(::flatbuffers::Offset<::flatbuffers::String> forwarding_curve_leg1) {
-    fbb_.AddOffset(PriceBasisSwap::VT_FORWARDING_CURVE_LEG1, forwarding_curve_leg1);
-  }
-  void add_forwarding_curve_leg2(::flatbuffers::Offset<::flatbuffers::String> forwarding_curve_leg2) {
-    fbb_.AddOffset(PriceBasisSwap::VT_FORWARDING_CURVE_LEG2, forwarding_curve_leg2);
-  }
   explicit PriceBasisSwapBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -100,39 +73,17 @@ struct PriceBasisSwapBuilder {
   ::flatbuffers::Offset<PriceBasisSwap> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<PriceBasisSwap>(end);
+    fbb_.Required(o, PriceBasisSwap::VT_BASIS_SWAP);
     return o;
   }
 };
 
 inline ::flatbuffers::Offset<PriceBasisSwap> CreatePriceBasisSwap(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<quantra::BasisSwap> basis_swap = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> discounting_curve = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> forwarding_curve_leg1 = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> forwarding_curve_leg2 = 0) {
+    ::flatbuffers::Offset<quantra::BasisSwap> basis_swap = 0) {
   PriceBasisSwapBuilder builder_(_fbb);
-  builder_.add_forwarding_curve_leg2(forwarding_curve_leg2);
-  builder_.add_forwarding_curve_leg1(forwarding_curve_leg1);
-  builder_.add_discounting_curve(discounting_curve);
   builder_.add_basis_swap(basis_swap);
   return builder_.Finish();
-}
-
-inline ::flatbuffers::Offset<PriceBasisSwap> CreatePriceBasisSwapDirect(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<quantra::BasisSwap> basis_swap = 0,
-    const char *discounting_curve = nullptr,
-    const char *forwarding_curve_leg1 = nullptr,
-    const char *forwarding_curve_leg2 = nullptr) {
-  auto discounting_curve__ = discounting_curve ? _fbb.CreateString(discounting_curve) : 0;
-  auto forwarding_curve_leg1__ = forwarding_curve_leg1 ? _fbb.CreateString(forwarding_curve_leg1) : 0;
-  auto forwarding_curve_leg2__ = forwarding_curve_leg2 ? _fbb.CreateString(forwarding_curve_leg2) : 0;
-  return quantra::CreatePriceBasisSwap(
-      _fbb,
-      basis_swap,
-      discounting_curve__,
-      forwarding_curve_leg1__,
-      forwarding_curve_leg2__);
 }
 
 ::flatbuffers::Offset<PriceBasisSwap> CreatePriceBasisSwap(::flatbuffers::FlatBufferBuilder &_fbb, const PriceBasisSwapT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -148,7 +99,7 @@ struct PriceBasisSwapRequestT : public ::flatbuffers::NativeTable {
   PriceBasisSwapRequestT &operator=(PriceBasisSwapRequestT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Request to price one or more basis swaps.
+/// Request to price one or more basis swaps against one market.
 struct PriceBasisSwapRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceBasisSwapRequestT NativeTableType;
   typedef PriceBasisSwapRequestBuilder Builder;
@@ -163,6 +114,8 @@ struct PriceBasisSwapRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Ta
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceBasisSwap>> *swaps() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceBasisSwap>> *>(VT_SWAPS);
   }
+  /// When true every response row lists each leg's future flows (coupons
+  /// and notional exchanges) in payment order.
   bool include_flows() const {
     return GetField<uint8_t>(VT_INCLUDE_FLOWS, 0) != 0;
   }
@@ -233,17 +186,11 @@ inline ::flatbuffers::Offset<PriceBasisSwapRequest> CreatePriceBasisSwapRequestD
 ::flatbuffers::Offset<PriceBasisSwapRequest> CreatePriceBasisSwapRequest(::flatbuffers::FlatBufferBuilder &_fbb, const PriceBasisSwapRequestT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 inline PriceBasisSwapT::PriceBasisSwapT(const PriceBasisSwapT &o)
-      : basis_swap((o.basis_swap) ? new quantra::BasisSwapT(*o.basis_swap) : nullptr),
-        discounting_curve(o.discounting_curve),
-        forwarding_curve_leg1(o.forwarding_curve_leg1),
-        forwarding_curve_leg2(o.forwarding_curve_leg2) {
+      : basis_swap((o.basis_swap) ? new quantra::BasisSwapT(*o.basis_swap) : nullptr) {
 }
 
 inline PriceBasisSwapT &PriceBasisSwapT::operator=(PriceBasisSwapT o) FLATBUFFERS_NOEXCEPT {
   std::swap(basis_swap, o.basis_swap);
-  std::swap(discounting_curve, o.discounting_curve);
-  std::swap(forwarding_curve_leg1, o.forwarding_curve_leg1);
-  std::swap(forwarding_curve_leg2, o.forwarding_curve_leg2);
   return *this;
 }
 
@@ -257,9 +204,6 @@ inline void PriceBasisSwap::UnPackTo(PriceBasisSwapT *_o, const ::flatbuffers::r
   (void)_o;
   (void)_resolver;
   { auto _e = basis_swap(); if (_e) { if(_o->basis_swap) { _e->UnPackTo(_o->basis_swap.get(), _resolver); } else { _o->basis_swap = std::unique_ptr<quantra::BasisSwapT>(_e->UnPack(_resolver)); } } else if (_o->basis_swap) { _o->basis_swap.reset(); } }
-  { auto _e = discounting_curve(); if (_e) _o->discounting_curve = _e->str(); }
-  { auto _e = forwarding_curve_leg1(); if (_e) _o->forwarding_curve_leg1 = _e->str(); }
-  { auto _e = forwarding_curve_leg2(); if (_e) _o->forwarding_curve_leg2 = _e->str(); }
 }
 
 inline ::flatbuffers::Offset<PriceBasisSwap> PriceBasisSwap::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceBasisSwapT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -271,15 +215,9 @@ inline ::flatbuffers::Offset<PriceBasisSwap> CreatePriceBasisSwap(::flatbuffers:
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceBasisSwapT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _basis_swap = _o->basis_swap ? CreateBasisSwap(_fbb, _o->basis_swap.get(), _rehasher) : 0;
-  auto _discounting_curve = _o->discounting_curve.empty() ? 0 : _fbb.CreateString(_o->discounting_curve);
-  auto _forwarding_curve_leg1 = _o->forwarding_curve_leg1.empty() ? 0 : _fbb.CreateString(_o->forwarding_curve_leg1);
-  auto _forwarding_curve_leg2 = _o->forwarding_curve_leg2.empty() ? 0 : _fbb.CreateString(_o->forwarding_curve_leg2);
   return quantra::CreatePriceBasisSwap(
       _fbb,
-      _basis_swap,
-      _discounting_curve,
-      _forwarding_curve_leg1,
-      _forwarding_curve_leg2);
+      _basis_swap);
 }
 
 inline PriceBasisSwapRequestT::PriceBasisSwapRequestT(const PriceBasisSwapRequestT &o)

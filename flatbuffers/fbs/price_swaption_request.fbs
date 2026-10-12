@@ -4,13 +4,13 @@ include "swaption.fbs";
 
 namespace quantra;
 
-/// Single swaption pricing request with curve/vol/model references.
+/// One swaption to price with its vol and model references. The curves come
+/// from the underlying swap's legs (`SwapLeg.discounting_curve`, which both
+/// legs must name identically, and the floating / overnight leg's
+/// `forwarding_curve`); every reference is by id into `pricing`.
 table PriceSwaption {
+    /// The swaption (exercise, settlement and the underlying swap). Required.
     swaption:Swaption;
-    /// Reference to curve in pricing.rates.curves by id.
-    discounting_curve:string;
-    /// Reference to curve in pricing.rates.curves for forward rates by id.
-    forwarding_curve:string;
     /// Reference to volatility in pricing.volatility.vol_surfaces by id.
     volatility:string;
     /// Reference to model in pricing.volatility.models by id.

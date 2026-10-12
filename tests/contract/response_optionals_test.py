@@ -7,7 +7,10 @@ fair_spread already behave. These tests pin that behaviour end-to-end:
 
   - a swaption priced with a non-Hull-White model carries no `used_hw_*` keys;
   - a plain vanilla (IBOR) swap carries no `used_cms_*` keys and no
-    `cms_swap_rate` / `has_cms_swap_rate` keys on any flow.
+    `cms_swap_rate` / `has_cms_swap_rate` keys on any flow (`legs[i].flows`);
+  - a swap reports exactly the fair values its shape defines: `fair_rate`
+    iff exactly one leg is fixed, `fair_spread` iff a leg is floating (both
+    on a fixed-vs-floating swap, only `fair_spread` on a basis swap).
 """
 
 import json
@@ -60,11 +63,34 @@ def test_plain_vanilla_swap_omits_cms_diagnostics(client, data_dir):
             assert key not in swap, (
                 f"plain vanilla swap unexpectedly carries {key!r}: {swap}"
             )
-        for leg_key in ("fixed_leg_flows", "floating_leg_flows"):
-            for flow in swap.get(leg_key, []):
+        # One result per leg in request order (fixed_leg, floating_leg), each
+        # carrying its flows under `legs[i].flows`.
+        assert len(swap["legs"]) == 2, f"expected two leg results: {swap}"
+        for leg in swap["legs"]:
+            assert leg.get("flows"), f"include_flows=true but a leg has no flows: {leg}"
+            for flow in leg["flows"]:
                 assert "cms_swap_rate" not in flow, (
                     f"non-CMS coupon unexpectedly carries cms_swap_rate: {flow}"
                 )
                 assert "has_cms_swap_rate" not in flow, (
                     f"has_cms_swap_rate must be removed from the schema: {flow}"
                 )
+        # A fixed-vs-floating swap solves for both fair quantities: the
+        # fixed rate (one fixed leg) and the floating leg's spread.
+        assert "fair_rate" in swap, f"vanilla swap response lacks fair_rate: {swap}"
+        assert "fair_spread" in swap, f"vanilla swap response lacks fair_spread: {swap}"
+
+
+def test_basis_swap_solves_fair_spread_not_fair_rate(client, data_dir):
+    """A float-vs-float basis swap carries `fair_spread` and no `fair_rate`;
+    its `legs` list holds leg1 then leg2 (request order)."""
+    request = load_json(data_dir / "basis_swap_request.json")
+    response = client.price("basis_swap", request)
+    swaps = response.get("swaps")
+    assert isinstance(swaps, list) and swaps, f"no swaps in response: {response}"
+    for swap in swaps:
+        assert len(swap["legs"]) == 2, f"expected two leg results: {swap}"
+        assert "fair_spread" in swap, f"basis swap response lacks fair_spread: {swap}"
+        assert "fair_rate" not in swap, (
+            f"basis swap response unexpectedly carries fair_rate: {swap}"
+        )

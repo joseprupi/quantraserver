@@ -3,18 +3,20 @@ include "basis_swap.fbs";
 
 namespace quantra;
 
-/// Single basis swap pricing context with curve references.
+/// One basis swap to price. The legs name their own discounting and
+/// forwarding curves (`SwapLeg`); every reference is by id into `pricing`.
+/// The NPV is reported in the legs' currency.
 table PriceBasisSwap {
-    basis_swap:BasisSwap;
-    discounting_curve:string;
-    forwarding_curve_leg1:string;
-    forwarding_curve_leg2:string;
+    /// The swap. Required.
+    basis_swap:BasisSwap (required);
 }
 
-/// Request to price one or more basis swaps.
+/// Request to price one or more basis swaps against one market.
 table PriceBasisSwapRequest {
     pricing:Pricing;
     swaps:[PriceBasisSwap];
+    /// When true every response row lists each leg's future flows (coupons
+    /// and notional exchanges) in payment order.
     include_flows:bool = false;
 }
 

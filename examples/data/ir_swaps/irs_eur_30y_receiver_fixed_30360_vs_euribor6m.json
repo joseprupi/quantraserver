@@ -178,8 +178,9 @@
   "swaps": [
     {
       "vanilla_swap": {
-        "swap_type": "Receiver",
         "fixed_leg": {
+          "pay_receive": "Receive",
+          "currency": "EUR",
           "notional": 10000000.0,
           "schedule": {
             "calendar": "TARGET",
@@ -191,11 +192,17 @@
             "date_generation_rule": "Forward",
             "end_of_month": false
           },
-          "rate": 0.035,
           "day_counter": "Thirty360",
-          "payment_convention": "ModifiedFollowing"
+          "payment_convention": "ModifiedFollowing",
+          "coupons_type": "FixedCoupons",
+          "coupons": {
+            "rate": 0.035
+          },
+          "discounting_curve": "discount"
         },
         "floating_leg": {
+          "pay_receive": "Pay",
+          "currency": "EUR",
           "notional": 10000000.0,
           "schedule": {
             "calendar": "TARGET",
@@ -207,16 +214,19 @@
             "date_generation_rule": "Forward",
             "end_of_month": false
           },
-          "index": {
-            "id": "EUR_6M"
-          },
-          "spread": 0.0,
           "day_counter": "Actual360",
-          "payment_convention": "ModifiedFollowing"
+          "payment_convention": "ModifiedFollowing",
+          "coupons_type": "IborCoupons",
+          "coupons": {
+            "index": {
+              "id": "EUR_6M"
+            },
+            "spread": 0.0
+          },
+          "discounting_curve": "discount",
+          "forwarding_curve": "discount"
         }
-      },
-      "discounting_curve": "discount",
-      "forwarding_curve": "discount"
+      }
     }
   ]
 }

@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Response wrapper for multiple basis swaps.
+# Response wrapper for multiple basis swaps, in request order.
 class PriceBasisSwapResponse(object):
     __slots__ = ['_tab']
 

@@ -54,8 +54,9 @@ struct CrossCurrencySwapResponseT : public ::flatbuffers::NativeTable {
 /// linear equation in the fixed rate / the spread with the leg's annuity
 /// A_i = CashFlows::bps(coupons of leg i, D_i) / 1e-4 (exchanges excluded):
 ///   fair_rate   = rate_f   - NPV[in the fixed leg's ccy] / (s_f * A_f)
-///   fair_spread = spread_1 - NPV[in legs[1]'s ccy]       / (s_1 * A_1)
-/// so repricing at the fair value gives npv = 0 to rounding. These are
+///   fair_spread = spread_k - NPV[in leg k's ccy]         / (s_k * A_k)
+/// (k = the floating leg of a fixed/float swap, `legs[1]` of a float/float
+/// one) so repricing at the fair value gives npv = 0 to rounding. These are
 /// QuantLib::VanillaSwap's / OvernightIndexedSwap's own fair-value formulas
 /// and the legs are built by the same code as the single-currency swap
 /// endpoints. Every value is as of the evaluation date (the curves'
@@ -89,9 +90,11 @@ struct CrossCurrencySwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers
   ::flatbuffers::Optional<double> fair_rate() const {
     return GetOptional<double, double>(VT_FAIR_RATE);
   }
-  /// Present iff no leg has `FixedCoupons`: the spread on `legs[1]` (`leg2`,
-  /// by convention) that zeroes `npv`, holding `legs[0]` and every notional
-  /// exchange fixed. Absent when a leg is fixed.
+  /// Present iff a leg has `IborCoupons` or `OvernightCoupons` (as on every
+  /// swap endpoint): the spread on the floating leg of a fixed/float swap,
+  /// or on `legs[1]` (`leg2`, by convention) of a float/float one, that
+  /// zeroes `npv`, holding the other leg and every notional exchange fixed.
+  /// Absent for fixed/fixed swaps.
   ::flatbuffers::Optional<double> fair_spread() const {
     return GetOptional<double, double>(VT_FAIR_SPREAD);
   }

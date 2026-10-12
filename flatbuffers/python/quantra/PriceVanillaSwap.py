@@ -6,7 +6,9 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Single vanilla swap pricing context with curve references.
+# One vanilla swap to price. The legs name their own discounting and
+# forwarding curves (`SwapLeg`); every reference is by id into `pricing`.
+# The NPV is reported in the legs' currency.
 class PriceVanillaSwap(object):
     __slots__ = ['_tab']
 
@@ -25,6 +27,7 @@ class PriceVanillaSwap(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # The swap. Required.
     # PriceVanillaSwap
     def VanillaSwap(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -36,24 +39,8 @@ class PriceVanillaSwap(object):
             return obj
         return None
 
-    # Reference to curve in pricing.rates.curves by id.
-    # PriceVanillaSwap
-    def DiscountingCurve(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
-        if o != 0:
-            return self._tab.String(o + self._tab.Pos)
-        return None
-
-    # Reference to curve in pricing.rates.curves for forward rates by id.
-    # PriceVanillaSwap
-    def ForwardingCurve(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            return self._tab.String(o + self._tab.Pos)
-        return None
-
 def PriceVanillaSwapStart(builder):
-    builder.StartObject(3)
+    builder.StartObject(1)
 
 def Start(builder):
     PriceVanillaSwapStart(builder)
@@ -63,18 +50,6 @@ def PriceVanillaSwapAddVanillaSwap(builder, vanillaSwap):
 
 def AddVanillaSwap(builder, vanillaSwap):
     PriceVanillaSwapAddVanillaSwap(builder, vanillaSwap)
-
-def PriceVanillaSwapAddDiscountingCurve(builder, discountingCurve):
-    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(discountingCurve), 0)
-
-def AddDiscountingCurve(builder, discountingCurve):
-    PriceVanillaSwapAddDiscountingCurve(builder, discountingCurve)
-
-def PriceVanillaSwapAddForwardingCurve(builder, forwardingCurve):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(forwardingCurve), 0)
-
-def AddForwardingCurve(builder, forwardingCurve):
-    PriceVanillaSwapAddForwardingCurve(builder, forwardingCurve)
 
 def PriceVanillaSwapEnd(builder):
     return builder.EndObject()
@@ -92,8 +67,6 @@ class PriceVanillaSwapT(object):
     # PriceVanillaSwapT
     def __init__(self):
         self.vanillaSwap = None  # type: Optional[VanillaSwapT]
-        self.discountingCurve = None  # type: str
-        self.forwardingCurve = None  # type: str
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -118,23 +91,13 @@ class PriceVanillaSwapT(object):
             return
         if priceVanillaSwap.VanillaSwap() is not None:
             self.vanillaSwap = VanillaSwapT.InitFromObj(priceVanillaSwap.VanillaSwap())
-        self.discountingCurve = priceVanillaSwap.DiscountingCurve()
-        self.forwardingCurve = priceVanillaSwap.ForwardingCurve()
 
     # PriceVanillaSwapT
     def Pack(self, builder):
         if self.vanillaSwap is not None:
             vanillaSwap = self.vanillaSwap.Pack(builder)
-        if self.discountingCurve is not None:
-            discountingCurve = builder.CreateString(self.discountingCurve)
-        if self.forwardingCurve is not None:
-            forwardingCurve = builder.CreateString(self.forwardingCurve)
         PriceVanillaSwapStart(builder)
         if self.vanillaSwap is not None:
             PriceVanillaSwapAddVanillaSwap(builder, vanillaSwap)
-        if self.discountingCurve is not None:
-            PriceVanillaSwapAddDiscountingCurve(builder, discountingCurve)
-        if self.forwardingCurve is not None:
-            PriceVanillaSwapAddForwardingCurve(builder, forwardingCurve)
         priceVanillaSwap = PriceVanillaSwapEnd(builder)
         return priceVanillaSwap

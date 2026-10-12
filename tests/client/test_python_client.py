@@ -27,6 +27,7 @@ from quantra_client.client import (
     # Request types
     PriceFixedRateBondRequestT,
     PriceVanillaSwapRequestT,
+    PriceOisSwapRequestT,
     PriceFRARequestT,
     PriceFxForwardRequestT,
     PriceCrossCurrencySwapRequestT,
@@ -69,6 +70,8 @@ from quantra_client.client import (
     FixedCouponsT,
     IborCouponsT,
     PriceVanillaSwapT,
+    OisSwapT,
+    PriceOisSwapT,
     FRAT,
     PriceFRAT,
     FxSpotSpecT,
@@ -103,7 +106,6 @@ from quantra_client.client import (
     Interpolator,
     BootstrapTrait,
     Compounding,
-    SwapType,
     RateAveragingType,
     FRAType,
     FxDirection,
@@ -568,8 +570,12 @@ def test_fixed_rate_bond(client: Client, curve_handle: ql.YieldTermStructureHand
 def test_vanilla_swap(client: Client, curve_handle: ql.YieldTermStructureHandle):
     """
     Compare Vanilla Swap pricing: QuantLib vs Quantra
-    
-    Swap: 5Y payer, 3.5% fixed vs 6M Euribor, 1M notional
+
+    Swap: 5Y payer, 3.5% fixed vs 6M Euribor, 1M notional. The Quantra swap
+    is two SwapLeg entries (fixed leg paid, floating leg received, both EUR,
+    curves on the legs); the response carries one SwapLegResult per leg,
+    legs[0] = fixed, legs[1] = floating, signed from the reported party's
+    view, compared against QuantLib's legNPV.
     """
     print("\n" + "=" * 60)
     print("VANILLA SWAP")
@@ -601,7 +607,8 @@ def test_vanilla_swap(client: Client, curve_handle: ql.YieldTermStructureHandle)
     ql_swap.setPricingEngine(engine)
     ql_npv = ql_swap.NPV()
     ql_fair_rate = ql_swap.fairRate()
-    
+    ql_leg_npvs = [ql_swap.legNPV(0), ql_swap.legNPV(1)]   # fixed (paid) < 0, floating > 0
+
     # --- Quantra ---
     fixed_schedule_q = ScheduleT()
     fixed_schedule_q.effectiveDate = "2025-01-17"
@@ -613,13 +620,11 @@ def test_vanilla_swap(client: Client, curve_handle: ql.YieldTermStructureHandle)
     fixed_schedule_q.dateGenerationRule = DateGenerationRule.Forward
     fixed_schedule_q.endOfMonth = False
     
-    fixed_leg = FixedCouponsT()
-    fixed_leg.notional = notional
-    fixed_leg.schedule = fixed_schedule_q
-    fixed_leg.rate = fixed_rate
-    fixed_leg.dayCounter = DayCounter.Thirty360
-    fixed_leg.paymentConvention = BusinessDayConvention.ModifiedFollowing
-    
+    # The coupon table holds only the kind-specific fields (a fixed rate);
+    # notional, schedule and conventions are set on the leg below.
+    fixed_coupons = FixedCouponsT()
+    fixed_coupons.rate = fixed_rate
+
     float_schedule_q = ScheduleT()
     float_schedule_q.effectiveDate = "2025-01-17"
     float_schedule_q.terminationDate = "2030-01-17"
@@ -629,46 +634,199 @@ def test_vanilla_swap(client: Client, curve_handle: ql.YieldTermStructureHandle)
     float_schedule_q.terminationDateConvention = BusinessDayConvention.ModifiedFollowing
     float_schedule_q.dateGenerationRule = DateGenerationRule.Forward
     float_schedule_q.endOfMonth = False
-    
-    float_leg = IborCouponsT()
-    float_leg.notional = notional
-    float_leg.schedule = float_schedule_q
-    float_leg.index = build_quantra_index_6m()
-    float_leg.dayCounter = DayCounter.Actual360
-    float_leg.spread = 0.0
-    float_leg.paymentConvention = BusinessDayConvention.ModifiedFollowing
-    
+
+    ibor_coupons = IborCouponsT()
+    ibor_coupons.index = build_quantra_index_6m()
+    ibor_coupons.spread = 0.0
+
+    # A payer swap: the fixed leg is paid, the floating leg received. Each
+    # leg names its currency, its notional / schedule / day count / payment
+    # convention and its curves; a fixed leg has no forwarding curve.
+    fixed_leg = SwapLegT()
+    fixed_leg.payReceive = PayReceive.Pay
+    fixed_leg.currency = "EUR"
+    fixed_leg.notional = notional
+    fixed_leg.schedule = fixed_schedule_q
+    fixed_leg.dayCounter = DayCounter.Thirty360
+    fixed_leg.paymentConvention = BusinessDayConvention.ModifiedFollowing
+    fixed_leg.couponsType = SwapCoupons.FixedCoupons
+    fixed_leg.coupons = fixed_coupons
+    fixed_leg.discountingCurve = "discount"
+
+    floating_leg = SwapLegT()
+    floating_leg.payReceive = PayReceive.Receive
+    floating_leg.currency = "EUR"
+    floating_leg.notional = notional
+    floating_leg.schedule = float_schedule_q
+    floating_leg.dayCounter = DayCounter.Actual360
+    floating_leg.paymentConvention = BusinessDayConvention.ModifiedFollowing
+    floating_leg.couponsType = SwapCoupons.IborCoupons
+    floating_leg.coupons = ibor_coupons
+    floating_leg.discountingCurve = "discount"
+    floating_leg.forwardingCurve = "discount"
+
     swap = VanillaSwapT()
-    swap.swapType = SwapType.Payer
     swap.fixedLeg = fixed_leg
-    swap.floatingLeg = float_leg
-    
+    swap.floatingLeg = floating_leg
+
     price_swap = PriceVanillaSwapT()
     price_swap.vanillaSwap = swap
-    price_swap.discountingCurve = "discount"
-    price_swap.forwardingCurve = "discount"
-    
+
     request = PriceVanillaSwapRequestT()
     request.pricing = build_quantra_pricing([build_quantra_curve("discount")], indices=[build_index_def_eur6m()])
     request.swaps = [price_swap]
-    
+
     response = client.price_vanilla_swaps(request)
     result = response.Swaps(0)
     q_npv = result.Npv()
     q_fair_rate = result.FairRate()
-    
+    q_leg_npvs = [result.Legs(0).Npv(), result.Legs(1).Npv()]
+
     # --- Compare ---
     npv_diff = abs(ql_npv - q_npv)
     rate_diff = abs(ql_fair_rate - q_fair_rate)
-    
+    leg_diff = max(abs(a - b) for a, b in zip(ql_leg_npvs, q_leg_npvs))
+
     print(f"  QuantLib NPV:       {ql_npv:>12.2f}")
     print(f"  Quantra NPV:        {q_npv:>12.2f}")
     print(f"  NPV Difference:     {npv_diff:>12.4f}")
     print(f"  QuantLib Fair Rate: {ql_fair_rate * 100:>11.4f}%")
     print(f"  Quantra Fair Rate:  {q_fair_rate * 100:>11.4f}%")
     print(f"  Rate Difference:    {rate_diff * 10000:>11.4f} bps")
-    
-    passed = npv_diff < TOLERANCE and rate_diff < 1e-6
+    print(f"  Leg NPVs (fixed, floating): QuantLib {ql_leg_npvs[0]:.2f} / {ql_leg_npvs[1]:.2f}"
+          f"  Quantra {q_leg_npvs[0]:.2f} / {q_leg_npvs[1]:.2f}")
+    passed = (npv_diff < TOLERANCE and rate_diff < 1e-6 and leg_diff < TOLERANCE
+              and q_leg_npvs[0] < 0 < q_leg_npvs[1]
+              and abs(q_leg_npvs[0] + q_leg_npvs[1] - q_npv) < 1e-6)
+    print(f"  Result:             {'✓ PASS' if passed else '✗ FAIL'}")
+    return passed, ql_npv, q_npv
+
+
+def test_ois_swap(client: Client, curve_handle: ql.YieldTermStructureHandle):
+    """
+    Compare OIS pricing: QuantLib OvernightIndexedSwap vs Quantra
+
+    Swap: 5Y payer, 4.5% fixed (ACT/360, annual) vs USD SOFR compounded
+    annually, 10M notional, USD curve flat 4.5%. Both legs are SwapLeg
+    entries in USD (the index's currency) on the same curve; the fixed leg
+    states the overnight leg's payment calendar and lag (as the converter
+    writes them), so both legs pay on the same dates as QuantLib's
+    OvernightIndexedSwap.
+    """
+    print("\n" + "=" * 60)
+    print("OIS SWAP")
+    print("=" * 60)
+
+    notional = 10_000_000.0
+    fixed_rate = 0.045
+    usd_rate = 0.045
+    start = ql.Date(17, ql.January, 2025)
+    end = ql.Date(17, ql.January, 2030)
+
+    # --- QuantLib ---
+    usd_curve = build_quantlib_curve(usd_rate)
+    schedule_ql = ql.Schedule(start, end, ql.Period(ql.Annual), ql.TARGET(),
+                              ql.ModifiedFollowing, ql.ModifiedFollowing,
+                              ql.DateGeneration.Forward, False)
+    sofr = ql.OvernightIndex("SOFR", 0, ql.USDCurrency(),
+                             ql.UnitedStates(ql.UnitedStates.GovernmentBond), ql.Actual360(),
+                             usd_curve)
+    ql_swap = ql.OvernightIndexedSwap(ql.Swap.Payer, notional, schedule_ql, fixed_rate,
+                                      ql.Actual360(), sofr, 0.0, 0, ql.ModifiedFollowing,
+                                      ql.TARGET())
+    ql_swap.setPricingEngine(ql.DiscountingSwapEngine(usd_curve))
+    ql_npv = ql_swap.NPV()
+    ql_fair_rate = ql_swap.fairRate()
+    ql_leg_npvs = [ql_swap.legNPV(0), ql_swap.legNPV(1)]
+
+    # --- Quantra ---
+    def schedule():
+        sch = ScheduleT()
+        sch.effectiveDate = "2025-01-17"
+        sch.terminationDate = "2030-01-17"
+        sch.calendar = Calendar.TARGET
+        sch.frequency = Frequency.Annual
+        sch.convention = BusinessDayConvention.ModifiedFollowing
+        sch.terminationDateConvention = BusinessDayConvention.ModifiedFollowing
+        sch.dateGenerationRule = DateGenerationRule.Forward
+        sch.endOfMonth = False
+        return sch
+
+    # On price-ois-swap both legs state their payment calendar and lag (the
+    # leg-level fields); the coupon tables carry only the rate / the
+    # overnight index and its compounding parameters.
+    fixed_coupons = FixedCouponsT()
+    fixed_coupons.rate = fixed_rate
+    fixed_leg = SwapLegT()
+    fixed_leg.payReceive = PayReceive.Pay
+    fixed_leg.currency = "USD"
+    fixed_leg.notional = notional
+    fixed_leg.schedule = schedule()
+    fixed_leg.dayCounter = DayCounter.Actual360
+    fixed_leg.paymentConvention = BusinessDayConvention.ModifiedFollowing
+    fixed_leg.paymentCalendar = Calendar.TARGET
+    fixed_leg.paymentLag = 0
+    fixed_leg.couponsType = SwapCoupons.FixedCoupons
+    fixed_leg.coupons = fixed_coupons
+    fixed_leg.discountingCurve = "usd_discount"
+
+    sofr_ref = IndexRefT()
+    sofr_ref.id = "USD_SOFR"
+    overnight_coupons = OvernightCouponsT()
+    overnight_coupons.index = sofr_ref
+    overnight_coupons.spread = 0.0
+    overnight_coupons.averagingMethod = RateAveragingType.Compound
+    overnight_coupons.lookbackDays = 0
+    overnight_coupons.lockoutDays = 0
+    overnight_coupons.applyObservationShift = False
+    overnight_leg = SwapLegT()
+    overnight_leg.payReceive = PayReceive.Receive
+    overnight_leg.currency = "USD"
+    overnight_leg.notional = notional
+    overnight_leg.schedule = schedule()
+    overnight_leg.dayCounter = DayCounter.Actual360
+    overnight_leg.paymentConvention = BusinessDayConvention.ModifiedFollowing
+    overnight_leg.paymentCalendar = Calendar.TARGET
+    overnight_leg.paymentLag = 0
+    overnight_leg.couponsType = SwapCoupons.OvernightCoupons
+    overnight_leg.coupons = overnight_coupons
+    overnight_leg.discountingCurve = "usd_discount"
+    overnight_leg.forwardingCurve = "usd_discount"
+
+    swap = OisSwapT()
+    swap.fixedLeg = fixed_leg
+    swap.overnightLeg = overnight_leg
+    price_swap = PriceOisSwapT()
+    price_swap.oisSwap = swap
+
+    request = PriceOisSwapRequestT()
+    # The shared curve builder's swap helpers reference EUR_6M, so its
+    # definition travels with the request next to the SOFR index.
+    request.pricing = build_quantra_pricing([build_quantra_curve("usd_discount", usd_rate)],
+                                            indices=[build_index_def_eur6m(),
+                                                     build_index_def_sofr()])
+    request.swaps = [price_swap]
+
+    response = client.price_ois_swaps(request)
+    result = response.Swaps(0)
+    q_npv = result.Npv()
+    q_fair_rate = result.FairRate()
+    q_leg_npvs = [result.Legs(0).Npv(), result.Legs(1).Npv()]
+
+    # --- Compare ---
+    npv_diff = abs(ql_npv - q_npv)
+    rate_diff = abs(ql_fair_rate - q_fair_rate)
+    leg_diff = max(abs(a - b) for a, b in zip(ql_leg_npvs, q_leg_npvs))
+
+    print(f"  QuantLib NPV:       {ql_npv:>12.2f}")
+    print(f"  Quantra NPV:        {q_npv:>12.2f}")
+    print(f"  NPV Difference:     {npv_diff:>12.4f}")
+    print(f"  QuantLib Fair Rate: {ql_fair_rate * 100:>11.4f}%")
+    print(f"  Quantra Fair Rate:  {q_fair_rate * 100:>11.4f}%")
+    print(f"  Leg NPVs (fixed, overnight): QuantLib {ql_leg_npvs[0]:.2f} / {ql_leg_npvs[1]:.2f}"
+          f"  Quantra {q_leg_npvs[0]:.2f} / {q_leg_npvs[1]:.2f}")
+    passed = (npv_diff < TOLERANCE and rate_diff < 1e-6 and leg_diff < TOLERANCE
+              and abs(q_leg_npvs[0] + q_leg_npvs[1] - q_npv) < 1e-6)
     print(f"  Result:             {'✓ PASS' if passed else '✗ FAIL'}")
     return passed, ql_npv, q_npv
 
@@ -827,8 +985,11 @@ def test_cap(client: Client, curve_handle: ql.YieldTermStructureHandle):
 def test_swaption(client: Client, curve_handle: ql.YieldTermStructureHandle):
     """
     Compare Swaption pricing: QuantLib vs Quantra
-    
-    Swaption: 1Y into 5Y payer, 3.5% strike, 20% vol, 1M notional
+
+    Swaption: 1Y into 5Y payer, 3.5% strike, 20% vol, 1M notional. The
+    underlying is a VanillaSwap in the SwapLeg shape: both legs name the
+    same discounting curve, the floating leg its forwarding curve; the
+    PriceSwaption wrapper carries only the volatility and model ids.
     """
     print("\n" + "=" * 60)
     print("SWAPTION")
@@ -882,12 +1043,8 @@ def test_swaption(client: Client, curve_handle: ql.YieldTermStructureHandle):
     fixed_schedule_q.dateGenerationRule = DateGenerationRule.Forward
     fixed_schedule_q.endOfMonth = False
     
-    fixed_leg = FixedCouponsT()
-    fixed_leg.notional = notional
-    fixed_leg.schedule = fixed_schedule_q
-    fixed_leg.rate = strike
-    fixed_leg.dayCounter = DayCounter.Thirty360
-    fixed_leg.paymentConvention = BusinessDayConvention.ModifiedFollowing
+    fixed_coupons = FixedCouponsT()
+    fixed_coupons.rate = strike
     
     float_schedule_q = ScheduleT()
     float_schedule_q.effectiveDate = "2026-01-17"
@@ -899,18 +1056,38 @@ def test_swaption(client: Client, curve_handle: ql.YieldTermStructureHandle):
     float_schedule_q.dateGenerationRule = DateGenerationRule.Forward
     float_schedule_q.endOfMonth = False
     
-    float_leg = IborCouponsT()
-    float_leg.notional = notional
-    float_leg.schedule = float_schedule_q
-    float_leg.index = build_quantra_index_6m()
-    float_leg.dayCounter = DayCounter.Actual360
-    float_leg.spread = 0.0
-    float_leg.paymentConvention = BusinessDayConvention.ModifiedFollowing
-    
+    ibor_coupons = IborCouponsT()
+    ibor_coupons.index = build_quantra_index_6m()
+    ibor_coupons.spread = 0.0
+
+    # The underlying is built from the same flat SwapLegT as the swap
+    # endpoints: notional / schedule / conventions on the leg.
+    fixed_leg = SwapLegT()
+    fixed_leg.payReceive = PayReceive.Pay          # payer swaption
+    fixed_leg.currency = "EUR"
+    fixed_leg.notional = notional
+    fixed_leg.schedule = fixed_schedule_q
+    fixed_leg.dayCounter = DayCounter.Thirty360
+    fixed_leg.paymentConvention = BusinessDayConvention.ModifiedFollowing
+    fixed_leg.couponsType = SwapCoupons.FixedCoupons
+    fixed_leg.coupons = fixed_coupons
+    fixed_leg.discountingCurve = "discount"
+
+    floating_leg = SwapLegT()
+    floating_leg.payReceive = PayReceive.Receive
+    floating_leg.currency = "EUR"
+    floating_leg.notional = notional
+    floating_leg.schedule = float_schedule_q
+    floating_leg.dayCounter = DayCounter.Actual360
+    floating_leg.paymentConvention = BusinessDayConvention.ModifiedFollowing
+    floating_leg.couponsType = SwapCoupons.IborCoupons
+    floating_leg.coupons = ibor_coupons
+    floating_leg.discountingCurve = "discount"
+    floating_leg.forwardingCurve = "discount"
+
     underlying = VanillaSwapT()
-    underlying.swapType = SwapType.Payer
     underlying.fixedLeg = fixed_leg
-    underlying.floatingLeg = float_leg
+    underlying.floatingLeg = floating_leg
     
     swaption = SwaptionT()
     swaption.underlyingType = 1
@@ -921,8 +1098,6 @@ def test_swaption(client: Client, curve_handle: ql.YieldTermStructureHandle):
     
     price_swaption = PriceSwaptionT()
     price_swaption.swaption = swaption
-    price_swaption.discountingCurve = "discount"
-    price_swaption.forwardingCurve = "discount"
     price_swaption.volatility = "swaption_vol"
     price_swaption.model = "black_model"  # NEW: model reference
     
@@ -1337,14 +1512,14 @@ def test_cross_currency_swap(client: Client, curve_handle: ql.YieldTermStructure
         return sch
 
     fixed_coupons = FixedCouponsT()
-    fixed_coupons.notional = eur_notional
-    fixed_coupons.schedule = schedule(Frequency.Annual)
     fixed_coupons.rate = fixed_rate
-    fixed_coupons.dayCounter = DayCounter.Thirty360
-    fixed_coupons.paymentConvention = BusinessDayConvention.ModifiedFollowing
     leg1 = SwapLegT()
     leg1.payReceive = PayReceive.Pay
     leg1.currency = "EUR"
+    leg1.notional = eur_notional
+    leg1.schedule = schedule(Frequency.Annual)
+    leg1.dayCounter = DayCounter.Thirty360
+    leg1.paymentConvention = BusinessDayConvention.ModifiedFollowing
     leg1.couponsType = SwapCoupons.FixedCoupons
     leg1.coupons = fixed_coupons
     leg1.initialExchange = True
@@ -1354,13 +1529,8 @@ def test_cross_currency_swap(client: Client, curve_handle: ql.YieldTermStructure
     sofr_ref = IndexRefT()
     sofr_ref.id = "USD_SOFR"
     overnight_coupons = OvernightCouponsT()
-    overnight_coupons.notional = usd_notional
-    overnight_coupons.schedule = schedule(Frequency.Quarterly)
     overnight_coupons.index = sofr_ref
     overnight_coupons.spread = 0.0
-    overnight_coupons.paymentConvention = BusinessDayConvention.ModifiedFollowing
-    overnight_coupons.paymentCalendar = Calendar.TARGET
-    overnight_coupons.paymentLag = 0
     overnight_coupons.averagingMethod = RateAveragingType.Compound
     overnight_coupons.lookbackDays = 0
     overnight_coupons.lockoutDays = 0
@@ -1368,6 +1538,12 @@ def test_cross_currency_swap(client: Client, curve_handle: ql.YieldTermStructure
     leg2 = SwapLegT()
     leg2.payReceive = PayReceive.Receive
     leg2.currency = "USD"
+    leg2.notional = usd_notional
+    leg2.schedule = schedule(Frequency.Quarterly)
+    leg2.dayCounter = DayCounter.Actual360
+    leg2.paymentConvention = BusinessDayConvention.ModifiedFollowing
+    leg2.paymentCalendar = Calendar.TARGET
+    leg2.paymentLag = 0
     leg2.couponsType = SwapCoupons.OvernightCoupons
     leg2.coupons = overnight_coupons
     leg2.initialExchange = True
@@ -1440,6 +1616,7 @@ def main():
     tests = [
         ("Fixed Rate Bond", lambda: test_fixed_rate_bond(client, curve_handle)),
         ("Vanilla Swap", lambda: test_vanilla_swap(client, curve_handle)),
+        ("OIS Swap", lambda: test_ois_swap(client, curve_handle)),
         ("FRA", lambda: test_fra(client, curve_handle)),
         ("FX Forward", lambda: test_fx_forward(client, curve_handle)),
         ("Cross-Currency Swap", lambda: test_cross_currency_swap(client, curve_handle)),

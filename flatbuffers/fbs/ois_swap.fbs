@@ -1,64 +1,25 @@
-include "enums.fbs";
-include "schedule.fbs";
-include "index.fbs";
-include "vanilla_swap.fbs";
+include "swap_leg.fbs";
 
 namespace quantra;
 
-/// Overnight floating coupons of a swap leg: the daily fixings of an
-/// overnight `index` compounded (or averaged) over each period of `schedule`,
-/// paid `payment_lag` business days after the period end on
-/// `payment_calendar`, with the lookback / lockout / observation-shift
-/// conventions of the market. Used as `OisSwap.overnight_leg` and as the
-/// `OvernightCoupons` member of `SwapLeg.coupons` (built by the same code),
-/// where the index must be an overnight index (an IBOR index is a 400 naming
-/// `IborCoupons`). (Named `OisFloatingLeg` before 0.9.0; the field names are
-/// unchanged.)
-table OvernightCoupons {
-    schedule:Schedule;
-    /// Notional. Presence-required and must be > 0 (a bare double would default
-    /// to a silent zero notional).
-    notional:double = null;
-    /// Reference to an overnight IndexDef by id (e.g., "USD_SOFR").
-    index:IndexRef (required);
-    /// Spread over the compounded/averaged overnight rate. Keeps a literal 0.0
-    /// default on purpose: zero is the genuine market-standard value, not a
-    /// convention that could silently diverge.
-    spread:double = 0.0;
-    /// DEPRECATED / accepted-but-unused. The overnight coupons take their day
-    /// counter from the overnight index itself (as QuantLib's
-    /// OvernightIndexedSwap does), so this field is ignored if present and may
-    /// be omitted. Kept optional for backward compatibility.
-    day_counter:enums.DayCounter = null;
-    /// Payment-date business-day convention. Required.
-    payment_convention:enums.BusinessDayConvention = null;
-    /// Payment-date adjustment calendar. Required.
-    payment_calendar:enums.Calendar = null;
-    /// Payment lag in business days between accrual end and payment. Required;
-    /// must be >= 0.
-    payment_lag:int = null;
-    /// Compound or Simple averaging of the overnight fixings. Required.
-    averaging_method:enums.RateAveragingType = null;
-    /// Fixing lookback in business days. Required; must be >= 0; 0 = no
-    /// lookback (the index's own fixing delay applies — QuantLib encodes this
-    /// as Null, not as a zero-day lookback).
-    lookback_days:int = null;
-    /// Lockout (rate-cutoff) days at period end. Required; must be >= 0;
-    /// 0 = no lockout.
-    lockout_days:int = null;
-    /// Whether the observation-shift convention applies to the lookback.
-    /// Required.
-    apply_observation_shift:bool = null;
-    /// Performance toggle for QuantLib's telescopic value-dates optimization,
-    /// not a market convention — keeps a literal false default on purpose.
-    telescopic_value_dates:bool = false;
+/// Overnight indexed swap: a fixed leg against a compounded (or averaged)
+/// overnight leg, both `SwapLeg`s in one currency (400 otherwise), one paid
+/// and one received (`SwapLeg.pay_receive`; 400 when both take the same
+/// side). The legs name their own discounting and forwarding curves. Priced
+/// as two QuantLib legs on their discount curves: FixedRateLeg with the fixed
+/// leg's own payment calendar and lag (`SwapLeg.payment_calendar` /
+/// `payment_lag`, presence-required on both legs of this endpoint: an OIS
+/// pays with the overnight calendar and lag) and OvernightLeg with the
+/// overnight conventions, the chains
+/// QuantLib::OvernightIndexedSwap builds, plus the notional exchanges when a
+/// leg asks for them (see `OisSwapResponse`).
+table OisSwap {
+    /// The fixed leg: `coupons` must be `FixedCoupons`. Required. Reported as
+    /// `legs[0]`.
+    fixed_leg:SwapLeg (required);
+    /// The overnight leg: `coupons` must be `OvernightCoupons`. Required.
+    /// Reported as `legs[1]`.
+    overnight_leg:SwapLeg (required);
 }
 
-/// Overnight indexed swap: fixed vs compounded overnight.
-table OisSwap {
-    /// Payer/receiver refer to the fixed leg. Presence-required: an omitted
-    /// type is a 400, never the alphabetical-0 default (Payer).
-    swap_type:enums.SwapType = null;
-    fixed_leg:FixedCoupons;
-    overnight_leg:OvernightCoupons;
-}
+root_type OisSwap;

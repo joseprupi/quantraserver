@@ -290,8 +290,9 @@
   "swaps": [
     {
       "vanilla_swap": {
-        "swap_type": "Receiver",
         "fixed_leg": {
+          "pay_receive": "Receive",
+          "currency": "EUR",
           "notional": 10000000.0,
           "schedule": {
             "calendar": "TARGET",
@@ -303,11 +304,17 @@
             "date_generation_rule": "Forward",
             "end_of_month": false
           },
-          "rate": 0.025,
           "day_counter": "Thirty360",
-          "payment_convention": "ModifiedFollowing"
+          "payment_convention": "ModifiedFollowing",
+          "coupons_type": "FixedCoupons",
+          "coupons": {
+            "rate": 0.025
+          },
+          "discounting_curve": "discount"
         },
-        "cms_leg": {
+        "floating_leg": {
+          "pay_receive": "Pay",
+          "currency": "EUR",
           "notional": 10000000.0,
           "schedule": {
             "calendar": "TARGET",
@@ -319,25 +326,28 @@
             "date_generation_rule": "Forward",
             "end_of_month": false
           },
-          "swap_index_id": "EUR_SWAP_6M",
-          "swap_tenor": {
-            "n": 10,
-            "unit": "Years"
-          },
-          "swaption_vol_id": "swpt_vol_lognormal_20pct",
           "day_counter": "Actual360",
           "payment_convention": "ModifiedFollowing",
-          "gear": 0.8,
-          "spread": 0.0025,
-          "pricer": {
-            "pricer_type": "LinearTsr",
-            "mean_reversion": 0.03
+          "coupons_type": "CmsCoupons",
+          "coupons": {
+            "swap_index_id": "EUR_SWAP_6M",
+            "swap_tenor": {
+              "n": 10,
+              "unit": "Years"
+            },
+            "swaption_vol_id": "swpt_vol_lognormal_20pct",
+            "gear": 0.8,
+            "spread": 0.0025,
+            "pricer": {
+              "pricer_type": "LinearTsr",
+              "mean_reversion": 0.03
+            },
+            "cap": 0.03
           },
-          "cap": 0.03
+          "discounting_curve": "discount",
+          "forwarding_curve": "discount"
         }
-      },
-      "discounting_curve": "discount",
-      "forwarding_curve": "discount"
+      }
     }
   ]
 }

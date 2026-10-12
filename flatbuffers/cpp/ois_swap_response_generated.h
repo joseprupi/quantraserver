@@ -13,7 +13,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
-#include "vanilla_swap_response_generated.h"
+#include "swap_leg_generated.h"
 
 namespace quantra {
 
@@ -28,21 +28,35 @@ struct PriceOisSwapResponseT;
 struct OisSwapResponseT : public ::flatbuffers::NativeTable {
   typedef OisSwapResponse TableType;
   double npv = 0.0;
-  double fair_rate = 0.0;
-  double fair_spread = 0.0;
-  double fixed_leg_bps = 0.0;
-  double overnight_leg_bps = 0.0;
-  double fixed_leg_npv = 0.0;
-  double overnight_leg_npv = 0.0;
-  std::vector<std::unique_ptr<quantra::SwapLegFlowT>> fixed_leg_flows{};
-  std::vector<std::unique_ptr<quantra::SwapLegFlowT>> overnight_leg_flows{};
+  ::flatbuffers::Optional<double> fair_rate = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> fair_spread = ::flatbuffers::nullopt;
+  std::vector<std::unique_ptr<quantra::SwapLegResultT>> legs{};
   OisSwapResponseT() = default;
   OisSwapResponseT(const OisSwapResponseT &o);
   OisSwapResponseT(OisSwapResponseT&&) FLATBUFFERS_NOEXCEPT = default;
   OisSwapResponseT &operator=(OisSwapResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// OIS swap pricing response (fixed vs compounded overnight leg).
+/// Overnight indexed swap pricing result. With, for leg i, L_i the leg's
+/// flows in its own frame (coupons +, initial exchange -N_i at the schedule
+/// start, final exchange +N_i with the last coupon; no exchanges unless the
+/// leg asks for them), D_i its discounting curve and s_i = -1 for `Pay` /
+/// +1 for `Receive`:
+///   legs[i].npv           = s_i * CashFlows::npv(L_i, D_i)
+///   legs[i].npv_reporting = legs[i].npv                (one currency)
+///   npv                   = legs[0].npv + legs[1].npv
+/// `fair_rate` holds the overnight leg and every exchange fixed and solves
+/// the linear equation in the fixed rate with the fixed leg's signed annuity
+/// B_0 = s_0 * CashFlows::bps(coupons of leg 0, D_0) (exchanges excluded):
+///   fair_rate = rate_0 - npv / (B_0 / 1e-4)
+/// which is QuantLib::OvernightIndexedSwap's own fair-rate formula, so
+/// repricing at `fair_rate` gives npv = 0 to rounding. `fair_spread` is the
+/// mirror image on the overnight leg: with B_1 = s_1 * CashFlows::bps(coupons
+/// of leg 1, D_1),
+///   fair_spread = spread_1 - npv / (B_1 / 1e-4)
+/// which is QuantLib::OvernightIndexedSwap's own fair-spread formula. Every
+/// value is as of the evaluation date (the curves' reference date); flows on
+/// that date are excluded. Positive `npv` is in favour of the reported party.
 struct OisSwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef OisSwapResponseT NativeTableType;
   typedef OisSwapResponseBuilder Builder;
@@ -50,55 +64,44 @@ struct OisSwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_NPV = 4,
     VT_FAIR_RATE = 6,
     VT_FAIR_SPREAD = 8,
-    VT_FIXED_LEG_BPS = 10,
-    VT_OVERNIGHT_LEG_BPS = 12,
-    VT_FIXED_LEG_NPV = 14,
-    VT_OVERNIGHT_LEG_NPV = 16,
-    VT_FIXED_LEG_FLOWS = 18,
-    VT_OVERNIGHT_LEG_FLOWS = 20
+    VT_LEGS = 10
   };
+  /// Total present value in the legs' currency, positive in favour of the
+  /// reported party.
   double npv() const {
     return GetField<double>(VT_NPV, 0.0);
   }
-  double fair_rate() const {
-    return GetField<double>(VT_FAIR_RATE, 0.0);
+  /// The fixed rate that zeroes `npv`, the overnight leg and every exchange
+  /// held fixed. Absent when the fixed leg's annuity is zero or the value
+  /// is not finite.
+  ::flatbuffers::Optional<double> fair_rate() const {
+    return GetOptional<double, double>(VT_FAIR_RATE);
   }
-  double fair_spread() const {
-    return GetField<double>(VT_FAIR_SPREAD, 0.0);
+  /// The spread on the overnight leg that zeroes `npv`, the fixed leg and
+  /// every exchange held fixed (the compounded overnight rates unchanged).
+  /// Present on every priced OIS whose overnight leg's annuity is non-zero
+  /// and the value finite, as for every swap endpoint: `fair_rate` iff
+  /// exactly one leg carries `FixedCoupons`, `fair_spread` iff a leg
+  /// carries `IborCoupons`, `OvernightCoupons` or `CmsCoupons`.
+  ::flatbuffers::Optional<double> fair_spread() const {
+    return GetOptional<double, double>(VT_FAIR_SPREAD);
   }
-  double fixed_leg_bps() const {
-    return GetField<double>(VT_FIXED_LEG_BPS, 0.0);
-  }
-  double overnight_leg_bps() const {
-    return GetField<double>(VT_OVERNIGHT_LEG_BPS, 0.0);
-  }
-  double fixed_leg_npv() const {
-    return GetField<double>(VT_FIXED_LEG_NPV, 0.0);
-  }
-  double overnight_leg_npv() const {
-    return GetField<double>(VT_OVERNIGHT_LEG_NPV, 0.0);
-  }
-  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *fixed_leg_flows() const {
-    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *>(VT_FIXED_LEG_FLOWS);
-  }
-  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *overnight_leg_flows() const {
-    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *>(VT_OVERNIGHT_LEG_FLOWS);
+  /// One result per leg, in request order (`fixed_leg` then
+  /// `overnight_leg`): the leg's signed NPV and, with `include_flows`, its
+  /// flows. An overnight coupon's `rate` is the compounded (or averaged)
+  /// rate plus spread and `index_fixing` the fixing on its first fixing
+  /// date.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegResult>> *legs() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegResult>> *>(VT_LEGS);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<double>(verifier, VT_NPV, 8) &&
            VerifyField<double>(verifier, VT_FAIR_RATE, 8) &&
            VerifyField<double>(verifier, VT_FAIR_SPREAD, 8) &&
-           VerifyField<double>(verifier, VT_FIXED_LEG_BPS, 8) &&
-           VerifyField<double>(verifier, VT_OVERNIGHT_LEG_BPS, 8) &&
-           VerifyField<double>(verifier, VT_FIXED_LEG_NPV, 8) &&
-           VerifyField<double>(verifier, VT_OVERNIGHT_LEG_NPV, 8) &&
-           VerifyOffset(verifier, VT_FIXED_LEG_FLOWS) &&
-           verifier.VerifyVector(fixed_leg_flows()) &&
-           verifier.VerifyVectorOfTables(fixed_leg_flows()) &&
-           VerifyOffset(verifier, VT_OVERNIGHT_LEG_FLOWS) &&
-           verifier.VerifyVector(overnight_leg_flows()) &&
-           verifier.VerifyVectorOfTables(overnight_leg_flows()) &&
+           VerifyOffsetRequired(verifier, VT_LEGS) &&
+           verifier.VerifyVector(legs()) &&
+           verifier.VerifyVectorOfTables(legs()) &&
            verifier.EndTable();
   }
   OisSwapResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -114,28 +117,13 @@ struct OisSwapResponseBuilder {
     fbb_.AddElement<double>(OisSwapResponse::VT_NPV, npv, 0.0);
   }
   void add_fair_rate(double fair_rate) {
-    fbb_.AddElement<double>(OisSwapResponse::VT_FAIR_RATE, fair_rate, 0.0);
+    fbb_.AddElement<double>(OisSwapResponse::VT_FAIR_RATE, fair_rate);
   }
   void add_fair_spread(double fair_spread) {
-    fbb_.AddElement<double>(OisSwapResponse::VT_FAIR_SPREAD, fair_spread, 0.0);
+    fbb_.AddElement<double>(OisSwapResponse::VT_FAIR_SPREAD, fair_spread);
   }
-  void add_fixed_leg_bps(double fixed_leg_bps) {
-    fbb_.AddElement<double>(OisSwapResponse::VT_FIXED_LEG_BPS, fixed_leg_bps, 0.0);
-  }
-  void add_overnight_leg_bps(double overnight_leg_bps) {
-    fbb_.AddElement<double>(OisSwapResponse::VT_OVERNIGHT_LEG_BPS, overnight_leg_bps, 0.0);
-  }
-  void add_fixed_leg_npv(double fixed_leg_npv) {
-    fbb_.AddElement<double>(OisSwapResponse::VT_FIXED_LEG_NPV, fixed_leg_npv, 0.0);
-  }
-  void add_overnight_leg_npv(double overnight_leg_npv) {
-    fbb_.AddElement<double>(OisSwapResponse::VT_OVERNIGHT_LEG_NPV, overnight_leg_npv, 0.0);
-  }
-  void add_fixed_leg_flows(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>>> fixed_leg_flows) {
-    fbb_.AddOffset(OisSwapResponse::VT_FIXED_LEG_FLOWS, fixed_leg_flows);
-  }
-  void add_overnight_leg_flows(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>>> overnight_leg_flows) {
-    fbb_.AddOffset(OisSwapResponse::VT_OVERNIGHT_LEG_FLOWS, overnight_leg_flows);
+  void add_legs(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegResult>>> legs) {
+    fbb_.AddOffset(OisSwapResponse::VT_LEGS, legs);
   }
   explicit OisSwapResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -144,6 +132,7 @@ struct OisSwapResponseBuilder {
   ::flatbuffers::Offset<OisSwapResponse> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<OisSwapResponse>(end);
+    fbb_.Required(o, OisSwapResponse::VT_LEGS);
     return o;
   }
 };
@@ -151,51 +140,30 @@ struct OisSwapResponseBuilder {
 inline ::flatbuffers::Offset<OisSwapResponse> CreateOisSwapResponse(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double npv = 0.0,
-    double fair_rate = 0.0,
-    double fair_spread = 0.0,
-    double fixed_leg_bps = 0.0,
-    double overnight_leg_bps = 0.0,
-    double fixed_leg_npv = 0.0,
-    double overnight_leg_npv = 0.0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>>> fixed_leg_flows = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>>> overnight_leg_flows = 0) {
+    ::flatbuffers::Optional<double> fair_rate = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> fair_spread = ::flatbuffers::nullopt,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegResult>>> legs = 0) {
   OisSwapResponseBuilder builder_(_fbb);
-  builder_.add_overnight_leg_npv(overnight_leg_npv);
-  builder_.add_fixed_leg_npv(fixed_leg_npv);
-  builder_.add_overnight_leg_bps(overnight_leg_bps);
-  builder_.add_fixed_leg_bps(fixed_leg_bps);
-  builder_.add_fair_spread(fair_spread);
-  builder_.add_fair_rate(fair_rate);
+  if(fair_spread) { builder_.add_fair_spread(*fair_spread); }
+  if(fair_rate) { builder_.add_fair_rate(*fair_rate); }
   builder_.add_npv(npv);
-  builder_.add_overnight_leg_flows(overnight_leg_flows);
-  builder_.add_fixed_leg_flows(fixed_leg_flows);
+  builder_.add_legs(legs);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<OisSwapResponse> CreateOisSwapResponseDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double npv = 0.0,
-    double fair_rate = 0.0,
-    double fair_spread = 0.0,
-    double fixed_leg_bps = 0.0,
-    double overnight_leg_bps = 0.0,
-    double fixed_leg_npv = 0.0,
-    double overnight_leg_npv = 0.0,
-    const std::vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *fixed_leg_flows = nullptr,
-    const std::vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *overnight_leg_flows = nullptr) {
-  auto fixed_leg_flows__ = fixed_leg_flows ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegFlow>>(*fixed_leg_flows) : 0;
-  auto overnight_leg_flows__ = overnight_leg_flows ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegFlow>>(*overnight_leg_flows) : 0;
+    ::flatbuffers::Optional<double> fair_rate = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> fair_spread = ::flatbuffers::nullopt,
+    const std::vector<::flatbuffers::Offset<quantra::SwapLegResult>> *legs = nullptr) {
+  auto legs__ = legs ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegResult>>(*legs) : 0;
   return quantra::CreateOisSwapResponse(
       _fbb,
       npv,
       fair_rate,
       fair_spread,
-      fixed_leg_bps,
-      overnight_leg_bps,
-      fixed_leg_npv,
-      overnight_leg_npv,
-      fixed_leg_flows__,
-      overnight_leg_flows__);
+      legs__);
 }
 
 ::flatbuffers::Offset<OisSwapResponse> CreateOisSwapResponse(::flatbuffers::FlatBufferBuilder &_fbb, const OisSwapResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -209,7 +177,7 @@ struct PriceOisSwapResponseT : public ::flatbuffers::NativeTable {
   PriceOisSwapResponseT &operator=(PriceOisSwapResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Response wrapper for multiple OIS swaps.
+/// Response wrapper for multiple OIS swaps, in request order.
 struct PriceOisSwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceOisSwapResponseT NativeTableType;
   typedef PriceOisSwapResponseBuilder Builder;
@@ -272,27 +240,16 @@ inline ::flatbuffers::Offset<PriceOisSwapResponse> CreatePriceOisSwapResponseDir
 inline OisSwapResponseT::OisSwapResponseT(const OisSwapResponseT &o)
       : npv(o.npv),
         fair_rate(o.fair_rate),
-        fair_spread(o.fair_spread),
-        fixed_leg_bps(o.fixed_leg_bps),
-        overnight_leg_bps(o.overnight_leg_bps),
-        fixed_leg_npv(o.fixed_leg_npv),
-        overnight_leg_npv(o.overnight_leg_npv) {
-  fixed_leg_flows.reserve(o.fixed_leg_flows.size());
-  for (const auto &fixed_leg_flows_ : o.fixed_leg_flows) { fixed_leg_flows.emplace_back((fixed_leg_flows_) ? new quantra::SwapLegFlowT(*fixed_leg_flows_) : nullptr); }
-  overnight_leg_flows.reserve(o.overnight_leg_flows.size());
-  for (const auto &overnight_leg_flows_ : o.overnight_leg_flows) { overnight_leg_flows.emplace_back((overnight_leg_flows_) ? new quantra::SwapLegFlowT(*overnight_leg_flows_) : nullptr); }
+        fair_spread(o.fair_spread) {
+  legs.reserve(o.legs.size());
+  for (const auto &legs_ : o.legs) { legs.emplace_back((legs_) ? new quantra::SwapLegResultT(*legs_) : nullptr); }
 }
 
 inline OisSwapResponseT &OisSwapResponseT::operator=(OisSwapResponseT o) FLATBUFFERS_NOEXCEPT {
   std::swap(npv, o.npv);
   std::swap(fair_rate, o.fair_rate);
   std::swap(fair_spread, o.fair_spread);
-  std::swap(fixed_leg_bps, o.fixed_leg_bps);
-  std::swap(overnight_leg_bps, o.overnight_leg_bps);
-  std::swap(fixed_leg_npv, o.fixed_leg_npv);
-  std::swap(overnight_leg_npv, o.overnight_leg_npv);
-  std::swap(fixed_leg_flows, o.fixed_leg_flows);
-  std::swap(overnight_leg_flows, o.overnight_leg_flows);
+  std::swap(legs, o.legs);
   return *this;
 }
 
@@ -308,12 +265,7 @@ inline void OisSwapResponse::UnPackTo(OisSwapResponseT *_o, const ::flatbuffers:
   { auto _e = npv(); _o->npv = _e; }
   { auto _e = fair_rate(); _o->fair_rate = _e; }
   { auto _e = fair_spread(); _o->fair_spread = _e; }
-  { auto _e = fixed_leg_bps(); _o->fixed_leg_bps = _e; }
-  { auto _e = overnight_leg_bps(); _o->overnight_leg_bps = _e; }
-  { auto _e = fixed_leg_npv(); _o->fixed_leg_npv = _e; }
-  { auto _e = overnight_leg_npv(); _o->overnight_leg_npv = _e; }
-  { auto _e = fixed_leg_flows(); if (_e) { _o->fixed_leg_flows.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->fixed_leg_flows[_i]) { _e->Get(_i)->UnPackTo(_o->fixed_leg_flows[_i].get(), _resolver); } else { _o->fixed_leg_flows[_i] = std::unique_ptr<quantra::SwapLegFlowT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->fixed_leg_flows.resize(0); } }
-  { auto _e = overnight_leg_flows(); if (_e) { _o->overnight_leg_flows.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->overnight_leg_flows[_i]) { _e->Get(_i)->UnPackTo(_o->overnight_leg_flows[_i].get(), _resolver); } else { _o->overnight_leg_flows[_i] = std::unique_ptr<quantra::SwapLegFlowT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->overnight_leg_flows.resize(0); } }
+  { auto _e = legs(); if (_e) { _o->legs.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->legs[_i]) { _e->Get(_i)->UnPackTo(_o->legs[_i].get(), _resolver); } else { _o->legs[_i] = std::unique_ptr<quantra::SwapLegResultT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->legs.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<OisSwapResponse> OisSwapResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const OisSwapResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -327,23 +279,13 @@ inline ::flatbuffers::Offset<OisSwapResponse> CreateOisSwapResponse(::flatbuffer
   auto _npv = _o->npv;
   auto _fair_rate = _o->fair_rate;
   auto _fair_spread = _o->fair_spread;
-  auto _fixed_leg_bps = _o->fixed_leg_bps;
-  auto _overnight_leg_bps = _o->overnight_leg_bps;
-  auto _fixed_leg_npv = _o->fixed_leg_npv;
-  auto _overnight_leg_npv = _o->overnight_leg_npv;
-  auto _fixed_leg_flows = _o->fixed_leg_flows.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegFlow>> (_o->fixed_leg_flows.size(), [](size_t i, _VectorArgs *__va) { return CreateSwapLegFlow(*__va->__fbb, __va->__o->fixed_leg_flows[i].get(), __va->__rehasher); }, &_va ) : 0;
-  auto _overnight_leg_flows = _o->overnight_leg_flows.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegFlow>> (_o->overnight_leg_flows.size(), [](size_t i, _VectorArgs *__va) { return CreateSwapLegFlow(*__va->__fbb, __va->__o->overnight_leg_flows[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _legs = _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegResult>> (_o->legs.size(), [](size_t i, _VectorArgs *__va) { return CreateSwapLegResult(*__va->__fbb, __va->__o->legs[i].get(), __va->__rehasher); }, &_va );
   return quantra::CreateOisSwapResponse(
       _fbb,
       _npv,
       _fair_rate,
       _fair_spread,
-      _fixed_leg_bps,
-      _overnight_leg_bps,
-      _fixed_leg_npv,
-      _overnight_leg_npv,
-      _fixed_leg_flows,
-      _overnight_leg_flows);
+      _legs);
 }
 
 inline PriceOisSwapResponseT::PriceOisSwapResponseT(const PriceOisSwapResponseT &o) {

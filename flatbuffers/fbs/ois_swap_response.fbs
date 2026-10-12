@@ -1,21 +1,51 @@
-include "vanilla_swap_response.fbs";
+include "swap_leg.fbs";
 
 namespace quantra;
 
-/// OIS swap pricing response (fixed vs compounded overnight leg).
+/// Overnight indexed swap pricing result. With, for leg i, L_i the leg's
+/// flows in its own frame (coupons +, initial exchange -N_i at the schedule
+/// start, final exchange +N_i with the last coupon; no exchanges unless the
+/// leg asks for them), D_i its discounting curve and s_i = -1 for `Pay` /
+/// +1 for `Receive`:
+///   legs[i].npv           = s_i * CashFlows::npv(L_i, D_i)
+///   legs[i].npv_reporting = legs[i].npv                (one currency)
+///   npv                   = legs[0].npv + legs[1].npv
+/// `fair_rate` holds the overnight leg and every exchange fixed and solves
+/// the linear equation in the fixed rate with the fixed leg's signed annuity
+/// B_0 = s_0 * CashFlows::bps(coupons of leg 0, D_0) (exchanges excluded):
+///   fair_rate = rate_0 - npv / (B_0 / 1e-4)
+/// which is QuantLib::OvernightIndexedSwap's own fair-rate formula, so
+/// repricing at `fair_rate` gives npv = 0 to rounding. `fair_spread` is the
+/// mirror image on the overnight leg: with B_1 = s_1 * CashFlows::bps(coupons
+/// of leg 1, D_1),
+///   fair_spread = spread_1 - npv / (B_1 / 1e-4)
+/// which is QuantLib::OvernightIndexedSwap's own fair-spread formula. Every
+/// value is as of the evaluation date (the curves' reference date); flows on
+/// that date are excluded. Positive `npv` is in favour of the reported party.
 table OisSwapResponse {
+    /// Total present value in the legs' currency, positive in favour of the
+    /// reported party.
     npv:double;
-    fair_rate:double;
-    fair_spread:double;
-    fixed_leg_bps:double;
-    overnight_leg_bps:double;
-    fixed_leg_npv:double;
-    overnight_leg_npv:double;
-    fixed_leg_flows:[SwapLegFlow];
-    overnight_leg_flows:[SwapLegFlow];
+    /// The fixed rate that zeroes `npv`, the overnight leg and every exchange
+    /// held fixed. Absent when the fixed leg's annuity is zero or the value
+    /// is not finite.
+    fair_rate:double = null;
+    /// The spread on the overnight leg that zeroes `npv`, the fixed leg and
+    /// every exchange held fixed (the compounded overnight rates unchanged).
+    /// Present on every priced OIS whose overnight leg's annuity is non-zero
+    /// and the value finite, as for every swap endpoint: `fair_rate` iff
+    /// exactly one leg carries `FixedCoupons`, `fair_spread` iff a leg
+    /// carries `IborCoupons`, `OvernightCoupons` or `CmsCoupons`.
+    fair_spread:double = null;
+    /// One result per leg, in request order (`fixed_leg` then
+    /// `overnight_leg`): the leg's signed NPV and, with `include_flows`, its
+    /// flows. An overnight coupon's `rate` is the compounded (or averaged)
+    /// rate plus spread and `index_fixing` the fixing on its first fixing
+    /// date.
+    legs:[SwapLegResult] (required);
 }
 
-/// Response wrapper for multiple OIS swaps.
+/// Response wrapper for multiple OIS swaps, in request order.
 table PriceOisSwapResponse {
     swaps:[OisSwapResponse] (required);
 }

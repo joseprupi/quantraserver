@@ -62,6 +62,7 @@ import requests
 AS_OF_DATE = "2025-01-15"     # valuation date
 SPOT_DATE = "2025-01-17"      # T+2 effective date for the swaps
 INDEX_ID = "USD_SOFR"
+CURRENCY = "USD"          # the index's currency: every leg states it
 CURVE_ID = "USD_SOFR_OIS"
 CALENDAR = "UnitedStatesGovernmentBond"
 
@@ -176,35 +177,57 @@ def _schedule(termination_date: str) -> dict:
 
 def make_ois_trade(swap_type: str, notional: float, tenor_years: int,
                    fixed_rate: float) -> dict:
-    """One vanilla SOFR OIS swap trade in the /price-ois-swap wire format."""
+    """One vanilla SOFR OIS swap trade in the /price-ois-swap wire format.
+
+    `swap_type` is "Payer" (pay fixed, receive SOFR) or "Receiver". Each leg
+    is a SwapLeg: it says whether it is paid or received, its currency (the
+    index's, USD), its notional, schedule and payment conventions, its
+    coupons (only the kind-specific fields: the fixed rate, or the overnight
+    index and its compounding parameters) and the curves it is discounted /
+    projected on. Both legs state their payment calendar and lag (required
+    on this endpoint) so both pay on the same lagged dates.
+    """
     termination = f"{2025 + tenor_years}-01-17"
+    fixed_side, overnight_side = ("Pay", "Receive") if swap_type == "Payer" \
+        else ("Receive", "Pay")
     return {
         "ois_swap": {
-            "swap_type": swap_type,
             "fixed_leg": {
+                "pay_receive": fixed_side,
+                "currency": CURRENCY,
                 "notional": notional,
                 "schedule": _schedule(termination),
-                "rate": fixed_rate,
                 "day_counter": "Actual360",
                 "payment_convention": "ModifiedFollowing",
+                "payment_calendar": CALENDAR,
+                "payment_lag": 2,
+                "coupons_type": "FixedCoupons",
+                "coupons": {"rate": fixed_rate},
+                "discounting_curve": CURVE_ID,
             },
             "overnight_leg": {
+                "pay_receive": overnight_side,
+                "currency": CURRENCY,
                 "notional": notional,
                 "schedule": _schedule(termination),
-                "index": {"id": INDEX_ID},
-                "spread": 0.0,
+                "day_counter": "Actual360",
                 "payment_convention": "ModifiedFollowing",
                 "payment_calendar": CALENDAR,
-                "averaging_method": "Compound",
                 "payment_lag": 2,
-                "lookback_days": 0,
-                "lockout_days": 0,
-                "apply_observation_shift": False,
-                "telescopic_value_dates": False,
+                "coupons_type": "OvernightCoupons",
+                "coupons": {
+                    "index": {"id": INDEX_ID},
+                    "spread": 0.0,
+                    "averaging_method": "Compound",
+                    "lookback_days": 0,
+                    "lockout_days": 0,
+                    "apply_observation_shift": False,
+                    "telescopic_value_dates": False,
+                },
+                "discounting_curve": CURVE_ID,
+                "forwarding_curve": CURVE_ID,
             },
         },
-        "discounting_curve": CURVE_ID,
-        "forwarding_curve": CURVE_ID,
     }
 
 
@@ -257,9 +280,9 @@ def dump_inputs(dir_path: str, portfolio: list, base_rates: list,
             # make_ois_trade sets termination to (start_year + tenor)-01-17.
             tenor_years = (int(fixed["schedule"]["termination_date"][:4])
                            - int(SPOT_DATE[:4]))
-            is_payer = 1 if swap["swap_type"] == "Payer" else 0
+            is_payer = 1 if fixed["pay_receive"] == "Pay" else 0
             f.write(f"{tenor_years},{is_payer},{fixed['notional']!r},"
-                    f"{fixed['rate']!r}\n")
+                    f"{fixed['coupons']['rate']!r}\n")
     with open(os.path.join(dir_path, "quotes.csv"), "w") as f:
         f.write(",".join(pillar_labels()) + "\n")
         f.write(",".join(repr(r) for r in base_rates) + "\n")

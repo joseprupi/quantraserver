@@ -68,9 +68,9 @@ struct SwaptionInstrument {
     quantra::enums::SettlementType settlementType = quantra::enums::SettlementType_Physical;
     QuantLib::Settlement::Method settlementMethod = QuantLib::Settlement::PhysicalOTC;
 
-    /// Underlying swap. Exactly one branch is populated, selected by
-    /// underlyingIsVanilla. The vanilla branch is always the IBOR leg —
-    /// SwaptionParser only ever built the IBOR underlying.
+    /// Underlying swap as two `SwapLeg`s. Exactly one branch is populated,
+    /// selected by underlyingIsVanilla; the vanilla branch's floating leg is
+    /// always IborCoupons (the mapper rejects CmsCoupons on an underlying).
     bool underlyingIsVanilla = true;
     VanillaSwapTrade vanillaUnderlying;
     OisSwapTrade oisUnderlying;
@@ -113,6 +113,9 @@ struct SwaptionRebumpMarkets {
 ///   - A plain SwaptionInstrument from which the evaluator reconstructs the QL
 ///     Swaption against a possibly-bumped forwarding curve.
 struct SwaptionTrade {
+    /// The underlying legs' curves: both legs name `discountingCurveId`
+    /// (checked by the mapper), the floating / overnight leg names
+    /// `forwardingCurveId`.
     std::string discountingCurveId;
     std::string forwardingCurveId;
     std::string volatilityId;

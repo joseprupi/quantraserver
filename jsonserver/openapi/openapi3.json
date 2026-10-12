@@ -3,7 +3,7 @@
   "info": {
     "title": "Quantra Pricing API",
     "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Zero Coupon Bond | `/price-zero-coupon-bond` | Price zero-coupon (single redemption) bonds |\n| Zero Coupon Swap | `/price-zero-coupon-swap` | Price zero-coupon fixed-vs-compounded-floating swaps |\n| Year-on-Year Inflation Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation caps, floors, and collars |\n| Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |\n| FX Forward | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount curves |\n| Cross-Currency Swap | `/price-cross-currency-swap` | Price cross-currency swaps (two SwapLeg entries in two currencies, fixed / IBOR / overnight coupons, principal exchanges) |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n",
-    "version": "0.9.0",
+    "version": "0.10.0",
     "contact": {
       "name": "Quantra API Support",
       "url": "https://github.com/joseprupi/quantraserver"
@@ -2221,6 +2221,16 @@
           "Overnight"
         ]
       },
+      "quantra_SwapCoupons": {
+        "type": "string",
+        "enum": [
+          "NONE",
+          "FixedCoupons",
+          "IborCoupons",
+          "OvernightCoupons",
+          "CmsCoupons"
+        ]
+      },
       "quantra_Schedule": {
         "type": "object",
         "description": "Date schedule definition for payment and accrual dates.",
@@ -2480,53 +2490,19 @@
       },
       "quantra_FixedCoupons": {
         "type": "object",
-        "description": "Fixed-rate coupons of a swap leg: `notional x rate x accrual` per period of\n`schedule`, paid on the period end adjusted with `payment_convention`.\nUsed as `VanillaSwap.fixed_leg`, `OisSwap.fixed_leg` and as the\n`FixedCoupons` member of `SwapLeg.coupons`. (Named `SwapFixedLeg` before\n0.9.0; the field names are unchanged.)",
+        "description": "Fixed-rate coupons: `notional x rate x accrual` per period of the leg's\n`schedule` with the leg's `day_counter`, paid on the leg's payment\nconventions (`SwapLeg`). The `FixedCoupons` member of `SwapLeg.coupons`:\nthe fixed leg of `price-vanilla-swap`, `price-ois-swap`, a swaption\nunderlying and either `price-cross-currency-swap` leg. (Named\n`SwapFixedLeg` before 0.9.0; before 0.10.0 the coupon table carried the\nschedule, notional and conventions that now live on the leg.)",
         "properties": {
-          "schedule": {
-            "$ref": "#/components/schemas/quantra_Schedule"
-          },
-          "notional": {
-            "type": "number",
-            "description": "Constant notional. Presence-required and must be > 0 (unless the\nper-period `notionals` vector is supplied). A bare double would default\nto a silent zero notional."
-          },
-          "notionals": {
-            "type": "array",
-            "description": "Optional per-period notionals, one entry per coupon period in schedule\norder. Present => amortizing/step-up leg (overrides `notional`); absent\n=> constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap\npath; other readers (OIS, swaption underlying, `SwapLeg`) reject a\npresent value.",
-            "items": {
-              "type": "number"
-            }
-          },
           "rate": {
             "type": "number",
             "description": "Annual coupon rate as a decimal (0.032 = 3.20%). May be negative."
-          },
-          "day_counter": {
-            "$ref": "#/components/schemas/quantra_enums_DayCounter"
-          },
-          "payment_convention": {
-            "$ref": "#/components/schemas/quantra_enums_BusinessDayConvention"
           }
         },
         "additionalProperties": false
       },
       "quantra_IborCoupons": {
         "type": "object",
-        "description": "IBOR floating coupons of a swap leg: one fixing of `index` per period of\n`schedule` (`fixing_days` before the accrual start, or at the accrual end\nwith `in_arrears`), coupon `notional x (fixing + spread) x accrual`. Used as\n`VanillaSwap.floating_leg`, both `BasisSwap` legs and as the `IborCoupons`\nmember of `SwapLeg.coupons`, where the index must be an IBOR index (an\novernight index is a 400 naming `OvernightCoupons`). (Named\n`SwapFloatingLeg` before 0.9.0; the field names are unchanged.)",
+        "description": "IBOR floating coupons: one fixing of `index` per period of the leg's\n`schedule` (`fixing_days` before the accrual start, or at the accrual end\nwith `in_arrears`), coupon `notional x (fixing + spread) x accrual` with\nthe leg's `day_counter`. The `IborCoupons` member of `SwapLeg.coupons`:\nthe floating leg of `price-vanilla-swap` and a swaption underlying, both\n`price-basis-swap` legs, a `price-cross-currency-swap` leg. The index\nmust be an IBOR index: an overnight index here is a 400 naming\n`OvernightCoupons`. (Named `SwapFloatingLeg` before 0.9.0.)",
         "properties": {
-          "schedule": {
-            "$ref": "#/components/schemas/quantra_Schedule"
-          },
-          "notional": {
-            "type": "number",
-            "description": "Constant notional. Presence-required and must be > 0 (unless the\nper-period `notionals` vector is supplied). A bare double would default\nto a silent zero notional."
-          },
-          "notionals": {
-            "type": "array",
-            "description": "Optional per-period notionals, one entry per coupon period in schedule\norder. Present => amortizing/step-up leg (overrides `notional`); absent\n=> constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap\npath; other readers (basis swap, swaption underlying, `SwapLeg`)\nreject a present value.",
-            "items": {
-              "type": "number"
-            }
-          },
           "index": {
             "$ref": "#/components/schemas/quantra_IndexRef"
           },
@@ -2534,21 +2510,15 @@
             "type": "number",
             "description": "Additive spread over the index fixing, as a decimal (0.0005 = 5 bp).\nKeeps a literal 0.0 default: zero is the market-standard value."
           },
-          "day_counter": {
-            "$ref": "#/components/schemas/quantra_enums_DayCounter"
-          },
-          "payment_convention": {
-            "$ref": "#/components/schemas/quantra_enums_BusinessDayConvention"
-          },
           "fixing_days": {
             "type": "integer",
-            "description": "Fixing lag in business days before each accrual start. Not read by\n`price-vanilla-swap`'s constant-notional in-advance path, which fixes\non the index's own `fixing_days`; read everywhere else.",
+            "description": "Fixing lag in business days before each accrual start. Absent = the\nindex's own `IndexDef.fixing_days` (QuantLib's default for an IBOR\nleg); present => this value overrides it for the leg. Must be >= 0.\nNot read for a swaption underlying, which always fixes on the index's\nown fixing days.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
           "in_arrears": {
             "type": "boolean",
-            "description": "When true the coupon fixes at the end of its accrual period (no\nconvexity adjustment is priced: the zero-volatility pricer reads the\nshifted fixing)."
+            "description": "When true the coupon fixes at the end of its accrual period (no\nconvexity adjustment is priced: the zero-volatility pricer reads the\nshifted fixing). Rejected (400) on a swaption underlying."
           }
         },
         "required": [
@@ -2558,7 +2528,7 @@
       },
       "quantra_CmsPricerSpec": {
         "type": "object",
-        "description": "CMS leg of a swap.\nCoupon formula: notional * accrual * (gear * CMSRate + spread).",
+        "description": "CMS coupon pricer configuration (`CmsCoupons.pricer`).",
         "properties": {
           "pricer_type": {
             "$ref": "#/components/schemas/quantra_enums_CmsPricerType"
@@ -2591,15 +2561,8 @@
       },
       "quantra_CmsCoupons": {
         "type": "object",
-        "description": "CMS coupons of a swap leg.\nCoupon formula: notional * accrual * (gear * CMSRate + spread).\nUsed as `VanillaSwap.cms_leg`; the `CmsCoupons` member of `SwapLeg.coupons`\nis rejected by `price-cross-currency-swap` in this version. (Named\n`SwapCmsLeg` before 0.9.0; the field names are unchanged.)",
+        "description": "Constant-maturity swap-rate coupons. Coupon formula per period of the\nleg's `schedule`: `notional x accrual x (gear x CMSRate + spread)` with\nthe leg's `day_counter`, optionally capped and floored. The `CmsCoupons`\nmember of `SwapLeg.coupons`: the floating leg of `price-vanilla-swap` (a\nCMS swap is a vanilla swap whose floating leg carries CMS coupons).\nRejected (400) on `price-ois-swap`, `price-basis-swap`,\n`price-cross-currency-swap` and a swaption underlying; a CMS leg takes no\n`payment_calendar` / `payment_lag` (400 when present). (Named\n`SwapCmsLeg` before 0.9.0.)",
         "properties": {
-          "schedule": {
-            "$ref": "#/components/schemas/quantra_Schedule"
-          },
-          "notional": {
-            "type": "number",
-            "description": "Coupon notional. Presence-required and must be > 0."
-          },
           "swap_index_id": {
             "type": "string",
             "description": "Swap index conventions id from Pricing.swap_indices (e.g. \"EUR_SWAP_6M\")."
@@ -2616,12 +2579,6 @@
             "description": "Optional fixing days override; if negative, uses swap index spot_days.",
             "minimum": -2147483648,
             "maximum": 2147483647
-          },
-          "day_counter": {
-            "$ref": "#/components/schemas/quantra_enums_DayCounter"
-          },
-          "payment_convention": {
-            "$ref": "#/components/schemas/quantra_enums_BusinessDayConvention"
           },
           "gear": {
             "type": "number",
@@ -2650,44 +2607,49 @@
         ],
         "additionalProperties": false
       },
-      "quantra_VanillaSwap": {
+      "quantra_OvernightCoupons": {
         "type": "object",
-        "description": "Vanilla interest rate swap (fixed vs floating).",
+        "description": "Overnight floating coupons: the daily fixings of an overnight `index`\ncompounded (or averaged) over each period of the leg's `schedule`, paid\nwith the leg's `payment_convention` / `payment_calendar` / `payment_lag`,\nwith the lookback / lockout / observation-shift conventions of the\nmarket. The coupons take the index's own day counter (the leg's\n`day_counter` is accepted but not read, as QuantLib's OvernightIndexedSwap\ndoes). The `OvernightCoupons` member of `SwapLeg.coupons`: the overnight\nleg of `price-ois-swap` and a swaption underlying, a `price-basis-swap`\nleg, a `price-cross-currency-swap` leg (all built by the same code). The\nindex must be an overnight index: an IBOR index here is a 400 naming\n`IborCoupons`. (Named `OisFloatingLeg` before 0.9.0; before 0.10.0 it\ncarried the payment calendar and lag that now live on the leg.)",
         "properties": {
-          "swap_type": {
-            "$ref": "#/components/schemas/quantra_enums_SwapType"
+          "index": {
+            "$ref": "#/components/schemas/quantra_IndexRef"
           },
-          "fixed_leg": {
-            "$ref": "#/components/schemas/quantra_FixedCoupons"
+          "spread": {
+            "type": "number",
+            "description": "Spread over the compounded/averaged overnight rate. Keeps a literal 0.0\ndefault on purpose: zero is the genuine market-standard value, not a\nconvention that could silently diverge."
           },
-          "floating_leg": {
-            "$ref": "#/components/schemas/quantra_IborCoupons"
+          "averaging_method": {
+            "$ref": "#/components/schemas/quantra_enums_RateAveragingType"
           },
-          "cms_leg": {
-            "$ref": "#/components/schemas/quantra_CmsCoupons"
+          "lookback_days": {
+            "type": "integer",
+            "description": "Fixing lookback in business days. Presence-required; must be >= 0; 0 =\nno lookback (the index's own fixing delay applies; QuantLib encodes this\nas Null, not as a zero-day lookback).",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "lockout_days": {
+            "type": "integer",
+            "description": "Lockout (rate-cutoff) days at period end. Presence-required; must be\n>= 0; 0 = no lockout.",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "apply_observation_shift": {
+            "type": "boolean",
+            "description": "Whether the observation-shift convention applies to the lookback.\nPresence-required."
+          },
+          "telescopic_value_dates": {
+            "type": "boolean",
+            "description": "Performance toggle for QuantLib's telescopic value-dates optimization,\nnot a market convention; keeps a literal false default on purpose."
           }
         },
-        "additionalProperties": false
-      },
-      "quantra_BasisSwap": {
-        "type": "object",
-        "description": "Basis swap with two floating legs (e.g., 3M vs 6M).",
-        "properties": {
-          "swap_type": {
-            "$ref": "#/components/schemas/quantra_enums_SwapType"
-          },
-          "leg1": {
-            "$ref": "#/components/schemas/quantra_IborCoupons"
-          },
-          "leg2": {
-            "$ref": "#/components/schemas/quantra_IborCoupons"
-          }
-        },
+        "required": [
+          "index"
+        ],
         "additionalProperties": false
       },
       "quantra_SwapLegFlow": {
         "type": "object",
-        "description": "Cashflow for a swap leg.",
+        "description": "One cash flow of a swap leg (`SwapLegResult.flows` and the zero-coupon /\ninflation swap flow lists).",
         "properties": {
           "payment_date": {
             "type": "string"
@@ -2740,153 +2702,158 @@
         },
         "additionalProperties": false
       },
-      "quantra_SwapLegResponse": {
+      "quantra_SwapLeg": {
         "type": "object",
-        "description": "Response for a single swap leg.",
+        "description": "One leg of a swap: a coupon stream in one currency, discounted on its own\ncurve, with its own principal exchanges, paid or received by the party\nwhose NPV is reported. The fields every coupon kind shares (notional,\nschedule, day count, payment conventions) live on the leg, as in the\nFpML / ORE leg model; `coupons` holds only what is specific to the kind.\nThis is the leg model of every swap endpoint:\n`VanillaSwap`, `OisSwap`, `BasisSwap` (one currency, no spot) and\n`CrossCurrencySwap` (two currencies) are each two `SwapLeg`s under\nrole-named fields, and a swaption underlying is a `VanillaSwap` or an\n`OisSwap` made of them.\n\nPrincipal exchanges follow the leg: the party that RECEIVES the leg's\ncoupons PAYS the leg's notional on the schedule's start date (initial\nexchange) and RECEIVES it with the last coupon (final exchange). In the\nleg's own frame the flows are therefore coupons +, initial exchange\n-notional, final exchange +notional; `pay_receive` then applies the side:\nthe payer of the coupons receives the initial exchange and pays the final\none.",
         "properties": {
-          "npv": {
-            "type": "number"
+          "pay_receive": {
+            "$ref": "#/components/schemas/quantra_enums_PayReceive"
           },
-          "bps": {
-            "type": "number"
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217 code of the leg's currency (three uppercase letters). A\nfloating leg's index must carry the same `IndexDef.currency` (400\notherwise). The two legs of a vanilla, OIS or basis swap must be in\none currency, the two legs of a cross-currency swap in two. Required."
           },
-          "flows": {
+          "notional": {
+            "type": "number",
+            "description": "Constant notional of the coupons and of the principal exchanges.\nPresence-required and must be > 0 unless the per-period `notionals`\nvector is supplied (then optional). A bare double would default to a\nsilent zero notional."
+          },
+          "notionals": {
             "type": "array",
+            "description": "Optional per-period notionals, one entry per coupon period in schedule\norder, each > 0. Present => amortizing / step-up leg (overrides\n`notional` for the coupons; the first entry is the exchanged\nnotional); absent => constant `notional`. Accepted on the legs of\n`price-vanilla-swap`; rejected (400) on `price-ois-swap`,\n`price-basis-swap`, `price-cross-currency-swap` and a swaption\nunderlying.",
             "items": {
-              "$ref": "#/components/schemas/quantra_SwapLegFlow"
-            }
-          }
-        },
-        "additionalProperties": false
-      },
-      "quantra_VanillaSwapResponse": {
-        "type": "object",
-        "description": "Full vanilla swap pricing response.",
-        "properties": {
-          "npv": {
-            "type": "number"
-          },
-          "fair_rate": {
-            "type": "number"
-          },
-          "fair_spread": {
-            "type": "number"
-          },
-          "fixed_leg_bps": {
-            "type": "number"
-          },
-          "floating_leg_bps": {
-            "type": "number"
-          },
-          "fixed_leg_npv": {
-            "type": "number"
-          },
-          "floating_leg_npv": {
-            "type": "number"
-          },
-          "fixed_leg_flows": {
-            "type": "array",
-            "description": "Optional detailed flows per leg.",
-            "items": {
-              "$ref": "#/components/schemas/quantra_SwapLegFlow"
+              "type": "number"
             }
           },
-          "floating_leg_flows": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/quantra_SwapLegFlow"
-            }
+          "schedule": {
+            "$ref": "#/components/schemas/quantra_Schedule"
           },
-          "used_cms_pricer_type": {
-            "$ref": "#/components/schemas/quantra_enums_CmsPricerType"
+          "day_counter": {
+            "$ref": "#/components/schemas/quantra_enums_DayCounter"
           },
-          "used_cms_yield_curve_model": {
-            "$ref": "#/components/schemas/quantra_enums_CmsYieldCurveModel"
+          "payment_convention": {
+            "$ref": "#/components/schemas/quantra_enums_BusinessDayConvention"
           },
-          "used_cms_mean_reversion": {
-            "type": "number",
-            "description": "Effective CMS mean reversion used by pricer. Absent when no CMS leg."
+          "payment_calendar": {
+            "$ref": "#/components/schemas/quantra_enums_Calendar"
           },
-          "used_cms_hagan_lower_limit": {
-            "type": "number",
-            "description": "Effective Numeric Hagan lower integration limit. Absent when not applicable."
+          "payment_lag": {
+            "type": "integer",
+            "description": "Payment lag in business days (on `payment_calendar`) between each\naccrual end and its payment. Absent = 0: pay on the adjusted accrual\nend. Presence-required on both legs of `price-ois-swap` (QuantLib's\nOvernightIndexedSwap applies one lag to both legs; the leg model makes\nit a per-leg convention); optional elsewhere; rejected with\n`CmsCoupons` (400 when present). Must be >= 0.",
+            "minimum": -2147483648,
+            "maximum": 2147483647
           },
-          "used_cms_hagan_upper_limit": {
-            "type": "number",
-            "description": "Effective Numeric Hagan upper integration limit. Absent when not applicable."
+          "coupons_type": {
+            "$ref": "#/components/schemas/quantra_SwapCoupons"
           },
-          "used_cms_hagan_precision": {
-            "type": "number",
-            "description": "Effective Numeric Hagan integration precision. Absent when not applicable."
+          "coupons": {
+            "description": "What the leg pays each period (see `SwapCoupons`): the kind-specific\nfields only (rate; index, spread, fixing...). Required; the tag\n`coupons_type` is required with it.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/quantra_FixedCoupons"
+              },
+              {
+                "$ref": "#/components/schemas/quantra_IborCoupons"
+              },
+              {
+                "$ref": "#/components/schemas/quantra_OvernightCoupons"
+              },
+              {
+                "$ref": "#/components/schemas/quantra_CmsCoupons"
+              }
+            ]
           },
-          "used_cms_hagan_hard_upper_limit": {
-            "type": "number",
-            "description": "Effective Numeric Hagan hard upper integration limit. Absent when not applicable."
-          }
-        },
-        "additionalProperties": false
-      },
-      "quantra_PriceVanillaSwapResponse": {
-        "type": "object",
-        "description": "Response wrapper for multiple vanilla swaps.",
-        "properties": {
-          "swaps": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/quantra_VanillaSwapResponse"
-            }
+          "discounting_curve": {
+            "type": "string",
+            "description": "Id of the curve in `pricing.rates.curves` that discounts every flow of\nthis leg (coupons and exchanges). For a collateralised cross-currency\ntrade, the currency's collateral-adjusted curve. A swaption underlying\nneeds one discount curve: both of its legs must name the same id.\nRequired."
+          },
+          "forwarding_curve": {
+            "type": "string",
+            "description": "Id of the curve in `pricing.rates.curves` the floating index projects\noff (for `CmsCoupons`, the curve the swap index's IBOR leg projects\noff). Required with `IborCoupons` / `OvernightCoupons` / `CmsCoupons`\n(400 when missing), rejected with `FixedCoupons` (400 when present: a\nfixed leg projects nothing)."
+          },
+          "initial_exchange": {
+            "type": "boolean",
+            "description": "Whether the leg's notional is exchanged on its schedule's start date\n(paid by the receiver of the leg's coupons). Presence-required on\n`price-cross-currency-swap`; on the single-currency endpoints absent =\nfalse (an explicit `true` is priced: the exchange becomes a\nNotionalExchange flow of the leg). Rejected when true on a swaption\nunderlying."
+          },
+          "final_exchange": {
+            "type": "boolean",
+            "description": "Whether the leg's notional is exchanged on the last coupon's payment\ndate (received by the receiver of the leg's coupons). Same presence\nrule as `initial_exchange`."
           }
         },
         "required": [
-          "swaps"
+          "currency",
+          "schedule",
+          "coupons",
+          "discounting_curve"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_SwapLegResult": {
+        "type": "object",
+        "description": "Result of one swap leg (`legs` of a swap response, request order).",
+        "properties": {
+          "npv": {
+            "type": "number",
+            "description": "Present value of the leg (coupons and exchanges) in the leg's own\ncurrency, signed from the reported party's view: the leg's own-frame\nvalue (as the receiver of its coupons sees it) times -1 when the party\npays the leg (`Pay`) and +1 when it receives it (`Receive`). A paid leg\nis therefore negative only when it is worth paying for: paying a 2.55%\nfixed leg (with its exchanges) on a 3% curve is in the payer's favour\nand positive. The swap's `npv` is the sum of its legs' values."
+          },
+          "npv_reporting": {
+            "type": "number",
+            "description": "`npv` converted to the swap's reporting currency at the as-of exchange\nrate. Equal to `npv` on a single-currency swap (vanilla, OIS, basis),\nwhose reporting currency is the legs' currency."
+          },
+          "flows": {
+            "type": "array",
+            "description": "Future flows of the leg in payment order (`include_flows` only), in\nthe leg's own frame: coupon amounts positive, the initial exchange\n-notional, the final exchange +notional; `kind` tells them apart. The\nsum of their `present_value`s is `npv / s` (s = -1 for `Pay`, +1 for\n`Receive`). For an overnight coupon `rate` is the compounded rate (plus\nspread) and `index_fixing` the fixing on the coupon's first fixing\ndate; for a CMS coupon `index_fixing` and `cms_swap_rate` are the CMS\nswap-rate fixing.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_SwapLegFlow"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_BasisSwap": {
+        "type": "object",
+        "description": "Basis swap: two floating `SwapLeg`s in one currency (400 otherwise), e.g.\n3M vs 6M IBOR or IBOR vs overnight, one paid and one received\n(`SwapLeg.pay_receive`; 400 when both take the same side). Each leg's\n`coupons` is `IborCoupons` or `OvernightCoupons`; the legs name their own\ndiscounting and forwarding curves (the usual multi-curve setup discounts\nboth on the OIS curve and projects each on its tenor curve). Priced as two\nQuantLib legs (IborLeg with a zero-volatility Black pricer / OvernightLeg)\non their discount curves, plus the notional exchanges when a leg asks for\nthem (see `BasisSwapResponse`).",
+        "properties": {
+          "leg1": {
+            "$ref": "#/components/schemas/quantra_SwapLeg"
+          },
+          "leg2": {
+            "$ref": "#/components/schemas/quantra_SwapLeg"
+          }
+        },
+        "required": [
+          "leg1",
+          "leg2"
         ],
         "additionalProperties": false
       },
       "quantra_BasisSwapResponse": {
         "type": "object",
-        "description": "Basis swap pricing response (two floating legs).",
+        "description": "Basis swap pricing result. With, for leg i, L_i the leg's flows in its\nown frame (coupons +, initial exchange -N_i at the schedule start, final\nexchange +N_i with the last coupon; no exchanges unless the leg asks for\nthem), D_i its discounting curve and s_i = -1 for `Pay` / +1 for\n`Receive`:\nlegs[i].npv           = s_i * CashFlows::npv(L_i, D_i)\nlegs[i].npv_reporting = legs[i].npv                (one currency)\nnpv                   = legs[0].npv + legs[1].npv\n`fair_spread` holds the other leg and every exchange fixed and solves the\nlinear equation in the spread of leg k with that leg's signed annuity\nB_k = s_k * CashFlows::bps(coupons of leg k, D_k) (exchanges excluded):\nfair_spread = spread_k - npv * 1e-4 / B_k\nso repricing leg k at `fair_spread` gives npv = 0 to rounding. Every\nvalue is as of the evaluation date (the curves' reference date); flows on\nthat date are excluded. Positive `npv` is in favour of the reported party.",
         "properties": {
           "npv": {
-            "type": "number"
-          },
-          "leg1_bps": {
-            "type": "number"
-          },
-          "leg2_bps": {
-            "type": "number"
-          },
-          "leg1_npv": {
-            "type": "number"
-          },
-          "leg2_npv": {
-            "type": "number"
-          },
-          "fair_spread_leg1": {
             "type": "number",
-            "description": "Par spread for leg1 keeping leg2 spread fixed."
+            "description": "Total present value in the legs' currency, positive in favour of the\nreported party."
           },
-          "fair_spread_leg2": {
+          "fair_spread": {
             "type": "number",
-            "description": "Par spread for leg2 keeping leg1 spread fixed."
+            "description": "Par spread of the leg that carries the request's spread, the other\nleg's spread and every exchange held fixed: leg k = `leg1` when only\n`leg1.coupons.spread` is non-zero, `leg2` otherwise (both spreads\nzero or both non-zero: `leg2`, the quoted leg by market convention).\nAbsent when that leg's annuity is zero or the value is not finite."
           },
-          "leg1_flows": {
+          "legs": {
             "type": "array",
+            "description": "One result per leg, in request order (`leg1` then `leg2`): the leg's\nsigned NPV and, with `include_flows`, its flows.",
             "items": {
-              "$ref": "#/components/schemas/quantra_SwapLegFlow"
-            }
-          },
-          "leg2_flows": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/quantra_SwapLegFlow"
+              "$ref": "#/components/schemas/quantra_SwapLegResult"
             }
           }
         },
+        "required": [
+          "legs"
+        ],
         "additionalProperties": false
       },
       "quantra_PriceBasisSwapResponse": {
         "type": "object",
-        "description": "Response wrapper for multiple basis swaps.",
+        "description": "Response wrapper for multiple basis swaps, in request order.",
         "properties": {
           "swaps": {
             "type": "array",
@@ -6509,171 +6476,6 @@
         ],
         "additionalProperties": false
       },
-      "quantra_SwapCoupons": {
-        "type": "string",
-        "enum": [
-          "NONE",
-          "FixedCoupons",
-          "IborCoupons",
-          "OvernightCoupons",
-          "CmsCoupons"
-        ]
-      },
-      "quantra_OvernightCoupons": {
-        "type": "object",
-        "description": "Overnight floating coupons of a swap leg: the daily fixings of an\novernight `index` compounded (or averaged) over each period of `schedule`,\npaid `payment_lag` business days after the period end on\n`payment_calendar`, with the lookback / lockout / observation-shift\nconventions of the market. Used as `OisSwap.overnight_leg` and as the\n`OvernightCoupons` member of `SwapLeg.coupons` (built by the same code),\nwhere the index must be an overnight index (an IBOR index is a 400 naming\n`IborCoupons`). (Named `OisFloatingLeg` before 0.9.0; the field names are\nunchanged.)",
-        "properties": {
-          "schedule": {
-            "$ref": "#/components/schemas/quantra_Schedule"
-          },
-          "notional": {
-            "type": "number",
-            "description": "Notional. Presence-required and must be > 0 (a bare double would default\nto a silent zero notional)."
-          },
-          "index": {
-            "$ref": "#/components/schemas/quantra_IndexRef"
-          },
-          "spread": {
-            "type": "number",
-            "description": "Spread over the compounded/averaged overnight rate. Keeps a literal 0.0\ndefault on purpose: zero is the genuine market-standard value, not a\nconvention that could silently diverge."
-          },
-          "day_counter": {
-            "$ref": "#/components/schemas/quantra_enums_DayCounter"
-          },
-          "payment_convention": {
-            "$ref": "#/components/schemas/quantra_enums_BusinessDayConvention"
-          },
-          "payment_calendar": {
-            "$ref": "#/components/schemas/quantra_enums_Calendar"
-          },
-          "payment_lag": {
-            "type": "integer",
-            "description": "Payment lag in business days between accrual end and payment. Required;\nmust be >= 0.",
-            "minimum": -2147483648,
-            "maximum": 2147483647
-          },
-          "averaging_method": {
-            "$ref": "#/components/schemas/quantra_enums_RateAveragingType"
-          },
-          "lookback_days": {
-            "type": "integer",
-            "description": "Fixing lookback in business days. Required; must be >= 0; 0 = no\nlookback (the index's own fixing delay applies \u2014 QuantLib encodes this\nas Null, not as a zero-day lookback).",
-            "minimum": -2147483648,
-            "maximum": 2147483647
-          },
-          "lockout_days": {
-            "type": "integer",
-            "description": "Lockout (rate-cutoff) days at period end. Required; must be >= 0;\n0 = no lockout.",
-            "minimum": -2147483648,
-            "maximum": 2147483647
-          },
-          "apply_observation_shift": {
-            "type": "boolean",
-            "description": "Whether the observation-shift convention applies to the lookback.\nRequired."
-          },
-          "telescopic_value_dates": {
-            "type": "boolean",
-            "description": "Performance toggle for QuantLib's telescopic value-dates optimization,\nnot a market convention \u2014 keeps a literal false default on purpose."
-          }
-        },
-        "required": [
-          "index"
-        ],
-        "additionalProperties": false
-      },
-      "quantra_OisSwap": {
-        "type": "object",
-        "description": "Overnight indexed swap: fixed vs compounded overnight.",
-        "properties": {
-          "swap_type": {
-            "$ref": "#/components/schemas/quantra_enums_SwapType"
-          },
-          "fixed_leg": {
-            "$ref": "#/components/schemas/quantra_FixedCoupons"
-          },
-          "overnight_leg": {
-            "$ref": "#/components/schemas/quantra_OvernightCoupons"
-          }
-        },
-        "additionalProperties": false
-      },
-      "quantra_SwapLeg": {
-        "type": "object",
-        "description": "One leg of a swap: a coupon stream in one currency, discounted on its own\ncurve, with its own principal exchanges, paid or received by the party\nwhose NPV is reported. This is the leg model of `price-cross-currency-swap`\n(0.9.0) and, from 0.10.0, of every swap endpoint.\n\nPrincipal exchanges follow the leg: the party that RECEIVES the leg's\ncoupons PAYS the leg's notional on the schedule's start date (initial\nexchange) and RECEIVES it with the last coupon (final exchange). In the\nleg's own frame the flows are therefore coupons +, initial exchange\n-notional, final exchange +notional; `pay_receive` then applies the side:\nthe payer of the coupons receives the initial exchange and pays the final\none.",
-        "properties": {
-          "pay_receive": {
-            "$ref": "#/components/schemas/quantra_enums_PayReceive"
-          },
-          "currency": {
-            "type": "string",
-            "description": "ISO 4217 code of the leg's currency (three uppercase letters). A\nfloating leg's index must carry the same `IndexDef.currency` (400\notherwise). Required."
-          },
-          "coupons_type": {
-            "$ref": "#/components/schemas/quantra_SwapCoupons"
-          },
-          "coupons": {
-            "description": "The coupons (see `SwapCoupons`). Required; the tag `coupons_type` is\nrequired with it. Constant `notional` only: a per-period `notionals`\nvector is rejected (400) in this version.",
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/quantra_FixedCoupons"
-              },
-              {
-                "$ref": "#/components/schemas/quantra_IborCoupons"
-              },
-              {
-                "$ref": "#/components/schemas/quantra_OvernightCoupons"
-              },
-              {
-                "$ref": "#/components/schemas/quantra_CmsCoupons"
-              }
-            ]
-          },
-          "discounting_curve": {
-            "type": "string",
-            "description": "Id of the curve in `pricing.rates.curves` that discounts every flow of\nthis leg (coupons and exchanges). For a collateralised cross-currency\ntrade, the currency's collateral-adjusted curve. Required."
-          },
-          "forwarding_curve": {
-            "type": "string",
-            "description": "Id of the curve in `pricing.rates.curves` the floating index projects\noff. Required with `IborCoupons` / `OvernightCoupons` (400 when\nmissing), rejected with `FixedCoupons` (400 when present: a fixed leg\nprojects nothing)."
-          },
-          "initial_exchange": {
-            "type": "boolean",
-            "description": "Whether the leg's notional is exchanged on its schedule's start date\n(paid by the receiver of the leg's coupons). Presence-required on every\nleg (`false` on both legs of an ordinary single-currency swap)."
-          },
-          "final_exchange": {
-            "type": "boolean",
-            "description": "Whether the leg's notional is exchanged on the last coupon's payment\ndate (received by the receiver of the leg's coupons).\nPresence-required on every leg."
-          }
-        },
-        "required": [
-          "currency",
-          "coupons",
-          "discounting_curve"
-        ],
-        "additionalProperties": false
-      },
-      "quantra_SwapLegResult": {
-        "type": "object",
-        "description": "Result of one swap leg (`legs` of a swap response, request order).",
-        "properties": {
-          "npv": {
-            "type": "number",
-            "description": "Present value of the leg (coupons and exchanges) in the leg's own\ncurrency, signed from the reported party's view: the leg's own-frame\nvalue (as the receiver of its coupons sees it) times -1 when the party\npays the leg (`Pay`) and +1 when it receives it (`Receive`). A paid leg\nis therefore negative only when it is worth paying for: paying a 2.55%\nfixed leg (with its exchanges) on a 3% curve is in the payer's favour\nand positive."
-          },
-          "npv_reporting": {
-            "type": "number",
-            "description": "`npv` converted to the swap's reporting currency at the as-of exchange\nrate (unchanged when the leg is in the reporting currency)."
-          },
-          "flows": {
-            "type": "array",
-            "description": "Future flows of the leg in payment order (`include_flows` only), in\nthe leg's own frame: coupon amounts positive, the initial exchange\n-notional, the final exchange +notional; `kind` tells them apart. The\nsum of their `present_value`s is `npv / s` (s = -1 for `Pay`, +1 for\n`Receive`). For an overnight coupon `rate` is the compounded rate (plus\nspread) and `index_fixing` the fixing on the coupon's first fixing\ndate, as on `price-ois-swap`.",
-            "items": {
-              "$ref": "#/components/schemas/quantra_SwapLegFlow"
-            }
-          }
-        },
-        "additionalProperties": false
-      },
       "quantra_CrossCurrencySwap": {
         "type": "object",
         "description": "Cross-currency swap: two `SwapLeg`s in two different currencies (400 when\nequal: two legs in one currency are a vanilla, OIS or basis swap), each\nwith its own discounting (and forwarding) curve and its own principal\nexchanges, one paid and one received (`SwapLeg.pay_receive`; 400 when\nboth legs take the same side). Any combination of coupon kinds is allowed\n(fixed/float, float/float, fixed/fixed). Priced as two QuantLib legs\n(coupons plus `SimpleCashFlow` exchanges), each NPV'd on its own curve and\nconverted to the reporting currency at the as-of exchange rate implied by\nthe FX spot and the two discount curves (see `CrossCurrencySwapResponse`).",
@@ -6693,7 +6495,7 @@
       },
       "quantra_CrossCurrencySwapResponse": {
         "type": "object",
-        "description": "Cross-currency swap pricing result. With, for leg i, L_i the leg's flows\nin its own frame (coupons +, initial exchange -N_i at the schedule start,\nfinal exchange +N_i with the last coupon), D_i its discounting curve,\ns_i = -1 for `Pay` / +1 for `Receive`, S the spot rate (delivery on the\nspot date t_s) and DF_base / DF_quote the discounting curves of the base-\nand quote-currency legs:\nlegs[i].npv           = s_i * CashFlows::npv(L_i, D_i)        [currency i]\nX                     = S * DF_quote(t_s) / DF_base(t_s)      [quote per base, as of today]\nlegs[i].npv_reporting = legs[i].npv, * X or / X                [reporting currency]\nnpv                   = legs[0].npv_reporting + legs[1].npv_reporting\nFair quantities hold the other leg and every exchange fixed and solve the\nlinear equation in the fixed rate / the spread with the leg's annuity\nA_i = CashFlows::bps(coupons of leg i, D_i) / 1e-4 (exchanges excluded):\nfair_rate   = rate_f   - NPV[in the fixed leg's ccy] / (s_f * A_f)\nfair_spread = spread_1 - NPV[in legs[1]'s ccy]       / (s_1 * A_1)\nso repricing at the fair value gives npv = 0 to rounding. These are\nQuantLib::VanillaSwap's / OvernightIndexedSwap's own fair-value formulas\nand the legs are built by the same code as the single-currency swap\nendpoints. Every value is as of the evaluation date (the curves'\nreference date); flows on that date are excluded, as for every swap.",
+        "description": "Cross-currency swap pricing result. With, for leg i, L_i the leg's flows\nin its own frame (coupons +, initial exchange -N_i at the schedule start,\nfinal exchange +N_i with the last coupon), D_i its discounting curve,\ns_i = -1 for `Pay` / +1 for `Receive`, S the spot rate (delivery on the\nspot date t_s) and DF_base / DF_quote the discounting curves of the base-\nand quote-currency legs:\nlegs[i].npv           = s_i * CashFlows::npv(L_i, D_i)        [currency i]\nX                     = S * DF_quote(t_s) / DF_base(t_s)      [quote per base, as of today]\nlegs[i].npv_reporting = legs[i].npv, * X or / X                [reporting currency]\nnpv                   = legs[0].npv_reporting + legs[1].npv_reporting\nFair quantities hold the other leg and every exchange fixed and solve the\nlinear equation in the fixed rate / the spread with the leg's annuity\nA_i = CashFlows::bps(coupons of leg i, D_i) / 1e-4 (exchanges excluded):\nfair_rate   = rate_f   - NPV[in the fixed leg's ccy] / (s_f * A_f)\nfair_spread = spread_k - NPV[in leg k's ccy]         / (s_k * A_k)\n(k = the floating leg of a fixed/float swap, `legs[1]` of a float/float\none) so repricing at the fair value gives npv = 0 to rounding. These are\nQuantLib::VanillaSwap's / OvernightIndexedSwap's own fair-value formulas\nand the legs are built by the same code as the single-currency swap\nendpoints. Every value is as of the evaluation date (the curves'\nreference date); flows on that date are excluded, as for every swap.",
         "properties": {
           "npv": {
             "type": "number",
@@ -6712,7 +6514,7 @@
           },
           "fair_spread": {
             "type": "number",
-            "description": "Present iff no leg has `FixedCoupons`: the spread on `legs[1]` (`leg2`,\nby convention) that zeroes `npv`, holding `legs[0]` and every notional\nexchange fixed. Absent when a leg is fixed."
+            "description": "Present iff a leg has `IborCoupons` or `OvernightCoupons` (as on every\nswap endpoint): the spread on the floating leg of a fixed/float swap,\nor on `legs[1]` (`leg2`, by convention) of a float/float one, that\nzeroes `npv`, holding the other leg and every notional exchange fixed.\nAbsent for fixed/fixed swaps."
           },
           "fx_spot_used": {
             "type": "number",
@@ -7187,49 +6989,55 @@
         ],
         "additionalProperties": false
       },
+      "quantra_OisSwap": {
+        "type": "object",
+        "description": "Overnight indexed swap: a fixed leg against a compounded (or averaged)\novernight leg, both `SwapLeg`s in one currency (400 otherwise), one paid\nand one received (`SwapLeg.pay_receive`; 400 when both take the same\nside). The legs name their own discounting and forwarding curves. Priced\nas two QuantLib legs on their discount curves: FixedRateLeg with the fixed\nleg's own payment calendar and lag (`SwapLeg.payment_calendar` /\n`payment_lag`, presence-required on both legs of this endpoint: an OIS\npays with the overnight calendar and lag) and OvernightLeg with the\novernight conventions, the chains\nQuantLib::OvernightIndexedSwap builds, plus the notional exchanges when a\nleg asks for them (see `OisSwapResponse`).",
+        "properties": {
+          "fixed_leg": {
+            "$ref": "#/components/schemas/quantra_SwapLeg"
+          },
+          "overnight_leg": {
+            "$ref": "#/components/schemas/quantra_SwapLeg"
+          }
+        },
+        "required": [
+          "fixed_leg",
+          "overnight_leg"
+        ],
+        "additionalProperties": false
+      },
       "quantra_OisSwapResponse": {
         "type": "object",
-        "description": "OIS swap pricing response (fixed vs compounded overnight leg).",
+        "description": "Overnight indexed swap pricing result. With, for leg i, L_i the leg's\nflows in its own frame (coupons +, initial exchange -N_i at the schedule\nstart, final exchange +N_i with the last coupon; no exchanges unless the\nleg asks for them), D_i its discounting curve and s_i = -1 for `Pay` /\n+1 for `Receive`:\nlegs[i].npv           = s_i * CashFlows::npv(L_i, D_i)\nlegs[i].npv_reporting = legs[i].npv                (one currency)\nnpv                   = legs[0].npv + legs[1].npv\n`fair_rate` holds the overnight leg and every exchange fixed and solves\nthe linear equation in the fixed rate with the fixed leg's signed annuity\nB_0 = s_0 * CashFlows::bps(coupons of leg 0, D_0) (exchanges excluded):\nfair_rate = rate_0 - npv / (B_0 / 1e-4)\nwhich is QuantLib::OvernightIndexedSwap's own fair-rate formula, so\nrepricing at `fair_rate` gives npv = 0 to rounding. `fair_spread` is the\nmirror image on the overnight leg: with B_1 = s_1 * CashFlows::bps(coupons\nof leg 1, D_1),\nfair_spread = spread_1 - npv / (B_1 / 1e-4)\nwhich is QuantLib::OvernightIndexedSwap's own fair-spread formula. Every\nvalue is as of the evaluation date (the curves' reference date); flows on\nthat date are excluded. Positive `npv` is in favour of the reported party.",
         "properties": {
           "npv": {
-            "type": "number"
+            "type": "number",
+            "description": "Total present value in the legs' currency, positive in favour of the\nreported party."
           },
           "fair_rate": {
-            "type": "number"
+            "type": "number",
+            "description": "The fixed rate that zeroes `npv`, the overnight leg and every exchange\nheld fixed. Absent when the fixed leg's annuity is zero or the value\nis not finite."
           },
           "fair_spread": {
-            "type": "number"
+            "type": "number",
+            "description": "The spread on the overnight leg that zeroes `npv`, the fixed leg and\nevery exchange held fixed (the compounded overnight rates unchanged).\nPresent on every priced OIS whose overnight leg's annuity is non-zero\nand the value finite, as for every swap endpoint: `fair_rate` iff\nexactly one leg carries `FixedCoupons`, `fair_spread` iff a leg\ncarries `IborCoupons`, `OvernightCoupons` or `CmsCoupons`."
           },
-          "fixed_leg_bps": {
-            "type": "number"
-          },
-          "overnight_leg_bps": {
-            "type": "number"
-          },
-          "fixed_leg_npv": {
-            "type": "number"
-          },
-          "overnight_leg_npv": {
-            "type": "number"
-          },
-          "fixed_leg_flows": {
+          "legs": {
             "type": "array",
+            "description": "One result per leg, in request order (`fixed_leg` then\n`overnight_leg`): the leg's signed NPV and, with `include_flows`, its\nflows. An overnight coupon's `rate` is the compounded (or averaged)\nrate plus spread and `index_fixing` the fixing on its first fixing\ndate.",
             "items": {
-              "$ref": "#/components/schemas/quantra_SwapLegFlow"
-            }
-          },
-          "overnight_leg_flows": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/quantra_SwapLegFlow"
+              "$ref": "#/components/schemas/quantra_SwapLegResult"
             }
           }
         },
+        "required": [
+          "legs"
+        ],
         "additionalProperties": false
       },
       "quantra_PriceOisSwapResponse": {
         "type": "object",
-        "description": "Response wrapper for multiple OIS swaps.",
+        "description": "Response wrapper for multiple OIS swaps, in request order.",
         "properties": {
           "swaps": {
             "type": "array",
@@ -7245,26 +7053,20 @@
       },
       "quantra_PriceBasisSwap": {
         "type": "object",
-        "description": "Single basis swap pricing context with curve references.",
+        "description": "One basis swap to price. The legs name their own discounting and\nforwarding curves (`SwapLeg`); every reference is by id into `pricing`.\nThe NPV is reported in the legs' currency.",
         "properties": {
           "basis_swap": {
             "$ref": "#/components/schemas/quantra_BasisSwap"
-          },
-          "discounting_curve": {
-            "type": "string"
-          },
-          "forwarding_curve_leg1": {
-            "type": "string"
-          },
-          "forwarding_curve_leg2": {
-            "type": "string"
           }
         },
+        "required": [
+          "basis_swap"
+        ],
         "additionalProperties": false
       },
       "quantra_PriceBasisSwapRequest": {
         "type": "object",
-        "description": "Request to price one or more basis swaps.",
+        "description": "Request to price one or more basis swaps against one market.",
         "properties": {
           "pricing": {
             "$ref": "#/components/schemas/quantra_Pricing"
@@ -7276,7 +7078,8 @@
             }
           },
           "include_flows": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "When true every response row lists each leg's future flows (coupons\nand notional exchanges) in payment order."
           }
         },
         "additionalProperties": false
@@ -7641,23 +7444,20 @@
       },
       "quantra_PriceOisSwap": {
         "type": "object",
-        "description": "Single OIS swap pricing context with curve references.",
+        "description": "One overnight indexed swap to price. The legs name their own discounting\nand forwarding curves (`SwapLeg`); every reference is by id into\n`pricing`. The NPV is reported in the legs' currency.",
         "properties": {
           "ois_swap": {
             "$ref": "#/components/schemas/quantra_OisSwap"
-          },
-          "discounting_curve": {
-            "type": "string"
-          },
-          "forwarding_curve": {
-            "type": "string"
           }
         },
+        "required": [
+          "ois_swap"
+        ],
         "additionalProperties": false
       },
       "quantra_PriceOisSwapRequest": {
         "type": "object",
-        "description": "Request to price one or more OIS swaps.",
+        "description": "Request to price one or more OIS swaps against one market.",
         "properties": {
           "pricing": {
             "$ref": "#/components/schemas/quantra_Pricing"
@@ -7669,7 +7469,8 @@
             }
           },
           "include_flows": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "When true every response row lists each leg's future flows (coupons\nand notional exchanges) in payment order."
           }
         },
         "additionalProperties": false
@@ -7681,6 +7482,23 @@
           "VanillaSwap",
           "OisSwap"
         ]
+      },
+      "quantra_VanillaSwap": {
+        "type": "object",
+        "description": "Vanilla interest rate swap: a fixed leg against an IBOR or CMS floating\nleg, both `SwapLeg`s in one currency (400 when the currencies differ:\ntwo currencies are a cross-currency swap), one paid and one received\n(`SwapLeg.pay_receive`; 400 when both take the same side). The legs name\ntheir own discounting and forwarding curves. Each leg is priced as a\nQuantLib leg on its own discount curve: FixedRateLeg / IborLeg (the\nchains QuantLib::VanillaSwap builds, with a zero-volatility Black pricer\non the IBOR coupons) or CmsLeg with the requested CMS pricer, plus the\nnotional exchanges when a leg asks for them (see `VanillaSwapResponse`).",
+        "properties": {
+          "fixed_leg": {
+            "$ref": "#/components/schemas/quantra_SwapLeg"
+          },
+          "floating_leg": {
+            "$ref": "#/components/schemas/quantra_SwapLeg"
+          }
+        },
+        "required": [
+          "fixed_leg",
+          "floating_leg"
+        ],
+        "additionalProperties": false
       },
       "quantra_Swaption": {
         "type": "object",
@@ -7710,7 +7528,7 @@
             "$ref": "#/components/schemas/quantra_SwaptionUnderlying"
           },
           "underlying": {
-            "description": "Underlying swap instrument.",
+            "description": "Underlying swap instrument (see `SwaptionUnderlying`). Required; in\nJSON `\"underlying_type\": \"VanillaSwap\"` precedes `\"underlying\"`.",
             "anyOf": [
               {
                 "$ref": "#/components/schemas/quantra_VanillaSwap"
@@ -7725,18 +7543,10 @@
       },
       "quantra_PriceSwaption": {
         "type": "object",
-        "description": "Single swaption pricing request with curve/vol/model references.",
+        "description": "One swaption to price with its vol and model references. The curves come\nfrom the underlying swap's legs (`SwapLeg.discounting_curve`, which both\nlegs must name identically, and the floating / overnight leg's\n`forwarding_curve`); every reference is by id into `pricing`.",
         "properties": {
           "swaption": {
             "$ref": "#/components/schemas/quantra_Swaption"
-          },
-          "discounting_curve": {
-            "type": "string",
-            "description": "Reference to curve in pricing.rates.curves by id."
-          },
-          "forwarding_curve": {
-            "type": "string",
-            "description": "Reference to curve in pricing.rates.curves for forward rates by id."
           },
           "volatility": {
             "type": "string",
@@ -7771,25 +7581,20 @@
       },
       "quantra_PriceVanillaSwap": {
         "type": "object",
-        "description": "Single vanilla swap pricing context with curve references.",
+        "description": "One vanilla swap to price. The legs name their own discounting and\nforwarding curves (`SwapLeg`); every reference is by id into `pricing`.\nThe NPV is reported in the legs' currency.",
         "properties": {
           "vanilla_swap": {
             "$ref": "#/components/schemas/quantra_VanillaSwap"
-          },
-          "discounting_curve": {
-            "type": "string",
-            "description": "Reference to curve in pricing.rates.curves by id."
-          },
-          "forwarding_curve": {
-            "type": "string",
-            "description": "Reference to curve in pricing.rates.curves for forward rates by id."
           }
         },
+        "required": [
+          "vanilla_swap"
+        ],
         "additionalProperties": false
       },
       "quantra_PriceVanillaSwapRequest": {
         "type": "object",
-        "description": "Request to price one or more vanilla swaps.",
+        "description": "Request to price one or more vanilla swaps against one market.",
         "properties": {
           "pricing": {
             "$ref": "#/components/schemas/quantra_Pricing"
@@ -7802,7 +7607,7 @@
           },
           "include_flows": {
             "type": "boolean",
-            "description": "Include detailed cashflows in response."
+            "description": "When true every response row lists each leg's future flows (coupons\nand notional exchanges) in payment order."
           }
         },
         "additionalProperties": false
@@ -8643,6 +8448,77 @@
         },
         "required": [
           "swaptions"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_VanillaSwapResponse": {
+        "type": "object",
+        "description": "Vanilla swap pricing result. With, for leg i, L_i the leg's flows in its\nown frame (coupons +, initial exchange -N_i at the schedule start, final\nexchange +N_i with the last coupon; no exchanges unless the leg asks for\nthem), D_i its discounting curve and s_i = -1 for `Pay` / +1 for\n`Receive`:\nlegs[i].npv           = s_i * CashFlows::npv(L_i, D_i)\nlegs[i].npv_reporting = legs[i].npv                (one currency)\nnpv                   = legs[0].npv + legs[1].npv\n`fair_rate` holds the floating leg and every exchange fixed and solves the\nlinear equation in the fixed rate with the fixed leg's signed annuity\nB_0 = s_0 * CashFlows::bps(coupons of leg 0, D_0) (exchanges excluded):\nfair_rate = rate_0 - npv / (B_0 / 1e-4)\nwhich is QuantLib::VanillaSwap's own fair-rate formula, so repricing at\n`fair_rate` gives npv = 0 to rounding (for a CMS floating leg the same\nformula applies, the CMS coupons being held fixed). `fair_spread` is the\nmirror image on the floating leg: with B_1 = s_1 * CashFlows::bps(coupons\nof leg 1, D_1),\nfair_spread = spread_1 - npv / (B_1 / 1e-4)\nwhich is QuantLib::VanillaSwap's own fair-spread formula. Every value is\nas of the evaluation date (the curves' reference date); flows on that\ndate are excluded, as for every swap. Positive `npv` is in favour of the\nreported party (the one whose `pay_receive` sides were given).",
+        "properties": {
+          "npv": {
+            "type": "number",
+            "description": "Total present value in the legs' currency, positive in favour of the\nreported party."
+          },
+          "fair_rate": {
+            "type": "number",
+            "description": "The fixed rate that zeroes `npv`, the floating leg and every exchange\nheld fixed. Absent when the fixed leg's annuity is zero (nothing to\nsolve for) or the value is not finite."
+          },
+          "fair_spread": {
+            "type": "number",
+            "description": "The spread on the floating leg (`IborCoupons` or `CmsCoupons`) that\nzeroes `npv`, the fixed leg and every exchange held fixed (the\nfloating coupons' forwards unchanged). Present on every priced vanilla\nswap whose floating leg's annuity is non-zero and the value finite,\nas for every swap endpoint: `fair_rate` iff exactly one leg carries\n`FixedCoupons`, `fair_spread` iff a leg carries `IborCoupons`,\n`OvernightCoupons` or `CmsCoupons`. For a CMS leg with a `cap` or\n`floor` the cap / floor strikes are held where the request put them\n(the linear solve on the coupon annuity), so repricing a capped or\nfloored CMS leg at `fair_spread` zeroes `npv` only to first order."
+          },
+          "legs": {
+            "type": "array",
+            "description": "One result per leg, in request order (`fixed_leg` then\n`floating_leg`): the leg's signed NPV and, with `include_flows`, its\nflows.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_SwapLegResult"
+            }
+          },
+          "used_cms_pricer_type": {
+            "$ref": "#/components/schemas/quantra_enums_CmsPricerType"
+          },
+          "used_cms_yield_curve_model": {
+            "$ref": "#/components/schemas/quantra_enums_CmsYieldCurveModel"
+          },
+          "used_cms_mean_reversion": {
+            "type": "number",
+            "description": "Effective CMS mean reversion used by the pricer. Absent when no CMS leg."
+          },
+          "used_cms_hagan_lower_limit": {
+            "type": "number",
+            "description": "Effective Numeric Hagan lower integration limit. Absent when not applicable."
+          },
+          "used_cms_hagan_upper_limit": {
+            "type": "number",
+            "description": "Effective Numeric Hagan upper integration limit. Absent when not applicable."
+          },
+          "used_cms_hagan_precision": {
+            "type": "number",
+            "description": "Effective Numeric Hagan integration precision. Absent when not applicable."
+          },
+          "used_cms_hagan_hard_upper_limit": {
+            "type": "number",
+            "description": "Effective Numeric Hagan hard upper integration limit. Absent when not applicable."
+          }
+        },
+        "required": [
+          "legs"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_PriceVanillaSwapResponse": {
+        "type": "object",
+        "description": "Response wrapper for multiple vanilla swaps, in request order.",
+        "properties": {
+          "swaps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_VanillaSwapResponse"
+            }
+          }
+        },
+        "required": [
+          "swaps"
         ],
         "additionalProperties": false
       },

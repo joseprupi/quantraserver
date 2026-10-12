@@ -13,7 +13,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
-#include "vanilla_swap_response_generated.h"
+#include "swap_leg_generated.h"
 
 namespace quantra {
 
@@ -28,79 +28,62 @@ struct PriceBasisSwapResponseT;
 struct BasisSwapResponseT : public ::flatbuffers::NativeTable {
   typedef BasisSwapResponse TableType;
   double npv = 0.0;
-  double leg1_bps = 0.0;
-  double leg2_bps = 0.0;
-  double leg1_npv = 0.0;
-  double leg2_npv = 0.0;
-  double fair_spread_leg1 = 0.0;
-  double fair_spread_leg2 = 0.0;
-  std::vector<std::unique_ptr<quantra::SwapLegFlowT>> leg1_flows{};
-  std::vector<std::unique_ptr<quantra::SwapLegFlowT>> leg2_flows{};
+  ::flatbuffers::Optional<double> fair_spread = ::flatbuffers::nullopt;
+  std::vector<std::unique_ptr<quantra::SwapLegResultT>> legs{};
   BasisSwapResponseT() = default;
   BasisSwapResponseT(const BasisSwapResponseT &o);
   BasisSwapResponseT(BasisSwapResponseT&&) FLATBUFFERS_NOEXCEPT = default;
   BasisSwapResponseT &operator=(BasisSwapResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Basis swap pricing response (two floating legs).
+/// Basis swap pricing result. With, for leg i, L_i the leg's flows in its
+/// own frame (coupons +, initial exchange -N_i at the schedule start, final
+/// exchange +N_i with the last coupon; no exchanges unless the leg asks for
+/// them), D_i its discounting curve and s_i = -1 for `Pay` / +1 for
+/// `Receive`:
+///   legs[i].npv           = s_i * CashFlows::npv(L_i, D_i)
+///   legs[i].npv_reporting = legs[i].npv                (one currency)
+///   npv                   = legs[0].npv + legs[1].npv
+/// `fair_spread` holds the other leg and every exchange fixed and solves the
+/// linear equation in the spread of leg k with that leg's signed annuity
+/// B_k = s_k * CashFlows::bps(coupons of leg k, D_k) (exchanges excluded):
+///   fair_spread = spread_k - npv * 1e-4 / B_k
+/// so repricing leg k at `fair_spread` gives npv = 0 to rounding. Every
+/// value is as of the evaluation date (the curves' reference date); flows on
+/// that date are excluded. Positive `npv` is in favour of the reported party.
 struct BasisSwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef BasisSwapResponseT NativeTableType;
   typedef BasisSwapResponseBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_NPV = 4,
-    VT_LEG1_BPS = 6,
-    VT_LEG2_BPS = 8,
-    VT_LEG1_NPV = 10,
-    VT_LEG2_NPV = 12,
-    VT_FAIR_SPREAD_LEG1 = 14,
-    VT_FAIR_SPREAD_LEG2 = 16,
-    VT_LEG1_FLOWS = 18,
-    VT_LEG2_FLOWS = 20
+    VT_FAIR_SPREAD = 6,
+    VT_LEGS = 8
   };
+  /// Total present value in the legs' currency, positive in favour of the
+  /// reported party.
   double npv() const {
     return GetField<double>(VT_NPV, 0.0);
   }
-  double leg1_bps() const {
-    return GetField<double>(VT_LEG1_BPS, 0.0);
+  /// Par spread of the leg that carries the request's spread, the other
+  /// leg's spread and every exchange held fixed: leg k = `leg1` when only
+  /// `leg1.coupons.spread` is non-zero, `leg2` otherwise (both spreads
+  /// zero or both non-zero: `leg2`, the quoted leg by market convention).
+  /// Absent when that leg's annuity is zero or the value is not finite.
+  ::flatbuffers::Optional<double> fair_spread() const {
+    return GetOptional<double, double>(VT_FAIR_SPREAD);
   }
-  double leg2_bps() const {
-    return GetField<double>(VT_LEG2_BPS, 0.0);
-  }
-  double leg1_npv() const {
-    return GetField<double>(VT_LEG1_NPV, 0.0);
-  }
-  double leg2_npv() const {
-    return GetField<double>(VT_LEG2_NPV, 0.0);
-  }
-  /// Par spread for leg1 keeping leg2 spread fixed.
-  double fair_spread_leg1() const {
-    return GetField<double>(VT_FAIR_SPREAD_LEG1, 0.0);
-  }
-  /// Par spread for leg2 keeping leg1 spread fixed.
-  double fair_spread_leg2() const {
-    return GetField<double>(VT_FAIR_SPREAD_LEG2, 0.0);
-  }
-  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *leg1_flows() const {
-    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *>(VT_LEG1_FLOWS);
-  }
-  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *leg2_flows() const {
-    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *>(VT_LEG2_FLOWS);
+  /// One result per leg, in request order (`leg1` then `leg2`): the leg's
+  /// signed NPV and, with `include_flows`, its flows.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegResult>> *legs() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegResult>> *>(VT_LEGS);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<double>(verifier, VT_NPV, 8) &&
-           VerifyField<double>(verifier, VT_LEG1_BPS, 8) &&
-           VerifyField<double>(verifier, VT_LEG2_BPS, 8) &&
-           VerifyField<double>(verifier, VT_LEG1_NPV, 8) &&
-           VerifyField<double>(verifier, VT_LEG2_NPV, 8) &&
-           VerifyField<double>(verifier, VT_FAIR_SPREAD_LEG1, 8) &&
-           VerifyField<double>(verifier, VT_FAIR_SPREAD_LEG2, 8) &&
-           VerifyOffset(verifier, VT_LEG1_FLOWS) &&
-           verifier.VerifyVector(leg1_flows()) &&
-           verifier.VerifyVectorOfTables(leg1_flows()) &&
-           VerifyOffset(verifier, VT_LEG2_FLOWS) &&
-           verifier.VerifyVector(leg2_flows()) &&
-           verifier.VerifyVectorOfTables(leg2_flows()) &&
+           VerifyField<double>(verifier, VT_FAIR_SPREAD, 8) &&
+           VerifyOffsetRequired(verifier, VT_LEGS) &&
+           verifier.VerifyVector(legs()) &&
+           verifier.VerifyVectorOfTables(legs()) &&
            verifier.EndTable();
   }
   BasisSwapResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -115,29 +98,11 @@ struct BasisSwapResponseBuilder {
   void add_npv(double npv) {
     fbb_.AddElement<double>(BasisSwapResponse::VT_NPV, npv, 0.0);
   }
-  void add_leg1_bps(double leg1_bps) {
-    fbb_.AddElement<double>(BasisSwapResponse::VT_LEG1_BPS, leg1_bps, 0.0);
+  void add_fair_spread(double fair_spread) {
+    fbb_.AddElement<double>(BasisSwapResponse::VT_FAIR_SPREAD, fair_spread);
   }
-  void add_leg2_bps(double leg2_bps) {
-    fbb_.AddElement<double>(BasisSwapResponse::VT_LEG2_BPS, leg2_bps, 0.0);
-  }
-  void add_leg1_npv(double leg1_npv) {
-    fbb_.AddElement<double>(BasisSwapResponse::VT_LEG1_NPV, leg1_npv, 0.0);
-  }
-  void add_leg2_npv(double leg2_npv) {
-    fbb_.AddElement<double>(BasisSwapResponse::VT_LEG2_NPV, leg2_npv, 0.0);
-  }
-  void add_fair_spread_leg1(double fair_spread_leg1) {
-    fbb_.AddElement<double>(BasisSwapResponse::VT_FAIR_SPREAD_LEG1, fair_spread_leg1, 0.0);
-  }
-  void add_fair_spread_leg2(double fair_spread_leg2) {
-    fbb_.AddElement<double>(BasisSwapResponse::VT_FAIR_SPREAD_LEG2, fair_spread_leg2, 0.0);
-  }
-  void add_leg1_flows(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>>> leg1_flows) {
-    fbb_.AddOffset(BasisSwapResponse::VT_LEG1_FLOWS, leg1_flows);
-  }
-  void add_leg2_flows(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>>> leg2_flows) {
-    fbb_.AddOffset(BasisSwapResponse::VT_LEG2_FLOWS, leg2_flows);
+  void add_legs(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegResult>>> legs) {
+    fbb_.AddOffset(BasisSwapResponse::VT_LEGS, legs);
   }
   explicit BasisSwapResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -146,6 +111,7 @@ struct BasisSwapResponseBuilder {
   ::flatbuffers::Offset<BasisSwapResponse> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<BasisSwapResponse>(end);
+    fbb_.Required(o, BasisSwapResponse::VT_LEGS);
     return o;
   }
 };
@@ -153,51 +119,26 @@ struct BasisSwapResponseBuilder {
 inline ::flatbuffers::Offset<BasisSwapResponse> CreateBasisSwapResponse(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double npv = 0.0,
-    double leg1_bps = 0.0,
-    double leg2_bps = 0.0,
-    double leg1_npv = 0.0,
-    double leg2_npv = 0.0,
-    double fair_spread_leg1 = 0.0,
-    double fair_spread_leg2 = 0.0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>>> leg1_flows = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>>> leg2_flows = 0) {
+    ::flatbuffers::Optional<double> fair_spread = ::flatbuffers::nullopt,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegResult>>> legs = 0) {
   BasisSwapResponseBuilder builder_(_fbb);
-  builder_.add_fair_spread_leg2(fair_spread_leg2);
-  builder_.add_fair_spread_leg1(fair_spread_leg1);
-  builder_.add_leg2_npv(leg2_npv);
-  builder_.add_leg1_npv(leg1_npv);
-  builder_.add_leg2_bps(leg2_bps);
-  builder_.add_leg1_bps(leg1_bps);
+  if(fair_spread) { builder_.add_fair_spread(*fair_spread); }
   builder_.add_npv(npv);
-  builder_.add_leg2_flows(leg2_flows);
-  builder_.add_leg1_flows(leg1_flows);
+  builder_.add_legs(legs);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<BasisSwapResponse> CreateBasisSwapResponseDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double npv = 0.0,
-    double leg1_bps = 0.0,
-    double leg2_bps = 0.0,
-    double leg1_npv = 0.0,
-    double leg2_npv = 0.0,
-    double fair_spread_leg1 = 0.0,
-    double fair_spread_leg2 = 0.0,
-    const std::vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *leg1_flows = nullptr,
-    const std::vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *leg2_flows = nullptr) {
-  auto leg1_flows__ = leg1_flows ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegFlow>>(*leg1_flows) : 0;
-  auto leg2_flows__ = leg2_flows ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegFlow>>(*leg2_flows) : 0;
+    ::flatbuffers::Optional<double> fair_spread = ::flatbuffers::nullopt,
+    const std::vector<::flatbuffers::Offset<quantra::SwapLegResult>> *legs = nullptr) {
+  auto legs__ = legs ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegResult>>(*legs) : 0;
   return quantra::CreateBasisSwapResponse(
       _fbb,
       npv,
-      leg1_bps,
-      leg2_bps,
-      leg1_npv,
-      leg2_npv,
-      fair_spread_leg1,
-      fair_spread_leg2,
-      leg1_flows__,
-      leg2_flows__);
+      fair_spread,
+      legs__);
 }
 
 ::flatbuffers::Offset<BasisSwapResponse> CreateBasisSwapResponse(::flatbuffers::FlatBufferBuilder &_fbb, const BasisSwapResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -211,7 +152,7 @@ struct PriceBasisSwapResponseT : public ::flatbuffers::NativeTable {
   PriceBasisSwapResponseT &operator=(PriceBasisSwapResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Response wrapper for multiple basis swaps.
+/// Response wrapper for multiple basis swaps, in request order.
 struct PriceBasisSwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceBasisSwapResponseT NativeTableType;
   typedef PriceBasisSwapResponseBuilder Builder;
@@ -273,28 +214,15 @@ inline ::flatbuffers::Offset<PriceBasisSwapResponse> CreatePriceBasisSwapRespons
 
 inline BasisSwapResponseT::BasisSwapResponseT(const BasisSwapResponseT &o)
       : npv(o.npv),
-        leg1_bps(o.leg1_bps),
-        leg2_bps(o.leg2_bps),
-        leg1_npv(o.leg1_npv),
-        leg2_npv(o.leg2_npv),
-        fair_spread_leg1(o.fair_spread_leg1),
-        fair_spread_leg2(o.fair_spread_leg2) {
-  leg1_flows.reserve(o.leg1_flows.size());
-  for (const auto &leg1_flows_ : o.leg1_flows) { leg1_flows.emplace_back((leg1_flows_) ? new quantra::SwapLegFlowT(*leg1_flows_) : nullptr); }
-  leg2_flows.reserve(o.leg2_flows.size());
-  for (const auto &leg2_flows_ : o.leg2_flows) { leg2_flows.emplace_back((leg2_flows_) ? new quantra::SwapLegFlowT(*leg2_flows_) : nullptr); }
+        fair_spread(o.fair_spread) {
+  legs.reserve(o.legs.size());
+  for (const auto &legs_ : o.legs) { legs.emplace_back((legs_) ? new quantra::SwapLegResultT(*legs_) : nullptr); }
 }
 
 inline BasisSwapResponseT &BasisSwapResponseT::operator=(BasisSwapResponseT o) FLATBUFFERS_NOEXCEPT {
   std::swap(npv, o.npv);
-  std::swap(leg1_bps, o.leg1_bps);
-  std::swap(leg2_bps, o.leg2_bps);
-  std::swap(leg1_npv, o.leg1_npv);
-  std::swap(leg2_npv, o.leg2_npv);
-  std::swap(fair_spread_leg1, o.fair_spread_leg1);
-  std::swap(fair_spread_leg2, o.fair_spread_leg2);
-  std::swap(leg1_flows, o.leg1_flows);
-  std::swap(leg2_flows, o.leg2_flows);
+  std::swap(fair_spread, o.fair_spread);
+  std::swap(legs, o.legs);
   return *this;
 }
 
@@ -308,14 +236,8 @@ inline void BasisSwapResponse::UnPackTo(BasisSwapResponseT *_o, const ::flatbuff
   (void)_o;
   (void)_resolver;
   { auto _e = npv(); _o->npv = _e; }
-  { auto _e = leg1_bps(); _o->leg1_bps = _e; }
-  { auto _e = leg2_bps(); _o->leg2_bps = _e; }
-  { auto _e = leg1_npv(); _o->leg1_npv = _e; }
-  { auto _e = leg2_npv(); _o->leg2_npv = _e; }
-  { auto _e = fair_spread_leg1(); _o->fair_spread_leg1 = _e; }
-  { auto _e = fair_spread_leg2(); _o->fair_spread_leg2 = _e; }
-  { auto _e = leg1_flows(); if (_e) { _o->leg1_flows.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->leg1_flows[_i]) { _e->Get(_i)->UnPackTo(_o->leg1_flows[_i].get(), _resolver); } else { _o->leg1_flows[_i] = std::unique_ptr<quantra::SwapLegFlowT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->leg1_flows.resize(0); } }
-  { auto _e = leg2_flows(); if (_e) { _o->leg2_flows.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->leg2_flows[_i]) { _e->Get(_i)->UnPackTo(_o->leg2_flows[_i].get(), _resolver); } else { _o->leg2_flows[_i] = std::unique_ptr<quantra::SwapLegFlowT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->leg2_flows.resize(0); } }
+  { auto _e = fair_spread(); _o->fair_spread = _e; }
+  { auto _e = legs(); if (_e) { _o->legs.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->legs[_i]) { _e->Get(_i)->UnPackTo(_o->legs[_i].get(), _resolver); } else { _o->legs[_i] = std::unique_ptr<quantra::SwapLegResultT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->legs.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<BasisSwapResponse> BasisSwapResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const BasisSwapResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -327,25 +249,13 @@ inline ::flatbuffers::Offset<BasisSwapResponse> CreateBasisSwapResponse(::flatbu
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const BasisSwapResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _npv = _o->npv;
-  auto _leg1_bps = _o->leg1_bps;
-  auto _leg2_bps = _o->leg2_bps;
-  auto _leg1_npv = _o->leg1_npv;
-  auto _leg2_npv = _o->leg2_npv;
-  auto _fair_spread_leg1 = _o->fair_spread_leg1;
-  auto _fair_spread_leg2 = _o->fair_spread_leg2;
-  auto _leg1_flows = _o->leg1_flows.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegFlow>> (_o->leg1_flows.size(), [](size_t i, _VectorArgs *__va) { return CreateSwapLegFlow(*__va->__fbb, __va->__o->leg1_flows[i].get(), __va->__rehasher); }, &_va ) : 0;
-  auto _leg2_flows = _o->leg2_flows.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegFlow>> (_o->leg2_flows.size(), [](size_t i, _VectorArgs *__va) { return CreateSwapLegFlow(*__va->__fbb, __va->__o->leg2_flows[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _fair_spread = _o->fair_spread;
+  auto _legs = _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegResult>> (_o->legs.size(), [](size_t i, _VectorArgs *__va) { return CreateSwapLegResult(*__va->__fbb, __va->__o->legs[i].get(), __va->__rehasher); }, &_va );
   return quantra::CreateBasisSwapResponse(
       _fbb,
       _npv,
-      _leg1_bps,
-      _leg2_bps,
-      _leg1_npv,
-      _leg2_npv,
-      _fair_spread_leg1,
-      _fair_spread_leg2,
-      _leg1_flows,
-      _leg2_flows);
+      _fair_spread,
+      _legs);
 }
 
 inline PriceBasisSwapResponseT::PriceBasisSwapResponseT(const PriceBasisSwapResponseT &o) {

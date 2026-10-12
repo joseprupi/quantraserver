@@ -6,7 +6,10 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Single swaption pricing request with curve/vol/model references.
+# One swaption to price with its vol and model references. The curves come
+# from the underlying swap's legs (`SwapLeg.discounting_curve`, which both
+# legs must name identically, and the floating / overnight leg's
+# `forwarding_curve`); every reference is by id into `pricing`.
 class PriceSwaption(object):
     __slots__ = ['_tab']
 
@@ -25,6 +28,7 @@ class PriceSwaption(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # The swaption (exercise, settlement and the underlying swap). Required.
     # PriceSwaption
     def Swaption(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -36,26 +40,10 @@ class PriceSwaption(object):
             return obj
         return None
 
-    # Reference to curve in pricing.rates.curves by id.
-    # PriceSwaption
-    def DiscountingCurve(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
-        if o != 0:
-            return self._tab.String(o + self._tab.Pos)
-        return None
-
-    # Reference to curve in pricing.rates.curves for forward rates by id.
-    # PriceSwaption
-    def ForwardingCurve(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            return self._tab.String(o + self._tab.Pos)
-        return None
-
     # Reference to volatility in pricing.volatility.vol_surfaces by id.
     # PriceSwaption
     def Volatility(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
         return None
@@ -63,13 +51,13 @@ class PriceSwaption(object):
     # Reference to model in pricing.volatility.models by id.
     # PriceSwaption
     def Model(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
         return None
 
 def PriceSwaptionStart(builder):
-    builder.StartObject(5)
+    builder.StartObject(3)
 
 def Start(builder):
     PriceSwaptionStart(builder)
@@ -80,26 +68,14 @@ def PriceSwaptionAddSwaption(builder, swaption):
 def AddSwaption(builder, swaption):
     PriceSwaptionAddSwaption(builder, swaption)
 
-def PriceSwaptionAddDiscountingCurve(builder, discountingCurve):
-    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(discountingCurve), 0)
-
-def AddDiscountingCurve(builder, discountingCurve):
-    PriceSwaptionAddDiscountingCurve(builder, discountingCurve)
-
-def PriceSwaptionAddForwardingCurve(builder, forwardingCurve):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(forwardingCurve), 0)
-
-def AddForwardingCurve(builder, forwardingCurve):
-    PriceSwaptionAddForwardingCurve(builder, forwardingCurve)
-
 def PriceSwaptionAddVolatility(builder, volatility):
-    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(volatility), 0)
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(volatility), 0)
 
 def AddVolatility(builder, volatility):
     PriceSwaptionAddVolatility(builder, volatility)
 
 def PriceSwaptionAddModel(builder, model):
-    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(model), 0)
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(model), 0)
 
 def AddModel(builder, model):
     PriceSwaptionAddModel(builder, model)
@@ -120,8 +96,6 @@ class PriceSwaptionT(object):
     # PriceSwaptionT
     def __init__(self):
         self.swaption = None  # type: Optional[SwaptionT]
-        self.discountingCurve = None  # type: str
-        self.forwardingCurve = None  # type: str
         self.volatility = None  # type: str
         self.model = None  # type: str
 
@@ -148,8 +122,6 @@ class PriceSwaptionT(object):
             return
         if priceSwaption.Swaption() is not None:
             self.swaption = SwaptionT.InitFromObj(priceSwaption.Swaption())
-        self.discountingCurve = priceSwaption.DiscountingCurve()
-        self.forwardingCurve = priceSwaption.ForwardingCurve()
         self.volatility = priceSwaption.Volatility()
         self.model = priceSwaption.Model()
 
@@ -157,10 +129,6 @@ class PriceSwaptionT(object):
     def Pack(self, builder):
         if self.swaption is not None:
             swaption = self.swaption.Pack(builder)
-        if self.discountingCurve is not None:
-            discountingCurve = builder.CreateString(self.discountingCurve)
-        if self.forwardingCurve is not None:
-            forwardingCurve = builder.CreateString(self.forwardingCurve)
         if self.volatility is not None:
             volatility = builder.CreateString(self.volatility)
         if self.model is not None:
@@ -168,10 +136,6 @@ class PriceSwaptionT(object):
         PriceSwaptionStart(builder)
         if self.swaption is not None:
             PriceSwaptionAddSwaption(builder, swaption)
-        if self.discountingCurve is not None:
-            PriceSwaptionAddDiscountingCurve(builder, discountingCurve)
-        if self.forwardingCurve is not None:
-            PriceSwaptionAddForwardingCurve(builder, forwardingCurve)
         if self.volatility is not None:
             PriceSwaptionAddVolatility(builder, volatility)
         if self.model is not None:

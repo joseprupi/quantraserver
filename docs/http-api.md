@@ -571,13 +571,240 @@ reported in EUR, a 1Y forward struck on-market (spot + 1Y points, NPV zero
 to bootstrap accuracy), the spot through an `Fx` quote, and a USD/JPY 3M sale
 on SOFR and TONA OIS curves.
 
+## Swap legs
+
+Every swap endpoint (`/price-vanilla-swap`, `/price-ois-swap`,
+`/price-basis-swap`, `/price-cross-currency-swap`) and the swaption's
+underlying use one leg table, `SwapLeg`. Each swap is two legs under
+role-named fields (`fixed_leg` / `floating_leg`, `fixed_leg` /
+`overnight_leg`, `leg1` / `leg2`); the role fixes which coupon kinds the leg
+may carry. The leg is flat, as in the FpML / ORE leg model: the fields every
+coupon kind shares (side, currency, notional, schedule, day count, payment
+conventions, curves, exchanges) are on the leg, and `coupons` holds only
+what is specific to the kind (a fixed rate; an index and a spread; ...).
+There is no `swap_type` and no curve id on the request wrapper.
+
+| Field | Meaning |
+| --- | --- |
+| `pay_receive` | `Pay` or `Receive`: the side of the reported party on this leg's coupons. Presence-required; the two legs of a swap must take opposite values (`400` otherwise). A payer swap is `fixed_leg.pay_receive = "Pay"`. |
+| `currency` | ISO 4217 code of the leg (three uppercase letters). A floating leg's index must carry the same `IndexDef.currency`. The two legs of a vanilla, OIS or basis swap must be in one currency, the two legs of a cross-currency swap in two. Required. |
+| `notional` | Constant notional of the coupons and of the principal exchanges, `> 0`. Presence-required unless `notionals` is given. |
+| `notionals` | Optional per-period notionals, one per coupon period, each `> 0` (amortizing / step-up; the first entry is the exchanged notional). Accepted on the two legs of `/price-vanilla-swap` (with `FixedCoupons` or `IborCoupons`); a `400` naming the endpoint elsewhere. |
+| `schedule` | Accrual schedule of the coupons. Required. |
+| `day_counter` | Accrual day count. Presence-required with `FixedCoupons`, `IborCoupons`, `CmsCoupons`; accepted but not read with `OvernightCoupons` (the index's day count applies). |
+| `payment_convention` | Business-day convention of the payment dates. Presence-required. |
+| `payment_calendar` | Calendar the payment dates are adjusted (and lagged) on. Absent = the schedule's calendar. Presence-required on both legs of `/price-ois-swap`; a `400` with `CmsCoupons`. |
+| `payment_lag` | Business days between each accrual end and its payment (`>= 0`). Absent = 0. Presence-required on both legs of `/price-ois-swap` (QuantLib's `OvernightIndexedSwap` applies one lag to both legs; here it is a per-leg convention); a `400` with `CmsCoupons`. |
+| `coupons_type`, `coupons` | The kind-specific coupon fields, a union written as a tag and a value (the tag first): `FixedCoupons`, `IborCoupons`, `OvernightCoupons` or `CmsCoupons`; which are accepted depends on the leg's role (table below). |
+| `discounting_curve` | Curve in `pricing.rates.curves` that discounts every flow of the leg (coupons and exchanges). Required. |
+| `forwarding_curve` | Curve the floating index projects off (for `CmsCoupons`, the curve the swap index's IBOR leg projects off). Required with `IborCoupons` / `OvernightCoupons` / `CmsCoupons`, rejected with `FixedCoupons`. |
+| `initial_exchange` | Whether the leg's notional is exchanged on its schedule's start date. Presence-required on `/price-cross-currency-swap`; on the single-currency endpoints absent = `false`, and an explicit `true` is priced (the exchange becomes a `NotionalExchange` flow of the leg). Rejected when `true` on a swaption underlying. |
+| `final_exchange` | Whether the leg's notional is exchanged on the last coupon's payment date. Same presence rule as `initial_exchange`. |
+
+The coupon tables (kind-specific fields only):
+
+| `coupons_type` | Accepted as | Fields | Index |
+| --- | --- | --- | --- |
+| `FixedCoupons` | `VanillaSwap.fixed_leg`, `OisSwap.fixed_leg`, either cross-currency leg | `rate` (decimal, may be negative) | none |
+| `IborCoupons` | `VanillaSwap.floating_leg`, either `BasisSwap` leg, either cross-currency leg | `index`, `spread`, `fixing_days` (absent = the index's own `fixing_days`; `>= 0`), `in_arrears` (fixes at the accrual end, no convexity adjustment) | an IBOR index; an overnight index is a `400` that names `OvernightCoupons` |
+| `OvernightCoupons` | `OisSwap.overnight_leg`, either `BasisSwap` leg, either cross-currency leg | `index`, `spread`, `averaging_method`, `lookback_days`, `lockout_days`, `apply_observation_shift` (presence-required), `telescopic_value_dates` | an overnight index; an IBOR index is a `400` that names `IborCoupons` |
+| `CmsCoupons` | `VanillaSwap.floating_leg` only | `swap_index_id`, `swap_tenor`, `swaption_vol_id`, `gear`, `spread`, `fixing_days` (negative = the swap index's spot days), `cap`, `floor`, `pricer` | the swap index's IBOR leg (`pricing.rates.swap_indices`) |
+
+A leg is built once, by one piece of code, whatever endpoint it comes
+through: `FixedCoupons` is QuantLib's `FixedRateLeg`, `IborCoupons` its
+`IborLeg` with a zero-volatility pricer (the chains `QuantLib::VanillaSwap`
+assembles), `OvernightCoupons` its `OvernightLeg` with the OIS payment and
+observation conventions (the chain `QuantLib::OvernightIndexedSwap`
+assembles), `CmsCoupons` its `CmsLeg` with the requested CMS pricer. Each leg
+pays on its own `payment_convention` / `payment_calendar` / `payment_lag`,
+prices its own `notional` and is discounted on its own curve.
+
+A leg in JSON:
+
+```json
+{
+  "pay_receive": "Receive",
+  "currency": "EUR",
+  "notional": 1000000.0,
+  "schedule": { "effective_date": "2025-01-17", "termination_date": "2030-01-17",
+                "frequency": "Semiannual", "calendar": "TARGET",
+                "convention": "ModifiedFollowing", "termination_date_convention": "ModifiedFollowing",
+                "date_generation_rule": "Forward", "end_of_month": false },
+  "day_counter": "Actual360",
+  "payment_convention": "ModifiedFollowing",
+  "coupons_type": "IborCoupons",
+  "coupons": { "index": { "id": "EUR_6M" }, "spread": 0.0 },
+  "discounting_curve": "EUR_OIS",
+  "forwarding_curve": "EUR_6M_FWD"
+}
+```
+
+### Legs in the response
+
+Every swap row reports `npv` and `legs`, one `SwapLegResult` per leg in
+request order, plus the endpoint's fair quantity:
+
+| Field | Meaning |
+| --- | --- |
+| `npv` | Total present value in the reporting currency (the legs' currency on the single-currency endpoints), positive in favour of the reported party (the one whose `pay_receive` sides were given). |
+| `legs[i].npv` | Present value of leg `i` (coupons and exchanges) in its own currency, signed from the reported party's view: the leg's own-frame value (as the receiver of its coupons sees it) times `-1` for a leg the party pays and `+1` for a leg it receives. A paid leg is negative only when it is worth paying for (paying 2.55% fixed on a 3% curve is in the payer's favour and positive). `npv` is the sum of the legs. |
+| `legs[i].npv_reporting` | `legs[i].npv` in the reporting currency; equal to `legs[i].npv` on the single-currency endpoints. |
+| `legs[i].flows` | With `include_flows`: the leg's future flows in leg order (coupons first, then the exchanges), in the leg's own frame: coupon amounts positive, the initial exchange `-notional`, the final `+notional`. Every flow carries `kind` (`Coupon` or `NotionalExchange`); a `NotionalExchange` has `payment_date`, `amount`, `discount`, `present_value` and `kind` only. The sum of a leg's `present_value`s is its own-frame PV (`legs[i].npv` without the side's sign). An overnight coupon's `rate` is the compounded rate (plus spread) and `index_fixing` the fixing on its first fixing date; a CMS coupon also carries `cms_swap_rate`. Flows on the evaluation date are excluded. |
+
+With `L_i` the flows of leg `i` in its own frame, `D_i` its discounting
+curve, `s_i = -1` for `Pay` / `+1` for `Receive` and `B_i = s_i *
+CashFlows::bps(coupons of leg i, D_i)` its signed basis-point sensitivity
+(exchanges excluded):
+
+```
+legs[i].npv = s_i * CashFlows::npv(L_i, D_i)
+npv         = legs[0].npv + legs[1].npv                      (one currency)
+fair_rate   = rate_fixed   - npv / (B_fixed / 1e-4)          (vanilla, OIS: QuantLib's VanillaSwap / OvernightIndexedSwap fairRate)
+fair_spread = spread_float - npv / (B_float / 1e-4)          (vanilla, OIS: the floating / overnight leg; QuantLib's fairSpread)
+fair_spread = spread_k     - npv * 1e-4 / B_k                (basis: leg k = the leg carrying the request's spread)
+```
+
+Every swap endpoint reports `fair_rate` iff exactly one leg carries
+`FixedCoupons` and `fair_spread` iff a leg carries `IborCoupons`,
+`OvernightCoupons` or `CmsCoupons` (a fixed-vs-floating swap reports both,
+a float/float swap only `fair_spread`, a fixed/fixed cross-currency swap
+neither). Each holds the other leg and every exchange fixed; repricing at
+the fair value gives an NPV of zero to rounding (a CMS leg with a `cap` /
+`floor` keeps its strikes, so there `fair_spread` zeroes the NPV to first
+order). A fair quantity is absent when its leg's annuity is zero.
+
+### Rejected requests (every swap endpoint)
+
+Each is a `400` naming the field: a missing `pay_receive`; both legs `Pay`
+or both `Receive`; a missing `coupons` / `coupons_type`, or a coupon kind
+the leg's role does not accept (the message lists the accepted kinds);
+`IborCoupons` on an overnight index (names `OvernightCoupons`) or
+`OvernightCoupons` on an IBOR index (names `IborCoupons`); a missing
+`forwarding_curve` on a floating leg or a present one on a fixed leg; a
+missing, non-positive or non-finite `notional`; a per-period `notionals`
+vector outside the vanilla swap; a missing `schedule`, `day_counter` or
+`payment_convention`; a missing `payment_calendar` / `payment_lag` on an OIS
+leg or a present one on a CMS leg; a non-finite `rate` / `spread`; a
+missing overnight convention; negative `fixing_days` / `payment_lag` /
+`lookback_days` / `lockout_days`; a currency that is not three uppercase
+letters; a leg currency that is not its floating index's `IndexDef.currency`;
+two currencies on a single-currency endpoint (use
+`/price-cross-currency-swap`) or one currency on the cross-currency
+endpoint. Missing required strings and tables (the swap, its legs,
+`currency`, `schedule`, `coupons`, `discounting_curve`) are rejected by the
+JSON parser. An unknown curve, index, swap index or vol id is a `404`.
+
+## Vanilla swap
+
+`POST /price-vanilla-swap` prices a fixed leg against an IBOR or CMS
+floating leg in one currency. `VanillaSwap.fixed_leg` carries
+`FixedCoupons`, `VanillaSwap.floating_leg` carries `IborCoupons` or
+`CmsCoupons` (a CMS swap is a vanilla swap whose floating leg carries CMS
+coupons; the response then adds the `used_cms_*` block with the effective
+pricer settings). Both legs accept a per-period `notionals` vector
+(amortizing / step-up) in place of the constant `notional`.
+
+```json
+{
+  "pricing": { "as_of_date": "2025-01-15", "rates": { "...": "indices EUR_6M; curves EUR_OIS, EUR_6M_FWD" } },
+  "swaps": [
+    {
+      "vanilla_swap": {
+        "fixed_leg": {
+          "pay_receive": "Pay",
+          "currency": "EUR",
+          "notional": 1000000.0,
+          "schedule": { "effective_date": "2025-01-17", "termination_date": "2030-01-17",
+                        "frequency": "Annual", "calendar": "TARGET", "...": "..." },
+          "day_counter": "Thirty360",
+          "payment_convention": "ModifiedFollowing",
+          "coupons_type": "FixedCoupons",
+          "coupons": { "rate": 0.035 },
+          "discounting_curve": "EUR_OIS"
+        },
+        "floating_leg": {
+          "pay_receive": "Receive",
+          "currency": "EUR",
+          "notional": 1000000.0,
+          "schedule": { "frequency": "Semiannual", "...": "..." },
+          "day_counter": "Actual360",
+          "payment_convention": "ModifiedFollowing",
+          "coupons_type": "IborCoupons",
+          "coupons": { "index": { "id": "EUR_6M" }, "spread": 0.0 },
+          "discounting_curve": "EUR_OIS",
+          "forwarding_curve": "EUR_6M_FWD"
+        }
+      }
+    }
+  ],
+  "include_flows": false
+}
+```
+
+Response row: `npv`, `fair_rate` (the fixed rate that zeroes `npv`, the
+floating leg held fixed; also for a CMS floating leg), `fair_spread` (the
+floating leg's spread that zeroes `npv`, the fixed leg held fixed; also for
+a CMS floating leg), `legs[0]` (the fixed leg), `legs[1]` (the floating leg)
+and, for a CMS floating leg,
+`used_cms_pricer_type`, `used_cms_yield_curve_model`,
+`used_cms_mean_reversion` and the `used_cms_hagan_*` limits. Worked
+examples: `examples/data/ir_swaps/irs_*.json` and `cms_*.json`.
+
+## OIS swap
+
+`POST /price-ois-swap` prices a fixed leg against a compounded (or
+averaged) overnight leg in one currency. `OisSwap.fixed_leg` carries
+`FixedCoupons`, `OisSwap.overnight_leg` carries `OvernightCoupons`. Both legs
+state `payment_calendar` and `payment_lag` (presence-required on this
+endpoint: an OIS pays with the overnight calendar and lag): an OIS that pays
+two business days after each period end states
+`"payment_calendar": "TARGET", "payment_lag": 2` on both legs, a plain one
+`"payment_lag": 0`.
+
+Response row: `npv`, `fair_rate` (the fixed rate that zeroes `npv`),
+`fair_spread` (the overnight leg's spread that zeroes `npv`), `legs[0]` (the
+fixed leg), `legs[1]` (the overnight leg). Worked examples:
+`examples/data/ir_swaps/ois_*.json`.
+
+## Basis swap
+
+`POST /price-basis-swap` prices two floating legs in one currency, each
+`IborCoupons` or `OvernightCoupons` (3M vs 6M IBOR, IBOR vs overnight),
+each projected on its own `forwarding_curve` and discounted on its own
+`discounting_curve`.
+
+Response row: `npv`, `fair_spread` and `legs[0]` / `legs[1]` (`leg1` /
+`leg2`). `fair_spread` is the par spread of the leg that carries the
+request's spread: `leg1` when only `leg1.coupons.spread` is non-zero,
+`leg2` otherwise (both spreads zero or both non-zero: `leg2`, the quoted
+leg by market convention), the other leg held fixed. Worked examples:
+`examples/data/ir_swaps/basis_*.json`.
+
+## Swaption underlying
+
+`POST /price-swaption` takes its underlying as a `VanillaSwap` or an
+`OisSwap` in the same leg shape (`"underlying_type": "VanillaSwap"` before
+`"underlying"`). The swaption's curves are the underlying legs': both legs
+must name the same `discounting_curve` (the swaption is priced on one
+discount curve, `400` otherwise) and the floating / overnight leg's
+`forwarding_curve` projects the index; the request wrapper keeps only the
+swaption-specific references (`volatility`, `model`). The underlying is
+priced from QuantLib's own `VanillaSwap` / `OvernightIndexedSwap` built from
+the two legs, which takes the fixed leg's notional for both legs, adjusts
+both legs' payments with the floating schedule's convention and fixes the
+IBOR leg on the index's own fixing days; `fixed_leg.pay_receive = "Pay"` is
+a payer swaption. On an underlying leg `CmsCoupons`, `in_arrears`, a
+per-period `notionals` vector and a `true` exchange flag are each a `400`
+naming the field.
+
 ## Cross-currency swap
 
 `POST /price-cross-currency-swap` prices swaps with two legs in two
-currencies. Each leg is a `SwapLeg`: a coupon stream (fixed, IBOR or
-compounded overnight) in one currency, paid or received by the reported
-party, discounted on its own curve, with its own principal exchanges. The
-swap names the FX spot that converts between the two currencies
+currencies. Each leg is a `SwapLeg` (see "Swap legs"): a coupon stream
+(fixed, IBOR or compounded overnight; `CmsCoupons` is a `400` on this
+endpoint) in one currency, paid or received by the reported party,
+discounted on its own curve, with its own principal exchanges, both
+presence-required here. The swap names the FX spot that converts between the two currencies
 (`pricing.fx.spots`, see "FX spot market data") and the currency its total
 NPV is reported in. QuantLib has no cross-currency swap instrument: each leg
 is a QuantLib cash-flow leg (coupons plus `SimpleCashFlow` exchanges) valued
@@ -585,37 +812,6 @@ with `CashFlows::npv` / `CashFlows::bps`; the conversion uses the same as-of
 exchange rate as the FX forward, so a basis swap with the conventions of a
 `CrossCcyBasisHelper` pillar reprices that pillar's spread as its fair
 spread.
-
-### The `SwapLeg` model
-
-`SwapLeg` is the leg table every swap endpoint moves to in 0.10.0 (vanilla,
-OIS and basis swaps keep their own endpoints and get `SwapLeg` legs); in
-0.9.0 the cross-currency swap is its first user. A leg carries:
-
-| Field | Meaning |
-| --- | --- |
-| `pay_receive` | `Pay` or `Receive`: the side of the reported party on this leg's coupons. Presence-required; the two legs of a swap must take opposite values (`400` otherwise). |
-| `currency` | ISO 4217 code of the leg (three uppercase letters). A floating leg's index must carry the same `IndexDef.currency`. Required. |
-| `coupons_type`, `coupons` | The coupons, a union written as a tag and a value (the tag first): `FixedCoupons`, `IborCoupons` or `OvernightCoupons`; `CmsCoupons` is a member of the union but a `400` on this endpoint in this version. Constant `notional` only (`> 0`, presence-required); a per-period `notionals` vector is rejected. |
-| `discounting_curve` | Curve in `pricing.rates.curves` that discounts every flow of the leg (for a collateralised trade, the currency's collateral-adjusted curve). Required. |
-| `forwarding_curve` | Curve the floating index projects off. Required with `IborCoupons` / `OvernightCoupons`, rejected with `FixedCoupons`. |
-| `initial_exchange` | Whether the leg's notional is exchanged on its schedule's start date. Presence-required. |
-| `final_exchange` | Whether the leg's notional is exchanged on the last coupon's payment date. Presence-required. |
-
-The coupon tables are the ones the other swap endpoints use (renamed in
-0.9.0, field names unchanged):
-
-| `coupons_type` | Table (old name) | Fields | Index |
-| --- | --- | --- | --- |
-| `FixedCoupons` | `SwapFixedLeg` | `schedule`, `notional`, `rate`, `day_counter`, `payment_convention` (all presence-required; `rate` may be negative) | none |
-| `IborCoupons` | `SwapFloatingLeg` | `schedule`, `notional`, `index`, `spread`, `day_counter`, `payment_convention`, `fixing_days` (default 2, `>= 0`), `in_arrears` (fixes at the accrual end, no convexity adjustment) | an IBOR index; an overnight index is a `400` that names `OvernightCoupons` |
-| `OvernightCoupons` | `OisFloatingLeg` | `schedule`, `notional`, `index`, `spread`, `payment_convention`, `payment_calendar`, `payment_lag`, `averaging_method`, `lookback_days`, `lockout_days`, `apply_observation_shift` (all presence-required), `telescopic_value_dates`; `day_counter` is accepted but not read (the index's day count applies) | an overnight index; an IBOR index is a `400` that names `IborCoupons` |
-
-An `OvernightCoupons` leg is built by the same code as `price-ois-swap`'s
-overnight leg (QuantLib `OvernightLeg` with the OIS payment and observation
-conventions), so the SOFR leg of a cross-currency swap and the floating leg
-of the matching OIS are the same cash flows. An `IborCoupons` leg is the
-vanilla / basis swap's IBOR leg (QuantLib `IborLeg`, zero-volatility pricer).
 
 ### Request
 
@@ -633,28 +829,32 @@ vanilla / basis swap's IBOR leg (QuantLib `IborLeg`, zero-volatility pricer).
         "leg1": {
           "pay_receive": "Pay",
           "currency": "EUR",
+          "notional": 10000000.0,
+          "schedule": { "effective_date": "2025-01-17", "termination_date": "2030-01-17",
+                        "frequency": "Annual", "calendar": "TARGET", "...": "..." },
+          "day_counter": "Thirty360",
+          "payment_convention": "ModifiedFollowing",
           "coupons_type": "FixedCoupons",
-          "coupons": { "notional": 10000000.0, "rate": 0.0255, "day_counter": "Thirty360",
-                       "payment_convention": "ModifiedFollowing",
-                       "schedule": { "effective_date": "2025-01-17", "termination_date": "2030-01-17",
-                                     "frequency": "Annual", "calendar": "TARGET", "...": "..." } },
+          "coupons": { "rate": 0.0255 },
+          "discounting_curve": "EUR_USD_COLLATERAL",
           "initial_exchange": true,
-          "final_exchange": true,
-          "discounting_curve": "EUR_USD_COLLATERAL"
+          "final_exchange": true
         },
         "leg2": {
           "pay_receive": "Receive",
           "currency": "USD",
+          "notional": 10850000.0,
+          "schedule": { "frequency": "Quarterly", "...": "..." },
+          "payment_convention": "ModifiedFollowing",
+          "payment_calendar": "TARGET",
+          "payment_lag": 0,
           "coupons_type": "OvernightCoupons",
-          "coupons": { "notional": 10850000.0, "index": { "id": "USD_SOFR" }, "spread": 0.0,
-                       "payment_convention": "ModifiedFollowing", "payment_calendar": "TARGET",
-                       "payment_lag": 0, "averaging_method": "Compound", "lookback_days": 0,
-                       "lockout_days": 0, "apply_observation_shift": false,
-                       "schedule": { "frequency": "Quarterly", "...": "..." } },
-          "initial_exchange": true,
-          "final_exchange": true,
+          "coupons": { "index": { "id": "USD_SOFR" }, "spread": 0.0, "averaging_method": "Compound",
+                       "lookback_days": 0, "lockout_days": 0, "apply_observation_shift": false },
           "discounting_curve": "USD_SOFR_OIS",
-          "forwarding_curve": "USD_SOFR_OIS"
+          "forwarding_curve": "USD_SOFR_OIS",
+          "initial_exchange": true,
+          "final_exchange": true
         }
       },
       "fx_spot": "EURUSD_SPOT",
@@ -694,7 +894,7 @@ One row per swap, in request order.
 | `legs[i].npv` | the leg's currency | Present value of the leg (coupons and exchanges), signed from the reported party's view: the leg's own-frame value (as the receiver of its coupons sees it) times `-1` for a leg the party pays and `+1` for a leg it receives. A paid leg is negative only when it is worth paying for (paying 2.55% fixed with both exchanges on a 3% curve is in the payer's favour and positive). `legs[0]` is `leg1`, `legs[1]` is `leg2`. |
 | `legs[i].npv_reporting` | `reporting_currency` | The leg NPV converted at the as-of exchange rate (unchanged for the leg already in the reporting currency); `npv` is their sum. |
 | `fair_rate` | rate (decimal) | Present iff exactly one leg has `FixedCoupons`: the fixed rate that zeroes `npv`, holding the other leg and every exchange fixed. Absent for float/float and fixed/fixed swaps. |
-| `fair_spread` | rate (decimal) | Present iff no leg has `FixedCoupons`: the spread on **`legs[1]`** (`leg2`) that zeroes `npv`, holding `legs[0]` and every exchange fixed. Absent when a leg is fixed. |
+| `fair_spread` | rate (decimal) | Present iff a leg has `IborCoupons` or `OvernightCoupons`: the spread on the floating leg of a fixed/float swap, or on **`legs[1]`** (`leg2`) of a float/float one, that zeroes `npv`, holding the other leg and every exchange fixed. Absent for fixed/fixed swaps. |
 | `fx_spot_used` | quote per base of the spot | The spot rate used, inline or through the referenced `Fx` quote. |
 | `fx_as_of_rate` | quote per base of the spot | `X = S x DF_quote(t_s) / DF_base(t_s)` on the two legs' discounting curves (see "FX forward"). |
 | `spot_date` | ISO date | Spot date of the referenced spot. |
@@ -716,7 +916,7 @@ legs[i].npv_reporting = legs[i].npv  (x X when converting base -> quote, / X the
 npv                   = legs[0].npv_reporting + legs[1].npv_reporting
 A_i                   = CashFlows::bps(C_i, D_i) / 1e-4             [annuity of the coupons; exchanges excluded]
 fair_rate             = rate_f   - NPV[in the fixed leg's currency] / (s_f * A_f)
-fair_spread           = spread_1 - NPV[in legs[1]'s currency]       / (s_1 * A_1)
+fair_spread           = spread_k - NPV[in leg k's currency]         / (s_k * A_k)   (k = the floating leg, legs[1] when both float)
 ```
 
 The NPV is linear in the fixed rate and in the spread (a fixed coupon is
@@ -735,11 +935,11 @@ both legs `Pay` or both `Receive`; a missing `coupons` / `coupons_type`;
 or `OvernightCoupons` on an IBOR index (names `IborCoupons`); a missing
 `initial_exchange` or `final_exchange`; a missing `forwarding_curve` on a
 floating leg or a present one on a fixed leg; a missing, non-positive or
-non-finite notional; a per-period `notionals` vector; a non-finite `rate` /
-`spread`; a missing coupon convention (`day_counter`, `payment_convention`,
-and on `OvernightCoupons` `payment_calendar`, `payment_lag`,
-`averaging_method`, `lookback_days`, `lockout_days`,
-`apply_observation_shift`); negative `fixing_days` / `payment_lag` /
+non-finite `notional`; a per-period `notionals` vector; a non-finite `rate`
+/ `spread`; a missing `schedule`, `day_counter` (fixed / IBOR legs) or
+`payment_convention`; a missing overnight convention (`averaging_method`,
+`lookback_days`, `lockout_days`, `apply_observation_shift`); negative
+`fixing_days` / `payment_lag` /
 `lookback_days` / `lockout_days`; a currency that is not three uppercase
 letters; the two legs in the same currency (a vanilla, OIS or basis swap:
 use those endpoints); a leg currency that is not its floating index's
@@ -802,8 +1002,9 @@ default, so a `double` that is exactly `0.0` (for example a bond's
 Fields declared optional (`= null` in the schema) are the exception: they are
 absent until the engine sets them. A scalar that the engine computes only under
 a request flag or condition (the swaption greeks, `atm_forward`, `annuity`,
-the Hull-White `used_hw_*` diagnostics, `cms_swap_rate`, `fair_spread`, the
-cross-currency swap's `fair_rate` / `fair_spread` and the flow `kind`) is
+the Hull-White `used_hw_*` diagnostics, `cms_swap_rate`, the CDS
+`fair_spread`, every swap endpoint's `fair_rate` / `fair_spread`, the
+`used_cms_*` block and the flow `kind`) is
 declared optional for that reason, so its absence always means "not computed"
 and a reported `0.0` always means "computed and equal to zero".
 

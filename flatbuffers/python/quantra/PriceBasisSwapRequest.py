@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Request to price one or more basis swaps.
+# Request to price one or more basis swaps against one market.
 class PriceBasisSwapRequest(object):
     __slots__ = ['_tab']
 
@@ -61,6 +61,8 @@ class PriceBasisSwapRequest(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         return o == 0
 
+    # When true every response row lists each leg's future flows (coupons
+    # and notional exchanges) in payment order.
     # PriceBasisSwapRequest
     def IncludeFlows(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))

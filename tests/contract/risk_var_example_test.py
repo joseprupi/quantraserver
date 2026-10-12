@@ -26,8 +26,12 @@ def test_portfolio_is_seeded_and_deterministic():
     b = hv.build_portfolio(N_SWAPS, seed=SEED)
     assert a == b, "same seed must reproduce the same book"
     assert len(a) == N_SWAPS
-    types = {t["ois_swap"]["swap_type"] for t in a}
-    assert types <= {"Payer", "Receiver"}
+    sides = {t["ois_swap"]["fixed_leg"]["pay_receive"] for t in a}
+    assert sides <= {"Pay", "Receive"}
+    for t in a:
+        legs = t["ois_swap"]
+        assert {legs["fixed_leg"]["pay_receive"], legs["overnight_leg"]["pay_receive"]} \
+            == {"Pay", "Receive"}, "one leg paid, the other received"
 
 
 def test_request_payload_passes_wire_contract(client):

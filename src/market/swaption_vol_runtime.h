@@ -4,8 +4,6 @@
 #include "pricing_registry.h"
 #include "vol_surface_parsers.h"
 
-#include "price_swaption_request_generated.h"
-
 #include <ql/handle.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
@@ -22,15 +20,13 @@ std::vector<double> computeServerAtmForwards(
 
 SwaptionVolEntry finalizeSwaptionVolEntryForPricing(
     const SwaptionVolEntry& raw,
-    const quantra::PriceSwaption* trade,
     const PricingRegistry& reg,
     const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve,
     const QuantLib::Handle<QuantLib::YieldTermStructure>& forwardingCurve,
     bool forceRecomputeAtm,
-    // Explicit curve ids used for content-keyed caches (e.g. the SABR
-    // calibrate cube cache). When unset, falls back to ids inferred from
-    // `trade`. Pass these from the sampler where no trade is in scope but
-    // curve ids are explicit on the query.
+    // Curve ids used for content-keyed caches (e.g. the SABR calibrate cube
+    // cache). Empty ids disable that caching for the call (safe: the cube is
+    // rebuilt rather than served stale).
     const std::string& discountCurveId = "",
     const std::string& forwardingCurveId = "");
 

@@ -6,9 +6,8 @@
 #include "error.h"
 #include "eval_date_guard.h"
 #include "index_registry_builder.h"
-#include "request_validation.h"
 #include "roll_offset.h"
-#include "schedule_parser.h"
+#include "swap_leg_mapper.h"
 #include "swaption_vol_diagnostics.h"
 
 #include "swaption_generated.h"
@@ -23,16 +22,19 @@ namespace quantra {
 
 namespace {
 
-/// Pull the trade's floating-index id out of the FB underlying swap. Matches
-/// SwaptionModelParser::extractTradeFloatIndexId; the resulting plain string
-/// flows into validations downstream of the pricer.
+/// Pull the trade's floating-index id out of the FB underlying swap (vanilla
+/// underlying only; empty for OIS, as the swap-index consistency checks
+/// downstream expect).
 std::string getTradeFloatIndexId(const quantra::Swaption* sw) {
     if (!sw) return {};
     if (sw->underlying_type() == quantra::SwaptionUnderlying_VanillaSwap) {
         const auto* u = sw->underlying_as_VanillaSwap();
-        if (u && u->floating_leg() && u->floating_leg()->index() &&
-            u->floating_leg()->index()->id()) {
-            return u->floating_leg()->index()->id()->str();
+        const auto* leg = u ? u->floating_leg() : nullptr;
+        if (leg && leg->coupons_type() == quantra::SwapCoupons_IborCoupons) {
+            const auto* c = leg->coupons_as_IborCoupons();
+            if (c && c->index() && c->index()->id()) {
+                return c->index()->id()->str();
+            }
         }
     }
     return {};
@@ -51,156 +53,70 @@ QuantLib::Date getTradeExerciseDate(const quantra::Swaption* sw) {
     return {};
 }
 
-/// Underlying-swap fixed-leg effective date — the spot-days validation
-/// compares this against advance(exerciseDate, spot_days).
+/// Underlying-swap fixed-leg effective date (the raw wire date, before any
+/// schedule adjustment) — the spot-days validation compares this against
+/// advance(exerciseDate, spot_days).
 QuantLib::Date getTradeUnderlyingStartDate(const quantra::Swaption* sw) {
     if (!sw) return {};
-    auto pickFromSchedule = [](const auto* leg) -> QuantLib::Date {
-        if (leg && leg->fixed_leg() && leg->fixed_leg()->schedule() &&
-            leg->fixed_leg()->schedule()->effective_date()) {
-            return DateToQL(leg->fixed_leg()->schedule()->effective_date()->str());
+    auto pickFromFixedLeg = [](const quantra::SwapLeg* leg) -> QuantLib::Date {
+        if (leg && leg->schedule() && leg->schedule()->effective_date()) {
+            return DateToQL(leg->schedule()->effective_date()->str());
         }
         return {};
     };
     if (sw->underlying_type() == quantra::SwaptionUnderlying_VanillaSwap) {
-        return pickFromSchedule(sw->underlying_as_VanillaSwap());
+        const auto* u = sw->underlying_as_VanillaSwap();
+        return pickFromFixedLeg(u ? u->fixed_leg() : nullptr);
     }
     if (sw->underlying_type() == quantra::SwaptionUnderlying_OisSwap) {
-        return pickFromSchedule(sw->underlying_as_OisSwap());
+        const auto* u = sw->underlying_as_OisSwap();
+        return pickFromFixedLeg(u ? u->fixed_leg() : nullptr);
     }
     return {};
 }
 
-/// Lift the FB VanillaSwap underlying into a plain VanillaSwapTrade. Mirrors
-/// VanillaSwapParser::parse field-for-field (IBOR branch only — the swaption
-/// underlying was never a CMS swap) so the pricer rebuilds it byte-identically.
-VanillaSwapTrade extractVanillaUnderlying(const quantra::VanillaSwap* swap) {
-    if (swap == nullptr) QUANTRA_INVALID_ARGUMENT("Swaption underlying VanillaSwap not found");
-    if (swap->fixed_leg() == nullptr) QUANTRA_INVALID_ARGUMENT("VanillaSwap fixed_leg not found");
-    if (swap->floating_leg() == nullptr)
-        QUANTRA_INVALID_ARGUMENT("VanillaSwap floating_leg not found");
-
-    if (!swap->swap_type().has_value())
-        QUANTRA_INVALID_ARGUMENT("VanillaSwap.swap_type is required");
-
-    VanillaSwapTrade trade;
-    trade.branch = VanillaSwapTrade::Branch::Ibor;
-    switch (swap->swap_type().value()) {
-        case quantra::enums::SwapType_Payer: trade.swapType = QuantLib::VanillaSwap::Payer; break;
-        case quantra::enums::SwapType_Receiver:
-            trade.swapType = QuantLib::VanillaSwap::Receiver;
-            break;
-        default:
-            QUANTRA_INVALID_ARGUMENT(
-                "VanillaSwap.swap_type is not a known swap type: " +
-                std::to_string(static_cast<int>(swap->swap_type().value())));
-    }
-
-    ScheduleParser scheduleParser;
-
-    auto fixedLeg = swap->fixed_leg();
-    if (fixedLeg->schedule() == nullptr)
-        QUANTRA_INVALID_ARGUMENT("VanillaSwap fixed_leg schedule not found");
-    if (!fixedLeg->day_counter().has_value())
-        QUANTRA_INVALID_ARGUMENT("SwapFixedLeg.day_counter is required");
-    // The swaption underlying does not support per-period notionals yet.
-    rejectUnsupportedNotionals(fixedLeg->notionals(), "Swaption underlying VanillaSwap fixed leg");
-    trade.fixed.schedule = *scheduleParser.parse(fixedLeg->schedule());
-    trade.fixed.notional = requirePositive(fixedLeg->notional(), "SwapFixedLeg.notional");
-    trade.fixed.rate = fixedLeg->rate();
-    trade.fixed.dayCounter = DayCounterToQL(fixedLeg->day_counter().value());
-
-    auto floatingLeg = swap->floating_leg();
-    if (floatingLeg->schedule() == nullptr)
-        QUANTRA_INVALID_ARGUMENT("VanillaSwap floating_leg schedule not found");
-    if (!floatingLeg->index() || !floatingLeg->index()->id())
-        QUANTRA_INVALID_ARGUMENT("VanillaSwap floating_leg index.id is required");
-    if (!floatingLeg->day_counter().has_value())
-        QUANTRA_INVALID_ARGUMENT("SwapFloatingLeg.day_counter is required");
-    rejectUnsupportedNotionals(
-        floatingLeg->notionals(), "Swaption underlying VanillaSwap floating leg");
-    // The swaption is priced from a QuantLib::VanillaSwap underlying, which the
-    // swaption engines require and which cannot represent an in-arrears floating
-    // leg. Reject in_arrears=true rather than silently pricing it in-advance.
-    if (floatingLeg->in_arrears()) {
-        QUANTRA_INVALID_ARGUMENT(
-            "Swaption underlying floating leg does not support in_arrears "
-            "(the swaption is priced from a QuantLib::VanillaSwap, which fixes in advance)");
-    }
-    trade.ibor.schedule = *scheduleParser.parse(floatingLeg->schedule());
-    trade.ibor.notional = requirePositive(floatingLeg->notional(), "SwapFloatingLeg.notional");
-    trade.ibor.indexId = floatingLeg->index()->id()->str();
-    trade.ibor.spread = floatingLeg->spread();
-    trade.ibor.dayCounter = DayCounterToQL(floatingLeg->day_counter().value());
-    return trade;
+/// A swaption underlying's legs: one coupon kind per role, constant notional
+/// only, no principal exchanges (the swaption is priced from QuantLib's own
+/// VanillaSwap / OvernightIndexedSwap, which carry neither).
+SwapLegRules underlyingLegRules(SwapLegData::Kind kind) {
+    SwapLegRules rules;
+    rules.allowedKinds = {kind};
+    rules.exchangesAllowed = false;
+    rules.endpoint = "swaption underlying";
+    return rules;
 }
 
-/// Lift the FB OisSwap underlying into a plain OisSwapTrade. Mirrors
-/// OisSwapParser::parse field-for-field so the pricer rebuilds it byte-identically.
-OisSwapTrade extractOisUnderlying(const quantra::OisSwap* swap) {
-    if (swap == nullptr) QUANTRA_INVALID_ARGUMENT("Swaption underlying OisSwap not found");
-    if (swap->fixed_leg() == nullptr) QUANTRA_INVALID_ARGUMENT("OisSwap fixed_leg not found");
-    if (swap->overnight_leg() == nullptr)
-        QUANTRA_INVALID_ARGUMENT("OisSwap overnight_leg not found");
-
-    if (!swap->swap_type().has_value()) QUANTRA_INVALID_ARGUMENT("OisSwap.swap_type is required");
-
-    OisSwapTrade trade;
-    switch (swap->swap_type().value()) {
-        case quantra::enums::SwapType_Payer:
-            trade.swapType = QuantLib::OvernightIndexedSwap::Payer;
-            break;
-        case quantra::enums::SwapType_Receiver:
-            trade.swapType = QuantLib::OvernightIndexedSwap::Receiver;
-            break;
-        default:
-            QUANTRA_INVALID_ARGUMENT(
-                "OisSwap.swap_type is not a known swap type: " +
-                std::to_string(static_cast<int>(swap->swap_type().value())));
+/// The two legs of a swaption underlying, decoded by the same code as the
+/// swap endpoints, plus the underlying-specific rules: opposite sides, one
+/// currency, one discount curve (both legs must name it), an in-advance
+/// floating leg.
+void decodeUnderlyingLegs(
+    const quantra::SwapLeg* fixedFb,
+    const quantra::SwapLeg* floatingFb,
+    const std::string& fixedName,
+    const std::string& floatingName,
+    SwapLegData::Kind floatingKind,
+    SwapLegData& fixed,
+    SwapLegData& floating) {
+    fixed = DecodeSwapLeg(fixedFb, fixedName, underlyingLegRules(SwapLegData::Kind::Fixed));
+    floating = DecodeSwapLeg(floatingFb, floatingName, underlyingLegRules(floatingKind));
+    RequireOppositeSides(fixed, fixedName, floating, floatingName);
+    RequireOneCurrency(fixed, fixedName, floating, floatingName, "a swaption underlying");
+    if (fixed.discountingCurveId != floating.discountingCurveId) {
+        QUANTRA_INVALID_ARGUMENT(
+            fixedName + ".discounting_curve '" + fixed.discountingCurveId + "' and " +
+            floatingName + ".discounting_curve '" + floating.discountingCurveId +
+            "' must be equal: a swaption is priced on one discount curve");
     }
-
-    ScheduleParser scheduleParser;
-
-    auto fixedLeg = swap->fixed_leg();
-    if (fixedLeg->schedule() == nullptr)
-        QUANTRA_INVALID_ARGUMENT("OisSwap fixed_leg schedule not found");
-    if (!fixedLeg->day_counter().has_value())
-        QUANTRA_INVALID_ARGUMENT("SwapFixedLeg.day_counter is required");
-    // The swaption OIS underlying does not support per-period notionals yet.
-    rejectUnsupportedNotionals(fixedLeg->notionals(), "Swaption underlying OisSwap fixed leg");
-    trade.fixed.schedule = *scheduleParser.parse(fixedLeg->schedule());
-    trade.fixed.notional = requirePositive(fixedLeg->notional(), "SwapFixedLeg.notional");
-    trade.fixed.rate = fixedLeg->rate();
-    trade.fixed.dayCounter = DayCounterToQL(fixedLeg->day_counter().value());
-
-    auto overnightLeg = swap->overnight_leg();
-    if (overnightLeg->schedule() == nullptr)
-        QUANTRA_INVALID_ARGUMENT("OisSwap overnight_leg schedule not found");
-    if (!overnightLeg->index() || !overnightLeg->index()->id())
-        QUANTRA_INVALID_ARGUMENT("OisSwap overnight_leg index.id is required");
-    trade.overnight.schedule = *scheduleParser.parse(overnightLeg->schedule());
-    trade.overnight.notional = requirePositive(overnightLeg->notional(), "OisFloatingLeg.notional");
-    trade.overnight.indexId = overnightLeg->index()->id()->str();
-    trade.overnight.spread = overnightLeg->spread();
-    // OisFloatingLeg.day_counter is accepted-but-unused: QuantLib's
-    // OvernightIndexedSwap takes the overnight leg's day counter from the
-    // overnight index itself, so the field is deliberately not read here.
-    trade.overnight.paymentConvention = ConventionToQL(
-        requireEnum(overnightLeg->payment_convention(), "OisFloatingLeg.payment_convention"));
-    trade.overnight.paymentCalendar = CalendarToQL(
-        requireEnum(overnightLeg->payment_calendar(), "OisFloatingLeg.payment_calendar"));
-    trade.overnight.paymentLag =
-        requireNonNegativeInt(overnightLeg->payment_lag(), "OisFloatingLeg.payment_lag");
-    trade.overnight.averagingMethod = RateAveragingToQL(
-        requireEnum(overnightLeg->averaging_method(), "OisFloatingLeg.averaging_method"));
-    trade.overnight.lookbackDays =
-        requireNonNegativeInt(overnightLeg->lookback_days(), "OisFloatingLeg.lookback_days");
-    trade.overnight.lockoutDays =
-        requireNonNegativeInt(overnightLeg->lockout_days(), "OisFloatingLeg.lockout_days");
-    trade.overnight.applyObservationShift = requireBool(
-        overnightLeg->apply_observation_shift(), "OisFloatingLeg.apply_observation_shift");
-    trade.overnight.telescopicValueDates = overnightLeg->telescopic_value_dates();
-    return trade;
+    // The swaption is priced from a QuantLib::VanillaSwap underlying, which
+    // the swaption engines require and which cannot represent an in-arrears
+    // floating leg. Reject rather than silently price it in advance.
+    if (floating.kind == SwapLegData::Kind::Ibor && floating.ibor.inArrears) {
+        QUANTRA_INVALID_ARGUMENT(
+            floatingName + ".coupons.in_arrears is not supported on a swaption underlying "
+                           "(the swaption is priced from a QuantLib::VanillaSwap, which fixes in "
+                           "advance)");
+    }
 }
 
 /// Lift the whole FB swaption table into the plain SwaptionInstrument. Reads
@@ -237,16 +153,29 @@ SwaptionInstrument extractInstrument(const quantra::Swaption* sw) {
     inst.settlementMethod = SettlementMethodToQL(sw->settlement_method());
 
     switch (sw->underlying_type()) {
-        case quantra::SwaptionUnderlying_VanillaSwap:
+        case quantra::SwaptionUnderlying_VanillaSwap: {
+            const auto* u = sw->underlying_as_VanillaSwap();
+            if (u == nullptr) QUANTRA_INVALID_ARGUMENT("Swaption.underlying is required");
             inst.underlyingIsVanilla = true;
-            inst.vanillaUnderlying = extractVanillaUnderlying(sw->underlying_as_VanillaSwap());
+            decodeUnderlyingLegs(
+                u->fixed_leg(), u->floating_leg(), "Swaption.underlying.fixed_leg",
+                "Swaption.underlying.floating_leg", SwapLegData::Kind::Ibor,
+                inst.vanillaUnderlying.fixedLeg, inst.vanillaUnderlying.floatingLeg);
             break;
-        case quantra::SwaptionUnderlying_OisSwap:
+        }
+        case quantra::SwaptionUnderlying_OisSwap: {
+            const auto* u = sw->underlying_as_OisSwap();
+            if (u == nullptr) QUANTRA_INVALID_ARGUMENT("Swaption.underlying is required");
             inst.underlyingIsVanilla = false;
-            inst.oisUnderlying = extractOisUnderlying(sw->underlying_as_OisSwap());
+            decodeUnderlyingLegs(
+                u->fixed_leg(), u->overnight_leg(), "Swaption.underlying.fixed_leg",
+                "Swaption.underlying.overnight_leg", SwapLegData::Kind::Overnight,
+                inst.oisUnderlying.fixedLeg, inst.oisUnderlying.overnightLeg);
             break;
+        }
         case quantra::SwaptionUnderlying_NONE:
-            QUANTRA_INVALID_ARGUMENT("Swaption underlying not found");
+            QUANTRA_INVALID_ARGUMENT(
+                "Swaption.underlying is required (underlying_type VanillaSwap or OisSwap)");
         default: QUANTRA_INVALID_ARGUMENT("Invalid swaption underlying type");
     }
     return inst;
@@ -259,12 +188,6 @@ SwaptionTrade extractTrade(const quantra::PriceSwaption* pricing) {
     if (!pricing->swaption()) {
         QUANTRA_INVALID_ARGUMENT("PriceSwaption entry requires swaption");
     }
-    if (!pricing->discounting_curve() || pricing->discounting_curve()->str().empty()) {
-        QUANTRA_INVALID_ARGUMENT("PriceSwaption entry requires discounting_curve");
-    }
-    if (!pricing->forwarding_curve() || pricing->forwarding_curve()->str().empty()) {
-        QUANTRA_INVALID_ARGUMENT("PriceSwaption entry requires forwarding_curve");
-    }
     if (!pricing->volatility() || pricing->volatility()->str().empty()) {
         QUANTRA_INVALID_ARGUMENT("PriceSwaption entry requires volatility");
     }
@@ -273,8 +196,6 @@ SwaptionTrade extractTrade(const quantra::PriceSwaption* pricing) {
     }
 
     SwaptionTrade trade;
-    trade.discountingCurveId = pricing->discounting_curve()->str();
-    trade.forwardingCurveId = pricing->forwarding_curve()->str();
     trade.volatilityId = pricing->volatility()->str();
     trade.modelId = pricing->model()->str();
 
@@ -287,10 +208,19 @@ SwaptionTrade extractTrade(const quantra::PriceSwaption* pricing) {
 
     // Lift the swaption into the plain instrument. The pricer rebuilds the QL
     // Swaption from it for the base path and again per rebump step against the
-    // bumped forwarding curve and freshly built IndexRegistry — reproducing the
-    // legacy per-call SwaptionParser::parse, but without re-reading FlatBuffers.
+    // bumped forwarding curve and freshly built IndexRegistry.
     trade.instrument = extractInstrument(sw);
-
+    // The swaption's curves are the underlying legs' (the mapper has checked
+    // both legs name one discount curve): discounting from the fixed leg,
+    // forwarding from the floating / overnight leg.
+    const SwapLegData& fixed = trade.instrument.underlyingIsVanilla
+                                   ? trade.instrument.vanillaUnderlying.fixedLeg
+                                   : trade.instrument.oisUnderlying.fixedLeg;
+    const SwapLegData& floating = trade.instrument.underlyingIsVanilla
+                                      ? trade.instrument.vanillaUnderlying.floatingLeg
+                                      : trade.instrument.oisUnderlying.overnightLeg;
+    trade.discountingCurveId = fixed.discountingCurveId;
+    trade.forwardingCurveId = floating.forwardingCurveId;
     return trade;
 }
 
