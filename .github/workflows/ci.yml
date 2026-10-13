@@ -11,7 +11,7 @@ permissions:
   packages: read
 
 env:
-  CI_IMAGE: ghcr.io/${{ github.repository_owner }}/quantra-ci:deps-v1
+  CI_IMAGE: ghcr.io/${{ github.repository_owner }}/quantra-ci:deps-v2
 
 jobs:
   full-tests:

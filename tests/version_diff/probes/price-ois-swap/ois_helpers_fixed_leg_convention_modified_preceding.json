@@ -1,0 +1,232 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "settlement_date": "2025-01-17",
+    "rates": {
+      "indices": [
+        {
+          "id": "ESTR",
+          "name": "ESTR",
+          "index_type": "Overnight",
+          "currency": "EUR",
+          "tenor": {
+            "n": 0,
+            "unit": "Days"
+          },
+          "fixing_days": 0,
+          "calendar": "TARGET",
+          "day_counter": "Actual360",
+          "business_day_convention": "ModifiedFollowing",
+          "end_of_month": true
+        }
+      ],
+      "curves": [
+        {
+          "id": "ois",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "reference_date": "2025-01-15",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.029,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "tenor": {
+                  "n": 1,
+                  "unit": "Months"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "ModifiedPreceding",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0288,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "tenor": {
+                  "n": 3,
+                  "unit": "Months"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "ModifiedPreceding",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0285,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "tenor": {
+                  "n": 6,
+                  "unit": "Months"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "ModifiedPreceding",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.028,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "tenor": {
+                  "n": 1,
+                  "unit": "Years"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "ModifiedPreceding",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0278,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "tenor": {
+                  "n": 2,
+                  "unit": "Years"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "ModifiedPreceding",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0282,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "ModifiedPreceding",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "swaps": [
+    {
+      "ois_swap": {
+        "fixed_leg": {
+          "pay_receive": "Pay",
+          "currency": "EUR",
+          "notional": 1000000.0,
+          "schedule": {
+            "calendar": "TARGET",
+            "effective_date": "2025-01-17",
+            "termination_date": "2027-01-17",
+            "frequency": "Annual",
+            "convention": "ModifiedFollowing",
+            "termination_date_convention": "ModifiedFollowing",
+            "date_generation_rule": "Forward",
+            "end_of_month": false
+          },
+          "day_counter": "Actual360",
+          "payment_convention": "ModifiedFollowing",
+          "payment_calendar": "TARGET",
+          "payment_lag": 0,
+          "coupons_type": "FixedCoupons",
+          "coupons": {
+            "rate": 0.028
+          },
+          "discounting_curve": "ois"
+        },
+        "overnight_leg": {
+          "pay_receive": "Receive",
+          "currency": "EUR",
+          "notional": 1000000.0,
+          "schedule": {
+            "calendar": "TARGET",
+            "effective_date": "2025-01-17",
+            "termination_date": "2027-01-17",
+            "frequency": "Annual",
+            "convention": "ModifiedFollowing",
+            "termination_date_convention": "ModifiedFollowing",
+            "date_generation_rule": "Forward",
+            "end_of_month": false
+          },
+          "day_counter": "Actual360",
+          "payment_convention": "ModifiedFollowing",
+          "payment_calendar": "TARGET",
+          "payment_lag": 0,
+          "coupons_type": "OvernightCoupons",
+          "coupons": {
+            "index": {
+              "id": "ESTR"
+            },
+            "spread": 0.0,
+            "averaging_method": "Compound",
+            "lookback_days": 0,
+            "lockout_days": 0,
+            "apply_observation_shift": false,
+            "telescopic_value_dates": false
+          },
+          "discounting_curve": "ois",
+          "forwarding_curve": "ois"
+        }
+      }
+    }
+  ],
+  "include_flows": true
+}

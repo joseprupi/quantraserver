@@ -1,0 +1,16 @@
+{
+  "calendar": "HongKong",
+  "start_date": "2026-01-01",
+  "end_date": "2026-12-31",
+  "include_weekends": false,
+  "calendar_overrides": [
+    {
+      "calendar": "HongKong",
+      "added_holidays": [
+        "2026-02-17",
+        "2026-02-18",
+        "2026-02-19"
+      ]
+    }
+  ]
+}

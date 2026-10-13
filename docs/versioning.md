@@ -26,6 +26,55 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.11.0 (October 2026) — QuantLib 1.41 → 1.44
+
+`v0.11.0` is a backward-compatible MINOR release with **no API change**: every
+endpoint, request and response schema, status code and error body is the same
+as in 0.10.0. The only change is the pricing library underneath — the engine is
+rebuilt on QuantLib 1.44 (from 1.41) — and `/meta` reports `quantlib: 1.44`.
+Some results move; every numerical change, with its upstream cause and the
+requests it affects, is documented in
+[`docs/quantlib-upgrades/1.41-to-1.44.md`](quantlib-upgrades/1.41-to-1.44.md).
+The cross-version diff tool (`tools/version_diff/`, see its README) replays
+your own requests against a 0.10.0 and a 0.11.0 server and lists every field
+that differs, so the effect on your book can be measured before adopting the
+release.
+
+**What moves (summary; the page has the numbers).** The comparison corpus
+was 291 requests (the 208 functional-catalog cases plus 83 targeted probes),
+sent to a 1.41 and a 1.44 server built from the same source: 215 unchanged,
+2 noise-only, 72 changed, 2 status changes; 28 of the 208 catalog values
+changed. The changes cluster as: cross-currency swaps and the collateral
+curves built from `CrossCcyBasisHelper` pillars (a compounded overnight leg on
+a schedule calendar other than the index calendar under-accrued across index
+holidays on 1.41; 1.44 prices it at par, leg NPVs move by about 3 bp of
+notional); CDS on bootstrapped credit curves with `settlement_days: 0` and a
+non-`CDS` date rule (helper trade-date convention, up to 1.4% of NPV);
+overnight coupons with `lookback_days > 0` and `apply_observation_shift`
+(1.41 under-stated them); inflation swaps and caps/floors (helper pillar
+placement; ZCIIS fixed leg on contract dates); joint Hull-White `a`/`sigma`
+calibration (a different point on a flat objective); American options whose
+exercise window starts after the valuation date (1.41 ignored the start);
+bond yield/duration/convexity with `bond_pricing_details` (≤ 6e-9 in yield);
+holiday lists of eleven calendars. Two requests that returned 200 now return
+422: a swap valued on a holiday of the helpers' calendar with
+`DepositHelper.fixing_days > 0` (a historical fixing the API cannot supply;
+value on a business day or use `fixing_days: 0`), and an overnight coupon
+whose `payment_convention` / `payment_calendar` put the payment before the
+accrual end (1.41 returned `inf`). Full detail, worked numbers and remedies:
+[`quantlib-upgrades/1.41-to-1.44.md`](quantlib-upgrades/1.41-to-1.44.md).
+
+### Quantra version → QuantLib version
+
+| Quantra | QuantLib |
+|---|---|
+| 0.1.0 – 0.10.0 | 1.41 |
+| 0.11.0 | 1.44 |
+
+Release notes for the upgrades this project tracked (1.42, 1.43 and 1.44) are
+summarised on the upgrade page above; a QuantLib upgrade ships as its own
+release containing nothing else.
+
 ## Version 0.10.0 (October 2026) — one swap leg model for every swap
 
 `v0.10.0` is a **wire-breaking** MINOR release under the 0.x rules: the four

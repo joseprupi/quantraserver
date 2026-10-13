@@ -2,6 +2,11 @@ name: Build CI Base Image
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to publish (must match CI_IMAGE in ci.yml)"
+        required: true
+        default: deps-v2
   push:
     branches: [master]
     paths:
@@ -15,6 +20,10 @@ permissions:
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/quantra-ci
+  # Bump together with CI_IMAGE in ci.yml whenever the Dockerfile deps change
+  # (e.g. a QuantLib upgrade): master keeps using the previous tag until the
+  # upgrade branch merges.
+  IMAGE_TAG: ${{ github.event.inputs.tag || 'deps-v2' }}
 
 jobs:
   build-and-push:
@@ -42,7 +51,7 @@ jobs:
           target: dev
           push: true
           tags: |
-            ${{ env.IMAGE_NAME }}:deps-v1
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
             ${{ env.IMAGE_NAME }}:deps-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

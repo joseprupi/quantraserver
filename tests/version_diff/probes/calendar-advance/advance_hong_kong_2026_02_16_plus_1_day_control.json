@@ -1,0 +1,8 @@
+{
+  "calendar": "HongKong",
+  "date": "2026-02-16",
+  "tenor_number": 1,
+  "tenor_unit": "Days",
+  "convention": "Following",
+  "end_of_month": false
+}

@@ -1,0 +1,115 @@
+{
+  "format_version": 1,
+  "old_quantlib": "1.41",
+  "new_quantlib": "1.44",
+  "causes": [
+    {
+      "endpoints": ["price-cross-currency-swap", "bootstrap-curves", "price-ois-swap", "price-basis-swap"],
+      "fields": ["legs[].npv", "legs[].npv_reporting", "npv", "fair_spread", "fair_rate", "results[].series[].values"],
+      "trigger": "A compounded overnight leg (or the overnight leg inside a CrossCcyBasisHelper) whose schedule calendar is not the index calendar, so that an accrual date falls on a holiday of the index: for example a USD SOFR leg on a TARGET schedule with accrual dates on Martin Luther King Day.",
+      "explanation": "QuantLib 1.41 started the compounding of such a coupon on the next index business day and dropped the interest of the holiday night, so the leg under-accrued (about one day of interest per affected coupon; a 5Y USD SOFR leg with both exchanges priced 3 bp away from par instead of at par). QuantLib 1.43 and later apply the previous business day's fixing to the holiday night, and the leg prices at par. Curves bootstrapped from cross-currency basis helpers with such a leg move with it; OIS curves and legs whose schedule calendar is the index calendar do not move.",
+      "upstream": ["lballabio/QuantLib#2556"],
+      "since": "1.43",
+      "verdict": "upstream bug fix"
+    },
+    {
+      "endpoints": ["price-ois-swap", "bootstrap-curves"],
+      "fields": ["results[].series[].values", "npv", "fair_rate", "legs[].flows[].discount"],
+      "trigger": "OISHelper or DatedOISHelper entries whose calendar (the payment calendar) differs from the overnight index calendar, with payment_lag 0 and a fixed_leg_convention other than ModifiedFollowing. With a payment lag, or with the same calendar, the convention never acts.",
+      "explanation": "Before QuantLib 1.44 the fixed leg of the helper's internal swap ignored the payment convention it was given and used the overnight schedule's ModifiedFollowing instead; 1.44 honours the convention passed as fixed_leg_convention. Not observed in the example corpus; demonstrated with ESTR helpers paid on a United States calendar whose 2Y accrual end falls on Memorial Day 2027.",
+      "upstream": ["lballabio/QuantLib#2649"],
+      "since": "1.44",
+      "verdict": "upstream bug fix"
+    },
+    {
+      "endpoints": ["price-cds"],
+      "fields": ["cds_list[].npv", "cds_list[].fair_upfront", "cds_list[].fair_spread", "cds_list[].default_leg_npv", "cds_list[].premium_leg_npv"],
+      "trigger": "A credit curve bootstrapped from par-spread or upfront quotes whose helper_conventions have settlement_days 0 and a date_generation_rule other than CDS (for example TwentiethIMM). Both helper models (MidPoint, ISDA) and both pricing engines are affected the same way; flat hazard-rate curves are not.",
+      "explanation": "The curve helpers used to date their internal CDS on the valuation date. QuantLib 1.44 lets the CDS deduce its trade date, which for a non-CDS date rule is the day before protection start, so with settlement_days 0 the helper trade date is now the day before the valuation date. The accrual rebate and the cash-settlement date move by one day and the bootstrapped hazard curve changes slightly (up to about 1.5% of a 10Y NPV in the examples). Helpers with settlement_days 1, or with the CDS date rule, give the same numbers on both versions.",
+      "upstream": ["lballabio/QuantLib#2698"],
+      "since": "1.44",
+      "verdict": "upstream behaviour change"
+    },
+    {
+      "endpoints": ["price-ois-swap", "price-basis-swap", "price-cross-currency-swap", "price-swaption"],
+      "fields": ["legs[].flows[].rate", "legs[].flows[].amount", "legs[].flows[].present_value", "legs[].npv", "npv", "fair_rate", "fair_spread"],
+      "trigger": "Compounded overnight coupons with lookback_days greater than 0 and apply_observation_shift true. Lookback alone, lockout alone, or observation shift without lookback do not move.",
+      "explanation": "QuantLib 1.41 compounded an observation-shifted coupon over a window shorter by the lookback, so its rate was too low (about two days of interest out of a year for a 2-day lookback). QuantLib 1.43 and later compound and accrue over the same shifted dates.",
+      "upstream": ["lballabio/QuantLib#2556"],
+      "since": "1.43",
+      "verdict": "upstream bug fix"
+    },
+    {
+      "endpoints": ["price-swaption", "calibrate-swaption-model"],
+      "fields": ["swaptions[].used_hw_a", "swaptions[].used_hw_sigma", "swaptions[].used_hw_rmse", "swaptions[].npv", "hw_a", "hw_sigma", "rmse"],
+      "trigger": "Hull-White calibration of both a and sigma at once (param_mode Calibrate with calibrate_a true, or a HullWhiteLattice model calibrated on the fly). Sigma-only calibration and lattice pricing with explicit a and sigma are unchanged.",
+      "explanation": "QuantLib 1.44 rewrote the Jamshidian swaption engine's root function; its prices move at the 1e-10 level. The calibration objective is almost flat in the mean-reversion a (doubling a changes the fit error by less than 0.1%), so the Levenberg-Marquardt search stops at a different point on that plateau: a, sigma and the swaption price move although neither version is more accurate. Fixing a and calibrating sigma gives identical results on both versions.",
+      "upstream": ["lballabio/QuantLib#2664"],
+      "since": "1.44",
+      "verdict": "upstream numerical change"
+    },
+    {
+      "endpoints": ["price-equity-option"],
+      "fields": ["options[].npv", "options[].delta", "options[].gamma", "options[].theta", "options[].implied_volatility"],
+      "trigger": "An American exercise whose start_date is after the valuation date (finite-difference engine).",
+      "explanation": "QuantLib 1.41 allowed early exercise from the valuation date whatever the start of the exercise window. From 1.42 the finite-difference engine applies the American condition only from start_date, so the price moves towards the European price as the window shrinks. Options exercisable from the valuation date are unchanged.",
+      "upstream": ["lballabio/QuantLib#2449"],
+      "since": "1.42",
+      "verdict": "upstream bug fix"
+    },
+    {
+      "endpoints": ["price-zero-coupon-inflation-swap", "price-year-on-year-inflation-swap", "price-year-on-year-inflation-cap-floor"],
+      "fields": ["swaps[].npv", "swaps[].inflation_leg_npv", "swaps[].fair_rate", "swaps[].fair_spread", "cap_floors[].npv", "cap_floors[].atm_rate"],
+      "trigger": "Inflation curves bootstrapped from helpers with Linear observation interpolation, priced for a trade whose observation dates fall between the helper pillars (a different observation lag, dated helpers, every year-on-year swap and cap/floor). Trades aligned with a helper are unchanged.",
+      "explanation": "From QuantLib 1.42 the pillar of an interpolated inflation helper is the curve node that carries most of the interpolation weight (the first of the lagged observation month when the helper starts in the first half of its month, otherwise the next month's first) instead of always the end of the interpolation period. The node rates are re-solved, so anything interpolated between nodes moves.",
+      "upstream": ["lballabio/QuantLib#2456"],
+      "since": "1.42",
+      "verdict": "upstream behaviour change"
+    },
+    {
+      "endpoints": ["price-zero-coupon-inflation-swap"],
+      "fields": ["swaps[].npv", "swaps[].inflation_leg_npv", "swaps[].fair_rate"],
+      "trigger": "A zero-coupon inflation swap whose start_date or maturity_date differs from the dates of the curve helper with the same tenor, for example a maturity that the helper rolled off a weekend (AsIndex observation shows it most clearly).",
+      "explanation": "From QuantLib 1.42 the fixed leg of a zero-coupon inflation swap accrues on the swap's own start and maturity dates instead of on the whole-month lagged observation period. A trade whose dates match the helper's still reprices at the quoted rate; a trade two days shorter than the helper now shows a fair rate higher by the ratio of the day counts.",
+      "upstream": ["lballabio/QuantLib#2451"],
+      "since": "1.42",
+      "verdict": "upstream bug fix"
+    },
+    {
+      "endpoints": ["price-fixed-rate-bond", "price-zero-coupon-bond", "price-floating-rate-bond"],
+      "fields": ["bonds[].yield", "bonds[].macaulay_duration", "bonds[].modified_duration", "bonds[].convexity"],
+      "trigger": "bond_pricing_details true (the yield is solved from the price). NPV and prices are unchanged.",
+      "explanation": "The derivative used by the yield solver had the wrong sign and scale before QuantLib 1.43, so the solver stopped a few 1e-9 away from the exact yield while still inside its tolerance. The new yields are the exact roots; durations and convexity follow. Differences are below 1e-8 in yield.",
+      "upstream": ["lballabio/QuantLib#2589"],
+      "since": "1.43",
+      "verdict": "upstream bug fix"
+    },
+    {
+      "endpoints": ["calendar-holidays", "calendar-advance", "calendar-business-days"],
+      "fields": ["dates", "advanced_date", "business_days"],
+      "trigger": "Calendars China, Hong Kong, India, Indonesia, Israel, Italy, Saudi Arabia, Singapore, South Africa, South Korea and Taiwan in 2025 to 2027 (TARGET and the other calendars are unchanged). Any date computation or schedule on these calendars can move.",
+      "explanation": "Holiday lists updated upstream: China 2026; Hong Kong 2026; India 2026; Indonesia 2025 to 2027; Israel (TASE weekdays: every Friday of 2025 is a holiday, several Sundays no longer are); Italy 2027-10-04; Saudi Arabia 2025 to 2027; Singapore 2026 and 2027; South Africa 2026-11-04; South Korea 2025-01-27; Taiwan 2025 and 2026. A calendar override that adds a holiday the calendar now carries natively is a no-op.",
+      "upstream": ["lballabio/QuantLib release notes 1.42, 1.43, 1.44 (calendars)"],
+      "since": "1.42",
+      "verdict": "upstream behaviour change"
+    },
+    {
+      "endpoints": ["price-vanilla-swap", "price-fra", "price-fixed-rate-bond", "price-floating-rate-bond", "bootstrap-curves"],
+      "fields": ["status"],
+      "trigger": "A request valued on a holiday of the curve helpers' calendar (as_of_date not a business day) with DepositHelper entries whose fixing_days is greater than 0.",
+      "explanation": "QuantLib 1.44 counts a helper's settlement days from the actual valuation date even when it is a holiday, instead of first rolling to the next business day. The deposit's fixing date then falls before the valuation date and a historical fixing is required; the deposit helper uses an internal index, so that fixing cannot be supplied through the API and the request fails with 'Missing no-fix... fixing'. Value on a business day, or use fixing_days 0 on the deposit helpers.",
+      "upstream": ["lballabio/QuantLib#2653"],
+      "since": "1.44",
+      "verdict": "upstream behaviour change; the engine has no way to supply the deposit fixing"
+    },
+    {
+      "endpoints": ["price-ois-swap", "price-basis-swap", "price-cross-currency-swap", "price-swaption"],
+      "fields": ["status"],
+      "trigger": "An overnight leg whose payment_calendar or payment_convention puts the payment date before the accrual end date (for example Preceding on a payment calendar that does not contain the schedule's end date).",
+      "explanation": "QuantLib 1.41 accepted such a coupon and returned non-finite numbers; from 1.42 the coupon is rejected with 'Payment date cannot be earlier than accrual end date'. Use a payment convention and calendar that keep the payment on or after the accrual end.",
+      "upstream": ["lballabio/QuantLib#2421"],
+      "since": "1.42",
+      "verdict": "upstream behaviour change"
+    }
+  ]
+}
