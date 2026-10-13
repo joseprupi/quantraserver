@@ -1,0 +1,208 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "rates": {
+      "indices": [
+        {
+          "id": "ESTR",
+          "name": "ESTR",
+          "index_type": "Overnight",
+          "currency": "EUR",
+          "tenor": {
+            "n": 0,
+            "unit": "Days"
+          },
+          "fixing_days": 0,
+          "calendar": "TARGET",
+          "day_counter": "Actual360",
+          "business_day_convention": "ModifiedFollowing",
+          "end_of_month": true
+        }
+      ],
+      "curves": [
+        {
+          "id": "EUR_ESTR_DATED",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "reference_date": "2025-01-15",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.029,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "tenor": {
+                  "n": 1,
+                  "unit": "Months"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "Following",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "DatedOISHelper",
+              "point": {
+                "rate": 0.0288,
+                "start_date": "2025-01-17",
+                "end_date": "2025-04-17",
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "Following",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "DatedOISHelper",
+              "point": {
+                "rate": 0.0285,
+                "start_date": "2025-01-17",
+                "end_date": "2025-07-17",
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "Following",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "DatedOISHelper",
+              "point": {
+                "rate": 0.028,
+                "start_date": "2025-01-17",
+                "end_date": "2026-01-19",
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "Following",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "DatedOISHelper",
+              "point": {
+                "rate": 0.0278,
+                "start_date": "2025-01-17",
+                "end_date": "2027-01-18",
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "Following",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "DatedOISHelper",
+              "point": {
+                "rate": 0.0282,
+                "start_date": "2025-01-17",
+                "end_date": "2030-01-17",
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "Following",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "queries": [
+    {
+      "curve_id": "EUR_ESTR_DATED",
+      "measures": [
+        "DF",
+        "ZERO"
+      ],
+      "grid": {
+        "grid_type": "TenorGrid",
+        "grid": {
+          "tenors": [
+            {
+              "n": 1,
+              "unit": "Months"
+            },
+            {
+              "n": 3,
+              "unit": "Months"
+            },
+            {
+              "n": 6,
+              "unit": "Months"
+            },
+            {
+              "n": 1,
+              "unit": "Years"
+            },
+            {
+              "n": 2,
+              "unit": "Years"
+            },
+            {
+              "n": 5,
+              "unit": "Years"
+            },
+            {
+              "n": 4,
+              "unit": "Years"
+            }
+          ],
+          "calendar": "TARGET",
+          "business_day_convention": "ModifiedFollowing"
+        }
+      },
+      "zero": {
+        "use_curve_day_counter": true,
+        "compounding": "Continuous",
+        "frequency": "Annual"
+      }
+    }
+  ]
+}

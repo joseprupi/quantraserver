@@ -4,7 +4,7 @@
 # Versions:
 #   - gRPC: v1.60.0 
 #   - Flatbuffers: v24.12.23
-#   - QuantLib: 1.22
+#   - QuantLib: 1.44
 #   - Envoy: 1.28.0
 # =============================================================================
 FROM debian:bookworm AS base
@@ -38,7 +38,7 @@ RUN apt-get update && \
 FROM base AS deps
 ARG GRPC_VERSION=v1.60.0
 ARG FLATBUFFERS_VERSION=v24.12.23
-ARG QUANTLIB_VERSION=1.41
+ARG QUANTLIB_VERSION=1.44
 ARG ENVOY_VERSION=1.28.0
 
 ENV DEPS_INSTALL_PREFIX=/opt/quantra-deps

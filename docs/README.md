@@ -14,6 +14,8 @@ This directory is the canonical home for project documentation.
 - `process-manager.md`: multi-process runtime and packaged `quantra` CLI
 - `client.md`: C++ client library, the gRPC `Meta` RPC, and health checking
 - `versioning.md`: release and semantic-versioning policy
+- `quantlib-upgrades/`: numerical changes at each QuantLib upgrade, with causes
+  (`quantlib-upgrades/1.41-to-1.44.md` for 0.11.0)
 - `../src/README.md`: engine layering (handler → mapper → evaluator)
 - `../CONTRIBUTING.md`: branching, PR, and merge expectations
 

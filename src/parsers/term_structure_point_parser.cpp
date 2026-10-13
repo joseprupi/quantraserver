@@ -10,6 +10,7 @@
 #include <ql/termstructures/yield/oisratehelper.hpp>
 #include <ql/termstructures/yield/ratehelpers.hpp>
 
+#include <optional>
 #include <sstream>
 
 using namespace QuantLib;
@@ -401,8 +402,8 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
             QuantLib::Pillar::LastRelevantDate,
             Date(), // customPillarDate: unused with LastRelevantDate
             RateAveragingToQL(requireEnum(point->averaging_method(), "OISHelper.averaging_method")),
-            ext::nullopt, // endOfMonth: QuantLib default
-            ext::nullopt, // fixedPaymentFrequency: paymentFrequency drives both legs
+            std::nullopt, // endOfMonth: QuantLib default
+            std::nullopt, // fixedPaymentFrequency: paymentFrequency drives both legs
             Calendar(),   // fixedCalendar: QuantLib default (index calendar)
             lookbackDays,
             static_cast<Natural>(
@@ -487,8 +488,8 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
             QuantLib::Pillar::LastRelevantDate, end,
             RateAveragingToQL(
                 requireEnum(point->averaging_method(), "DatedOISHelper.averaging_method")),
-            ext::nullopt, // endOfMonth: QuantLib default
-            ext::nullopt, // fixedPaymentFrequency: paymentFrequency drives both legs
+            std::nullopt, // endOfMonth: QuantLib default
+            std::nullopt, // fixedPaymentFrequency: paymentFrequency drives both legs
             Calendar(),   // fixedCalendar: QuantLib default (index calendar)
             lookbackDays,
             static_cast<Natural>(

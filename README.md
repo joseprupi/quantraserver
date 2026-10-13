@@ -207,6 +207,23 @@ The test suite exercises:
 See `tests/README.md` for how the suites are organized and how to run the
 whole gate in Docker.
 
+### Compare Numbers Across Versions
+
+`tools/version_diff/` is a cross-version diff tool: it sends the same requests
+to two running servers (for example the published image of the release you run
+today and the one you are evaluating) and reports every response field that
+differs, with both values and the size of the move. Replay your own requests
+with it before adopting a release built on a newer QuantLib:
+
+```bash
+python3 tools/version_diff/quantra_version_diff.py --old http://localhost:8091 --new http://localhost:8093 --requests my_requests/ --md-out diff.md
+```
+
+See `tools/version_diff/README.md` for the options (including `--catalog`,
+which replays the functional catalog). What changed, and why, at each QuantLib
+upgrade shipped in a release is documented in `docs/quantlib-upgrades/`
+(`docs/quantlib-upgrades/1.41-to-1.44.md` for 0.11.0, QuantLib 1.41 → 1.44).
+
 ## Repository Map
 
 - `src/`: the pricing engine internals, in role-based folders — `transport/`
@@ -224,6 +241,7 @@ whole gate in Docker.
 - `tests/`: parity, integration, and client tests
 - `scripts/`: build, code generation, and runtime helpers
 - `tools/quantra-manager/`: packaged process-manager implementation
+- `tools/version_diff/`: cross-version diff tool (same requests against two servers)
 - `docs/`: project documentation and reference notes
 
 ## Documentation
@@ -237,6 +255,8 @@ whole gate in Docker.
 - `docs/process-manager.md`: process-manager behavior and runtime model
 - `docs/client.md`: C++ client, gRPC `Meta`, and health checking
 - `docs/versioning.md`: versioning policy
+- `docs/quantlib-upgrades/`: what changes in your numbers at each QuantLib upgrade, and why
+  (`docs/quantlib-upgrades/1.41-to-1.44.md` for 0.11.0)
 - `src/README.md`: engine layering and the request flow
 - `CONTRIBUTING.md`: contribution workflow
 
@@ -248,7 +268,7 @@ The repository currently documents and builds around:
 - GCC `12+` or Clang `14+`
 - gRPC `v1.60.0`
 - FlatBuffers `v24.12.23`
-- QuantLib `1.41` in Docker builds
+- QuantLib `1.44` in Docker builds
 - Envoy for worker load balancing
 
 ## License

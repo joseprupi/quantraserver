@@ -1,0 +1,18 @@
+{
+  "calendar": "HongKong",
+  "date": "2026-02-16",
+  "tenor_number": 1,
+  "tenor_unit": "Days",
+  "convention": "Following",
+  "end_of_month": false,
+  "calendar_overrides": [
+    {
+      "calendar": "HongKong",
+      "added_holidays": [
+        "2026-02-17",
+        "2026-02-18",
+        "2026-02-19"
+      ]
+    }
+  ]
+}

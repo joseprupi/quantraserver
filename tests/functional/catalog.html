@@ -643,25 +643,25 @@
 <td><div class="title">EUR 5Y CDS, buy protection at 100bp, par-spread curve</div><div class="desc">Baseline single-name CDS: buy protection on 10m notional paying a 100bp running coupon (quarterly, Act/360, TwentiethIMM grid, TARGET). The credit curve is bootstrapped from par spread quotes (1Y 80bp to 10Y 130bp, 40% recovery, LogLinear survival) on a deposit+swap discount curve; the 5Y par spread of ~110bp sits above the coupon, so the protection buyer&#x27;s NPV is positive. MidPoint engine.</div></td>
 <td><code>buy protection</code> <code>100bp running coupon</code> <code>par-spread bootstrap</code> <code>recovery 40%</code> <code>MidPoint engine</code> <code>IMM grid</code></td>
 <td><a href="../../examples/data/cds/cds_eur_5y_buyer_100bp_spread_curve.json">cds_eur_5y_buyer_100bp_spread_curve.json</a></td>
-<td class="npv">39,739.83</td>
+<td class="npv">40,039.55</td>
 </tr>
 <tr>
 <td><div class="title">EUR 5Y CDS, same trade selling protection</div><div class="desc">The sold side of the baseline trade: sell protection on the same 5Y 100bp contract against the same par-spread credit curve. Everything else is identical, so the NPV is the exact negative of the buy case, pinning the protection-side sign convention end to end.</div></td>
 <td><code>sell protection</code> <code>sign flip</code> <code>100bp running coupon</code> <code>par-spread bootstrap</code></td>
 <td><a href="../../examples/data/cds/cds_eur_5y_seller_100bp_spread_curve.json">cds_eur_5y_seller_100bp_spread_curve.json</a></td>
-<td class="npv">-39,739.83</td>
+<td class="npv">-40,039.55</td>
 </tr>
 <tr>
 <td><div class="title">EUR 5Y CDS at the 500bp standard coupon</div><div class="desc">The baseline trade paying the high standard coupon: 500bp running against a curve whose 5Y par spread is ~110bp, so the premium leg dwarfs the protection leg and the buyer&#x27;s NPV is deeply negative (about -1.8m on 10m). In the market this contract would trade with a large upfront paid to the buyer; here the coupon is deliberately left unbalanced to pin the premium-leg scaling.</div></td>
 <td><code>buy protection</code> <code>500bp standard coupon</code> <code>premium-leg dominated</code> <code>negative NPV</code></td>
 <td><a href="../../examples/data/cds/cds_eur_5y_buyer_500bp_running_coupon.json">cds_eur_5y_buyer_500bp_running_coupon.json</a></td>
-<td class="npv">-1,818,082.20</td>
+<td class="npv">-1,817,711.09</td>
 </tr>
 <tr>
 <td><div class="title">EUR 5Y CDS with a 2% upfront payment</div><div class="desc">The baseline 100bp trade with a trade-level upfront: the protection buyer also pays 2% of notional (200k) settling on 2025-01-20. Exercises the upfront-bearing instrument constructor and the upfront date on the wire — the NPV drops by roughly the upfront amount relative to the baseline case.</div></td>
 <td><code>buy protection</code> <code>upfront 2%</code> <code>upfront date</code> <code>100bp running coupon</code></td>
 <td><a href="../../examples/data/cds/cds_eur_5y_buyer_100bp_upfront_2pct.json">cds_eur_5y_buyer_100bp_upfront_2pct.json</a></td>
-<td class="npv">-160,181.02</td>
+<td class="npv">-159,881.30</td>
 </tr>
 <tr>
 <td><div class="title">EUR 5Y CDS on a flat 2% hazard rate</div><div class="desc">The baseline trade priced on a flat-hazard-rate credit curve instead of a bootstrapped one: a constant 2% default intensity (Act/365F) with 40% recovery implies an expected loss rate of ~120bp/yr against the 100bp coupon, so the buyer&#x27;s NPV is positive. Exercises the flat-hazard branch of the credit-curve build (no quotes on the wire).</div></td>
@@ -673,31 +673,31 @@
 <td><div class="title">EUR 5Y CDS with 20% recovery (distressed-debt assumption)</div><div class="desc">The baseline trade with the recovery assumption dropped from 40% to 20%, as quoted for subordinated or distressed names. Recovery enters twice — the par-spread bootstrap and the pricing engine — and because the same par quotes re-anchor the curve, the NPV moves only second-order vs the 40% case; the case pins that both sides apply the same recovery in both places.</div></td>
 <td><code>buy protection</code> <code>recovery 20%</code> <code>recovery in bootstrap and engine</code></td>
 <td><a href="../../examples/data/cds/cds_eur_5y_buyer_recovery_20pct.json">cds_eur_5y_buyer_recovery_20pct.json</a></td>
-<td class="npv">40,152.55</td>
+<td class="npv">40,452.65</td>
 </tr>
 <tr>
 <td><div class="title">EUR 3Y CDS, coupon above the short-end par spread</div><div class="desc">A 3Y contract on the baseline curve: the interpolated 3Y par spread (~92bp) sits below the 100bp coupon, so unlike the 5Y case the protection buyer&#x27;s NPV is negative. Exercises a shorter maturity and the front end of the credit curve, where the 1Y 80bp quote dominates.</div></td>
 <td><code>buy protection</code> <code>3Y maturity</code> <code>credit curve short end</code> <code>negative NPV</code></td>
 <td><a href="../../examples/data/cds/cds_eur_3y_buyer_100bp_spread_curve.json">cds_eur_3y_buyer_100bp_spread_curve.json</a></td>
-<td class="npv">-18,558.56</td>
+<td class="npv">-18,297.79</td>
 </tr>
 <tr>
 <td><div class="title">EUR 10Y CDS, long-dated protection</div><div class="desc">A 10Y contract on the baseline curve, priced out to the 10Y 130bp par-spread pillar with the discount curve bootstrapped to its 12Y swap quote. The wide long-end spreads against the 100bp coupon make the buyer&#x27;s NPV strongly positive. Exercises the long end of both the credit and discount curves (~40 quarterly coupons).</div></td>
 <td><code>buy protection</code> <code>10Y maturity</code> <code>credit curve long end</code> <code>long-dated discounting</code></td>
 <td><a href="../../examples/data/cds/cds_eur_10y_buyer_100bp_spread_curve.json">cds_eur_10y_buyer_100bp_spread_curve.json</a></td>
-<td class="npv">227,185.13</td>
+<td class="npv">227,530.28</td>
 </tr>
 <tr>
 <td><div class="title">EUR 5Y CDS priced with the ISDA standard-model engine</div><div class="desc">The baseline trade priced with the ISDA engine instead of MidPoint, with the standard settings (Taylor numerical fix, half-day accrual bias, piecewise forwards, settlement-date flows included) and the curve helpers also built in ISDA mode. The premium differs measurably from the MidPoint case on the same market data, pinning the engine selection end to end.</div></td>
 <td><code>buy protection</code> <code>ISDA engine</code> <code>ISDA helper model</code> <code>standard ISDA settings</code></td>
 <td><a href="../../examples/data/cds/cds_eur_5y_buyer_isda_engine.json">cds_eur_5y_buyer_isda_engine.json</a></td>
-<td class="npv">39,758.33</td>
+<td class="npv">40,058.06</td>
 </tr>
 <tr>
 <td><div class="title">EUR 5Y CDS, old-style semiannual Act/365F premium leg</div><div class="desc">A pre-big-bang style contract: the 100bp premium accrues semiannually on Act/365F with a Forward-generated schedule from the trade date instead of the quarterly Act/360 TwentiethIMM grid. Exercises the premium-leg frequency, day count and date-generation fields independently of the market-standard conventions.</div></td>
 <td><code>buy protection</code> <code>semiannual premium leg</code> <code>Act/365F accrual</code> <code>Forward date generation</code> <code>non-IMM schedule</code></td>
 <td><a href="../../examples/data/cds/cds_eur_5y_buyer_semiannual_act365f.json">cds_eur_5y_buyer_semiannual_act365f.json</a></td>
-<td class="npv">42,262.19</td>
+<td class="npv">42,558.20</td>
 </tr>
 </tbody>
 </table>
@@ -979,79 +979,79 @@
 <td><div class="title">EUR 3Y ZCIIS, AsIndex (flat monthly) CPI observation</div><div class="desc">A 3Y zero-coupon inflation swap whose CPI observations use AsIndex interpolation on both the trade and the curve helpers: the index is built non-interpolated, so each observation reads the fixing of the observation month as-is instead of interpolating within the month. Pays inflation vs 2.05% fixed against a ~2.10% 3Y breakeven.</div></td>
 <td><code>ZCIIS</code> <code>CPI AsIndex observation</code> <code>flat monthly fixing</code> <code>3Y maturity</code></td>
 <td><a href="../../examples/data/inflation/zciis_eur_3y_payer_asindex_obs.json">zciis_eur_3y_payer_asindex_obs.json</a></td>
-<td class="npv">-1,436.63</td>
+<td class="npv">-1,547.29</td>
 </tr>
 <tr>
 <td><div class="title">EUR 5Y ZCIIS with a 6M observation lag</div><div class="desc">The baseline 5Y trade with the trade-level observation lag widened from 3 to 6 months (the curve helpers keep their 3M lag), so both the base CPI (July/August 2024 fixings) and the final observation shift back a quarter and the breakeven drops to ~2.17%. Exercises the trade observation lag independently of the curve&#x27;s.</div></td>
 <td><code>ZCIIS</code> <code>6M observation lag</code> <code>trade lag != helper lag</code> <code>past CPI fixings</code></td>
 <td><a href="../../examples/data/inflation/zciis_eur_5y_payer_6m_observation_lag.json">zciis_eur_5y_payer_6m_observation_lag.json</a></td>
-<td class="npv">-3,350.29</td>
+<td class="npv">-3,363.95</td>
 </tr>
 <tr>
 <td><div class="title">EUR 5Y ZCIIS on a curve with explicit-date helpers</div><div class="desc">The baseline 5Y trade priced on a zero-inflation curve whose helpers carry explicit end dates (July anniversaries, 2026-07-15 to 2035-07-15, one landing on a Saturday and used verbatim) instead of tenors, so every pillar sits half a year off the trade&#x27;s dates and the 5Y observation is a genuine interpolation between the 2030 and 2032 pillars. Exercises the end_date branch of the helper date resolution.</div></td>
 <td><code>ZCIIS</code> <code>explicit end-date helpers</code> <code>off-grid pillars</code> <code>weekend helper maturity</code></td>
 <td><a href="../../examples/data/inflation/zciis_eur_5y_payer_dated_helpers.json">zciis_eur_5y_payer_dated_helpers.json</a></td>
-<td class="npv">-3,542.27</td>
+<td class="npv">-3,496.55</td>
 </tr>
 <tr>
 <td><div class="title">EUR 5Y YoY inflation swap, receive 2.15% fixed</div><div class="desc">Baseline year-on-year inflation swap: receive 2.15% fixed annually (Act/365F), pay the annual year-on-year HICP rate, on 1m notional (TARGET, Modified Following, 3M observation lag, Linear interpolation). The YoY curve is bootstrapped from YoY swap quotes (1Y 2.00% to 7Y 2.25%) whose helpers discount on the nominal curve; the 5Y fair rate of ~2.20% sits above the fixed leg, so the fixed receiver is behind.</div></td>
 <td><code>YYIIS</code> <code>receive fixed</code> <code>annual YoY coupons</code> <code>YoY-inflation bootstrap</code> <code>3M observation lag</code></td>
 <td><a href="../../examples/data/inflation/yyiis_eur_5y_receiver_annual.json">yyiis_eur_5y_receiver_annual.json</a></td>
-<td class="npv">-2,285.59</td>
+<td class="npv">-2,285.42</td>
 </tr>
 <tr>
 <td><div class="title">EUR 5Y YoY inflation swap, same trade paying fixed</div><div class="desc">The other side of the baseline YoY trade: pay 2.15% fixed, receive the annual year-on-year HICP rate, on identical market data. The NPV is the exact negative of the receiver case, pinning the YYIIS direction convention (a QuantLib YoY-swap Payer pays the fixed leg) end to end.</div></td>
 <td><code>YYIIS</code> <code>pay fixed</code> <code>sign flip</code> <code>annual YoY coupons</code></td>
 <td><a href="../../examples/data/inflation/yyiis_eur_5y_payer_annual.json">yyiis_eur_5y_payer_annual.json</a></td>
-<td class="npv">2,285.59</td>
+<td class="npv">2,285.42</td>
 </tr>
 <tr>
 <td><div class="title">EUR 3Y YoY swap, semiannual, 30/360 fixed vs Act/360 YoY</div><div class="desc">A 3Y year-on-year swap with semiannual schedules on both legs and split day counts: the 2.10% fixed leg accrues 30/360 while the YoY leg accrues Act/360, so each semiannual YoY coupon observes the year-on-year rate at its own lagged date on the annually-quoted curve. Exercises non-annual YoY periods and per-leg day-count overrides.</div></td>
 <td><code>YYIIS</code> <code>semiannual schedules</code> <code>fixed 30/360</code> <code>YoY Act/360</code> <code>day-count split</code></td>
 <td><a href="../../examples/data/inflation/yyiis_eur_3y_receiver_semiannual_30360.json">yyiis_eur_3y_receiver_semiannual_30360.json</a></td>
-<td class="npv">-580.29</td>
+<td class="npv">-576.26</td>
 </tr>
 <tr>
 <td><div class="title">EUR 5Y YoY swap, +25bp spread on the YoY leg</div><div class="desc">The 5Y YoY trade paying 2.20% fixed against the year-on-year HICP rate plus a 25bp spread, so the effective fair fixed rate rises to ~2.45% and the fixed payer is well ahead. Exercises the YoY-leg spread field end to end.</div></td>
 <td><code>YYIIS</code> <code>pay fixed</code> <code>YoY spread +25bp</code> <code>positive NPV</code></td>
 <td><a href="../../examples/data/inflation/yyiis_eur_5y_payer_spread25bp.json">yyiis_eur_5y_payer_spread25bp.json</a></td>
-<td class="npv">11,427.97</td>
+<td class="npv">11,427.80</td>
 </tr>
 <tr>
 <td><div class="title">EUR 5Y YoY inflation cap struck at 1.50%, Black engine</div><div class="desc">A 5Y year-on-year inflation cap struck at 1.50%, well below the 2.01%-2.42% forward YoY rates on the curve, so every optionlet is in the money and the cap bites: NPV ~= 31,885 on 1m notional at 1% lognormal vol (Black engine). Contrast the 2.80% out-of-the-money cap below (~0.11).</div></td>
 <td><code>YoY inflation cap</code> <code>in-the-money / bites</code> <code>Black engine</code> <code>constant YoY optionlet vol</code></td>
 <td><a href="../../examples/data/inflation_cap_floor/yoy_cf_eur_5y_cap_150bp_black_bites.json">yoy_cf_eur_5y_cap_150bp_black_bites.json</a></td>
-<td class="npv">31,885.24</td>
+<td class="npv">31,851.91</td>
 </tr>
 <tr>
 <td><div class="title">EUR 5Y YoY inflation cap struck at 2.80%, out of the money</div><div class="desc">The same 5Y YoY cap struck at 2.80%, above every forward YoY rate (2.01%-2.42%), so it holds only time value: NPV ~= 0.11 on 1m notional at 2% lognormal vol (Black engine). Pins the out-of-the-money tail against the biting 1.50% cap.</div></td>
 <td><code>YoY inflation cap</code> <code>out of the money</code> <code>small NPV</code> <code>Black engine</code></td>
 <td><a href="../../examples/data/inflation_cap_floor/yoy_cf_eur_5y_cap_280bp_black_otm.json">yoy_cf_eur_5y_cap_280bp_black_otm.json</a></td>
-<td class="npv">0.11</td>
+<td class="npv">0.13</td>
 </tr>
 <tr>
 <td><div class="title">EUR 5Y YoY inflation floor struck at 3.00%, Black engine</div><div class="desc">A 5Y year-on-year inflation floor struck at 3.00%, above every forward YoY rate (2.01%-2.42%), so every optionlet is in the money and the floor bites: NPV ~= 36,683 on 1m notional at 1% lognormal vol (Black engine).</div></td>
 <td><code>YoY inflation floor</code> <code>in-the-money / bites</code> <code>Black engine</code></td>
 <td><a href="../../examples/data/inflation_cap_floor/yoy_cf_eur_5y_floor_300bp_black_bites.json">yoy_cf_eur_5y_floor_300bp_black_bites.json</a></td>
-<td class="npv">36,682.63</td>
+<td class="npv">36,715.96</td>
 </tr>
 <tr>
 <td><div class="title">EUR 5Y YoY inflation collar (long 2.50% cap, short 1.50% floor)</div><div class="desc">A 5Y year-on-year inflation collar: long the 2.50% cap, short the 1.50% floor. The cap sits just above most forward YoY rates and the floor well below them, so the two legs nearly offset: NPV ~= 10.90 on 1m notional at 1% lognormal vol (Black engine). Exercises the Collar type (both strikes required, cap_rate &gt;= floor_rate).</div></td>
 <td><code>YoY inflation collar</code> <code>long cap short floor</code> <code>cap &gt;= floor</code> <code>Black engine</code></td>
 <td><a href="../../examples/data/inflation_cap_floor/yoy_cf_eur_5y_collar_black.json">yoy_cf_eur_5y_collar_black.json</a></td>
-<td class="npv">10.90</td>
+<td class="npv">13.14</td>
 </tr>
 <tr>
 <td><div class="title">EUR 5Y YoY inflation cap struck at 1.50%, Bachelier engine</div><div class="desc">The biting 5Y 1.50% YoY cap repriced with the Bachelier (normal-vol) engine at 0.50% normal vol: NPV ~= 36,138 on 1m notional. Exercises the normal-vol pricing formula against the same in-the-money strip the Black case covers.</div></td>
 <td><code>YoY inflation cap</code> <code>Bachelier / normal vol</code> <code>in-the-money</code></td>
 <td><a href="../../examples/data/inflation_cap_floor/yoy_cf_eur_5y_cap_150bp_bachelier.json">yoy_cf_eur_5y_cap_150bp_bachelier.json</a></td>
-<td class="npv">36,137.79</td>
+<td class="npv">36,107.66</td>
 </tr>
 <tr>
 <td><div class="title">EUR 3Y YoY inflation cap struck at 1.75%, unit-displaced Black</div><div class="desc">A shorter 3Y year-on-year inflation cap struck at 1.75% priced with the unit-displaced Black engine at 1% vol: NPV ~= 21,247 on 1m notional. Exercises a second strike and maturity and the third (unit-displaced Black) engine variant.</div></td>
 <td><code>YoY inflation cap</code> <code>unit-displaced Black</code> <code>3Y maturity</code> <code>second strike</code></td>
 <td><a href="../../examples/data/inflation_cap_floor/yoy_cf_eur_3y_cap_175bp_udblack.json">yoy_cf_eur_3y_cap_175bp_udblack.json</a></td>
-<td class="npv">21,247.15</td>
+<td class="npv">21,197.18</td>
 </tr>
 </tbody>
 </table>
@@ -1327,37 +1327,37 @@
 <td><div class="title">EUR/USD 5Y cross-currency swap, pay EUR 2.55% fixed vs USD SOFR, NPV in USD</div><div class="desc">Baseline fixed/float: pay 2.55% annual 30/360 on 10m EUR, receive SOFR compounded quarterly Act/360 on 10.85m USD (= 10m x spot 1.0850), both principal exchanges, 5Y from the spot date 2025-01-17. The EUR leg is discounted on the USD-collateralised EUR curve (FX swaps + cross-currency basis), the USD leg on USD SOFR OIS, and the EUR leg is converted at the as-of rate X = S * DF_USD(spot) / DF_EUR(spot). The SOFR leg with its exchanges is a par floater (NPV ~ 0); the fixed rate sits above the fair rate (~2.107%), so the payer&#x27;s NPV is negative. Compares npv, both legs&#x27; NPVs in their currencies and in USD, the fair rate and the as-of rate with the reference&#x27;s cash-flow algebra. The legs are SwapLeg entries: pay_receive, currency, the shared notional / schedule / day counter / payment conventions on the leg, coupons_type/coupons (FixedCoupons / OvernightCoupons with the OIS averaging conventions), exchange flags and curves.</div></td>
 <td><code>cross-currency swap</code> <code>SwapLeg</code> <code>FixedCoupons vs OvernightCoupons</code> <code>EUR/USD</code> <code>both principal exchanges</code> <code>fair rate</code> <code>reporting in quote ccy</code> <code>collateral-adjusted discounting</code></td>
 <td><a href="../../examples/data/cross_currency_swap/xccy_eur_fixed_vs_usd_sofr_5y_payer_usd.json">xccy_eur_fixed_vs_usd_sofr_5y_payer_usd.json</a></td>
-<td class="npv">npv=-225423, fair_rate=0.0210683, fair_spread=0.00456182, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=-204770, npv_reporting=-222145, npv=-3277.96, npv_reporting=-3277.96</td>
+<td class="npv">npv=-225496, fair_rate=0.0210677, fair_spread=0.00456329, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=-207859, npv_reporting=-225497, npv=1.09817, npv_reporting=1.09817</td>
 </tr>
 <tr>
 <td><div class="title">EUR/USD 5Y cross-currency swap, the baseline reported in EUR</div><div class="desc">The baseline with reporting_currency EUR: the USD leg is converted with 1/X, the leg NPVs in their own currencies are unchanged and npv_EUR * X equals the USD-reported npv. Same fair rate.</div></td>
 <td><code>cross-currency swap</code> <code>reporting in base ccy</code> <code>as-of exchange rate</code></td>
 <td><a href="../../examples/data/cross_currency_swap/xccy_eur_fixed_vs_usd_sofr_5y_payer_eur.json">xccy_eur_fixed_vs_usd_sofr_5y_payer_eur.json</a></td>
-<td class="npv">npv=-207792, fair_rate=0.0210683, fair_spread=0.00456182, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=-204770, npv_reporting=-204770, npv=-3277.96, npv_reporting=-3021.58</td>
+<td class="npv">npv=-207858, fair_rate=0.0210677, fair_spread=0.00456329, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=-207859, npv_reporting=-207859, npv=1.09817, npv_reporting=1.01228</td>
 </tr>
 <tr>
-<td><div class="title">EUR/USD 5Y cross-currency swap struck at its fair rate (NPV zero)</div><div class="desc">The baseline with the fixed rate set to the reported fair_rate (2.1068295710...%): the NPV is zero to rounding and the reported fair rate is the contract rate. Shows the fair-rate definition (the rate that zeroes the total NPV holding the SOFR leg and every exchange fixed) through the API rather than by linear extrapolation.</div></td>
+<td><div class="title">EUR/USD 5Y cross-currency swap struck at its fair rate (NPV zero)</div><div class="desc">The baseline with the fixed rate set to the reported fair_rate (2.1067689937...%): the NPV is zero to rounding and the reported fair rate is the contract rate. Shows the fair-rate definition (the rate that zeroes the total NPV holding the SOFR leg and every exchange fixed) through the API rather than by linear extrapolation.</div></td>
 <td><code>cross-currency swap</code> <code>zero NPV at the fair rate</code> <code>fair rate round trip</code></td>
 <td><a href="../../examples/data/cross_currency_swap/xccy_eur_fixed_at_fair_rate_vs_usd_sofr_5y.json">xccy_eur_fixed_at_fair_rate_vs_usd_sofr_5y.json</a></td>
-<td class="npv">npv=-5.19549e-09, fair_rate=0.0210683, fair_spread=1.0514e-16, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=3021.58, npv_reporting=3277.96, npv=-3277.96, npv_reporting=-3277.96</td>
+<td class="npv">npv=1.76452e-09, fair_rate=0.0210677, fair_spread=-3.57081e-17, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=-1.01228, npv_reporting=-1.09817, npv=1.09817, npv_reporting=1.09817</td>
 </tr>
 <tr>
 <td><div class="title">USD SOFR vs EUR ESTR - 15 bp 5Y basis swap, both exchanges, NPV in USD</div><div class="desc">Float/float: pay SOFR compounded quarterly on 10.85m USD, receive ESTR compounded quarterly minus 15 bp on 10m EUR, both principal exchanges, 5Y from the spot date. Leg conventions are those of the collateral curve&#x27;s 5Y CrossCcyBasisHelper (ESTR - 17 bp vs SOFR), so the fair spread on the EUR leg reproduces the pillar&#x27;s -17 bp (to the helper&#x27;s constant-notional convention, ~1e-8); struck at -15 bp the EUR receiver is 2 bp better off and the NPV is positive. Compares npv, leg NPVs, the fair spread and the as-of rate.</div></td>
 <td><code>cross-currency swap</code> <code>float vs float</code> <code>compounded overnight both legs</code> <code>fair spread</code> <code>fair spread reprices the basis pillar</code> <code>negative spread</code></td>
 <td><a href="../../examples/data/cross_currency_swap/xccy_usd_sofr_vs_eur_estr_minus15bp_5y_both_exchanges.json">xccy_usd_sofr_vs_eur_estr_minus15bp_5y_both_exchanges.json</a></td>
-<td class="npv">npv=10399.9, fair_spread=-0.00170001, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=3277.96, npv_reporting=3277.96, npv=6564.94, npv_reporting=7121.98</td>
+<td class="npv">npv=10401.2, fair_spread=-0.0017, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=-1.09817, npv_reporting=-1.09817, npv=9588.65, npv_reporting=10402.3</td>
 </tr>
 <tr>
 <td><div class="title">USD SOFR vs EUR ESTR - 15 bp 5Y basis swap, final exchange only</div><div class="desc">The float/float swap without the initial principal exchange on either leg: each leg&#x27;s NPV moves by exactly the PV of its initial notional flow (N x DF(spot date)) and the fair spread leaves the basis pillar. The twin of the both-exchanges case.</div></td>
 <td><code>cross-currency swap</code> <code>final exchange only</code> <code>exchange flags</code></td>
 <td><a href="../../examples/data/cross_currency_swap/xccy_usd_sofr_vs_eur_estr_minus15bp_5y_final_exchange_only.json">xccy_usd_sofr_vs_eur_estr_minus15bp_5y_final_exchange_only.json</a></td>
-<td class="npv">npv=10399.9, fair_spread=-0.00170001, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=-1.08435e+07, npv_reporting=-1.08435e+07, npv=1.0005e+07, npv_reporting=1.08539e+07</td>
+<td class="npv">npv=10401.2, fair_spread=-0.0017, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=-1.08468e+07, npv_reporting=-1.08468e+07, npv=1.0008e+07, npv_reporting=1.08572e+07</td>
 </tr>
 <tr>
 <td><div class="title">USD 4.10% fixed vs EUR Euribor 3M 5Y cross-currency swap, received, NPV in EUR</div><div class="desc">The fixed leg in the spot&#x27;s quote currency: receive 4.10% semiannual 30/360 on 10.85m USD (discounted on USD SOFR OIS), pay Euribor 3M quarterly Act/360 on 10m EUR (projected off the EUR ESTR OIS curve for the example, discounted on the collateral curve), both exchanges, reported in EUR: the USD leg is converted with 1/X. An IBOR floating leg (one fixing per period, zero-vol Black pricer) next to the compounded overnight legs of the other cases; fair rate on the USD leg.</div></td>
 <td><code>cross-currency swap</code> <code>fixed leg in the quote currency</code> <code>IborCoupons</code> <code>fixed leg received</code> <code>reporting in base ccy</code> <code>fair rate</code></td>
 <td><a href="../../examples/data/cross_currency_swap/xccy_usd_fixed_vs_eur_euribor3m_5y_receiver_eur.json">xccy_usd_fixed_vs_eur_euribor3m_5y_receiver_eur.json</a></td>
-<td class="npv">npv=-41675.8, fair_rate=0.0419327, fair_spread=-0.000869505, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=39906.1, npv_reporting=36784.9, npv=-78460.7, npv_reporting=-78460.7</td>
+<td class="npv">npv=-44711.1, fair_rate=0.0420006, fair_spread=-0.000932682, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=39906.1, npv_reporting=36784.9, npv=-81495.9, npv_reporting=-81495.9</td>
 </tr>
 </tbody>
 </table>

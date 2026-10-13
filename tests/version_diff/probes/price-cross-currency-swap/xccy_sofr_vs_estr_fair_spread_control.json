@@ -1,0 +1,812 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "rates": {
+      "indices": [
+        {
+          "id": "EUR_ESTR",
+          "name": "ESTR",
+          "index_type": "Overnight",
+          "currency": "EUR",
+          "tenor": {
+            "n": 0,
+            "unit": "Days"
+          },
+          "fixing_days": 0,
+          "calendar": "TARGET",
+          "day_counter": "Actual360",
+          "business_day_convention": "ModifiedFollowing",
+          "end_of_month": true
+        },
+        {
+          "id": "USD_SOFR",
+          "name": "SOFR",
+          "index_type": "Overnight",
+          "currency": "USD",
+          "tenor": {
+            "n": 0,
+            "unit": "Days"
+          },
+          "fixing_days": 0,
+          "calendar": "UnitedStatesGovernmentBond",
+          "day_counter": "Actual360",
+          "business_day_convention": "ModifiedFollowing",
+          "end_of_month": true
+        }
+      ],
+      "curves": [
+        {
+          "id": "EUR_USD_COLLATERAL",
+          "reference_date": "2025-01-15",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "FxSwapHelper",
+              "point": {
+                "fx_points": 0.00052,
+                "tenor": {
+                  "n": 1,
+                  "unit": "Weeks"
+                },
+                "fx_spot": "EURUSD_SPOT",
+                "end_of_month": false,
+                "collateral_currency": "USD",
+                "collateral_curve": {
+                  "id": "USD_SOFR_OIS"
+                }
+              }
+            },
+            {
+              "point_type": "FxSwapHelper",
+              "point": {
+                "fx_points": 0.00213,
+                "tenor": {
+                  "n": 1,
+                  "unit": "Months"
+                },
+                "fx_spot": "EURUSD_SPOT",
+                "end_of_month": false,
+                "collateral_currency": "USD",
+                "collateral_curve": {
+                  "id": "USD_SOFR_OIS"
+                }
+              }
+            },
+            {
+              "point_type": "FxSwapHelper",
+              "point": {
+                "fx_points": 0.00641,
+                "tenor": {
+                  "n": 3,
+                  "unit": "Months"
+                },
+                "fx_spot": "EURUSD_SPOT",
+                "end_of_month": false,
+                "collateral_currency": "USD",
+                "collateral_curve": {
+                  "id": "USD_SOFR_OIS"
+                }
+              }
+            },
+            {
+              "point_type": "FxSwapHelper",
+              "point": {
+                "fx_points": 0.0131,
+                "tenor": {
+                  "n": 6,
+                  "unit": "Months"
+                },
+                "fx_spot": "EURUSD_SPOT",
+                "end_of_month": false,
+                "collateral_currency": "USD",
+                "collateral_curve": {
+                  "id": "USD_SOFR_OIS"
+                }
+              }
+            },
+            {
+              "point_type": "FxSwapHelper",
+              "point": {
+                "fx_points": 0.02702,
+                "tenor": {
+                  "n": 1,
+                  "unit": "Years"
+                },
+                "fx_spot": "EURUSD_SPOT",
+                "end_of_month": false,
+                "collateral_currency": "USD",
+                "collateral_curve": {
+                  "id": "USD_SOFR_OIS"
+                }
+              }
+            },
+            {
+              "point_type": "CrossCcyBasisHelper",
+              "point": {
+                "spread": -0.0012,
+                "tenor": {
+                  "n": 2,
+                  "unit": "Years"
+                },
+                "fx_spot": "EURUSD_SPOT",
+                "base_index": {
+                  "id": "EUR_ESTR"
+                },
+                "base_forwarding_curve": {
+                  "id": "EUR_ESTR_OIS"
+                },
+                "quote_index": {
+                  "id": "USD_SOFR"
+                },
+                "quote_forwarding_curve": {
+                  "id": "USD_SOFR_OIS"
+                },
+                "quote_discount_curve": {
+                  "id": "USD_SOFR_OIS"
+                },
+                "spread_on_base_leg": true,
+                "payment_frequency": "Quarterly",
+                "payment_lag": 0,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "end_of_month": false,
+                "mtm_reset": false
+              }
+            },
+            {
+              "point_type": "CrossCcyBasisHelper",
+              "point": {
+                "spread": -0.0014,
+                "tenor": {
+                  "n": 3,
+                  "unit": "Years"
+                },
+                "fx_spot": "EURUSD_SPOT",
+                "base_index": {
+                  "id": "EUR_ESTR"
+                },
+                "base_forwarding_curve": {
+                  "id": "EUR_ESTR_OIS"
+                },
+                "quote_index": {
+                  "id": "USD_SOFR"
+                },
+                "quote_forwarding_curve": {
+                  "id": "USD_SOFR_OIS"
+                },
+                "quote_discount_curve": {
+                  "id": "USD_SOFR_OIS"
+                },
+                "spread_on_base_leg": true,
+                "payment_frequency": "Quarterly",
+                "payment_lag": 0,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "end_of_month": false,
+                "mtm_reset": false
+              }
+            },
+            {
+              "point_type": "CrossCcyBasisHelper",
+              "point": {
+                "spread": -0.0017,
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                },
+                "fx_spot": "EURUSD_SPOT",
+                "base_index": {
+                  "id": "EUR_ESTR"
+                },
+                "base_forwarding_curve": {
+                  "id": "EUR_ESTR_OIS"
+                },
+                "quote_index": {
+                  "id": "USD_SOFR"
+                },
+                "quote_forwarding_curve": {
+                  "id": "USD_SOFR_OIS"
+                },
+                "quote_discount_curve": {
+                  "id": "USD_SOFR_OIS"
+                },
+                "spread_on_base_leg": true,
+                "payment_frequency": "Quarterly",
+                "payment_lag": 0,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "end_of_month": false,
+                "mtm_reset": false
+              }
+            },
+            {
+              "point_type": "CrossCcyBasisHelper",
+              "point": {
+                "spread": -0.0021,
+                "tenor": {
+                  "n": 10,
+                  "unit": "Years"
+                },
+                "fx_spot": "EURUSD_SPOT",
+                "base_index": {
+                  "id": "EUR_ESTR"
+                },
+                "base_forwarding_curve": {
+                  "id": "EUR_ESTR_OIS"
+                },
+                "quote_index": {
+                  "id": "USD_SOFR"
+                },
+                "quote_forwarding_curve": {
+                  "id": "USD_SOFR_OIS"
+                },
+                "quote_discount_curve": {
+                  "id": "USD_SOFR_OIS"
+                },
+                "spread_on_base_leg": true,
+                "payment_frequency": "Quarterly",
+                "payment_lag": 0,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "end_of_month": false,
+                "mtm_reset": false
+              }
+            }
+          ]
+        },
+        {
+          "id": "EUR_ESTR_OIS",
+          "reference_date": "2025-01-15",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.029,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "EUR_ESTR"
+                },
+                "tenor": {
+                  "n": 1,
+                  "unit": "Months"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "Following",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 1,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0282,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "EUR_ESTR"
+                },
+                "tenor": {
+                  "n": 3,
+                  "unit": "Months"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "Following",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 1,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.027,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "EUR_ESTR"
+                },
+                "tenor": {
+                  "n": 6,
+                  "unit": "Months"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "Following",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 1,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0255,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "EUR_ESTR"
+                },
+                "tenor": {
+                  "n": 1,
+                  "unit": "Years"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "Following",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 1,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0235,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "EUR_ESTR"
+                },
+                "tenor": {
+                  "n": 2,
+                  "unit": "Years"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "Following",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 1,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0228,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "EUR_ESTR"
+                },
+                "tenor": {
+                  "n": 3,
+                  "unit": "Years"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "Following",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 1,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0225,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "EUR_ESTR"
+                },
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "Following",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 1,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0228,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "EUR_ESTR"
+                },
+                "tenor": {
+                  "n": 7,
+                  "unit": "Years"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "Following",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 1,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0235,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "EUR_ESTR"
+                },
+                "tenor": {
+                  "n": 10,
+                  "unit": "Years"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "Following",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 1,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0238,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "EUR_ESTR"
+                },
+                "tenor": {
+                  "n": 12,
+                  "unit": "Years"
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "Following",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 1,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            }
+          ]
+        },
+        {
+          "id": "USD_SOFR_OIS",
+          "reference_date": "2025-01-15",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0533,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 1,
+                  "unit": "Months"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.053,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 3,
+                  "unit": "Months"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.052,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 6,
+                  "unit": "Months"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0495,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 1,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.044,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 2,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0415,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 3,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.04,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0398,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 7,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.04,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 10,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0402,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 12,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "fx": {
+      "spots": [
+        {
+          "id": "EURUSD_SPOT",
+          "base_currency": "EUR",
+          "quote_currency": "USD",
+          "rate": 1.085,
+          "spot_days": 2,
+          "settlement_calendars": [
+            "TARGET",
+            "UnitedStatesSettlement"
+          ],
+          "business_day_convention": "ModifiedFollowing"
+        }
+      ]
+    }
+  },
+  "swaps": [
+    {
+      "cross_currency_swap": {
+        "leg1": {
+          "pay_receive": "Pay",
+          "currency": "USD",
+          "notional": 10850000.0,
+          "schedule": {
+            "calendar": "TARGET",
+            "effective_date": "2025-01-17",
+            "termination_date": "2030-01-17",
+            "frequency": "Quarterly",
+            "convention": "ModifiedFollowing",
+            "termination_date_convention": "ModifiedFollowing",
+            "date_generation_rule": "Forward",
+            "end_of_month": false
+          },
+          "payment_convention": "ModifiedFollowing",
+          "payment_calendar": "TARGET",
+          "payment_lag": 0,
+          "coupons_type": "OvernightCoupons",
+          "coupons": {
+            "index": {
+              "id": "USD_SOFR"
+            },
+            "spread": 0.0,
+            "averaging_method": "Compound",
+            "lookback_days": 0,
+            "lockout_days": 0,
+            "apply_observation_shift": false,
+            "telescopic_value_dates": false
+          },
+          "discounting_curve": "USD_SOFR_OIS",
+          "forwarding_curve": "USD_SOFR_OIS",
+          "initial_exchange": true,
+          "final_exchange": true
+        },
+        "leg2": {
+          "pay_receive": "Receive",
+          "currency": "EUR",
+          "notional": 10000000.0,
+          "schedule": {
+            "calendar": "TARGET",
+            "effective_date": "2025-01-17",
+            "termination_date": "2030-01-17",
+            "frequency": "Quarterly",
+            "convention": "ModifiedFollowing",
+            "termination_date_convention": "ModifiedFollowing",
+            "date_generation_rule": "Forward",
+            "end_of_month": false
+          },
+          "payment_convention": "ModifiedFollowing",
+          "payment_calendar": "TARGET",
+          "payment_lag": 0,
+          "coupons_type": "OvernightCoupons",
+          "coupons": {
+            "index": {
+              "id": "EUR_ESTR"
+            },
+            "spread": -0.0015,
+            "averaging_method": "Compound",
+            "lookback_days": 0,
+            "lockout_days": 0,
+            "apply_observation_shift": false,
+            "telescopic_value_dates": false
+          },
+          "discounting_curve": "EUR_USD_COLLATERAL",
+          "forwarding_curve": "EUR_ESTR_OIS",
+          "initial_exchange": true,
+          "final_exchange": true
+        }
+      },
+      "fx_spot": "EURUSD_SPOT",
+      "reporting_currency": "USD"
+    }
+  ]
+}

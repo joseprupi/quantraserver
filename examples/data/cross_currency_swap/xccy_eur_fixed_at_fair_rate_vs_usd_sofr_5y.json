@@ -754,7 +754,7 @@
           "payment_convention": "ModifiedFollowing",
           "coupons_type": "FixedCoupons",
           "coupons": {
-            "rate": 0.021068295710420803
+            "rate": 0.02106768993710283
           },
           "discounting_curve": "EUR_USD_COLLATERAL",
           "initial_exchange": true,

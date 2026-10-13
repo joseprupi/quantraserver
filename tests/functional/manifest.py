@@ -4262,7 +4262,7 @@ CASES = [
         "title": "EUR/USD 5Y cross-currency swap struck at its fair rate (NPV zero)",
         "description": (
             "The baseline with the fixed rate set to the reported fair_rate "
-            "(2.1068295710...%): the NPV is zero to rounding and the reported "
+            "(2.1067689937...%): the NPV is zero to rounding and the reported "
             "fair rate is the contract rate. Shows the fair-rate definition "
             "(the rate that zeroes the total NPV holding the SOFR leg and "
             "every exchange fixed) through the API rather than by linear "
