@@ -32,6 +32,9 @@ std::unordered_map<std::string, EquityUnderlyingRuntime> EquityUnderlyingRegistr
         }
 
         EquityUnderlyingRuntime runtime;
+        if (u->currency()) {
+            runtime.currency = u->currency()->str();
+        }
         runtime.spot = reg.quoteRegistry.getHandle(u->spot_quote_id()->str());
         runtime.dividend =
             QuantLib::Handle<QuantLib::YieldTermStructure>(divIt->second->currentLink());

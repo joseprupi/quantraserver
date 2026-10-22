@@ -45,6 +45,7 @@ committed catalog drifts from the manifest.
 | `../../examples/data/zero_coupon_swap/` | The curated request JSONs for the Zero Coupon Swaps family. |
 | `../../examples/data/callable_bonds/` | The curated request JSONs for the Callable Bonds family. |
 | `../../examples/data/inflation_cap_floor/` | The curated request JSONs for the inflation cap/floor cases (Inflation family). |
+| `../../examples/data/structured_note/` | The curated request JSONs for the Structured Notes family (Monte Carlo on the engine's random stream). |
 
 ## Comparison modes
 
@@ -80,6 +81,12 @@ existing rows omit it and keep the original behaviour.
   matches within the case tolerance (element-wise and length-checked for
   lists), reporting the worst gap on failure. Fields cases carry no
   `list_key` (the driver forbids one).
+  The FX forward, cross-currency swap and structured-note cases use the
+  same mode for their per-instrument scalars. The structured-note
+  reference (`structured_note_ql`) is a Monte Carlo on the engine's own
+  random stream, so npv, standard error, cash-flow buckets, probabilities
+  and expected life are compared within 1e-9 — the JSON gateway's
+  12-decimal print is the only noise.
 
 Series cases use a much tighter tolerance than NPV cases (1e-9, set per case
 in the manifest) because the compared quantities — discount factors, zero

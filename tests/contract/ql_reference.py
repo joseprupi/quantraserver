@@ -915,7 +915,14 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
             ql.FlatForward(eval_date, 0.03, ql.Actual365Fixed())
         )
     
-    curve = ql.PiecewiseLogLinearDiscount(eval_date, helpers, get_day_counter(curve_json.get("day_counter", "Actual365Fixed")))
+    # The server bootstraps every piecewise yield curve to an accuracy of
+    # 1e-15 (src/parsers/term_structure_parser.cpp, buildCurve); QuantLib's
+    # default (1e-12) leaves the discount factors a few ulps apart, which
+    # the structured-note standard errors amplify (a variance is a
+    # difference of near-equal sums) to ~1e-11 relative.
+    curve = ql.PiecewiseLogLinearDiscount(
+        eval_date, helpers, get_day_counter(curve_json.get("day_counter", "Actual365Fixed")),
+        ql.IterativeBootstrap(accuracy=1.0e-15))
     curve.enableExtrapolation()
     # Remember the helpers' own pillar dates (the server reports them as
     # pillar_dates); see curve_pillar_dates_ql.
@@ -4901,6 +4908,984 @@ def calibrate_swaption_vol_ql(request: dict) -> dict:
         "diagnostics.calibration.per_node_rmse": per_node_rmse,
         "diagnostics.calibration.overall_rmse": overall_rmse,
     }
+
+
+# =============================================================================
+# Structured notes (worst-of autocallables on index baskets, Monte Carlo)
+# =============================================================================
+#
+# Same-stream parity: the reference does not merely
+# re-price the note, it reproduces the engine's Monte Carlo estimate on the
+# SAME random stream, so the comparison is bit-level up to summation order
+# and the 15 significant digits the JSON gateway prints. Everything below is
+# built from the request JSON only; the payoff walk is written from the
+# schema documentation in flatbuffers/fbs/structured_note.fbs, not from the
+# engine.
+#
+# Model (src/mc/basket_model.h, src/market/quanto_builder.h): one
+# GeneralizedBlackScholesProcess(spot, dividend', r_note, black vol) per
+# underlying, r_note = the note's discounting curve WITHOUT the funding
+# spread, dividend' = the underlying's dividend curve (note-currency
+# underlying) or QuantoTermStructure(dividend, riskFree = r_note, foreign =
+# quanto.discounting_curve, equity vol at initial_level, FX vol at the FX
+# spot as quoted, rho) for a quanto one. StochasticProcessArray with the
+# correlation sub-matrix permuted to the note's underlying order.
+#
+# Grid (src/mc/time_grid.h): Actual/365 (Fixed) years from the valuation
+# date to every future dated observation (accrual-only events are not
+# observed); with steps_per_year every interval is split into
+# ceil(length * steps_per_year) equal steps.
+#
+# Random numbers (src/mc/path_engine.h): dimension = assets x steps, consumed
+# time-major (element (step - 1) * assets + asset). Sobol + bridge:
+# SobolBrownianBridgeRsg(assets, steps) with QuantLib's defaults (Diagonal
+# ordering, JoeKuoD7 direction integers, seed 0) -- the engine passes the
+# request's seed, which QuantLib only uses for Sobol dimensions beyond the
+# 1898 tabulated ones, so the stream is the same for every seed at these
+# dimensions. Sobol without bridge: InverseCumulativeRsg<SobolRsg(dim, seed,
+# JoeKuoD7), InverseCumulativeNormal>. PseudoRandom: InverseCumulativeRsg<
+# RandomSequenceGenerator<MersenneTwister(seed)>, InverseCumulativeNormal>.
+# No Python MultiPathGenerator accepts the bridge RSG, so the paths are
+# evolved by hand exactly as QuantLib's MultiPathGenerator::next() does:
+# one Gaussian vector per path, StochasticProcessArray.evolve(t, x, dt, dw)
+# per step with the step's slice; the antithetic path uses the negated
+# vector. Antithetic variates: the pair's accumulators are averaged and the
+# pair is one sample of the mean / standard-error statistics (standard
+# error = sqrt(unbiased sample variance / samples)).
+#
+# Discounting: ZeroSpreadedTermStructure(discounting_curve, funding_spread_bp
+# / 1e4, Continuous, Annual, Actual/365 (Fixed)) at each cash flow's payment
+# date; a payment on or before the valuation date is not discounted.
+#
+# Summation order follows the engine so the sums are bit-identical: per path
+# the cash flows are added event by event (a coupon PV before the redemption
+# PV of the same event, the final redemption and loss as one term), the pair
+# average is 0.5 * (path + antithetic), and the sample sums are accumulated
+# in simulation order.
+
+_SN_PERF_RULES = {"WorstOf": min, "BestOf": max,
+                  "Average": lambda perfs: sum(perfs) / float(len(perfs))}
+
+
+def _sn_find(items, key, value, what):
+    hit = next((it for it in items or [] if it.get(key) == value), None)
+    if hit is None:
+        raise ValueError(f"{what} not found: {value}")
+    return hit
+
+
+def _sn_black_vol(pricing: dict, vol_id: str, shift: float = 0.0):
+    """The referenced BlackVolSpec as the server builds it
+    (src/parsers/vol_surface_parsers.cpp): Constant -> BlackConstantVol,
+    AtmMatrix2D -> BlackVarianceCurve (pillars = calendar.advance(reference,
+    expiry, bdc), forceMonotoneVariance), SmileCube3D -> BlackVarianceSurface
+    (rows = strikes, columns = expiries, bilinear or bicubic). `shift` is
+    added to every Black vol (the constant, every term node, every surface
+    entry) before the object is built: the engine's `shiftedBlackVol` of the
+    vega bump. Returns (handle, shape, exact_step) where exact_step is True
+    for the two strike-independent shapes that the process steps exactly
+    (anything else is Dupire local vol on a fine grid)."""
+    spec = _find_vol_surface_spec(pricing, vol_id)
+    if spec.get("payload_type") != "BlackVolSpec":
+        raise ValueError(f"vol {vol_id}: a BlackVolSpec payload is required")
+    payload = spec["payload"]
+    base = payload["base"]
+    ref = parse_date(base["reference_date"])
+    cal = get_calendar(base["calendar"])
+    bdc = get_convention(base["business_day_convention"])
+    dc = get_day_counter(base["day_counter"])
+    shape = base.get("shape", "Constant")
+    if shape == "Constant":
+        ts = ql.BlackConstantVol(ref, cal, float(base["constant_vol"]) + shift, dc)
+    elif shape == "AtmMatrix2D":
+        vols = payload["term_vols"]
+        if vols.get("quote_ids"):
+            raise ValueError(f"vol {vol_id}: quote-referenced term vols not supported")
+        dates = [cal.advance(ref, _wire_period_to_ql(p), bdc) for p in payload["expiries"]]
+        ts = ql.BlackVarianceCurve(ref, dates, [float(v) + shift for v in vols["values"]], dc,
+                                   True)
+    elif shape == "SmileCube3D":
+        vols = payload["surface_vols"]
+        if vols.get("quote_ids"):
+            raise ValueError(f"vol {vol_id}: quote-referenced surface vols not supported")
+        dates = [cal.advance(ref, _wire_period_to_ql(p), bdc) for p in payload["expiries"]]
+        strikes = [float(k) for k in payload["strikes"]]
+        n_exp, n_str = len(dates), len(strikes)
+        values = vols["values"]
+        if len(values) != n_exp * n_str:
+            raise ValueError(f"vol {vol_id}: surface_vols has {len(values)} values, "
+                             f"expected {n_exp} x {n_str}")
+        # Wire order is row-major by expiry then strike; QuantLib wants a
+        # (strikes x expiries) matrix.
+        matrix = ql.Matrix(n_str, n_exp)
+        for i in range(n_exp):
+            for j in range(n_str):
+                matrix[j][i] = float(values[i * n_str + j]) + shift
+        ts = ql.BlackVarianceSurface(ref, cal, dates, strikes, matrix, dc)
+        legacy_cubic = (payload.get("expiry_interpolator", "Linear") == "LogCubic")
+        if legacy_cubic or payload.get("surface_interpolator", "Bilinear") == "Bicubic":
+            ts.setInterpolation("bicubic")
+        else:
+            ts.setInterpolation("bilinear")
+    else:
+        raise ValueError(f"vol {vol_id}: shape {shape} is not reference-supported")
+    if payload.get("allow_extrapolation", False):
+        ts.enableExtrapolation()
+    else:
+        ts.disableExtrapolation()
+    return ql.BlackVolTermStructureHandle(ts), shape, shape in ("Constant", "AtmMatrix2D")
+
+
+def _sn_simulation_times(as_of: ql.Date, dates: list, steps_per_year):
+    """The engine's grid rule (src/mc/time_grid.cpp): Actual/365 (Fixed)
+    times of the distinct mandatory dates, each interval refined to
+    ceil(length * steps_per_year) equal steps when steps_per_year is given.
+    Returns (times, {date: grid index})."""
+    dc = ql.Actual365Fixed()
+    distinct = [0.0]
+    mandatory_times = []
+    for d in dates:
+        t = dc.yearFraction(as_of, d)
+        mandatory_times.append(t)
+        if t > distinct[-1]:
+            distinct.append(t)
+    if len(distinct) < 2:
+        raise ValueError("structured note: no observation after the valuation date")
+    times = [0.0]
+    distinct_index = [0]
+    for k in range(1, len(distinct)):
+        a, b = distinct[k - 1], distinct[k]
+        n = 1
+        if steps_per_year is not None:
+            n = max(1, int(math.ceil((b - a) * float(steps_per_year) - 1e-9)))
+        for s in range(1, n):
+            times.append(a + (b - a) * float(s) / float(n))
+        times.append(b)
+        distinct_index.append(len(times) - 1)
+    index_of = {}
+    for d, t in zip(dates, mandatory_times):
+        k = distinct.index(t)
+        index_of[d] = distinct_index[k]
+    return times, index_of
+
+
+def _sn_gaussian_source(sequence: str, brownian_bridge: bool, seed: int,
+                        assets: int, steps: int):
+    """The engine's Gaussian sequence generator (src/mc/path_engine.h);
+    returns a callable producing one time-major vector of dimension
+    assets x steps per call."""
+    dimension = assets * steps
+    if sequence == "Sobol":
+        if brownian_bridge:
+            # QuantLib defaults = Diagonal ordering, seed 0, JoeKuoD7; the
+            # seed only enters beyond the tabulated dimensions.
+            rsg = ql.SobolBrownianBridgeRsg(assets, steps)
+        else:
+            rsg = ql.InvCumulativeSobolGaussianRsg(
+                ql.SobolRsg(dimension, seed, ql.SobolRsg.JoeKuoD7))
+    elif sequence == "PseudoRandom":
+        rsg = ql.InvCumulativeMersenneTwisterGaussianRsg(
+            ql.MersenneTwisterUniformRsg(dimension, seed))
+    else:
+        raise ValueError(f"unknown random sequence: {sequence}")
+    return lambda: list(rsg.nextSequence().value())
+
+
+def _sn_spreaded(curve_handle, spread: float):
+    """The engine's funding / rate shift: ZeroSpreadedTermStructure(curve,
+    spread, Continuous, Annual, Actual/365 (Fixed)), extrapolating."""
+    ts = ql.ZeroSpreadedTermStructure(
+        curve_handle, ql.QuoteHandle(ql.SimpleQuote(spread)), ql.Continuous, ql.Annual,
+        ql.Actual365Fixed())
+    ts.enableExtrapolation()
+    return ts
+
+
+def _sn_bump_correlation(c, delta: float):
+    """The engine's bumpCorrelation (src/evaluators/structured_note_evaluator.cpp):
+    every off-diagonal entry + delta clipped to [-1, 1]; when the smallest
+    eigenvalue (SymmetricSchurDecomposition, QuantLib's Jacobi) is below
+    -1e-10 the matrix is repaired as V diag(max(lambda, 0)) V^T rescaled to
+    unit diagonal, the sums in the engine's order. Returns (matrix, repaired)."""
+    n = c.rows()
+    m = ql.Matrix(n, n)
+    for i in range(n):
+        for j in range(n):
+            m[i][j] = c[i][j] if i == j else min(1.0, max(-1.0, c[i][j] + delta))
+    schur = ql.SymmetricSchurDecomposition(m)
+    ev = schur.eigenvalues()
+    smallest = ev[0]
+    for l in range(1, n):
+        smallest = min(smallest, ev[l])
+    if smallest >= -1.0e-10:
+        return m, False
+    v = schur.eigenvectors()
+    r = [[0.0] * n for _ in range(n)]
+    for i in range(n):
+        for j in range(n):
+            total = 0.0
+            for l in range(n):
+                total += v[i][l] * max(ev[l], 0.0) * v[j][l]
+            r[i][j] = total
+    out = ql.Matrix(n, n)
+    for i in range(n):
+        for j in range(n):
+            out[i][j] = 1.0 if i == j else r[i][j] / math.sqrt(r[i][i] * r[j][j])
+    return out, True
+
+
+def structured_note_ql(request: dict, index: int = 0) -> dict:
+    """Reference price of `request["notes"][index]` on the engine's random
+    stream (see the section comment above for every convention).
+
+    Returns the fields of a StructuredNoteResult the parity tests compare:
+    npv, npv_pct_of_notional, standard_error (absent for a Called / Matured
+    note), paths, status, legs {bond_redemption, coupons, capital_loss:
+    {pv, standard_error}}, p_barrier_breach, expected_life_years,
+    event_probabilities [{index, observation_date, p_call?, p_coupon?}] and
+    seasoning {memory_carried, status, known_payment?}; with the request's
+    `diagnostics` flags the market / decomposition / checks / distribution
+    blocks, and with `greeks` the Greeks block (bump-and-reprice on the same
+    stream, every bumped market rebuilt from the request JSON exactly as the
+    engine rebuilds it: spot quote x (1 +/- h), every Black vol + dv (the
+    quanto curve rebuilt with it), the off-diagonal correlations + dr clipped
+    and repaired by eigenvalue clipping when indefinite, the funding spread
+    + bp on the discounting, a zero spread of + bp on the note curve as the
+    processes' risk-free curve and under the funding spread; each
+    sensitivity is the mean of the per-sample difference of the two runs,
+    scaled to the unit move, with the engine's standard-error estimator on
+    those differences).
+    """
+    pricing = _reference_pricing_view(request)
+    note = request["notes"][index]
+    as_of = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = as_of
+    notional = float(note["notional"])
+    perf_rule = _SN_PERF_RULES[note["performance_rule"]]
+    coupon_rule = note["coupon_rule"]
+    memory_rule = bool(coupon_rule["memory"])
+    pay_only_on_call = bool(coupon_rule["pay_only_on_call"])
+    capital = note["capital"]
+    barrier = float(capital["barrier"])
+    daily_close = capital["monitoring"] == "DailyClose"
+    put_strike = float(capital.get("put_strike", 1.0))
+    participation = float(capital.get("participation", 1.0))
+    upside = note.get("upside")
+    maturity = parse_date(note["maturity_payment_date"])
+    mc = note["monte_carlo"]
+    paths = int(mc["paths"])
+    seed = int(mc.get("seed", 42))
+    sequence = mc.get("sequence", "Sobol")
+    antithetic = bool(mc.get("antithetic", True))
+    brownian_bridge = bool(mc.get("brownian_bridge", True))
+    steps_per_year = mc.get("steps_per_year")
+
+    # --- market -------------------------------------------------------------
+    def curve(curve_id, what):
+        spec = _sn_find(pricing["curves"], "id", curve_id, what)
+        return build_curve_from_json(spec, as_of, request)
+
+    note_curve = curve(note["discounting_curve"], "Discounting curve")
+    spreaded = _sn_spreaded(note_curve, float(note.get("funding_spread_bp", 0.0)) * 1.0e-4)
+
+    def df(d):
+        return 1.0 if d <= as_of else spreaded.discount(d, True)
+
+    processes = []
+    exact_step = True
+    initial = []
+    ids = []
+    und = []  # per underlying, what the market diagnostics and the limit runs reuse
+    for u in note["underlyings"]:
+        eq = _sn_find(pricing.get("equity_underlyings"), "id", u["underlying_id"],
+                      "Equity underlying")
+        spot_value = _sn_find(pricing.get("quotes"), "id", eq["spot_quote_id"], "Quote")["value"]
+        spot = ql.QuoteHandle(ql.SimpleQuote(float(spot_value)))
+        dividend = curve(eq["dividend_yield_curve_id"], "Dividend yield curve")
+        plain_dividend = dividend
+        local_curve = note_curve
+        vol, _shape, exact = _sn_black_vol(pricing, u["volatility_id"])
+        exact_step = exact_step and exact
+        level = float(u["initial_level"])
+        quanto = u.get("quanto")
+        if (eq.get("currency") != note["currency"]) != (quanto is not None):
+            raise ValueError(f"underlying {u['underlying_id']}: quanto block presence "
+                             f"must match a currency different from the note's")
+        fx_vol, fx_rate, rho = None, 0.0, 0.0
+        if quanto is not None:
+            local_curve = curve(quanto["discounting_curve"], "Discounting curve")
+            fx = build_fx_spot(pricing, quanto["fx_spot_id"], request)
+            fx_vol, _fx_shape, fx_exact = _sn_black_vol(pricing, quanto["fx_volatility_id"])
+            if not fx_exact:
+                raise ValueError("quanto FX vol must be Constant or AtmMatrix2D")
+            fx_rate = float(fx["rate"])
+            rho = float(quanto["fx_underlying_correlation"])
+            dividend = ql.YieldTermStructureHandle(ql.QuantoTermStructure(
+                dividend, note_curve, local_curve, vol, level, fx_vol, fx["rate"], rho))
+        processes.append(ql.GeneralizedBlackScholesProcess(spot, dividend, note_curve, vol))
+        initial.append(level)
+        ids.append(u["underlying_id"])
+        und.append({"spot": float(spot_value), "spot_handle": spot, "dividend": dividend,
+                    "plain_dividend": plain_dividend, "local_curve": local_curve, "vol": vol,
+                    "vol_id": u["volatility_id"], "level": level,
+                    "quanto": quanto is not None, "fx_vol": fx_vol, "fx_spot": fx_rate,
+                    "rho": rho})
+
+    n_u = len(ids)
+    correlation = ql.Matrix(n_u, n_u)
+    if n_u == 1:
+        # A single underlying is simulated on the 1 x 1 unit matrix and
+        # carries no correlation_id (the engine's rule).
+        if note.get("correlation_id"):
+            raise ValueError("correlation_id must be absent with a single underlying")
+        correlation[0][0] = 1.0
+    else:
+        corr_spec = _sn_find(((pricing.get("correlations") or {}).get("matrices")), "id",
+                             note["correlation_id"], "Correlation matrix")
+        labels = list(corr_spec["labels"])
+        if sorted(labels) != sorted(ids):
+            raise ValueError("correlation labels must be exactly the note's underlying ids")
+        values = corr_spec["values"]
+        n_lab = len(labels)
+        if values.get("quote_ids"):
+            quotes = {q["id"]: q["value"] for q in pricing.get("quotes", [])}
+            flat = [quotes[qid] for qid in values["quote_ids"]]
+        else:
+            flat = list(values["values"])
+        for a, ia in enumerate(ids):
+            for b, ib in enumerate(ids):
+                correlation[a][b] = float(flat[labels.index(ia) * n_lab + labels.index(ib)])
+    array = ql.StochasticProcessArray(processes, correlation)
+
+    # --- events ---------------------------------------------------------------
+    events = note["events"]
+    n_events = len(events)
+    parsed = []
+    for i, ev in enumerate(events):
+        parsed.append({
+            "index": i,
+            "observation": parse_date(ev["observation_date"]),
+            "observation_iso": ev["observation_date"],
+            "payment": parse_date(ev["payment_date"]) if ev.get("payment_date") else None,
+            "autocall": ev.get("autocall_trigger"),
+            "coupon_trigger": ev.get("coupon_trigger"),
+            "coupon": float(ev.get("coupon", 0.0)),
+            "accrual_only": ev.get("autocall_trigger") is None and ev.get("coupon_trigger") is None,
+            "final": i + 1 == n_events,
+        })
+
+    def step_event(ev, perf, state):
+        """One event of the walk on one path. `state` = {memory, called,
+        knocked_in}; returns the event's outcome dict (fractions of the
+        notional)."""
+        out = {"called": None, "earned": None, "coupon_paid": 0.0,
+               "call_redemption": 0.0, "breached": False,
+               "final_redemption": 0.0, "final_loss": 0.0, "final_upside": 0.0}
+        if ev["accrual_only"]:
+            state["memory"] += ev["coupon"]
+            return out
+        calls = ev["autocall"] is not None and perf >= ev["autocall"]
+        if ev["coupon_trigger"] is not None:
+            earned = perf >= ev["coupon_trigger"]
+        else:
+            earned = calls
+        out["earned"] = earned
+        if earned:
+            amount = ev["coupon"] + state["memory"]
+            state["memory"] = 0.0
+            if calls or ev["final"] or not pay_only_on_call:
+                out["coupon_paid"] += amount
+            else:
+                state["memory"] = amount
+        elif memory_rule:
+            state["memory"] += ev["coupon"]
+        if ev["autocall"] is not None:
+            out["called"] = calls
+            if calls:
+                out["coupon_paid"] += state["memory"]
+                state["memory"] = 0.0
+                out["call_redemption"] = 1.0
+                state["called"] = True
+                return out
+        if ev["final"]:
+            breached = state["knocked_in"] if daily_close else perf < barrier
+            out["breached"] = breached
+            out["final_redemption"] = 1.0
+            if breached:
+                out["final_loss"] = -participation * max(put_strike - perf, 0.0)
+            if upside:
+                gain = float(upside["participation"]) * max(perf - float(upside["strike"]), 0.0)
+                if upside.get("cap") is not None:
+                    gain = min(gain, float(upside["cap"]))
+                out["final_upside"] = gain
+        return out
+
+    # --- seasoning: the past on the historical levels ----------------------------
+    state = {"memory": 0.0, "called": False,
+             "knocked_in": bool(capital.get("knocked_in", False))}
+    known = []  # (date, amount, bucket)
+    status = "Alive"
+    first_future = 0
+    for ev in parsed:
+        if ev["observation"] > as_of:
+            break
+        first_future = ev["index"] + 1
+        perf = 0.0
+        if not ev["accrual_only"]:
+            perfs = []
+            for k, u in enumerate(note["underlyings"]):
+                level = next((h["value"] for h in u.get("historical_levels") or []
+                              if parse_date(h["date"]) == ev["observation"]), None)
+                if level is None:
+                    raise ValueError(f"no historical level of {ids[k]} on {ev['observation_iso']}")
+                perfs.append(float(level) / initial[k])
+            perf = perf_rule(perfs)
+            if daily_close and perf < barrier:
+                state["knocked_in"] = True
+        out = step_event(ev, perf, state)
+        if out["coupon_paid"] > 0.0:
+            known.append((ev["payment"], out["coupon_paid"], "coupons"))
+        if state["called"]:
+            known.append((ev["payment"], out["call_redemption"], "bond_redemption"))
+            status = "Called"
+            break
+        if ev["final"]:
+            known.append((maturity, out["final_redemption"] + out["final_upside"], "bond_redemption"))
+            if out["final_loss"] != 0.0:
+                known.append((maturity, out["final_loss"], "capital_loss"))
+            status = "Matured"
+    memory_carried = state["memory"]
+
+    def known_on(curve):
+        """PV of the flows the past fixed (dated after as_of) on `curve`:
+        the engine's knownOn (per bucket, and the total in flow order)."""
+        pv = {"bond_redemption": 0.0, "coupons": 0.0, "capital_loss": 0.0}
+        total = 0.0
+        for d, amount, bucket in known:
+            if d > as_of:
+                x = amount * (1.0 if d <= as_of else curve.discount(d, True))
+                total += x
+                pv[bucket] += x
+        return pv, total
+
+    known_pv, known_total = known_on(spreaded)
+
+    result = {
+        "trade_id": note["trade_id"],
+        "status": status,
+        "paths": 0,
+        "seasoning": {"status": status, "memory_carried": memory_carried},
+        "event_probabilities": [],
+    }
+    if status != "Alive":
+        result["npv"] = known_total * notional
+        result["npv_pct_of_notional"] = known_total * 100.0
+        result["seasoning"]["known_payment"] = sum(a for _, a, _ in known)
+        return result
+
+    # --- simulation set-up ----------------------------------------------------------
+    future = parsed[first_future:]
+    observed = [ev for ev in future if not ev["accrual_only"]]
+    if not observed:
+        raise ValueError("structured note: no dated event after the valuation date")
+    if (not exact_step or daily_close) != (steps_per_year is not None):
+        raise ValueError("steps_per_year must be present exactly when a vol is a surface "
+                         "or the barrier is DailyClose")
+    times, index_of = _sn_simulation_times(as_of, [ev["observation"] for ev in observed],
+                                           steps_per_year)
+    grid = ql.TimeGrid(times)
+    steps = len(times) - 1
+    dc365 = ql.Actual365Fixed()
+    for ev in observed:
+        ev["grid_index"] = index_of[ev["observation"]]
+        ev["t_observation"] = dc365.yearFraction(as_of, ev["observation"])
+
+    n_future = len(future)
+
+    def discounting_on(curve):
+        """The discounting of one run on a (funding-spreaded) curve: the
+        discount factor of every future event's payment date (0 for an
+        accrual-only event), of the maturity payment date, and the known
+        PVs on that curve (the engine's Discounting)."""
+        def dfc(d):
+            return 1.0 if d <= as_of else curve.discount(d, True)
+        pv, total = known_on(curve)
+        return {"df_payment": [0.0 if ev["accrual_only"] else dfc(ev["payment"])
+                               for ev in future],
+                "df_maturity": dfc(maturity), "known_pv": pv, "known_total": total}
+
+    base = discounting_on(spreaded)
+    df_maturity = base["df_maturity"]
+    observed_index = 0
+    for ev in observed:
+        ev["observed_index"] = observed_index
+        observed_index += 1
+    n_observed = len(observed)
+    # Accumulators (the engine's layout, src/evaluators/structured_note_evaluator.cpp):
+    # the three buckets, the indicators, the undiscounted final loss (for
+    # E[loss | breach]) and four per future event.
+    (A_TOTAL, A_BOND, A_COUPON, A_LOSS, A_BREACH, A_SURVIVE, A_LIFE,
+     A_LOSS_UNDISCOUNTED, A_BASE) = range(9)
+    per_event = 4  # p_call, p_coupon, pv coupons, pv redemption
+    n_acc = A_BASE + per_event * n_future
+    known_undiscounted = 0.0
+    for d, amount, _bucket in known:
+        if d > as_of:
+            known_undiscounted += amount
+
+    def perf_at(path, j):
+        return perf_rule([path[k][j] / initial[k] for k in range(n_u)])
+
+    def walk(path, disc, rec=None, slot=0):
+        """One path through the state machine, discounted on `disc`
+        (discounting_on); returns its accumulators. With `rec` (the
+        distribution block) the basket performance is recorded at every
+        observed event whether or not the note is still alive, together
+        with the path's undiscounted payout, its PV, the call event and the
+        breach flag, at slot `slot`."""
+        acc = [0.0] * n_acc
+        st = {"memory": state["memory"], "called": False, "knocked_in": state["knocked_in"]}
+        prev = 0
+        payout = known_undiscounted
+        alive = True
+        for e, ev in enumerate(future):
+            if ev["accrual_only"]:
+                if alive:
+                    step_event(ev, 0.0, st)
+                continue
+            perf = perf_at(path, ev["grid_index"])
+            if rec is not None:
+                rec["perf"][ev["observed_index"]][slot] = perf
+            if not alive:
+                continue
+            if daily_close and not st["knocked_in"]:
+                for j in range(prev + 1, ev["grid_index"] + 1):
+                    if perf_at(path, j) < barrier:
+                        st["knocked_in"] = True
+                        break
+            prev = ev["grid_index"]
+            out = step_event(ev, perf, st)
+            b = A_BASE + per_event * e
+            if out["earned"]:
+                acc[b + 1] += 1.0
+            if out["coupon_paid"] > 0.0:
+                pv = out["coupon_paid"] * disc["df_payment"][e]
+                acc[A_COUPON] += pv
+                acc[A_TOTAL] += pv
+                acc[b + 2] += pv
+                payout += out["coupon_paid"]
+            if out["called"]:
+                acc[b] += 1.0
+                pv = out["call_redemption"] * disc["df_payment"][e]
+                acc[A_BOND] += pv
+                acc[A_TOTAL] += pv
+                acc[b + 3] += pv
+                acc[A_LIFE] += ev["t_observation"]
+                payout += out["call_redemption"]
+                if rec is not None:
+                    rec["called_event"][slot] = ev["index"]
+                alive = False
+                if rec is None:
+                    break
+                continue
+            if ev["final"]:
+                acc[A_SURVIVE] += 1.0
+                if out["breached"]:
+                    acc[A_BREACH] += 1.0
+                bond = (out["final_redemption"] + out["final_upside"]) * disc["df_maturity"]
+                loss = out["final_loss"] * disc["df_maturity"]
+                acc[A_BOND] += bond
+                acc[A_LOSS] += loss
+                acc[A_TOTAL] += bond + loss
+                acc[b + 3] += bond
+                acc[A_LIFE] += ev["t_observation"]
+                acc[A_LOSS_UNDISCOUNTED] += -out["final_loss"]
+                payout += out["final_redemption"] + out["final_upside"] + out["final_loss"]
+                if rec is not None:
+                    rec["breached"][slot] = out["breached"]
+        if rec is not None:
+            rec["payout"][slot] = payout
+            rec["payout_pv"][slot] = acc[A_TOTAL] + disc["known_total"]
+        return acc
+
+    # --- paths on the engine's stream --------------------------------------------
+    if antithetic and paths % 2 != 0:
+        raise ValueError("paths must be even with antithetic variates")
+    samples = paths // 2 if antithetic else paths
+
+    def simulate(proc_array, disc, rec=None, capture=None):
+        """The engine's RunPaths (src/mc/path_engine.cpp) on `proc_array`: a
+        fresh generator, the paths evolved by hand, the pair averaged into
+        one sample, the running means at 1/4, 1/2 and 3/4 of the samples
+        with the same estimator on the first k samples (an entry is skipped
+        when its count is 0 or repeats the previous one). `capture` (a
+        list) receives every simulated path's acc[TOTAL] in simulation
+        order (the Greeks' common-random-number differences)."""
+        draw = _sn_gaussian_source(sequence, brownian_bridge, seed, n_u, steps)
+        x0 = proc_array.initialValues()
+
+        def evolve(dw):
+            path = [[0.0] * (steps + 1) for _ in range(n_u)]
+            asset = x0
+            for j in range(n_u):
+                path[j][0] = asset[j]
+            for i in range(1, steps + 1):
+                offset = (i - 1) * n_u
+                asset = proc_array.evolve(grid[i - 1], asset, grid.dt(i - 1),
+                                          ql.Array(dw[offset:offset + n_u]))
+                for j in range(n_u):
+                    path[j][i] = asset[j]
+            return path
+
+        total = [0.0] * n_acc
+        total_sq = [0.0] * n_acc
+        running = []
+        quarter, half, three_quarters = samples // 4, samples // 2, (3 * samples) // 4
+
+        def statistics(count):
+            n = float(count)
+            means = [s / n for s in total]
+            ses = []
+            for k in range(n_acc):
+                if count < 2:
+                    ses.append(float("nan"))
+                    continue
+                variance = (total_sq[k] - n * means[k] * means[k]) / (n - 1.0)
+                if variance < 0.0:
+                    variance = 0.0  # rounding on a constant accumulator
+                ses.append(math.sqrt(variance / n))
+            return means, ses
+
+        def maybe_record(done, at, fraction):
+            if done != at or at == 0:
+                return
+            if running and running[-1]["samples"] == at:
+                return
+            means, ses = statistics(at)
+            running.append({"fraction": fraction, "samples": at,
+                            "means": means, "standard_errors": ses})
+
+        slot = 0
+        for s in range(samples):
+            dw = draw()
+            acc = walk(evolve(dw), disc, rec, slot)
+            slot += 1
+            if capture is not None:
+                capture.append(acc[A_TOTAL])
+            if antithetic:
+                acc_anti = walk(evolve([-x for x in dw]), disc, rec, slot)
+                slot += 1
+                if capture is not None:
+                    capture.append(acc_anti[A_TOTAL])
+                acc = [0.5 * (a + b) for a, b in zip(acc, acc_anti)]
+            for k in range(n_acc):
+                total[k] += acc[k]
+                total_sq[k] += acc[k] * acc[k]
+            done = s + 1
+            maybe_record(done, quarter, 0.25)
+            maybe_record(done, half, 0.5)
+            maybe_record(done, three_quarters, 0.75)
+        mean, se = statistics(samples)
+        return {"mean": mean, "standard_error": se, "running_means": running}
+
+    diag = request.get("diagnostics") or {}
+    want_market = bool(diag.get("market", False))
+    want_decomposition = bool(diag.get("decomposition", False))
+    want_checks = bool(diag.get("checks", False))
+    want_distribution = bool(diag.get("distribution", False))
+    sample_paths = int(diag.get("sample_paths", 0) or 0)
+    rec = None
+    if want_distribution:
+        rec = {"perf": [[0.0] * paths for _ in range(n_observed)],
+               "payout": [0.0] * paths, "payout_pv": [0.0] * paths,
+               "called_event": [None] * paths, "breached": [False] * paths}
+    greeks_spec = request.get("greeks")
+    base_totals = [] if greeks_spec is not None else None
+    sim = simulate(array, base, rec, base_totals)
+    mean, se = sim["mean"], sim["standard_error"]
+
+    result["paths"] = paths
+    result["npv"] = (mean[A_TOTAL] + known_total) * notional
+    result["npv_pct_of_notional"] = (mean[A_TOTAL] + known_total) * 100.0
+    result["standard_error"] = se[A_TOTAL] * notional
+    result["legs"] = {
+        "bond_redemption": {"pv": (mean[A_BOND] + known_pv["bond_redemption"]) * notional,
+                            "standard_error": se[A_BOND] * notional},
+        "coupons": {"pv": (mean[A_COUPON] + known_pv["coupons"]) * notional,
+                    "standard_error": se[A_COUPON] * notional},
+        "capital_loss": {"pv": (mean[A_LOSS] + known_pv["capital_loss"]) * notional,
+                         "standard_error": se[A_LOSS] * notional},
+    }
+    result["p_barrier_breach"] = mean[A_BREACH]
+    result["expected_life_years"] = mean[A_LIFE]
+    for e, ev in enumerate(future):
+        if ev["accrual_only"]:
+            continue
+        row = {"index": ev["index"], "observation_date": ev["observation_iso"]}
+        b = A_BASE + per_event * e
+        if ev["autocall"] is not None:
+            row["p_call"] = mean[b]
+        row["p_coupon"] = mean[b + 1]
+        result["event_probabilities"].append(row)
+
+    # --- diagnostics (flatbuffers/fbs/structured_note_response.fbs doc comments) ---
+    # Forward of underlying k at grid point j on the simulation's time axis:
+    # spot x D_div'(t) / D_note(t), D_div' the process's dividend curve (the
+    # QuantoTermStructure of a quanto underlying), D_note the note curve
+    # without the funding spread.
+    def forward_at(k, j):
+        t = times[j]
+        return und[k]["spot"] * und[k]["dividend"].discount(t, True) / note_curve.discount(t, True)
+
+    if want_market:
+        market = {"observation_dates": [ev["observation_iso"] for ev in observed],
+                  "underlyings": []}
+        obs_times = [times[ev["grid_index"]] for ev in observed]
+        t_last = obs_times[-1]
+        for k in range(n_u):
+            u = und[k]
+            mu = {"underlying_id": ids[k], "spot": u["spot"], "forwards": [],
+                  "implied_dividend_yields": [], "implied_rates": [], "atm_vols": [],
+                  "barrier_vols": []}
+            t_prev = 0.0
+            for ev, t in zip(observed, obs_times):
+                fwd = forward_at(k, ev["grid_index"])
+                mu["forwards"].append(fwd)
+                dt = t - t_prev
+
+                def implied_rate(c):
+                    return -math.log(c.discount(t, True) / c.discount(t_prev, True)) / dt
+
+                mu["implied_dividend_yields"].append(implied_rate(u["plain_dividend"]))
+                mu["implied_rates"].append(implied_rate(u["local_curve"]))
+                mu["atm_vols"].append(u["vol"].blackVol(t, fwd, True))
+                mu["barrier_vols"].append(u["vol"].blackVol(t, barrier * initial[k], True))
+                t_prev = t
+            if u["quanto"]:
+                s_s = u["vol"].blackVol(t_last, initial[k], True)
+                s_fx = u["fx_vol"].blackVol(t_last, u["fx_spot"], True)
+                mu["quanto_drift_bp"] = -u["rho"] * s_s * s_fx / 1.0e-4
+            market["underlyings"].append(mu)
+        pay_dates = [ev["payment"] for ev in observed]
+        if not pay_dates or pay_dates[-1] != maturity:
+            pay_dates.append(maturity)
+        market["payment_dates"] = [_iso_date(d) for d in pay_dates]
+        market["discount_factors"] = [note_curve.discount(d, True) for d in pay_dates]
+        market["discount_factors_with_funding"] = [df(d) for d in pay_dates]
+        market["correlation_labels"] = list(ids)
+        market["correlation"] = [correlation[i][j] for i in range(n_u) for j in range(n_u)]
+        result["market"] = market
+
+    if want_decomposition:
+        dec = {"events": []}
+        for e, ev in enumerate(future):
+            if ev["accrual_only"]:
+                continue
+            b = A_BASE + per_event * e
+            row = {"index": ev["index"], "observation_date": ev["observation_iso"]}
+            if ev["autocall"] is not None:
+                row["p_call"] = mean[b]
+            row["p_coupon"] = mean[b + 1]
+            row["pv_coupons"] = mean[b + 2] * notional
+            row["pv_redemption"] = mean[b + 3] * notional
+            dec["events"].append(row)
+        dec["p_survive_to_maturity"] = mean[A_SURVIVE]
+        dec["p_breach"] = mean[A_BREACH]
+        dec["expected_life_years"] = mean[A_LIFE]
+        if mean[A_BREACH] > 0.0:
+            dec["expected_loss_given_breach"] = mean[A_LOSS_UNDISCOUNTED] / mean[A_BREACH]
+        result["decomposition"] = dec
+
+    if want_checks:
+        per_sample = 2 if antithetic else 1
+        checks = {"running_means": []}
+        for rm in sim["running_means"]:
+            checks["running_means"].append({
+                "fraction": rm["fraction"], "paths": rm["samples"] * per_sample,
+                "npv": (rm["means"][A_TOTAL] + known_total) * notional,
+                "standard_error": rm["standard_errors"][A_TOTAL] * notional})
+        checks["running_means"].append({"fraction": 1.0, "paths": paths,
+                                        "npv": result["npv"],
+                                        "standard_error": result["standard_error"]})
+        # Every underlying at its forward on every grid point (fine grid
+        # included), one path through the same walk.
+        forward_path = [[forward_at(k, j) for j in range(steps + 1)] for k in range(n_u)]
+        acc = walk(forward_path, base)
+        checks["deterministic_forward_npv"] = (acc[A_TOTAL] + known_total) * notional
+        checks["bond_only_npv"] = notional * df_maturity
+        if n_u == 1:
+            checks["correlation_one_npv"] = result["npv"]
+            checks["correlation_one_standard_error"] = result["standard_error"]
+            checks["correlation_zero_npv"] = result["npv"]
+            checks["correlation_zero_standard_error"] = result["standard_error"]
+        else:
+            # The same stream on fresh processes (the engine rebuilds the
+            # process array for each limit run); StochasticProcessArray
+            # takes the spectral pseudo-square-root, which handles the
+            # rank-1 all-ones matrix without perturbation.
+            for name, fill in (("one", lambda i, j: 1.0),
+                               ("zero", lambda i, j: 1.0 if i == j else 0.0)):
+                m = ql.Matrix(n_u, n_u)
+                for i in range(n_u):
+                    for j in range(n_u):
+                        m[i][j] = fill(i, j)
+                procs = [ql.GeneralizedBlackScholesProcess(u["spot_handle"], u["dividend"],
+                                                           note_curve, u["vol"]) for u in und]
+                limit = simulate(ql.StochasticProcessArray(procs, m), base)
+                checks[f"correlation_{name}_npv"] = (limit["mean"][A_TOTAL] + known_total) * notional
+                checks[f"correlation_{name}_standard_error"] = limit["standard_error"][A_TOTAL] * notional
+        result["checks"] = checks
+
+    if want_distribution:
+        def quantile(sorted_values, p):
+            n = len(sorted_values)
+            h = float(n - 1) * p
+            lo = int(math.floor(h))
+            hi = min(lo + 1, n - 1)
+            return sorted_values[lo] + (h - float(lo)) * (sorted_values[hi] - sorted_values[lo])
+
+        dist = {"basket_performance_quantiles": []}
+        for ev in observed:
+            s = sorted(rec["perf"][ev["observed_index"]])
+            dist["basket_performance_quantiles"].append({
+                "observation_date": ev["observation_iso"],
+                "q05": quantile(s, 0.05), "q25": quantile(s, 0.25), "q50": quantile(s, 0.50),
+                "q75": quantile(s, 0.75), "q95": quantile(s, 0.95)})
+        s = sorted(rec["payout"])
+        for p, name in ((0.05, "q05"), (0.25, "q25"), (0.50, "q50"), (0.75, "q75"),
+                        (0.95, "q95")):
+            dist[f"payout_{name}"] = quantile(s, p)
+        n_bins = 20
+        lo, hi = s[0], s[-1]
+        width = (hi - lo) / float(n_bins)
+        bins = [{"lower": lo + float(b) * width,
+                 "upper": hi if b + 1 == n_bins else lo + float(b + 1) * width,
+                 "paths": 0} for b in range(n_bins)]
+        for v in rec["payout"]:
+            b = int((v - lo) / width) if width > 0.0 else 0
+            if b >= n_bins:
+                b = n_bins - 1
+            bins[b]["paths"] += 1
+        dist["payout_histogram"] = bins
+        dist["sample_paths"] = []
+        for i in range(min(sample_paths, paths)):
+            sp = {"basket_performances": [rec["perf"][j][i] for j in range(n_observed)],
+                  "payout": rec["payout"][i], "payout_pv": rec["payout_pv"][i],
+                  "breached": bool(rec["breached"][i])}
+            if rec["called_event"][i] is not None:
+                sp["called_on"] = parsed[rec["called_event"][i]]["observation_iso"]
+            dist["sample_paths"].append(sp)
+        result["distribution"] = dist
+
+    # --- Greeks (StructuredNoteGreeks doc comments; the engine's arithmetic) ---
+    if greeks_spec is not None:
+        h = float(greeks_spec.get("spot_bump", 0.01))
+        dv = float(greeks_spec.get("vol_bump", 0.01))
+        dr = float(greeks_spec.get("correlation_bump", 0.01))
+        funding_bump_bp = float(greeks_spec.get("funding_bump_bp", 1.0))
+        rate_bump_bp = float(greeks_spec.get("rate_bump_bp", 1.0))
+        funding_bp = float(note.get("funding_spread_bp", 0.0))
+
+        def sample_values(totals, disc):
+            return [(0.5 * (totals[2 * s] + totals[2 * s + 1]) if antithetic else totals[s])
+                    + disc["known_total"] for s in range(samples)]
+
+        def difference_statistics(d):
+            n = float(len(d))
+            total = 0.0
+            total_sq = 0.0
+            for x in d:
+                total += x
+                total_sq += x * x
+            m = total / n
+            if len(d) < 2:
+                return m * notional, float("nan")
+            variance = (total_sq - n * m * m) / (n - 1.0)
+            if variance < 0.0:
+                variance = 0.0
+            return m * notional, math.sqrt(variance / n) * notional
+
+        def bumped_run(spot_of, spot_factor, vol_of, risk_free, note_curve_moved, matrix, disc):
+            procs = []
+            for k, u in enumerate(und):
+                spot = u["spot_handle"]
+                if k == spot_of:
+                    spot = ql.QuoteHandle(ql.SimpleQuote(u["spot"] * spot_factor))
+                vol = u["vol"]
+                if k == vol_of:
+                    vol = _sn_black_vol(pricing, u["vol_id"], dv)[0]
+                dividend = u["dividend"]
+                if u["quanto"] and (k == vol_of or note_curve_moved):
+                    dividend = ql.YieldTermStructureHandle(ql.QuantoTermStructure(
+                        u["plain_dividend"], risk_free, u["local_curve"], vol, u["level"],
+                        u["fx_vol"], u["fx_spot"], u["rho"]))
+                procs.append(ql.GeneralizedBlackScholesProcess(spot, dividend, risk_free, vol))
+            totals = []
+            simulate(ql.StochasticProcessArray(procs, matrix), disc, None, totals)
+            return sample_values(totals, disc)
+
+        def difference(a, b, scale):
+            return difference_statistics([(x - y) * scale for x, y in zip(a, b)])
+
+        base_values = sample_values(base_totals, base)
+        greeks = {"underlyings": [], "spot_bump": h, "vol_bump": dv, "correlation_bump": dr,
+                  "funding_bump_bp": funding_bump_bp, "rate_bump_bp": rate_bump_bp,
+                  "correlation_bump_repaired": False}
+        for k in range(n_u):
+            up = bumped_run(k, 1.0 + h, None, note_curve, False, correlation, base)
+            down = bumped_run(k, 1.0 - h, None, note_curve, False, correlation, base)
+            delta, delta_se = difference(up, down, 0.01 / (2.0 * h))
+            gamma_scale = (0.01 / h) * (0.01 / h)
+            gamma, gamma_se = difference_statistics(
+                [(x - 2.0 * y + z) * gamma_scale for x, y, z in zip(up, base_values, down)])
+            vol_up = bumped_run(None, 1.0, k, note_curve, False, correlation, base)
+            vega, vega_se = difference(vol_up, base_values, 0.01 / dv)
+            greeks["underlyings"].append({
+                "underlying_id": ids[k], "delta": delta, "delta_standard_error": delta_se,
+                "gamma": gamma, "gamma_standard_error": gamma_se,
+                "vega": vega, "vega_standard_error": vega_se})
+        if n_u > 1:
+            bumped, repaired = _sn_bump_correlation(correlation, dr)
+            greeks["correlation_bump_repaired"] = repaired
+            greeks["correlation_bumped"] = [bumped[i][j] for i in range(n_u) for j in range(n_u)]
+            corr_up = bumped_run(None, 1.0, None, note_curve, False, bumped, base)
+            cs, cs_se = difference(corr_up, base_values, 0.01 / dr)
+            greeks["correlation_sensitivity"] = cs
+            greeks["correlation_sensitivity_standard_error"] = cs_se
+        funded = discounting_on(_sn_spreaded(note_curve, (funding_bp + funding_bump_bp) * 1.0e-4))
+        fund_up = bumped_run(None, 1.0, None, note_curve, False, correlation, funded)
+        greeks["funding_dv01"], greeks["funding_dv01_standard_error"] = difference(
+            fund_up, base_values, 1.0 / funding_bump_bp)
+        shifted_note = ql.YieldTermStructureHandle(
+            _sn_spreaded(note_curve, rate_bump_bp * 1.0e-4))
+        shifted = discounting_on(_sn_spreaded(shifted_note, funding_bp * 1.0e-4))
+        rate_up = bumped_run(None, 1.0, None, shifted_note, True, correlation, shifted)
+        greeks["rho"], greeks["rho_standard_error"] = difference(
+            rate_up, base_values, 1.0 / rate_bump_bp)
+        result["greeks"] = greeks
+    return result
+
+
+def price_structured_note_ql(request: dict) -> dict:
+    """Functional-catalog entry point (compare="fields"): the headline
+    scalars of notes[0] as dotted response paths, from structured_note_ql on
+    the same random stream -- npv, standard error, the PV of the three
+    cash-flow buckets (bond_redemption, coupons, capital_loss, in that
+    order), barrier-breach probability, expected life and the coupon memory
+    carried in. The per-event probabilities and the bucket standard errors
+    are compared field by field in tests/contract/structured_note_parity_test.py."""
+    r = structured_note_ql(request, 0)
+    out = {"notes.0.npv": r["npv"]}
+    if "standard_error" in r:
+        out["notes.0.standard_error"] = r["standard_error"]
+    if "legs" in r:
+        for bucket in ("bond_redemption", "coupons", "capital_loss"):
+            out[f"notes.0.legs.{bucket}.pv"] = r["legs"][bucket]["pv"]
+    if "p_barrier_breach" in r:
+        out["notes.0.p_barrier_breach"] = r["p_barrier_breach"]
+        out["notes.0.expected_life_years"] = r["expected_life_years"]
+    out["notes.0.seasoning.memory_carried"] = r["seasoning"]["memory_carried"]
+    return out
 
 
 # =============================================================================

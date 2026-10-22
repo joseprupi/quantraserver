@@ -1,0 +1,575 @@
+include "enums.fbs";
+include "common.fbs";
+
+namespace quantra;
+
+// ---------------------------------------------------------------------------
+// Always-present blocks: terms echo, seasoning resolution, model echo
+// ---------------------------------------------------------------------------
+
+/// One basket underlying as the engine booked it.
+table StructuredNoteTermsUnderlying {
+    /// `BasketUnderlying.underlying_id`.
+    underlying_id:string (required);
+    /// Currency of the underlying (from its `EquityUnderlyingSpec`).
+    currency:string (required);
+    /// Strike level the performances are measured against.
+    initial_level:double;
+    /// Id of the volatility used.
+    volatility_id:string (required);
+    /// True when the underlying is quanto'd into the note currency.
+    quanto:bool;
+    /// FX spot id of the quanto block; absent for a same-currency
+    /// underlying.
+    fx_spot_id:string;
+    /// FX volatility id of the quanto block; absent for a same-currency
+    /// underlying.
+    fx_volatility_id:string;
+    /// Underlying/FX correlation of the quanto block; absent for a
+    /// same-currency underlying.
+    fx_underlying_correlation:double = null;
+}
+
+/// One observation event as the engine booked it (request order).
+table StructuredNoteTermsEvent {
+    /// Position in `StructuredNote.events`, from 0.
+    index:uint;
+    observation_date:string (required);
+    /// Absent for an accrual-only event.
+    payment_date:string;
+    /// Absent = no call test at this event.
+    autocall_trigger:double = null;
+    /// Absent = no coupon test of its own at this event.
+    coupon_trigger:double = null;
+    /// Absent = no coupon of its own at this event.
+    coupon:double = null;
+    /// True for an event with neither trigger (coupon accrues to memory).
+    accrual_only:bool;
+    /// True for the last event (capital test runs here).
+    final:bool;
+    /// True when `observation_date` is on or before the valuation date:
+    /// the event was resolved from `historical_levels` (see
+    /// `StructuredNoteSeasoning`) and not simulated.
+    resolved_from_history:bool;
+}
+
+/// The booked terms as the engine understood them: a mis-read factsheet is
+/// visible here before the price is trusted. Always present. Defaults are
+/// filled in (put_strike, participation, funding spread, Monte Carlo
+/// settings).
+table StructuredNoteTermsEcho {
+    trade_id:string (required);
+    currency:string (required);
+    notional:double;
+    performance_rule:enums.BasketPerformanceRule;
+    underlyings:[StructuredNoteTermsUnderlying] (required);
+    events:[StructuredNoteTermsEvent] (required);
+    coupon_memory:bool;
+    coupon_pay_only_on_call:bool;
+    capital_barrier:double;
+    capital_monitoring:enums.CapitalBarrierMonitoring;
+    put_strike:double;
+    participation:double;
+    maturity_payment_date:string (required);
+    discounting_curve:string (required);
+    funding_spread_bp:double;
+    /// Absent for a single-underlying note (simulated on a 1 x 1 unit
+    /// matrix).
+    correlation_id:string;
+    /// Paths requested (the number actually simulated is on the result).
+    paths:uint;
+    seed:ulong;
+    sequence:enums.RandomSequence;
+    antithetic:bool;
+    brownian_bridge:bool;
+    /// Absent when the grid is the observation dates only.
+    steps_per_year:uint = null;
+}
+
+/// One past event evaluated on the supplied historical levels.
+table StructuredNoteResolvedEvent {
+    /// Position in `StructuredNote.events`, from 0.
+    index:uint;
+    observation_date:string (required);
+    /// True for an accrual-only event (no levels read; coupon added to the
+    /// memory).
+    accrual_only:bool;
+    /// Closing levels used, one per underlying in `terms.underlyings`
+    /// order; empty for an accrual-only event.
+    levels:[double];
+    /// Level / initial level, one per underlying; empty for an accrual-only
+    /// event.
+    performances:[double];
+    /// Basket performance under `performance_rule`; absent for an
+    /// accrual-only event.
+    basket_performance:double = null;
+    /// Call test outcome; absent when the event has no `autocall_trigger`.
+    called:bool = null;
+    /// Coupon test outcome (or, with only an `autocall_trigger`, the call
+    /// test); absent when the event carries no coupon test.
+    coupon_earned:bool = null;
+    /// Coupon amount (fraction of notional) paid on this event's payment
+    /// date, memory included; 0 when nothing was paid.
+    coupon_paid:double;
+    /// Coupon memory (fraction of notional) carried out of this event.
+    memory_after:double;
+}
+
+/// How the note's past was resolved before anything was simulated. Always
+/// present (empty `events` for a note with no past event).
+table StructuredNoteSeasoning {
+    /// Valuation date the past/future split was made on.
+    as_of_date:string (required);
+    /// Where the note stands after the past events.
+    status:enums.StructuredNoteStatus;
+    /// Past events in order.
+    events:[StructuredNoteResolvedEvent] (required);
+    /// Coupon memory (fraction of notional) entering the simulation.
+    memory_carried:double;
+    /// Index of the first simulated event; absent when none (Called or
+    /// Matured).
+    next_event_index:uint = null;
+    /// For a Called or Matured note: the known payment date and amount
+    /// (fraction of notional, redemption and coupons together). The NPV
+    /// is that amount discounted when the date is after the valuation
+    /// date, 0 otherwise. Absent for an Alive note.
+    known_payment_date:string;
+    known_payment:double = null;
+}
+
+/// The model used for one underlying.
+table StructuredNoteModelUnderlying {
+    underlying_id:string (required);
+    /// Shape of the volatility used (Constant, AtmMatrix2D = term,
+    /// SmileCube3D / SurfaceFromPrices = local vol).
+    vol_shape:enums.VolSurfaceShape;
+    /// True when the paths were evolved under Dupire local volatility
+    /// derived from a surface.
+    local_vol:bool;
+    /// Quanto drift adjustment -rho * sigma_S * sigma_FX applied
+    /// (annualised, in rate units, at the first observation); absent for a
+    /// same-currency underlying.
+    quanto_drift:double = null;
+}
+
+/// The simulation set-up as used. Always present.
+table StructuredNoteModelEcho {
+    underlyings:[StructuredNoteModelUnderlying] (required);
+    /// True when the time grid is the (future) observation dates only.
+    observation_dates_only:bool;
+    /// Number of time steps of the grid.
+    time_steps:uint;
+    /// The grid, in years from the valuation date (day counter of the
+    /// discounting curve).
+    time_grid:[double];
+    /// Dimension of the random sequence (time steps x underlyings).
+    sequence_dimension:uint;
+}
+
+// ---------------------------------------------------------------------------
+// Headline result
+// ---------------------------------------------------------------------------
+
+/// Present value of one cash-flow bucket, from the same paths as the
+/// headline NPV, with its own standard error.
+table StructuredNoteBucket {
+    /// PV in the note currency (capital_loss is <= 0).
+    pv:double;
+    /// Monte Carlo standard error of `pv`.
+    standard_error:double;
+}
+
+/// NPV split by cash-flow bucket; the three sum to the headline `npv` to
+/// rounding.
+table StructuredNoteLegs {
+    /// Notional returned (on call or at maturity, before any loss).
+    bond_redemption:StructuredNoteBucket (required);
+    /// Coupons paid (memory included).
+    coupons:StructuredNoteBucket (required);
+    /// Loss on the redemption when the barrier is breached (negative).
+    capital_loss:StructuredNoteBucket (required);
+}
+
+/// Call and coupon probabilities of one simulated event.
+table StructuredNoteEventProbability {
+    /// Position in `StructuredNote.events`, from 0.
+    index:uint;
+    observation_date:string (required);
+    /// Probability that the note is alive at this event and the call test
+    /// holds; absent when the event has no `autocall_trigger`.
+    p_call:double = null;
+    /// Probability that the note is alive at this event and a coupon is
+    /// earned (paid or held); absent when the event carries no coupon test.
+    p_coupon:double = null;
+}
+
+/// Sensitivities of one underlying by bump-and-reprice on common random
+/// numbers (every bumped run uses the same seed, paths, grid and random
+/// sequence as the price), in the note currency, scaled to unit moves. Each
+/// sensitivity carries the Monte Carlo standard error of the DIFFERENCE
+/// (accumulated per path, not the difference of two standard errors), which
+/// is what the common random numbers make small.
+table StructuredNoteUnderlyingGreeks {
+    underlying_id:string (required);
+    /// NPV change per +1% move of the spot: central difference of the spot
+    /// bumped by +/- `spot_bump` (relative), (V+ - V-) / (2 spot_bump) x
+    /// 0.01. Only the spot quote moves: the initial level (strike fixing),
+    /// the dividend curve and the volatility (sticky strike for a surface)
+    /// stay.
+    delta:double = null;
+    delta_standard_error:double = null;
+    /// Change of `delta` per +1% move of the spot: (V+ - 2 V0 + V-) /
+    /// spot_bump^2 x 0.01^2.
+    gamma:double = null;
+    gamma_standard_error:double = null;
+    /// NPV change per +1 vol point: the underlying's Black volatility
+    /// shifted by +`vol_bump` (absolute; a constant vol, every node of a
+    /// term vol, every entry of a strike x expiry surface, from which the
+    /// local vol is re-derived), (V(sigma + vol_bump) - V0) / vol_bump x
+    /// 0.01. For a quanto underlying the shifted vol also enters the quanto
+    /// drift (-rho x sigma_S x sigma_FX).
+    vega:double = null;
+    vega_standard_error:double = null;
+}
+
+/// Opt-in Greeks (absent unless `greeks` was in the request). Cost: 1 + 2N
+/// + N + 3 full simulations for N underlyings (2 for a single underlying,
+/// which has no correlation sensitivity), all on the same random stream.
+table StructuredNoteGreeks {
+    underlyings:[StructuredNoteUnderlyingGreeks] (required);
+    /// NPV change per +0.01 on every off-diagonal correlation: every
+    /// off-diagonal entry shifted by +`correlation_bump`, clipped to
+    /// [-1, 1], (V(rho + bump) - V0) / correlation_bump x 0.01. Absent for a
+    /// single underlying.
+    correlation_sensitivity:double = null;
+    correlation_sensitivity_standard_error:double = null;
+    /// True when the bumped correlation matrix was not positive
+    /// semi-definite and was repaired before repricing: eigenvalue
+    /// clipping (negative eigenvalues set to 0, V diag(max(lambda, 0)) V^T)
+    /// followed by a rescaling to unit diagonal. False for a single
+    /// underlying.
+    correlation_bump_repaired:bool;
+    /// The correlation matrix the bumped run used (after clipping and, when
+    /// `correlation_bump_repaired`, the repair), row-major n x n in the
+    /// note's underlying order. Absent for a single underlying.
+    correlation_bumped:[double];
+    /// NPV change per +1bp of funding spread: the spread shifted by
+    /// +`funding_bump_bp` on the discounting only (the processes drift on
+    /// the plain curve), (V(s + bump) - V0) / funding_bump_bp.
+    funding_dv01:double = null;
+    funding_dv01_standard_error:double = null;
+    /// NPV change per +1bp parallel move of `discounting_curve`: a
+    /// continuously compounded zero spread of +`rate_bump_bp` on the note
+    /// curve, applied both to the processes' risk-free rate (the drift of a
+    /// note-currency underlying; a quanto underlying's drift is r_local - q
+    /// - rho sigma_S sigma_FX and does not move, its quanto curve is
+    /// rebuilt on the shifted note curve) and to the discounting of every
+    /// cash flow, the funding spread staying on top; (V(r + bump) - V0) /
+    /// rate_bump_bp.
+    rho:double = null;
+    rho_standard_error:double = null;
+    /// Bump sizes used, as requested or defaulted.
+    spot_bump:double;
+    vol_bump:double;
+    correlation_bump:double;
+    funding_bump_bp:double;
+    rate_bump_bp:double;
+}
+
+// ---------------------------------------------------------------------------
+// Opt-in diagnostics (same paths as the price)
+// ---------------------------------------------------------------------------
+
+/// Market as used for one underlying, one entry per simulated observation
+/// date (the `observation_dates` of the parent block). Deterministic: read
+/// from the curves and vols the processes were built on, no simulation.
+table StructuredNoteMarketUnderlying {
+    underlying_id:string (required);
+    /// Spot used.
+    spot:double;
+    /// Forward level at each observation date: spot x D_div(t) / D_note(t)
+    /// with D_div the process's dividend curve (the QuantoTermStructure for
+    /// a quanto underlying, so the quanto drift is included) and D_note the
+    /// note's discounting curve without the funding spread, both at the
+    /// Actual/365 (Fixed) time t of the simulation grid. This is the level
+    /// the deterministic forward walk of `checks` uses.
+    forwards:[double];
+    /// Continuously-compounded dividend yield of the underlying's own
+    /// dividend curve (quanto adjustment excluded) implied between
+    /// consecutive observation dates, the first from the valuation date:
+    /// -ln(D(t_j) / D(t_{j-1})) / (t_j - t_{j-1}).
+    implied_dividend_yields:[double];
+    /// Continuously-compounded rate of the underlying's own currency (the
+    /// quanto block's `discounting_curve`, or the note curve for a
+    /// same-currency underlying) implied between consecutive observation
+    /// dates, as above.
+    implied_rates:[double];
+    /// Black volatility used to each observation date at the forward of
+    /// that date (ATM).
+    atm_vols:[double];
+    /// Black volatility used to each observation date at the capital
+    /// barrier strike, `capital.barrier x initial_level`. Equals
+    /// `atm_vols` for a constant or term vol (`model.underlyings[].local_vol`
+    /// false): the strike is only read on a strike x expiry surface.
+    barrier_vols:[double];
+    /// Quanto drift adjustment applied, -rho x sigma_S x sigma_FX in basis
+    /// points per year, with sigma_S the underlying's Black vol at
+    /// `initial_level` and sigma_FX the FX vol at the FX spot, both to the
+    /// final simulated observation date; rho in QuantLib's convention
+    /// (correlation with the FX rate quoted as underlying-currency units per
+    /// note-currency unit). Absent for a same-currency underlying.
+    quanto_drift_bp:double = null;
+}
+
+/// `diagnostics.market`.
+table StructuredNoteMarketDiagnostics {
+    /// Simulated observation dates, in order.
+    observation_dates:[string] (required);
+    underlyings:[StructuredNoteMarketUnderlying] (required);
+    /// Every future payment date, in order: the payment date of each
+    /// simulated event followed by `maturity_payment_date` when it is not
+    /// already the last one.
+    payment_dates:[string] (required);
+    /// Discount factor on `discounting_curve` at each payment date.
+    discount_factors:[double] (required);
+    /// Discount factor with the funding spread at each payment date.
+    discount_factors_with_funding:[double] (required);
+    /// Labels of the correlation matrix as used (underlying order).
+    correlation_labels:[string] (required);
+    /// The correlation matrix as used, row-major n x n, permuted to the
+    /// note's underlying order; the 1 x 1 unit matrix for a single
+    /// underlying. No repair is ever applied (a matrix that is not positive
+    /// semi-definite is a 400).
+    correlation:[double] (required);
+}
+
+/// `diagnostics.decomposition`: one simulated event (accrual-only events
+/// are not listed: nothing is observed or paid on them).
+table StructuredNoteEventDecomposition {
+    index:uint;
+    observation_date:string (required);
+    /// Absent when the event has no `autocall_trigger` (same value as
+    /// `event_probabilities`).
+    p_call:double = null;
+    /// Absent when the event carries no coupon test (same value as
+    /// `event_probabilities`).
+    p_coupon:double = null;
+    /// PV, in the note currency, of the coupons paid on this event's
+    /// payment date (memory included), averaged over the paths.
+    pv_coupons:double;
+    /// PV, in the note currency, of the notional returned on this event's
+    /// payment date (a call), or, on the final event, of the redemption
+    /// before any loss (upside included) on `maturity_payment_date`.
+    pv_redemption:double;
+}
+
+/// `diagnostics.decomposition`. The event PVs add up to the buckets:
+/// sum(pv_coupons) = legs.coupons.pv and sum(pv_redemption) =
+/// legs.bond_redemption.pv, less any flow the past already fixed (listed
+/// in `seasoning`, not here); the capital loss is on `legs.capital_loss`
+/// with its standard error, as are the bucket standard errors.
+table StructuredNoteDecompositionDiagnostics {
+    events:[StructuredNoteEventDecomposition] (required);
+    /// Probability that the note is not called before the final event.
+    p_survive_to_maturity:double;
+    /// Probability that the capital barrier is breached.
+    p_breach:double;
+    /// Expected time to the note's end, in years from the valuation date.
+    expected_life_years:double;
+    /// Expected loss conditional on a breach, as a positive fraction of the
+    /// notional, undiscounted: E[loss x 1{breach}] / p_breach with loss =
+    /// participation x max(put_strike - perf_final, 0). Absent when no path
+    /// breached (p_breach = 0).
+    expected_loss_given_breach:double = null;
+}
+
+/// Running estimate of the NPV after a fraction of the samples, in
+/// simulation order (an antithetic pair is one sample).
+table StructuredNoteRunningMean {
+    /// Fraction of the samples used (0.25, 0.5, 0.75, 1.0; a fraction is
+    /// omitted when its sample count would be 0 or repeat the previous
+    /// one).
+    fraction:double;
+    /// Simulated paths used (samples, or 2 x samples with antithetic).
+    paths:uint;
+    /// NPV estimate over those paths, in the note currency.
+    npv:double;
+    /// Its standard error (the same estimator as the headline's).
+    standard_error:double;
+}
+
+/// `diagnostics.checks`.
+table StructuredNoteChecksDiagnostics {
+    running_means:[StructuredNoteRunningMean] (required);
+    /// Price of the payoff walked once along the forward path: every
+    /// underlying at its `market` forward on every grid date (zero
+    /// volatility), the same state machine as the simulation, no random
+    /// numbers.
+    deterministic_forward_npv:double;
+    /// Price with every off-diagonal correlation forced to 1 (one extra run
+    /// on the same random stream, paths, seed and grid). With a single
+    /// underlying it is the headline price (no extra run).
+    correlation_one_npv:double;
+    /// Standard error of `correlation_one_npv`.
+    correlation_one_standard_error:double;
+    /// Price with every off-diagonal correlation forced to 0 (the identity
+    /// matrix; one extra run on the same stream). With a single underlying
+    /// it is the headline price (no extra run).
+    correlation_zero_npv:double;
+    /// Standard error of `correlation_zero_npv`.
+    correlation_zero_standard_error:double;
+    /// notional x discount factor (funding spread included) at
+    /// `maturity_payment_date`: the value of the note if it were a
+    /// zero-coupon bond of the issuer.
+    bond_only_npv:double;
+}
+
+/// Quantiles of the basket performance (`performance_rule` applied) at one
+/// simulated observation date, over every simulated path: each path of an
+/// antithetic pair counts on its own (the pairs are averaged for the price
+/// statistics only). Quantile definition: linear interpolation between
+/// order statistics, q(p) = x[h] + (h - floor(h)) x (x[floor(h) + 1] -
+/// x[floor(h)]) with h = (n - 1) x p on the ascending values x[0..n-1]
+/// (the default of R and NumPy). The basket performance is recorded at the
+/// observation date whether or not the note is still alive on that path.
+table StructuredNoteQuantiles {
+    observation_date:string (required);
+    q05:double;
+    q25:double;
+    q50:double;
+    q75:double;
+    q95:double;
+}
+
+/// One bin of the payout histogram: 20 bins of equal width between the
+/// smallest and the largest payout over the paths, edges lower_k = min +
+/// k x (max - min) / 20. When every path pays the same amount all 20 bins
+/// have zero width and every path is in the first one.
+table StructuredNoteHistogramBin {
+    /// Lower edge (fraction of notional), inclusive.
+    lower:double;
+    /// Upper edge, exclusive (inclusive for the last bin).
+    upper:double;
+    /// Simulated paths in the bin; the bins sum to the result's `paths`.
+    paths:uint;
+}
+
+/// One simulated path, summarised (raw levels are never returned).
+table StructuredNoteSamplePath {
+    /// Basket performance at each simulated observation date (the
+    /// `observation_date`s of `basket_performance_quantiles`), recorded
+    /// whether or not the note is still alive on that date.
+    basket_performances:[double] (required);
+    /// Undiscounted total payout of the path, fraction of notional:
+    /// every coupon and redemption paid after the valuation date on this
+    /// path, loss and upside included, plus any flow the past already
+    /// fixed (identical on every path).
+    payout:double;
+    /// The same payout discounted on the funding curve, fraction of
+    /// notional; its average over the paths is npv / notional.
+    payout_pv:double;
+    /// Observation date of the call; absent when the path reached the
+    /// final event.
+    called_on:string;
+    /// True when the capital barrier was breached.
+    breached:bool;
+}
+
+/// `diagnostics.distribution`. Every statistic is over the individual
+/// simulated paths (`paths` of the result).
+table StructuredNoteDistributionDiagnostics {
+    basket_performance_quantiles:[StructuredNoteQuantiles] (required);
+    /// Quantiles of the undiscounted total payout per path (fraction of
+    /// notional, as `StructuredNoteSamplePath.payout`), same quantile
+    /// definition as `StructuredNoteQuantiles`.
+    payout_q05:double;
+    payout_q25:double;
+    payout_q50:double;
+    payout_q75:double;
+    payout_q95:double;
+    payout_histogram:[StructuredNoteHistogramBin] (required);
+    /// The first `sample_paths` paths in simulation order (with antithetic:
+    /// path, its antithetic, next path, ...); empty when 0.
+    sample_paths:[StructuredNoteSamplePath];
+}
+
+/// One timed stage (wall clock).
+table StructuredNoteTimingStage {
+    /// `market_build` (curves, quanto curves, grid, processes),
+    /// `simulation` (path generation and payoff walk together: the path
+    /// engine hands each path to the walk as it is generated, so the two
+    /// are not separable), `deterministic_forward`, `correlation_one`,
+    /// `correlation_zero` (the extra runs of `checks`, present only when
+    /// run), `diagnostics` (sorting and summarising the per-path records),
+    /// and with `greeks` one stage per bumped run: `greek_spot_up_<id>`,
+    /// `greek_spot_down_<id>`, `greek_vol_<id>` per underlying,
+    /// `greek_correlation` (two or more underlyings), `greek_funding`,
+    /// `greek_rate`.
+    stage:string (required);
+    milliseconds:double;
+}
+
+/// `diagnostics.timing`.
+table StructuredNoteTimingDiagnostics {
+    stages:[StructuredNoteTimingStage] (required);
+    /// Wall-clock time of the whole note, from the first market lookup to
+    /// the last diagnostic (the stages' sum plus the untimed remainder).
+    total_milliseconds:double;
+}
+
+// ---------------------------------------------------------------------------
+// Result
+// ---------------------------------------------------------------------------
+
+/// Pricing result of one structured note. The headline is `npv` with its
+/// standard error, the path count and the seed; the terms echo, the
+/// seasoning resolution and the model echo are always present so the
+/// booked terms can be checked before the price is trusted; Greeks and
+/// the diagnostic blocks are present only when requested. For a note whose
+/// past already decided it (`seasoning.status` Called or Matured) nothing
+/// is simulated: `paths` is 0 and every simulation statistic is absent.
+table StructuredNoteResult {
+    trade_id:string (required);
+    /// Present value in the note currency.
+    npv:double;
+    /// npv / notional x 100.
+    npv_pct_of_notional:double;
+    /// Monte Carlo standard error of `npv`; absent when nothing was
+    /// simulated.
+    standard_error:double = null;
+    /// Paths actually simulated (0 when nothing was).
+    paths:uint;
+    seed:ulong;
+    /// Alive / Called / Matured (see `seasoning`).
+    status:enums.StructuredNoteStatus;
+    /// NPV by cash-flow bucket; absent when nothing was simulated.
+    legs:StructuredNoteLegs;
+    /// One entry per simulated event, in order; empty when nothing was
+    /// simulated.
+    event_probabilities:[StructuredNoteEventProbability] (required);
+    /// Probability that the capital barrier is breached; absent when
+    /// nothing was simulated.
+    p_barrier_breach:double = null;
+    /// Expected time to the note's end in years from the valuation date;
+    /// absent when nothing was simulated.
+    expected_life_years:double = null;
+    /// Absent unless `greeks` was requested (a `greeks` block on a note
+    /// whose past already decided it is a 400: there is nothing to bump).
+    greeks:StructuredNoteGreeks;
+    terms:StructuredNoteTermsEcho (required);
+    seasoning:StructuredNoteSeasoning (required);
+    model:StructuredNoteModelEcho (required);
+    /// Absent unless requested in `diagnostics` (or nothing was simulated).
+    market:StructuredNoteMarketDiagnostics;
+    decomposition:StructuredNoteDecompositionDiagnostics;
+    checks:StructuredNoteChecksDiagnostics;
+    distribution:StructuredNoteDistributionDiagnostics;
+    timing:StructuredNoteTimingDiagnostics;
+}
+
+/// Response wrapper for multiple structured notes, in request order.
+table PriceStructuredNoteResponse {
+    notes:[StructuredNoteResult] (required);
+}
+
+root_type PriceStructuredNoteResponse;

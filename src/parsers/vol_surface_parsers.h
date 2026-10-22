@@ -20,6 +20,7 @@
 
 #include <ql/handle.hpp>
 #include <ql/indexes/swapindex.hpp>
+#include <ql/math/matrix.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
 #include <ql/termstructures/volatility/optionlet/constantoptionletvol.hpp>
@@ -101,7 +102,11 @@ struct SwaptionVolEntry {
 
 struct BlackVolEntry {
     QuantLib::Handle<QuantLib::BlackVolTermStructure> handle;
+    /// The vol of a Constant spec (quote resolved); NaN for the other shapes.
     double constantVol;
+    /// Shape of the spec the handle was built from (Constant, AtmMatrix2D =
+    /// term, SmileCube3D / SurfaceFromPrices = strike x expiry surface).
+    quantra::enums::VolSurfaceShape shapeFb = quantra::enums::VolSurfaceShape_Constant;
     QuantLib::Date referenceDate;
     QuantLib::Calendar calendar;
     quantra::enums::Calendar calendarFb = quantra::enums::Calendar_NullCalendar;
@@ -109,7 +114,32 @@ struct BlackVolEntry {
     quantra::enums::BusinessDayConvention businessDayConventionFb =
         quantra::enums::BusinessDayConvention_Following;
     QuantLib::DayCounter dayCounter;
+    /// The inputs the handle was built from, kept so that a shifted copy can
+    /// be rebuilt by `shiftedBlackVol` (bump-and-reprice vega): the expiry
+    /// dates (AtmMatrix2D and the two surfaces), the term vols (AtmMatrix2D),
+    /// the strikes and the strikes x expiries Black-vol matrix (SmileCube3D,
+    /// or the implied vols recovered from the price grid for
+    /// SurfaceFromPrices), the surface interpolation and the extrapolation
+    /// flag.
+    std::vector<QuantLib::Date> pillarDates;
+    std::vector<QuantLib::Volatility> termVols;
+    std::vector<QuantLib::Real> strikes;
+    QuantLib::Matrix surfaceVols;
+    bool bicubic = false;
+    bool allowExtrapolation = false;
 };
+
+/**
+ * Rebuild `entry`'s vol with every Black vol shifted by `shift` (absolute,
+ * vol units): BlackConstantVol(vol + shift), BlackVarianceCurve(every node
+ * + shift, forceMonotoneVariance), BlackVarianceSurface(every entry + shift,
+ * same interpolation), with the entry's reference date, calendar, day
+ * counter and extrapolation flag. The object is new (the entry's handle is
+ * untouched). 400 when a shifted vol is not > 0; 500 when the entry carries
+ * no inputs for its shape (an entry built outside parseBlackVol).
+ */
+QuantLib::Handle<QuantLib::BlackVolTermStructure> shiftedBlackVol(
+    const BlackVolEntry& entry, double shift);
 
 /// Pricing formula (engine) selector for a YoY inflation cap/floor. Plain
 /// mirror of enums::YoYInflationCapFloorEngineType so the FB-free evaluator can

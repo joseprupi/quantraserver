@@ -50,6 +50,8 @@ include "../flatbuffers/fbs/price_fx_forward_request.fbs";
 include "../flatbuffers/fbs/fx_forward_response.fbs";
 include "../flatbuffers/fbs/price_cross_currency_swap_request.fbs";
 include "../flatbuffers/fbs/cross_currency_swap_response.fbs";
+include "../flatbuffers/fbs/price_structured_note_request.fbs";
+include "../flatbuffers/fbs/structured_note_response.fbs";
 include "../flatbuffers/fbs/meta_request.fbs";
 include "../flatbuffers/fbs/meta_response.fbs";
 
@@ -82,5 +84,6 @@ rpc_service QuantraServer {
   PriceCallableFixedRateBond(PriceCallableFixedRateBondRequest):PriceCallableFixedRateBondResponse;
   PriceFxForward(PriceFxForwardRequest):PriceFxForwardResponse;
   PriceCrossCurrencySwap(PriceCrossCurrencySwapRequest):PriceCrossCurrencySwapResponse;
+  PriceStructuredNote(PriceStructuredNoteRequest):PriceStructuredNoteResponse;
   Meta(MetaRequest):MetaResponse;
 }

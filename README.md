@@ -37,6 +37,7 @@ Priced instruments:
 - Equity options
 - FX forwards
 - Cross-currency swaps (two `SwapLeg` legs in two currencies: fixed, IBOR or overnight coupons, principal exchanges)
+- Structured notes on equity-index baskets by Monte Carlo (worst-of / best-of / average autocallables, Phoenix and snowball coupons, low hurdles, step-downs, reverse convertibles, European or daily capital barriers, geared puts, upside participation; quanto underlyings; bump-and-reprice Greeks on common random numbers; opt-in diagnostics)
 
 Utility endpoints cover yield- and inflation-curve bootstrapping, volatility
 surface sampling, Hull-White and SABR calibration, and calendar date
@@ -229,15 +230,18 @@ upgrade shipped in a release is documented in `docs/quantlib-upgrades/`
 - `src/`: the pricing engine internals, in role-based folders — `transport/`
   (per-product handlers), `mappers/` (FlatBuffers ↔ plain C++), `evaluators/`
   (pure QuantLib pricing), `parsers/` (schema tables → QuantLib objects),
-  `market/` (curves, indices, vol surfaces, caches), `domain/` (plain types),
-  `common/` (enums, dates, errors, product catalog). See `src/README.md`.
+  `market/` (curves, indices, vol surfaces, correlation matrices, quanto
+  curves, caches), `mc/` (the shared Monte Carlo core: basket processes,
+  time grids, the path engine), `domain/` (plain types), `common/` (enums,
+  dates, errors, product catalog). See `src/README.md`.
 - `server/`: gRPC pricing server executable
 - `jsonserver/`: HTTP/JSON gateway and generated OpenAPI docs
 - `client/`: C++ client library
 - `quantra-python/`: Python client package
 - `flatbuffers/`: schema sources plus generated C++, Python, and JSON artifacts
 - `grpc/`: gRPC service definitions and generated service bindings
-- `examples/data/`: example JSON requests
+- `examples/data/`: example JSON requests (`structured_note/` holds the two
+  factsheet transcriptions with placeholder market data and their README)
 - `tests/`: parity, integration, and client tests
 - `scripts/`: build, code generation, and runtime helpers
 - `tools/quantra-manager/`: packaged process-manager implementation

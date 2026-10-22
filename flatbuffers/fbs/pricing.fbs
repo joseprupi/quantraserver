@@ -11,6 +11,7 @@ include "equity_option.fbs";
 include "inflation.fbs";
 include "calendar_override.fbs";
 include "fx.fbs";
+include "correlation.fbs";
 
 namespace quantra;
 
@@ -98,4 +99,11 @@ table Pricing {
     /// FX spot rates referenced by FX-implied curve helpers (FxSwapHelper,
     /// CrossCcyBasisHelper) and FX products. Optional.
     fx:FxMarketData;
+
+    /// Correlation matrices between basket underlyings, referenced by id
+    /// from basket products (`StructuredNote.correlation_id`). Optional;
+    /// validated (symmetric, unit diagonal, |rho| <= 1, positive
+    /// semi-definite) on every request that carries the block, whether or
+    /// not a product references a matrix. Used by: structured notes.
+    correlations:CorrelationMarketData;
 }

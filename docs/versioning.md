@@ -26,6 +26,121 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.12.0 (October 2026) — Structured notes on index baskets (Monte Carlo)
+
+`v0.12.0` is a backward-compatible MINOR release: one new endpoint, one new
+market-data block and four new enums. Nothing that existed in 0.11.0
+changes shape, value or status code; a 0.11.0 request is a valid 0.12.0
+request with the same response. QuantLib stays at 1.44 (no numerical
+change to any existing product).
+
+**New endpoint: `POST /price-structured-note`** (gRPC `PriceStructuredNote`,
+request `PriceStructuredNoteRequest`, response `PriceStructuredNoteResponse`).
+Notes on baskets of equity indices priced by Monte Carlo through one
+declarative payoff: a strip of `ObservationEvent`s (each with an optional
+`autocall_trigger`, an optional `coupon_trigger` and a `coupon`; both
+triggers absent = an accrual-only period), a `CouponRule` (`memory`,
+`pay_only_on_call`), a `CapitalProtection` block (barrier, `European` or
+`DailyClose` monitoring, geared put via `put_strike` / `participation`,
+`knocked_in` for a seasoned daily barrier), an optional
+`UpsideParticipation`, a `performance_rule` (`WorstOf` / `BestOf` /
+`Average`), a funding spread over the note's discounting curve and a
+`MonteCarloSpec` (paths, seed, `Sobol` or `PseudoRandom`, antithetic,
+Brownian bridge, `steps_per_year`). Classic / snowball autocallables, low
+hurdles, step-downs, Phoenix coupons with or without memory, reverse
+convertibles, bonus and twin-win shapes are configurations of these fields,
+never products of their own. Underlyings in another currency than the note
+are quanto'd through a `QuantoSpec` (local rate curve, FX spot, FX vol,
+underlying / FX correlation) on QuantLib's `QuantoTermStructure`; past
+observations are resolved from `historical_levels` before anything is
+simulated, and a note the past already decided (`Called` / `Matured`) is
+priced from its known payment without simulation.
+
+**New market-data block: `pricing.correlations`** (`CorrelationMarketData`
+with `CorrelationMatrixSpec {id, labels, values}`), validated at parse
+(symmetric, unit diagonal, entries in `[-1, 1]`, positive semi-definite —
+a `400` naming the pair or the smallest eigenvalue otherwise) and shared
+by any basket product. Additive on `Pricing`; requests without it are
+unchanged. New enums in `enums.fbs`: `BasketPerformanceRule`,
+`CapitalBarrierMonitoring`, `RandomSequence`, `StructuredNoteStatus`.
+
+**Response.** `npv`, `npv_pct_of_notional`, `standard_error`, `paths`,
+`seed`, `status`; `legs` (`bond_redemption`, `coupons`, `capital_loss`,
+each with its standard error, summing to the headline);
+`event_probabilities` (`p_call` / `p_coupon` per simulated event);
+`p_barrier_breach`; `expected_life_years`; and always the `terms` echo
+(every booked field with defaults filled and each event flagged
+`accrual_only` / `final` / `resolved_from_history`), the `seasoning`
+resolution (per past event the levels, performances, outcomes, coupon paid
+and memory carried) and the `model` echo (vol shape and local-vol flag per
+underlying, quanto drift, grid, sequence dimension) — a mis-read factsheet
+is visible before the price is trusted.
+
+**Opt-in blocks (request flags).** `greeks` = bump-and-reprice
+sensitivities on common random numbers (every bumped run on the same seed,
+paths, grid and sequence): per underlying `delta` (per +1 % spot, central),
+`gamma`, `vega` (per vol point, the Black vol rebuilt with every value
+shifted; it also enters the quanto drift), `correlation_sensitivity` (per
++0.01 on every off-diagonal entry, the bumped matrix repaired by eigenvalue
+clipping when it is no longer positive semi-definite — `correlation_bump_repaired`
+and the matrix used are returned), `funding_dv01` and `rho` (per bp; the
+rate bump moves both the processes' drift and the discounting), each with
+the standard error of its per-path difference; cost `1 + 2N + N + 3`
+simulations. `diagnostics` = `market` (the market as used: forwards,
+implied yields and rates, ATM and barrier vols, quanto drift, discount
+factors, the correlation matrix), `decomposition` (PV per event, survival /
+breach / loss-given-breach), `checks` (running means, the zero-vol forward
+walk, the correlation-one and correlation-zero limit prices, the bond-only
+value), `distribution` (basket-performance and payout quantiles, a payout
+histogram, `sample_paths` individual paths), `timing` (milliseconds per
+stage). Every block is computed from the same paths as the price.
+
+**Examples.** `examples/data/structured_note/`: the two IDAD factsheet
+transcriptions (BNP Paribas Quad Index Classic Autocall June 2025,
+XS2741509801; Santander Quad Index Low Hurdle Autocall August 2025,
+XS3109492564) with PLACEHOLDER market data (the README there maps every
+factsheet line to a field and lists every placeholder), the BNP request
+with every diagnostic flag on, the BNP request with `greeks` on, a
+single-underlying reverse convertible and a synthetic two-asset basket.
+
+**Verification.** Three layers: (1) C++ collapse tests against closed
+forms — a coupon-only event is a cash-or-nothing digital
+(`AnalyticEuropeanEngine`), capital-only is a put plus a digital put, a
+two-asset worst-of is the bivariate normal, the quanto forward is
+`S exp((r_local - q - rho sigma_S sigma_FX) T)`, zero vol reproduces the
+snowball arithmetic, the Greeks of the digital match the analytic engine's
+delta / gamma / vega, the correlation sensitivity of the worst-of digital
+matches the bivariate normal at `rho + 0.01`, `rho` and `funding_dv01` of a
+bond-like note match `sum CF_i DF_i (exp(-b t_i) - 1) / b` exactly; (2) a
+Python QuantLib reference (`tests/contract/ql_reference.py`,
+`structured_note_ql`) that draws the engine's own random stream
+(`SobolBrownianBridgeRsg`, Sobol JoeKuoD7 or Mersenne Twister, time-major,
+antithetic pairs averaged into one sample) and reproduces the market
+set-up, the grid, the walk, every diagnostic block and every Greek from the
+request JSON — the price, its standard error, the buckets, the
+probabilities, the diagnostic blocks and the Greeks agree with the server
+to the 12 decimals the gateway prints on the two factsheet requests and
+every synthetic case (flat, term and surface vol, quanto, Phoenix + daily
+barrier, pseudo-random, Sobol without bridge, correlation repair); (3) the
+three example files as functional-catalog cases (family "Structured
+Notes") plus a convergence test (standard error ∝ 1 / sqrt(paths)).
+
+**Known limits** (`docs/http-api.md`, "Structured notes"): composite
+(non-quanto) foreign underlyings are not supported (the FX rate is not
+simulated); the funding spread is flat; best-of / average baskets have no
+weights; issuer-callable notes, lookbacks, coupon floors, FX-settled notes
+and scripted payoffs are out of scope; paths are not shared across the
+notes of one request; the correlation sensitivity is one uniform
+off-diagonal bump (no per-pair Greeks); the `DailyClose` barrier is tested
+on the simulated closes only (no continuity correction). A 4-underlying
+note with `greeks` on is 16 simulations (about 21 s of engine time at
+65 536 paths, beyond the JSON gateway's 10 s RPC deadline; the engine
+checks the request budget before every extra run): size the paths of a
+Greeks request to the deadline (the shipped example uses 16 384).
+
+**Migration.** None: nothing existing changed. The OpenAPI document gains
+the endpoint and its components; `/meta` reports `0.12.0`.
+
 ## Version 0.11.0 (October 2026) — QuantLib 1.41 → 1.44
 
 `v0.11.0` is a backward-compatible MINOR release with **no API change**: every

@@ -173,8 +173,24 @@ class Pricing(object):
             return obj
         return None
 
+    # Correlation matrices between basket underlyings, referenced by id
+    # from basket products (`StructuredNote.correlation_id`). Optional;
+    # validated (symmetric, unit diagonal, |rho| <= 1, positive
+    # semi-definite) on every request that carries the block, whether or
+    # not a product references a matrix. Used by: structured notes.
+    # Pricing
+    def Correlations(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.CorrelationMarketData import CorrelationMarketData
+            obj = CorrelationMarketData()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
 def PricingStart(builder):
-    builder.StartObject(11)
+    builder.StartObject(12)
 
 def Start(builder):
     PricingStart(builder)
@@ -257,6 +273,12 @@ def PricingAddFx(builder, fx):
 def AddFx(builder, fx):
     PricingAddFx(builder, fx)
 
+def PricingAddCorrelations(builder, correlations):
+    builder.PrependUOffsetTRelativeSlot(11, flatbuffers.number_types.UOffsetTFlags.py_type(correlations), 0)
+
+def AddCorrelations(builder, correlations):
+    PricingAddCorrelations(builder, correlations)
+
 def PricingEnd(builder):
     return builder.EndObject()
 
@@ -283,6 +305,7 @@ class PricingT(object):
         self.options = None  # type: Optional[PricingOptionsT]
         self.calendarOverrides = None  # type: List[CalendarOverrideT]
         self.fx = None  # type: Optional[FxMarketDataT]
+        self.correlations = None  # type: Optional[CorrelationMarketDataT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -337,6 +360,8 @@ class PricingT(object):
                     self.calendarOverrides.append(calendarOverride_)
         if pricing.Fx() is not None:
             self.fx = FxMarketDataT.InitFromObj(pricing.Fx())
+        if pricing.Correlations() is not None:
+            self.correlations = CorrelationMarketDataT.InitFromObj(pricing.Correlations())
 
     # PricingT
     def Pack(self, builder):
@@ -374,6 +399,8 @@ class PricingT(object):
             calendarOverrides = builder.EndVector()
         if self.fx is not None:
             fx = self.fx.Pack(builder)
+        if self.correlations is not None:
+            correlations = self.correlations.Pack(builder)
         PricingStart(builder)
         if self.asOfDate is not None:
             PricingAddAsOfDate(builder, asOfDate)
@@ -397,5 +424,7 @@ class PricingT(object):
             PricingAddCalendarOverrides(builder, calendarOverrides)
         if self.fx is not None:
             PricingAddFx(builder, fx)
+        if self.correlations is not None:
+            PricingAddCorrelations(builder, correlations)
         pricing = PricingEnd(builder)
         return pricing

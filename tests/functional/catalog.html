@@ -1195,7 +1195,7 @@
 <td><div class="title">Hull-White round-trip: recover a=0.05, sigma=0.008</div><div class="desc">Full two-parameter Hull-White calibration against a 2x2 ATM matrix (1Y/2Y into 5Y/7Y) whose market vols were generated from HullWhite(a=0.05, sigma=0.008) on the same curve, so the objective has one sharp, well-conditioned minimum: the calibration (Jamshidian helper pricing, implied-vol error, Levenberg-Marquardt from a=0.03/sigma=0.01) must round-trip the generating parameters and an ~1e-9 fit RMSE on both sides.</div></td>
 <td><code>Hull-White</code> <code>calibrate a and sigma</code> <code>parameter round-trip</code> <code>ATM matrix target</code> <code>implied-vol error</code> <code>Jamshidian engine</code></td>
 <td><a href="../../examples/data/vol/hwcal_eur_atm_matrix_roundtrip.json">hwcal_eur_atm_matrix_roundtrip.json</a></td>
-<td class="npv">hw_a=0.05, hw_sigma=0.008, rmse=1.8986e-09, num_helpers=4</td>
+<td class="npv">hw_a=0.05, hw_sigma=0.008, rmse=1.89858e-09, num_helpers=4</td>
 </tr>
 <tr>
 <td><div class="title">Hull-White sigma-only fit to a market ATM matrix</div><div class="desc">Sigma-only calibration (a fixed at 0.03 via calibrate_a=false, sent through the request-level calibration override) against a market-style 2x2 lognormal ATM matrix that no Hull-White model fits exactly. The one-dimensional problem is well-conditioned, so both sides converge to the same sigma and report the same irreducible fit RMSE. The grid falls back to the matrix&#x27;s own expiries/tenors.</div></td>
@@ -1213,13 +1213,13 @@
 <td><div class="title">SABR per-node calibration, 3-strike exact fit</div><div class="desc">Per-node SABR calibration of a 2x2 (1Y/2Y into 5Y/10Y) smile cube quoted at three strike spreads (-100/0/+100bp) with beta fixed at 0.5: three free parameters against three points, so every node fits exactly (per-node RMSE 0) at interior parameters. Compares the per-node forwards, the calibrated alpha/beta/rho/nu grids, the Hagan ATM vols and the fit RMSEs.</div></td>
 <td><code>SABR calibrate</code> <code>beta fixed 0.5</code> <code>exact fit</code> <code>per-node forwards</code> <code>alpha/rho/nu grids</code></td>
 <td><a href="../../examples/data/vol/sabrcal_eur_2x2_beta_fixed_exact_fit.json">sabrcal_eur_2x2_beta_fixed_exact_fit.json</a></td>
-<td class="npv">overall_rmse=6.55643e-16, 4-point grids x7</td>
+<td class="npv">overall_rmse=7.11972e-16, 4-point grids x7</td>
 </tr>
 <tr>
 <td><div class="title">SABR round-trip: 5-strike smiles from known parameters</div><div class="desc">The same 2x2 cube quoted at five strike spreads whose vols were generated from known interior SABR parameters (alpha 0.040-0.046, rho -0.25 to -0.18, nu 0.30-0.35, beta 0.5) at the curve&#x27;s own forwards: the per-node fits are overdetermined (5 points, 3 free parameters) yet recover the generating parameters, leaving only the 1e-8 vol-rounding residual. Pins the calibrator against a known answer.</div></td>
 <td><code>SABR calibrate</code> <code>parameter round-trip</code> <code>overdetermined fit</code> <code>5 strike spreads</code> <code>interior parameters</code></td>
 <td><a href="../../examples/data/vol/sabrcal_eur_2x2_5strike_roundtrip.json">sabrcal_eur_2x2_5strike_roundtrip.json</a></td>
-<td class="npv">overall_rmse=1.72767e-09, 4-point grids x7</td>
+<td class="npv">overall_rmse=1.72766e-09, 4-point grids x7</td>
 </tr>
 <tr>
 <td><div class="title">SABR round-trip with vega-weighted smile fit</div><div class="desc">The 5-strike round-trip cube refit with vega_weighted_smile_fit=true, so the per-node objective weights residuals by Black vega instead of equally. On SABR-consistent data the fit still recovers the generating parameters (to ~1e-7), pinning the vega-weighting flag through the calibrator on both sides.</div></td>
@@ -1309,7 +1309,7 @@
 <td><div class="title">EUR/USD 1Y forward struck on-market (spot + 1Y points)</div><div class="desc">Buy EUR 10m one year forward at 1.11202 = spot 1.0850 + the 1Y FX swap points 0.02702 the EUR curve was bootstrapped from. The maturity is given as Saturday 2026-01-17 and rolls on the joint calendar past the US holiday to 2026-01-20, the 1Y pillar date, so the contract rate equals the fair forward and the NPV is zero to bootstrap accuracy (an on-market forward).</div></td>
 <td><code>FX forward</code> <code>zero NPV at the fair forward</code> <code>maturity rolled on the joint calendar</code> <code>1Y FX swap pillar</code></td>
 <td><a href="../../examples/data/fx_forward/fx_forward_eurusd_1y_on_market.json">fx_forward_eurusd_1y_on_market.json</a></td>
-<td class="npv">npv=0, fair_forward_rate=1.11202, forward_points=0.02702, base_leg_pv=9.75386e+06, quote_leg_pv=-1.05815e+07, fx_spot_used=1.085</td>
+<td class="npv">npv=-1.86265e-09, fair_forward_rate=1.11202, forward_points=0.02702, base_leg_pv=9.75386e+06, quote_leg_pv=-1.05815e+07, fx_spot_used=1.085</td>
 </tr>
 <tr>
 <td><div class="title">EUR/USD 6M forward, spot through an Fx quote</div><div class="desc">The baseline buy with the EUR/USD spot carried in pricing.quotes as an Fx-type quote and referenced by quote_id from the FxSpotSpec (the rate bump never shifts an Fx quote). Must price identically to the inline spot.</div></td>
@@ -1339,7 +1339,7 @@
 <td><div class="title">EUR/USD 5Y cross-currency swap struck at its fair rate (NPV zero)</div><div class="desc">The baseline with the fixed rate set to the reported fair_rate (2.1067689937...%): the NPV is zero to rounding and the reported fair rate is the contract rate. Shows the fair-rate definition (the rate that zeroes the total NPV holding the SOFR leg and every exchange fixed) through the API rather than by linear extrapolation.</div></td>
 <td><code>cross-currency swap</code> <code>zero NPV at the fair rate</code> <code>fair rate round trip</code></td>
 <td><a href="../../examples/data/cross_currency_swap/xccy_eur_fixed_at_fair_rate_vs_usd_sofr_5y.json">xccy_eur_fixed_at_fair_rate_vs_usd_sofr_5y.json</a></td>
-<td class="npv">npv=1.76452e-09, fair_rate=0.0210677, fair_spread=-3.57081e-17, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=-1.01228, npv_reporting=-1.09817, npv=1.09817, npv_reporting=1.09817</td>
+<td class="npv">npv=8.30075e-09, fair_rate=0.0210677, fair_spread=-1.6798e-16, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=-1.01228, npv_reporting=-1.09817, npv=1.09817, npv_reporting=1.09817</td>
 </tr>
 <tr>
 <td><div class="title">USD SOFR vs EUR ESTR - 15 bp 5Y basis swap, both exchanges, NPV in USD</div><div class="desc">Float/float: pay SOFR compounded quarterly on 10.85m USD, receive ESTR compounded quarterly minus 15 bp on 10m EUR, both principal exchanges, 5Y from the spot date. Leg conventions are those of the collateral curve&#x27;s 5Y CrossCcyBasisHelper (ESTR - 17 bp vs SOFR), so the fair spread on the EUR leg reproduces the pillar&#x27;s -17 bp (to the helper&#x27;s constant-notional convention, ~1e-8); struck at -15 bp the EUR receiver is 2 bp better off and the NPV is positive. Compares npv, leg NPVs, the fair spread and the as-of rate.</div></td>
@@ -1361,6 +1361,42 @@
 </tr>
 </tbody>
 </table>
-<footer>208 cases across 14 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<h2>Structured Notes</h2>
+<table>
+<thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib value</th></tr></thead>
+<tbody>
+<tr>
+<td><div class="title">BNP Quad Index Classic Autocall June 2025 (XS2741509801), seasoned, 4 assets, 65 536 paths</div><div class="desc">Worst-of autocallable on SMI, SPX, SX5E and NKY in USD: eleven semi-annual observations with a 100 % autocall trigger paying a 7 % snowball coupon (memory, paid only on call), 60 % European capital barrier with 1-for-1 loss, SOFR OIS discounting plus a 100 bp funding spread. Three indices are quanto (CHF, EUR, JPY curves, FX spots and vols, index/FX correlations). Valued on 2026-10-21 after one accrual-only period and one missed observation resolved from historical levels (memory carried 0.14). Sobol + Brownian bridge, antithetic, 65 536 paths, grid = the ten future observation dates. Every market number is a placeholder (see the examples README): a parity case, not a valuation.</div></td>
+<td><code>structured note</code> <code>worst-of autocall</code> <code>snowball coupon</code> <code>quanto</code> <code>seasoning from historical levels</code> <code>OIS discounting + funding spread</code> <code>Sobol Brownian bridge</code> <code>same-stream Monte Carlo parity</code></td>
+<td><a href="../../examples/data/structured_note/bnp_quad_index_classic_autocall_xs2741509801.json">bnp_quad_index_classic_autocall_xs2741509801.json</a></td>
+<td class="npv">npv=877.263, standard_error=1.12315, pv=867.476, pv=147.525, pv=-137.739, p_barrier_breach=0.310699, expected_life_years=2.87963, memory_carried=0.14</td>
+</tr>
+<tr>
+<td><div class="title">Santander Quad Index Low Hurdle Autocall August 2025 (XS3109492564), seasoned, 4 assets, 65 536 paths</div><div class="desc">The quarterly sibling: twenty-one observations with a 100 % autocall trigger and a 2.5 % snowball coupon, and at the final observation an 80 % low hurdle (coupon_trigger with no call) before the 60 % European barrier. Three accrual-only periods and one missed observation precede the valuation date (memory carried 0.10). Twenty future observations, dimension 80 of the Sobol bridge sequence. Placeholder market data.</div></td>
+<td><code>structured note</code> <code>low hurdle final coupon</code> <code>quarterly observations</code> <code>quanto</code> <code>seasoning from historical levels</code> <code>same-stream Monte Carlo parity</code></td>
+<td><a href="../../examples/data/structured_note/santander_quad_index_low_hurdle_autocall_xs3109492564.json">santander_quad_index_low_hurdle_autocall_xs3109492564.json</a></td>
+<td class="npv">npv=755.722, standard_error=0.977219, pv=837.267, pv=108.547, pv=-190.091, p_barrier_breach=0.422318, expected_life_years=3.59021, memory_carried=0.1</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic two-index worst-of autocall, flat vols, rho 0.7, 1024 paths</div><div class="desc">The smallest wire-valid note: two USD indices (flat 25 % and 30 % vols, correlation 0.7, flat 2 % / 1 % dividend yields) on a flat 4 % USD curve with a 50 bp funding spread, worst-of, four semi-annual 100 % autocalls paying 5 % snowball coupons, 70 % European barrier, no past events. 1024 Sobol + bridge antithetic paths: a fast case that pins the random stream, the antithetic pairing and the standard errors. Generated by two_asset_request() in tests/contract/structured_note_parity_test.py.</div></td>
+<td><code>structured note</code> <code>worst-of</code> <code>flat vols</code> <code>no seasoning</code> <code>antithetic pairs</code> <code>standard errors</code> <code>same-stream Monte Carlo parity</code></td>
+<td><a href="../../examples/data/structured_note/synthetic_two_asset_worst_of_flat_vol_autocall.json">synthetic_two_asset_worst_of_flat_vol_autocall.json</a></td>
+<td class="npv">npv=894.582, standard_error=5.61789, pv=942.647, pv=44.7874, pv=-92.8525, p_barrier_breach=0.227539, expected_life_years=1.30408, memory_carried=0</td>
+</tr>
+<tr>
+<td><div class="title">Bank of Nova Scotia autocallable trigger notes on NDX/RTY (real market data, issuer value 973.52)</div><div class="desc">A public SEC-filed note (CUSIP 06419JME7) priced on primary-source market data as of its 2026-09-30 trade date: Treasury par curve, VXN/RVX closes as flat vols, one-year historical correlation 0.747, QQQ/IWM trailing dividend yields, no funding spread. One 100 % autocall at year one with a 14.75 % premium, 75 % European trigger and 250 % upside participation at maturity. The filing states the issuer&#x27;s initial estimated value, 973.52 per 1,000; the engine gives 965.6 +/- 0.4 (see examples/data/structured_note/README.md).</div></td>
+<td><code>structured note</code> <code>worst-of</code> <code>upside participation</code> <code>real market data</code> <code>issuer estimated value</code> <code>same-stream Monte Carlo parity</code></td>
+<td><a href="../../examples/data/structured_note/scotia_autocallable_trigger_ndx_rty_us06419jme72.json">scotia_autocallable_trigger_ndx_rty_us06419jme72.json</a></td>
+<td class="npv">npv=965.582, standard_error=0.765869, pv=975.052, pv=57.7445, pv=-67.2139, p_barrier_breach=0.202484, expected_life_years=1.59511, memory_carried=0</td>
+</tr>
+<tr>
+<td><div class="title">JPMorgan Review Notes on the least performing of NDX/RTY/SPX (real market data, issuer value 937.30)</div><div class="desc">A public SEC-filed five-year note (CUSIP 46661PT64) priced on primary-source market data as of its 2026-10-19 pricing date: Treasury par curve, VXN/RVX/VIX closes as flat vols, one-year historical 3x3 correlation, QQQ/IWM/SPY trailing dividend yields, no funding spread. 49 monthly 100 % review dates with a step-up call premium from 8.8 % to 44 % expressed as memory coupons, 70 % European barrier, no upside. The filing states the issuer&#x27;s estimated value, 937.30 per 1,000; the engine gives 911.8 +/- 0.9 (see examples/data/structured_note/README.md).</div></td>
+<td><code>structured note</code> <code>worst-of</code> <code>three underlyings</code> <code>step-up call premium</code> <code>memory coupons</code> <code>real market data</code> <code>issuer estimated value</code></td>
+<td><a href="../../examples/data/structured_note/jpm_review_notes_ndx_rty_spx_46661pt64.json">jpm_review_notes_ndx_rty_spx_46661pt64.json</a></td>
+<td class="npv">npv=911.796, standard_error=0.905335, pv=893.615, pv=92.6405, pv=-74.4598, p_barrier_breach=0.187042, expected_life_years=2.42171, memory_carried=0</td>
+</tr>
+</tbody>
+</table>
+<footer>213 cases across 15 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

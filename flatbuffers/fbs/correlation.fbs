@@ -1,0 +1,35 @@
+include "volatility.fbs";
+
+namespace quantra;
+
+/// Correlation matrix between the underlyings of a basket product, referenced
+/// by id from the trade (`StructuredNote.correlation_id`). There is no
+/// correlation market: the matrix is an input (historical estimate, dealer
+/// mark) and the engine only validates it. It must be square, symmetric,
+/// with a unit diagonal and every entry in [-1, 1], and positive
+/// semi-definite (a Cholesky factorisation must succeed); otherwise the
+/// request is a 400 naming the first offending pair of labels, or "not
+/// positive semi-definite". No repair is applied to the matrix as supplied;
+/// a bump-and-reprice correlation sensitivity may repair the BUMPED matrix
+/// and says so in the response.
+table CorrelationMatrixSpec {
+    /// Identifier referenced by trades (e.g. "QUAD_INDEX_HIST_2Y"). Required;
+    /// unique within pricing.correlations.matrices.
+    id:string (required);
+    /// Ids of the underlyings the rows/columns refer to, in matrix order:
+    /// `EquityUnderlyingSpec.id` (or `FxSpotSpec.id` for products that
+    /// simulate an FX rate). Required; at least two distinct entries. A
+    /// trade referencing this matrix must have exactly these underlyings
+    /// (any order; the engine permutes), 400 naming the missing or extra
+    /// label otherwise.
+    labels:[string] (required);
+    /// The matrix: n_rows = n_cols = len(labels), values row-major in label
+    /// order, inline or via quote_ids into pricing.quotes. Required.
+    values:QuoteMatrix2D (required);
+}
+
+/// Correlation market data grouped under the shared Pricing context.
+table CorrelationMarketData {
+    /// Correlation matrices referenced by id from basket products.
+    matrices:[CorrelationMatrixSpec];
+}

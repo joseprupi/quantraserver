@@ -355,6 +355,12 @@ JsonResponse QuantraClient::PriceCrossCurrencySwapJSON(
         request_id);
 }
 
+JsonResponse QuantraClient::PriceStructuredNoteJSON(
+    const std::string& json, const std::string& request_id) {
+    return impl_->CallJSON<PriceStructuredNoteRequest, PriceStructuredNoteResponse>(
+        ProductType::StructuredNote, json, &QuantraServer::Stub::PriceStructuredNote, request_id);
+}
+
 JsonResponse QuantraClient::PriceCapFloorJSON(
     const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<PriceCapFloorRequest, PriceCapFloorResponse>(
@@ -534,6 +540,14 @@ grpc::Status QuantraClient::PriceCrossCurrencySwap(
     grpc::ClientContext context;
     SetDefaultDeadline(context);
     return impl_->GetStub()->PriceCrossCurrencySwap(&context, request, response);
+}
+
+grpc::Status QuantraClient::PriceStructuredNote(
+    const Message<PriceStructuredNoteRequest>& request,
+    Message<PriceStructuredNoteResponse>* response) {
+    grpc::ClientContext context;
+    SetDefaultDeadline(context);
+    return impl_->GetStub()->PriceStructuredNote(&context, request, response);
 }
 
 grpc::Status QuantraClient::PriceCapFloor(

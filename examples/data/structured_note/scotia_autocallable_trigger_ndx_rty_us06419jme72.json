@@ -1,0 +1,351 @@
+{
+  "pricing": {
+    "as_of_date": "2026-09-30",
+    "quotes": [
+      {
+        "id": "NDX_SPOT",
+        "kind": "Price",
+        "value": 30408.5,
+        "quote_type": "Curve"
+      },
+      {
+        "id": "RTY_SPOT",
+        "kind": "Price",
+        "value": 2796.864,
+        "quote_type": "Curve"
+      }
+    ],
+    "rates": {
+      "curves": [
+        {
+          "id": "USD_TSY",
+          "reference_date": "2026-09-30",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.040133,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-09-30"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.040133,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 1,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.041781,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 3,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.042838,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 6,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.044916,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 1,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.04661,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 18,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.048319,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 2,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.048915,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 30,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.04952,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 3,
+                  "unit": "Years"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "NDX_DIV",
+          "reference_date": "2026-09-30",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0043,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-09-30"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0043,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "RTY_DIV",
+          "reference_date": "2026-09-30",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0098,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-09-30"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0098,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "equity": {
+      "equity_underlyings": [
+        {
+          "id": "NDX",
+          "currency": "USD",
+          "spot_quote_id": "NDX_SPOT",
+          "dividend_yield_curve_id": "NDX_DIV"
+        },
+        {
+          "id": "RTY",
+          "currency": "USD",
+          "spot_quote_id": "RTY_SPOT",
+          "dividend_yield_curve_id": "RTY_DIV"
+        }
+      ]
+    },
+    "volatility": {
+      "vol_surfaces": [
+        {
+          "id": "NDX_VOL",
+          "payload_type": "BlackVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-09-30",
+              "calendar": "UnitedStatesNYSE",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "shape": "Constant",
+              "constant_vol": 0.2246
+            }
+          }
+        },
+        {
+          "id": "RTY_VOL",
+          "payload_type": "BlackVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-09-30",
+              "calendar": "UnitedStatesNYSE",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "shape": "Constant",
+              "constant_vol": 0.2156
+            }
+          }
+        }
+      ]
+    },
+    "correlations": {
+      "matrices": [
+        {
+          "id": "NDX_RTY",
+          "labels": [
+            "NDX",
+            "RTY"
+          ],
+          "values": {
+            "n_rows": 2,
+            "n_cols": 2,
+            "values": [
+              1.0,
+              0.747,
+              0.747,
+              1.0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "notes": [
+    {
+      "trade_id": "US06419JME72",
+      "currency": "USD",
+      "notional": 1000.0,
+      "underlyings": [
+        {
+          "underlying_id": "NDX",
+          "volatility_id": "NDX_VOL",
+          "initial_level": 30408.5
+        },
+        {
+          "underlying_id": "RTY",
+          "volatility_id": "RTY_VOL",
+          "initial_level": 2796.864
+        }
+      ],
+      "performance_rule": "WorstOf",
+      "events": [
+        {
+          "observation_date": "2027-09-30",
+          "payment_date": "2027-10-05",
+          "autocall_trigger": 1.0,
+          "coupon": 0.1475
+        },
+        {
+          "observation_date": "2028-10-02",
+          "payment_date": "2028-10-05",
+          "coupon_trigger": 0.0,
+          "coupon": 0.0
+        }
+      ],
+      "coupon_rule": {
+        "memory": false,
+        "pay_only_on_call": true
+      },
+      "capital": {
+        "barrier": 0.75,
+        "monitoring": "European",
+        "put_strike": 1.0,
+        "participation": 1.0
+      },
+      "upside": {
+        "strike": 1.0,
+        "participation": 2.5
+      },
+      "maturity_payment_date": "2028-10-05",
+      "discounting_curve": "USD_TSY",
+      "funding_spread_bp": 0.0,
+      "correlation_id": "NDX_RTY",
+      "monte_carlo": {
+        "paths": 65536,
+        "seed": 42,
+        "sequence": "Sobol",
+        "antithetic": true,
+        "brownian_bridge": true
+      }
+    }
+  ]
+}

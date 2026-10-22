@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Quantra Pricing API",
-    "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Zero Coupon Bond | `/price-zero-coupon-bond` | Price zero-coupon (single redemption) bonds |\n| Zero Coupon Swap | `/price-zero-coupon-swap` | Price zero-coupon fixed-vs-compounded-floating swaps |\n| Year-on-Year Inflation Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation caps, floors, and collars |\n| Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |\n| FX Forward | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount curves |\n| Cross-Currency Swap | `/price-cross-currency-swap` | Price cross-currency swaps (two SwapLeg entries in two currencies, fixed / IBOR / overnight coupons, principal exchanges) |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n",
-    "version": "0.11.0",
+    "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Zero Coupon Bond | `/price-zero-coupon-bond` | Price zero-coupon (single redemption) bonds |\n| Zero Coupon Swap | `/price-zero-coupon-swap` | Price zero-coupon fixed-vs-compounded-floating swaps |\n| Year-on-Year Inflation Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation caps, floors, and collars |\n| Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |\n| FX Forward | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount curves |\n| Cross-Currency Swap | `/price-cross-currency-swap` | Price cross-currency swaps (two SwapLeg entries in two currencies, fixed / IBOR / overnight coupons, principal exchanges) |\n| Structured Note | `/price-structured-note` | Price structured notes on equity-index baskets (autocallables, Phoenix / Athena coupons, capital barriers) by Monte Carlo |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n",
+    "version": "0.12.0",
     "contact": {
       "name": "Quantra API Support",
       "url": "https://github.com/joseprupi/quantraserver"
@@ -30,7 +30,7 @@
     },
     {
       "name": "Equity Derivatives",
-      "description": "Equity option pricing"
+      "description": "Equity option and structured-note (basket autocallable) pricing"
     },
     {
       "name": "FX",
@@ -1696,6 +1696,69 @@
         }
       }
     },
+    "/price-structured-note": {
+      "post": {
+        "summary": "Price Structured Note",
+        "description": "Price structured notes on baskets of equity indices (classic and snowball autocallables, low-hurdle finals, Phoenix coupons with or without memory, step-down triggers, European or daily-close capital barriers with geared puts, upside participation) by Monte Carlo under correlated Black-Scholes or Dupire local-vol dynamics (QuantLib GeneralizedBlackScholesProcess, StochasticProcessArray, Sobol Brownian-bridge or Mersenne-Twister paths, antithetic variates), with quanto drift adjustments (QuantoTermStructure) for underlyings in another currency and cash flows discounted on the note curve plus a flat funding spread (ZeroSpreadedTermStructure). The payoff is one declarative walk over the note's observation events (autocall and coupon triggers, coupon memory, final capital test); past events are resolved from the supplied historical levels before anything is simulated. Every result carries its standard error, path count, seed, NPV by bucket (notional, coupons, capital loss), call and coupon probabilities per event, breach probability, expected life, an echo of the booked terms, the seasoning resolution and the model used. Opt-in diagnostic blocks (market as used, PV decomposition by event, convergence and limit checks, payout distribution with sample paths, timing) are computed from the same paths; Greeks are schema-ready and not available yet (501).",
+        "tags": [
+          "Equity Derivatives"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/quantra_PriceStructuredNoteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful pricing response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/quantra_PriceStructuredNoteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health Check",
@@ -2203,6 +2266,36 @@
         "enum": [
           "Coupon",
           "NotionalExchange"
+        ]
+      },
+      "quantra_enums_BasketPerformanceRule": {
+        "type": "string",
+        "enum": [
+          "WorstOf",
+          "BestOf",
+          "Average"
+        ]
+      },
+      "quantra_enums_CapitalBarrierMonitoring": {
+        "type": "string",
+        "enum": [
+          "European",
+          "DailyClose"
+        ]
+      },
+      "quantra_enums_RandomSequence": {
+        "type": "string",
+        "enum": [
+          "Sobol",
+          "PseudoRandom"
+        ]
+      },
+      "quantra_enums_StructuredNoteStatus": {
+        "type": "string",
+        "enum": [
+          "Alive",
+          "Called",
+          "Matured"
         ]
       },
       "quantra_Flow": {
@@ -5147,6 +5240,46 @@
         },
         "additionalProperties": false
       },
+      "quantra_CorrelationMatrixSpec": {
+        "type": "object",
+        "description": "Correlation matrix between the underlyings of a basket product, referenced\nby id from the trade (`StructuredNote.correlation_id`). There is no\ncorrelation market: the matrix is an input (historical estimate, dealer\nmark) and the engine only validates it. It must be square, symmetric,\nwith a unit diagonal and every entry in [-1, 1], and positive\nsemi-definite (a Cholesky factorisation must succeed); otherwise the\nrequest is a 400 naming the first offending pair of labels, or \"not\npositive semi-definite\". No repair is applied to the matrix as supplied;\na bump-and-reprice correlation sensitivity may repair the BUMPED matrix\nand says so in the response.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identifier referenced by trades (e.g. \"QUAD_INDEX_HIST_2Y\"). Required;\nunique within pricing.correlations.matrices."
+          },
+          "labels": {
+            "type": "array",
+            "description": "Ids of the underlyings the rows/columns refer to, in matrix order:\n`EquityUnderlyingSpec.id` (or `FxSpotSpec.id` for products that\nsimulate an FX rate). Required; at least two distinct entries. A\ntrade referencing this matrix must have exactly these underlyings\n(any order; the engine permutes), 400 naming the missing or extra\nlabel otherwise.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "values": {
+            "$ref": "#/components/schemas/quantra_QuoteMatrix2D"
+          }
+        },
+        "required": [
+          "id",
+          "labels",
+          "values"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_CorrelationMarketData": {
+        "type": "object",
+        "description": "Correlation market data grouped under the shared Pricing context.",
+        "properties": {
+          "matrices": {
+            "type": "array",
+            "description": "Correlation matrices referenced by id from basket products.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_CorrelationMatrixSpec"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "quantra_RatesMarketData": {
         "type": "object",
         "description": "Rates market data shared across interest-rate products.",
@@ -5322,6 +5455,9 @@
           },
           "fx": {
             "$ref": "#/components/schemas/quantra_FxMarketData"
+          },
+          "correlations": {
+            "$ref": "#/components/schemas/quantra_CorrelationMarketData"
           }
         },
         "required": [
@@ -7475,6 +7611,354 @@
         },
         "additionalProperties": false
       },
+      "quantra_QuantoSpec": {
+        "type": "object",
+        "description": "Quanto treatment of one basket underlying whose currency differs from the\nnote currency: the note pays in its own currency the performance of an\nindex quoted in another one, so the simulated drift of that index is\nr_note - q - rho * sigma_S * sigma_FX (QuantLib QuantoTermStructure) while\nthe index keeps its own units. Present iff the underlying's currency\ndiffers from `StructuredNote.currency` (400 either way otherwise: a\nquanto block on a same-currency underlying, or none on a foreign one).",
+        "properties": {
+          "discounting_curve": {
+            "type": "string",
+            "description": "Id of the discount curve of the UNDERLYING's currency in\npricing.rates.curves: the risk-neutral drift of the underlying in its\nown currency (r_local in the quanto adjustment). The note-currency\ncurve is `StructuredNote.discounting_curve`. Required."
+          },
+          "fx_spot_id": {
+            "type": "string",
+            "description": "Id of the `FxSpotSpec` in pricing.fx.spots for the underlying's\ncurrency against the note currency, in either direction (the engine\ninverts when base/quote are the other way round). Required."
+          },
+          "fx_volatility_id": {
+            "type": "string",
+            "description": "Id of the `VolSurfaceSpec` (BlackVolSpec payload, Constant or term)\nin pricing.volatility.vol_surfaces holding the volatility of that FX\nrate; used only for the quanto drift adjustment. Required."
+          },
+          "fx_underlying_correlation": {
+            "type": "number",
+            "description": "Correlation between the underlying and the FX rate (underlying\ncurrency per unit of note currency, i.e. the rate that rises when\nthe note currency strengthens against the underlying's currency), in\n[-1, 1]. A scalar input: the FX rate is not simulated and this\ncorrelation is not read from the correlation matrix. Presence-\nrequired (a bare double would silently mean 0 = no adjustment)."
+          }
+        },
+        "required": [
+          "discounting_curve",
+          "fx_spot_id",
+          "fx_volatility_id"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_BasketUnderlying": {
+        "type": "object",
+        "description": "One underlying of a basket: an equity index (or share) from the shared\nequity market data, its volatility, the level it was struck at, and the\ncloses already observed for a seasoned note.",
+        "properties": {
+          "underlying_id": {
+            "type": "string",
+            "description": "Id of the `EquityUnderlyingSpec` in pricing.equity.equity_underlyings\n(spot quote, dividend curve, currency). Required."
+          },
+          "volatility_id": {
+            "type": "string",
+            "description": "Id of the `VolSurfaceSpec` (BlackVolSpec payload) in\npricing.volatility.vol_surfaces: constant, term, or strike x expiry\nsurface (a surface makes the simulation local-vol and requires\n`MonteCarloSpec.steps_per_year`). Required."
+          },
+          "initial_level": {
+            "type": "number",
+            "description": "Strike fixing from the term sheet: the closing level on the strike\ndate that every performance S(t) / initial_level is measured against.\nPresence-required and > 0."
+          },
+          "quanto": {
+            "$ref": "#/components/schemas/quantra_QuantoSpec"
+          },
+          "historical_levels": {
+            "type": "array",
+            "description": "Closing levels on past observation dates (seasoned notes): one\n`Fixing` (date, value > 0) per observation event whose\n`observation_date` is on or before the valuation date and that\ncarries a trigger. Events before the valuation date are resolved from\nthese, never simulated; a past observation without a level is a 400\nnaming the date and the underlying. Accrual-only events need no\nlevel. Levels on other dates are ignored.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_Fixing"
+            }
+          }
+        },
+        "required": [
+          "underlying_id",
+          "volatility_id"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_ObservationEvent": {
+        "type": "object",
+        "description": "One date of the note's life. Which tests run at an event is decided by\nwhich triggers are present; the coupon of the event is `coupon`\n(fraction of notional). The basket performance perf = rule over\nS_i(observation_date) / initial_level_i, and every test is \"perf >=\ntrigger\" (triggers are fractions of the initial level: 1.0 = 100%).\n\nautocall_trigger present, coupon_trigger absent (classic autocall):\nthe coupon test IS the call test. perf >= autocall_trigger: notional\nplus this event's coupon plus every unpaid coupon in the memory is\npaid on `payment_date` and the note ends. Otherwise nothing is paid\nand, with `CouponRule.memory`, `coupon` joins the memory.\nautocall_trigger present, coupon_trigger present (Phoenix with a call):\ncoupon test first: perf >= coupon_trigger earns this event's coupon\nplus the memory (paid on `payment_date`, or held until the next call\nwhen `CouponRule.pay_only_on_call`); otherwise the coupon joins the\nmemory. Then the call test: perf >= autocall_trigger pays the\nnotional plus everything held, on `payment_date`, and the note ends.\nautocall_trigger absent, coupon_trigger present (coupon-only date):\nthe coupon test only, as above; the note cannot end here.\nboth absent (accrual-only period):\nnothing is observed and nothing is paid: `coupon` is added to the\nmemory. This encodes a snowball coupon that accrues from the strike\ndate while the first observation is later (a 7% semi-annual coupon\nfirst observed at 12 months pays 2 x 7% on the first call). Requires\n`CouponRule.memory` = true (400 otherwise: nothing could carry the\ncoupon) and `payment_date` absent (400 when present).\n\nThe last event is the final observation: its tests run as above, and\nwhen the note has not ended there the capital test of\n`CapitalProtection` runs on the same perf and the redemption is paid on\n`StructuredNote.maturity_payment_date`. A final event with no trigger at\nall is a 400. Events must be in strictly increasing `observation_date`\norder; events on or before the valuation date are resolved from\n`BasketUnderlying.historical_levels` and never simulated.",
+        "properties": {
+          "observation_date": {
+            "type": "string",
+            "description": "Date the basket is observed (closing levels), ISO. Required. For an\naccrual-only event (no triggers) nothing is observed: the date is\nnominal and only orders the event among the others."
+          },
+          "payment_date": {
+            "type": "string",
+            "description": "Date a coupon or call triggered here is paid, ISO, on or after\n`observation_date`. Required (400) whenever `autocall_trigger` or\n`coupon_trigger` is present; must be absent for an accrual-only\nevent."
+          },
+          "autocall_trigger": {
+            "type": "number",
+            "description": "Autocall trigger as a fraction of the initial level (1.0 = 100%);\nperf >= trigger ends the note. Absent = the note cannot be called at\nthis date."
+          },
+          "coupon_trigger": {
+            "type": "number",
+            "description": "Coupon trigger as a fraction of the initial level; perf >= trigger\nearns the coupon. Absent = no coupon test of its own (with an\n`autocall_trigger` the coupon is earned by the call test; with\nneither trigger the event is accrual-only)."
+          },
+          "coupon": {
+            "type": "number",
+            "description": "Coupon of this period as a fraction of notional (0.07 = 7%).\nRequired (400) when `coupon_trigger` is present or the event is\naccrual-only. With only an `autocall_trigger` it may be absent: the\nevent then carries no coupon of its own and a call pays the notional\nplus the memory only."
+          }
+        },
+        "required": [
+          "observation_date"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_CouponRule": {
+        "type": "object",
+        "description": "How coupons that were earned or missed carry over between events.",
+        "properties": {
+          "memory": {
+            "type": "boolean",
+            "description": "True: a coupon not paid at its event (test failed, or held because\n`pay_only_on_call`) is added to a memory that is paid in full with\nthe next coupon that is paid; the memory is a sum of coupon amounts,\nso events may carry different coupons. False: a missed coupon is\nlost. Presence-required."
+          },
+          "pay_only_on_call": {
+            "type": "boolean",
+            "description": "True (Athena / snowball): coupons are paid only when the note ends\n(a call, or the final event); an earned coupon at a non-calling\nevent is held in the memory. False (Phoenix): an earned coupon is\npaid on its event's `payment_date`. Presence-required."
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_CapitalProtection": {
+        "type": "object",
+        "description": "Capital protection at the final observation. With perf the basket\nperformance on the final observation date (or, with DailyClose\nmonitoring, breach = any close below the barrier over the life), the\nredemption is notional x 1 when the barrier holds and\nnotional x (1 - participation x max(put_strike - perf_final, 0)) when it\nis breached, paid on `StructuredNote.maturity_payment_date`.",
+        "properties": {
+          "barrier": {
+            "type": "number",
+            "description": "Barrier as a fraction of the initial level (0.6 = 60%); the capital\nis at risk when perf < barrier. Presence-required and in (0, 1]."
+          },
+          "monitoring": {
+            "$ref": "#/components/schemas/quantra_enums_CapitalBarrierMonitoring"
+          },
+          "put_strike": {
+            "type": "number",
+            "description": "Strike of the embedded put as a fraction of the initial level\n(1.0 = loss measured from 100%, the \"1-for-1\" of a factsheet)."
+          },
+          "participation": {
+            "type": "number",
+            "description": "Gearing of the loss (1.0 = 1-for-1)."
+          },
+          "knocked_in": {
+            "type": "boolean",
+            "description": "Whether a DailyClose barrier has already been breached before the\nvaluation date. Presence-required (400) when `monitoring` is\nDailyClose and any event precedes the valuation date (the engine\ncannot infer it from `historical_levels`, which hold observation\ndates only); must be absent otherwise."
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_UpsideParticipation": {
+        "type": "object",
+        "description": "Optional upside at the final observation when the note has not called:\nadds `participation * max(perf - strike, 0)` of the notional, capped at\n`cap` when present. Expresses bonus certificates, capped participation\nnotes and twin-win structures; absent for a plain autocallable.",
+        "properties": {
+          "strike": {
+            "type": "number",
+            "description": "Strike as a fraction of the initial level. Presence-required."
+          },
+          "participation": {
+            "type": "number",
+            "description": "Participation in the performance above the strike. Presence-required."
+          },
+          "cap": {
+            "type": "number",
+            "description": "Maximum upside as a fraction of the notional (0.3 = at most +30%).\nAbsent = uncapped."
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_MonteCarloSpec": {
+        "type": "object",
+        "description": "Monte Carlo settings. Every price carries its standard error, path\ncount and seed, and Greeks are computed by bump-and-reprice on the same\nrandom stream.",
+        "properties": {
+          "paths": {
+            "type": "integer",
+            "description": "Number of simulated paths (antithetic pairs count as two paths).\nPresence-required and > 0; a power of two is recommended with Sobol.",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "seed": {
+            "type": "integer",
+            "description": "Seed of the random sequence (Sobol scrambling / Mersenne Twister).",
+            "minimum": 0,
+            "maximum": 18446744073709551615
+          },
+          "sequence": {
+            "$ref": "#/components/schemas/quantra_enums_RandomSequence"
+          },
+          "antithetic": {
+            "type": "boolean",
+            "description": "Antithetic variates (every Gaussian draw is also used negated)."
+          },
+          "brownian_bridge": {
+            "type": "boolean",
+            "description": "Brownian-bridge ordering of the draws (recommended with Sobol)."
+          },
+          "steps_per_year": {
+            "type": "integer",
+            "description": "Time steps per year of the simulation grid between observation\ndates. Required (400) when any underlying's volatility is a strike x\nexpiry surface (local-vol evolution) or the capital barrier is\nmonitored DailyClose; otherwise must be absent and the grid is the\nobservation dates only (exact lognormal steps). Between observation\ndates the processes evolve with log-Euler steps of 1/steps_per_year\nyears. A DailyClose barrier is tested on the simulated closes only:\nset this to the index's trading days per year (about 252); fewer\nsteps under-sample the barrier and bias the price. No continuity\ncorrection (Broadie-Glasserman-Kou) is applied, because the barrier\nis discrete by contract.",
+            "minimum": 0,
+            "maximum": 4294967295
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_StructuredNote": {
+        "type": "object",
+        "description": "A structured note on a basket of equity indices: a strip of observation\nevents (autocall and/or coupon tests on the basket performance), a coupon\ncarry rule, and capital protection at maturity. Classic and snowball\nautocalls, low-hurdle finals, Phoenix coupons, step-down triggers and\ngeared puts are all configurations of these fields; there is one payoff\nwalk, not one product per shape. Priced by Monte Carlo under correlated\nBlack-Scholes (or local-vol) dynamics with quanto drift adjustments,\ndiscounted on `discounting_curve` plus `funding_spread_bp`.",
+        "properties": {
+          "trade_id": {
+            "type": "string",
+            "description": "Trade identifier echoed in the response. Required."
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217 code of the note currency (coupons, redemption, NPV).\nRequired."
+          },
+          "notional": {
+            "type": "number",
+            "description": "Notional (denomination x units); coupons and the redemption are\nfractions of it. Presence-required and > 0."
+          },
+          "underlyings": {
+            "type": "array",
+            "description": "The basket. Required; at least one entry; ids distinct; with two or\nmore entries the set of `underlying_id`s must equal the labels of the\ncorrelation matrix `correlation_id`.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_BasketUnderlying"
+            }
+          },
+          "performance_rule": {
+            "$ref": "#/components/schemas/quantra_enums_BasketPerformanceRule"
+          },
+          "events": {
+            "type": "array",
+            "description": "The note's dates in strictly increasing `observation_date` order; the\nlast one is the final observation. Required; at least one entry.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_ObservationEvent"
+            }
+          },
+          "coupon_rule": {
+            "$ref": "#/components/schemas/quantra_CouponRule"
+          },
+          "capital": {
+            "$ref": "#/components/schemas/quantra_CapitalProtection"
+          },
+          "maturity_payment_date": {
+            "type": "string",
+            "description": "Date the redemption is paid when the note reaches the final\nobservation without a call, ISO, on or after the final\n`observation_date`. Required."
+          },
+          "discounting_curve": {
+            "type": "string",
+            "description": "Id of the note-currency discount curve in pricing.rates.curves\n(OIS or funding curve). Required."
+          },
+          "funding_spread_bp": {
+            "type": "number",
+            "description": "Issuer funding spread in basis points added to `discounting_curve`\nas a flat zero spread (QuantLib ZeroSpreadedTermStructure) for\ndiscounting every cash flow. 0 = discount on the curve as is."
+          },
+          "correlation_id": {
+            "type": "string",
+            "description": "Id of the `CorrelationMatrixSpec` in pricing.correlations.matrices;\nits labels must be exactly the basket's underlying ids. Required\n(400) when the note has two or more underlyings; must be absent (400)\nwith exactly one underlying, which is simulated on a 1 x 1 unit\nmatrix (a `CorrelationMatrixSpec` lists at least two labels)."
+          },
+          "upside": {
+            "$ref": "#/components/schemas/quantra_UpsideParticipation"
+          },
+          "monte_carlo": {
+            "$ref": "#/components/schemas/quantra_MonteCarloSpec"
+          }
+        },
+        "required": [
+          "trade_id",
+          "currency",
+          "underlyings",
+          "events",
+          "coupon_rule",
+          "capital",
+          "maturity_payment_date",
+          "discounting_curve",
+          "monte_carlo"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteGreeksSpec": {
+        "type": "object",
+        "description": "Opt-in Greeks by bump-and-reprice on the same random stream (common\nrandom numbers): every bump re-runs the full simulation with the same\nseed, paths, grid and sequence, so the cost is (1 + 2N + N + 3) runs for\nN underlyings (1 + 2 + 1 + 2 for a single underlying, which has no\ncorrelation sensitivity). Absent = no Greeks (the response's `greeks`\nblock is absent). Every bump has a default; the sizes are echoed in the\nresponse and the reported sensitivities are scaled to unit moves (1%,\n1 vol point, 0.01, 1bp) and each carries the standard error of its\nper-path difference. Definitions: the doc comments of\n`StructuredNoteGreeks` in structured_note_response.fbs. A `greeks` block\non a note whose past already decided it (`Called` / `Matured`) is a 400.",
+        "properties": {
+          "spot_bump": {
+            "type": "number",
+            "description": "Relative spot bump per underlying (0.01 = +/-1%), for delta (central)\nand gamma. Must be finite and > 0 (400 otherwise)."
+          },
+          "vol_bump": {
+            "type": "number",
+            "description": "Absolute volatility bump per underlying in vol units (0.01 = +1 vol\npoint), for vega. Must be finite and > 0."
+          },
+          "correlation_bump": {
+            "type": "number",
+            "description": "Absolute bump of every off-diagonal correlation (0.01 = +0.01), for\nthe correlation sensitivity; the bumped entries are clipped to\n[-1, 1] and the matrix is repaired to positive semi-definite by\neigenvalue clipping when needed (the response says so and returns\nthe matrix used). Must be finite and > 0."
+          },
+          "funding_bump_bp": {
+            "type": "number",
+            "description": "Funding-spread bump in basis points, for funding_dv01. Must be\nfinite and > 0."
+          },
+          "rate_bump_bp": {
+            "type": "number",
+            "description": "Parallel bump of the discount curve in basis points, for rho. Must\nbe finite and > 0."
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteDiagnosticsSpec": {
+        "type": "object",
+        "description": "Opt-in diagnostic blocks, each computed from the SAME paths as the\nprice so the parts add up to the headline (the terms echo, the\nseasoning resolution and the model echo are always returned). Absent =\nno diagnostic block.",
+        "properties": {
+          "market": {
+            "type": "boolean",
+            "description": "Market as used: per underlying spot, forwards and vols at every\nobservation date, quanto drift; discount factors at every payment\ndate with and without the funding spread; the correlation matrix."
+          },
+          "decomposition": {
+            "type": "boolean",
+            "description": "Per event call/coupon probabilities and PV paid there, survival and\nbreach probabilities, expected life, expected loss given breach."
+          },
+          "checks": {
+            "type": "boolean",
+            "description": "Convergence (running mean at 1/4, 1/2, 3/4 of the paths), the\nzero-vol price along the forward path, limit prices with\ncorrelation forced to 1 and to 0 (one extra run each), and the\nbond-only value."
+          },
+          "distribution": {
+            "type": "boolean",
+            "description": "Quantiles of the basket performance per observation date, quantiles\nand a histogram of the total payout per path, and `sample_paths`\nindividual paths."
+          },
+          "timing": {
+            "type": "boolean",
+            "description": "Milliseconds per stage (market build, path generation, payoff walk,\neach Greek)."
+          },
+          "sample_paths": {
+            "type": "integer",
+            "description": "Number of individual paths returned with `distribution` (basket\nperformance per event, payout, call date), capped at 100; 0 = none.\nRaw underlying levels are never returned.",
+            "minimum": 0,
+            "maximum": 4294967295
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_PriceStructuredNoteRequest": {
+        "type": "object",
+        "description": "Request to price one or more structured notes against one market. Each\nnote is simulated on its own (paths are not shared between notes).",
+        "properties": {
+          "pricing": {
+            "$ref": "#/components/schemas/quantra_Pricing"
+          },
+          "notes": {
+            "type": "array",
+            "description": "The notes, in response order. Required; at least one entry.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_StructuredNote"
+            }
+          },
+          "greeks": {
+            "$ref": "#/components/schemas/quantra_StructuredNoteGreeksSpec"
+          },
+          "diagnostics": {
+            "$ref": "#/components/schemas/quantra_StructuredNoteDiagnosticsSpec"
+          }
+        },
+        "required": [
+          "notes"
+        ],
+        "additionalProperties": false
+      },
       "quantra_SwaptionUnderlying": {
         "type": "string",
         "enum": [
@@ -8309,6 +8793,1036 @@
         },
         "required": [
           "results"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteTermsUnderlying": {
+        "type": "object",
+        "description": "One basket underlying as the engine booked it.",
+        "properties": {
+          "underlying_id": {
+            "type": "string",
+            "description": "`BasketUnderlying.underlying_id`."
+          },
+          "currency": {
+            "type": "string",
+            "description": "Currency of the underlying (from its `EquityUnderlyingSpec`)."
+          },
+          "initial_level": {
+            "type": "number",
+            "description": "Strike level the performances are measured against."
+          },
+          "volatility_id": {
+            "type": "string",
+            "description": "Id of the volatility used."
+          },
+          "quanto": {
+            "type": "boolean",
+            "description": "True when the underlying is quanto'd into the note currency."
+          },
+          "fx_spot_id": {
+            "type": "string",
+            "description": "FX spot id of the quanto block; absent for a same-currency\nunderlying."
+          },
+          "fx_volatility_id": {
+            "type": "string",
+            "description": "FX volatility id of the quanto block; absent for a same-currency\nunderlying."
+          },
+          "fx_underlying_correlation": {
+            "type": "number",
+            "description": "Underlying/FX correlation of the quanto block; absent for a\nsame-currency underlying."
+          }
+        },
+        "required": [
+          "underlying_id",
+          "currency",
+          "volatility_id"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteTermsEvent": {
+        "type": "object",
+        "description": "One observation event as the engine booked it (request order).",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "description": "Position in `StructuredNote.events`, from 0.",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "observation_date": {
+            "type": "string"
+          },
+          "payment_date": {
+            "type": "string",
+            "description": "Absent for an accrual-only event."
+          },
+          "autocall_trigger": {
+            "type": "number",
+            "description": "Absent = no call test at this event."
+          },
+          "coupon_trigger": {
+            "type": "number",
+            "description": "Absent = no coupon test of its own at this event."
+          },
+          "coupon": {
+            "type": "number",
+            "description": "Absent = no coupon of its own at this event."
+          },
+          "accrual_only": {
+            "type": "boolean",
+            "description": "True for an event with neither trigger (coupon accrues to memory)."
+          },
+          "final": {
+            "type": "boolean",
+            "description": "True for the last event (capital test runs here)."
+          },
+          "resolved_from_history": {
+            "type": "boolean",
+            "description": "True when `observation_date` is on or before the valuation date:\nthe event was resolved from `historical_levels` (see\n`StructuredNoteSeasoning`) and not simulated."
+          }
+        },
+        "required": [
+          "observation_date"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteTermsEcho": {
+        "type": "object",
+        "description": "The booked terms as the engine understood them: a mis-read factsheet is\nvisible here before the price is trusted. Always present. Defaults are\nfilled in (put_strike, participation, funding spread, Monte Carlo\nsettings).",
+        "properties": {
+          "trade_id": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "notional": {
+            "type": "number"
+          },
+          "performance_rule": {
+            "$ref": "#/components/schemas/quantra_enums_BasketPerformanceRule"
+          },
+          "underlyings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_StructuredNoteTermsUnderlying"
+            }
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_StructuredNoteTermsEvent"
+            }
+          },
+          "coupon_memory": {
+            "type": "boolean"
+          },
+          "coupon_pay_only_on_call": {
+            "type": "boolean"
+          },
+          "capital_barrier": {
+            "type": "number"
+          },
+          "capital_monitoring": {
+            "$ref": "#/components/schemas/quantra_enums_CapitalBarrierMonitoring"
+          },
+          "put_strike": {
+            "type": "number"
+          },
+          "participation": {
+            "type": "number"
+          },
+          "maturity_payment_date": {
+            "type": "string"
+          },
+          "discounting_curve": {
+            "type": "string"
+          },
+          "funding_spread_bp": {
+            "type": "number"
+          },
+          "correlation_id": {
+            "type": "string",
+            "description": "Absent for a single-underlying note (simulated on a 1 x 1 unit\nmatrix)."
+          },
+          "paths": {
+            "type": "integer",
+            "description": "Paths requested (the number actually simulated is on the result).",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "seed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 18446744073709551615
+          },
+          "sequence": {
+            "$ref": "#/components/schemas/quantra_enums_RandomSequence"
+          },
+          "antithetic": {
+            "type": "boolean"
+          },
+          "brownian_bridge": {
+            "type": "boolean"
+          },
+          "steps_per_year": {
+            "type": "integer",
+            "description": "Absent when the grid is the observation dates only.",
+            "minimum": 0,
+            "maximum": 4294967295
+          }
+        },
+        "required": [
+          "trade_id",
+          "currency",
+          "underlyings",
+          "events",
+          "maturity_payment_date",
+          "discounting_curve"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteResolvedEvent": {
+        "type": "object",
+        "description": "One past event evaluated on the supplied historical levels.",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "description": "Position in `StructuredNote.events`, from 0.",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "observation_date": {
+            "type": "string"
+          },
+          "accrual_only": {
+            "type": "boolean",
+            "description": "True for an accrual-only event (no levels read; coupon added to the\nmemory)."
+          },
+          "levels": {
+            "type": "array",
+            "description": "Closing levels used, one per underlying in `terms.underlyings`\norder; empty for an accrual-only event.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "performances": {
+            "type": "array",
+            "description": "Level / initial level, one per underlying; empty for an accrual-only\nevent.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "basket_performance": {
+            "type": "number",
+            "description": "Basket performance under `performance_rule`; absent for an\naccrual-only event."
+          },
+          "called": {
+            "type": "boolean",
+            "description": "Call test outcome; absent when the event has no `autocall_trigger`."
+          },
+          "coupon_earned": {
+            "type": "boolean",
+            "description": "Coupon test outcome (or, with only an `autocall_trigger`, the call\ntest); absent when the event carries no coupon test."
+          },
+          "coupon_paid": {
+            "type": "number",
+            "description": "Coupon amount (fraction of notional) paid on this event's payment\ndate, memory included; 0 when nothing was paid."
+          },
+          "memory_after": {
+            "type": "number",
+            "description": "Coupon memory (fraction of notional) carried out of this event."
+          }
+        },
+        "required": [
+          "observation_date"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteSeasoning": {
+        "type": "object",
+        "description": "How the note's past was resolved before anything was simulated. Always\npresent (empty `events` for a note with no past event).",
+        "properties": {
+          "as_of_date": {
+            "type": "string",
+            "description": "Valuation date the past/future split was made on."
+          },
+          "status": {
+            "$ref": "#/components/schemas/quantra_enums_StructuredNoteStatus"
+          },
+          "events": {
+            "type": "array",
+            "description": "Past events in order.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_StructuredNoteResolvedEvent"
+            }
+          },
+          "memory_carried": {
+            "type": "number",
+            "description": "Coupon memory (fraction of notional) entering the simulation."
+          },
+          "next_event_index": {
+            "type": "integer",
+            "description": "Index of the first simulated event; absent when none (Called or\nMatured).",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "known_payment_date": {
+            "type": "string",
+            "description": "For a Called or Matured note: the known payment date and amount\n(fraction of notional, redemption and coupons together). The NPV\nis that amount discounted when the date is after the valuation\ndate, 0 otherwise. Absent for an Alive note."
+          },
+          "known_payment": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "as_of_date",
+          "events"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteModelUnderlying": {
+        "type": "object",
+        "description": "The model used for one underlying.",
+        "properties": {
+          "underlying_id": {
+            "type": "string"
+          },
+          "vol_shape": {
+            "$ref": "#/components/schemas/quantra_enums_VolSurfaceShape"
+          },
+          "local_vol": {
+            "type": "boolean",
+            "description": "True when the paths were evolved under Dupire local volatility\nderived from a surface."
+          },
+          "quanto_drift": {
+            "type": "number",
+            "description": "Quanto drift adjustment -rho * sigma_S * sigma_FX applied\n(annualised, in rate units, at the first observation); absent for a\nsame-currency underlying."
+          }
+        },
+        "required": [
+          "underlying_id"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteModelEcho": {
+        "type": "object",
+        "description": "The simulation set-up as used. Always present.",
+        "properties": {
+          "underlyings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_StructuredNoteModelUnderlying"
+            }
+          },
+          "observation_dates_only": {
+            "type": "boolean",
+            "description": "True when the time grid is the (future) observation dates only."
+          },
+          "time_steps": {
+            "type": "integer",
+            "description": "Number of time steps of the grid.",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "time_grid": {
+            "type": "array",
+            "description": "The grid, in years from the valuation date (day counter of the\ndiscounting curve).",
+            "items": {
+              "type": "number"
+            }
+          },
+          "sequence_dimension": {
+            "type": "integer",
+            "description": "Dimension of the random sequence (time steps x underlyings).",
+            "minimum": 0,
+            "maximum": 4294967295
+          }
+        },
+        "required": [
+          "underlyings"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteBucket": {
+        "type": "object",
+        "description": "Present value of one cash-flow bucket, from the same paths as the\nheadline NPV, with its own standard error.",
+        "properties": {
+          "pv": {
+            "type": "number",
+            "description": "PV in the note currency (capital_loss is <= 0)."
+          },
+          "standard_error": {
+            "type": "number",
+            "description": "Monte Carlo standard error of `pv`."
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteLegs": {
+        "type": "object",
+        "description": "NPV split by cash-flow bucket; the three sum to the headline `npv` to\nrounding.",
+        "properties": {
+          "bond_redemption": {
+            "$ref": "#/components/schemas/quantra_StructuredNoteBucket"
+          },
+          "coupons": {
+            "$ref": "#/components/schemas/quantra_StructuredNoteBucket"
+          },
+          "capital_loss": {
+            "$ref": "#/components/schemas/quantra_StructuredNoteBucket"
+          }
+        },
+        "required": [
+          "bond_redemption",
+          "coupons",
+          "capital_loss"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteEventProbability": {
+        "type": "object",
+        "description": "Call and coupon probabilities of one simulated event.",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "description": "Position in `StructuredNote.events`, from 0.",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "observation_date": {
+            "type": "string"
+          },
+          "p_call": {
+            "type": "number",
+            "description": "Probability that the note is alive at this event and the call test\nholds; absent when the event has no `autocall_trigger`."
+          },
+          "p_coupon": {
+            "type": "number",
+            "description": "Probability that the note is alive at this event and a coupon is\nearned (paid or held); absent when the event carries no coupon test."
+          }
+        },
+        "required": [
+          "observation_date"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteUnderlyingGreeks": {
+        "type": "object",
+        "description": "Sensitivities of one underlying by bump-and-reprice on common random\nnumbers (every bumped run uses the same seed, paths, grid and random\nsequence as the price), in the note currency, scaled to unit moves. Each\nsensitivity carries the Monte Carlo standard error of the DIFFERENCE\n(accumulated per path, not the difference of two standard errors), which\nis what the common random numbers make small.",
+        "properties": {
+          "underlying_id": {
+            "type": "string"
+          },
+          "delta": {
+            "type": "number",
+            "description": "NPV change per +1% move of the spot: central difference of the spot\nbumped by +/- `spot_bump` (relative), (V+ - V-) / (2 spot_bump) x\n0.01. Only the spot quote moves: the initial level (strike fixing),\nthe dividend curve and the volatility (sticky strike for a surface)\nstay."
+          },
+          "delta_standard_error": {
+            "type": "number"
+          },
+          "gamma": {
+            "type": "number",
+            "description": "Change of `delta` per +1% move of the spot: (V+ - 2 V0 + V-) /\nspot_bump^2 x 0.01^2."
+          },
+          "gamma_standard_error": {
+            "type": "number"
+          },
+          "vega": {
+            "type": "number",
+            "description": "NPV change per +1 vol point: the underlying's Black volatility\nshifted by +`vol_bump` (absolute; a constant vol, every node of a\nterm vol, every entry of a strike x expiry surface, from which the\nlocal vol is re-derived), (V(sigma + vol_bump) - V0) / vol_bump x\n0.01. For a quanto underlying the shifted vol also enters the quanto\ndrift (-rho x sigma_S x sigma_FX)."
+          },
+          "vega_standard_error": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "underlying_id"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteGreeks": {
+        "type": "object",
+        "description": "Opt-in Greeks (absent unless `greeks` was in the request). Cost: 1 + 2N\n+ N + 3 full simulations for N underlyings (2 for a single underlying,\nwhich has no correlation sensitivity), all on the same random stream.",
+        "properties": {
+          "underlyings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_StructuredNoteUnderlyingGreeks"
+            }
+          },
+          "correlation_sensitivity": {
+            "type": "number",
+            "description": "NPV change per +0.01 on every off-diagonal correlation: every\noff-diagonal entry shifted by +`correlation_bump`, clipped to\n[-1, 1], (V(rho + bump) - V0) / correlation_bump x 0.01. Absent for a\nsingle underlying."
+          },
+          "correlation_sensitivity_standard_error": {
+            "type": "number"
+          },
+          "correlation_bump_repaired": {
+            "type": "boolean",
+            "description": "True when the bumped correlation matrix was not positive\nsemi-definite and was repaired before repricing: eigenvalue\nclipping (negative eigenvalues set to 0, V diag(max(lambda, 0)) V^T)\nfollowed by a rescaling to unit diagonal. False for a single\nunderlying."
+          },
+          "correlation_bumped": {
+            "type": "array",
+            "description": "The correlation matrix the bumped run used (after clipping and, when\n`correlation_bump_repaired`, the repair), row-major n x n in the\nnote's underlying order. Absent for a single underlying.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "funding_dv01": {
+            "type": "number",
+            "description": "NPV change per +1bp of funding spread: the spread shifted by\n+`funding_bump_bp` on the discounting only (the processes drift on\nthe plain curve), (V(s + bump) - V0) / funding_bump_bp."
+          },
+          "funding_dv01_standard_error": {
+            "type": "number"
+          },
+          "rho": {
+            "type": "number",
+            "description": "NPV change per +1bp parallel move of `discounting_curve`: a\ncontinuously compounded zero spread of +`rate_bump_bp` on the note\ncurve, applied both to the processes' risk-free rate (the drift of a\nnote-currency underlying; a quanto underlying's drift is r_local - q\n- rho sigma_S sigma_FX and does not move, its quanto curve is\nrebuilt on the shifted note curve) and to the discounting of every\ncash flow, the funding spread staying on top; (V(r + bump) - V0) /\nrate_bump_bp."
+          },
+          "rho_standard_error": {
+            "type": "number"
+          },
+          "spot_bump": {
+            "type": "number",
+            "description": "Bump sizes used, as requested or defaulted."
+          },
+          "vol_bump": {
+            "type": "number"
+          },
+          "correlation_bump": {
+            "type": "number"
+          },
+          "funding_bump_bp": {
+            "type": "number"
+          },
+          "rate_bump_bp": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "underlyings"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteMarketUnderlying": {
+        "type": "object",
+        "description": "Market as used for one underlying, one entry per simulated observation\ndate (the `observation_dates` of the parent block). Deterministic: read\nfrom the curves and vols the processes were built on, no simulation.",
+        "properties": {
+          "underlying_id": {
+            "type": "string"
+          },
+          "spot": {
+            "type": "number",
+            "description": "Spot used."
+          },
+          "forwards": {
+            "type": "array",
+            "description": "Forward level at each observation date: spot x D_div(t) / D_note(t)\nwith D_div the process's dividend curve (the QuantoTermStructure for\na quanto underlying, so the quanto drift is included) and D_note the\nnote's discounting curve without the funding spread, both at the\nActual/365 (Fixed) time t of the simulation grid. This is the level\nthe deterministic forward walk of `checks` uses.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "implied_dividend_yields": {
+            "type": "array",
+            "description": "Continuously-compounded dividend yield of the underlying's own\ndividend curve (quanto adjustment excluded) implied between\nconsecutive observation dates, the first from the valuation date:\n-ln(D(t_j) / D(t_{j-1})) / (t_j - t_{j-1}).",
+            "items": {
+              "type": "number"
+            }
+          },
+          "implied_rates": {
+            "type": "array",
+            "description": "Continuously-compounded rate of the underlying's own currency (the\nquanto block's `discounting_curve`, or the note curve for a\nsame-currency underlying) implied between consecutive observation\ndates, as above.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "atm_vols": {
+            "type": "array",
+            "description": "Black volatility used to each observation date at the forward of\nthat date (ATM).",
+            "items": {
+              "type": "number"
+            }
+          },
+          "barrier_vols": {
+            "type": "array",
+            "description": "Black volatility used to each observation date at the capital\nbarrier strike, `capital.barrier x initial_level`. Equals\n`atm_vols` for a constant or term vol (`model.underlyings[].local_vol`\nfalse): the strike is only read on a strike x expiry surface.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "quanto_drift_bp": {
+            "type": "number",
+            "description": "Quanto drift adjustment applied, -rho x sigma_S x sigma_FX in basis\npoints per year, with sigma_S the underlying's Black vol at\n`initial_level` and sigma_FX the FX vol at the FX spot, both to the\nfinal simulated observation date; rho in QuantLib's convention\n(correlation with the FX rate quoted as underlying-currency units per\nnote-currency unit). Absent for a same-currency underlying."
+          }
+        },
+        "required": [
+          "underlying_id"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteMarketDiagnostics": {
+        "type": "object",
+        "description": "`diagnostics.market`.",
+        "properties": {
+          "observation_dates": {
+            "type": "array",
+            "description": "Simulated observation dates, in order.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "underlyings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_StructuredNoteMarketUnderlying"
+            }
+          },
+          "payment_dates": {
+            "type": "array",
+            "description": "Every future payment date, in order: the payment date of each\nsimulated event followed by `maturity_payment_date` when it is not\nalready the last one.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "discount_factors": {
+            "type": "array",
+            "description": "Discount factor on `discounting_curve` at each payment date.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "discount_factors_with_funding": {
+            "type": "array",
+            "description": "Discount factor with the funding spread at each payment date.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "correlation_labels": {
+            "type": "array",
+            "description": "Labels of the correlation matrix as used (underlying order).",
+            "items": {
+              "type": "string"
+            }
+          },
+          "correlation": {
+            "type": "array",
+            "description": "The correlation matrix as used, row-major n x n, permuted to the\nnote's underlying order; the 1 x 1 unit matrix for a single\nunderlying. No repair is ever applied (a matrix that is not positive\nsemi-definite is a 400).",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "observation_dates",
+          "underlyings",
+          "payment_dates",
+          "discount_factors",
+          "discount_factors_with_funding",
+          "correlation_labels",
+          "correlation"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteEventDecomposition": {
+        "type": "object",
+        "description": "`diagnostics.decomposition`: one simulated event (accrual-only events\nare not listed: nothing is observed or paid on them).",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "observation_date": {
+            "type": "string"
+          },
+          "p_call": {
+            "type": "number",
+            "description": "Absent when the event has no `autocall_trigger` (same value as\n`event_probabilities`)."
+          },
+          "p_coupon": {
+            "type": "number",
+            "description": "Absent when the event carries no coupon test (same value as\n`event_probabilities`)."
+          },
+          "pv_coupons": {
+            "type": "number",
+            "description": "PV, in the note currency, of the coupons paid on this event's\npayment date (memory included), averaged over the paths."
+          },
+          "pv_redemption": {
+            "type": "number",
+            "description": "PV, in the note currency, of the notional returned on this event's\npayment date (a call), or, on the final event, of the redemption\nbefore any loss (upside included) on `maturity_payment_date`."
+          }
+        },
+        "required": [
+          "observation_date"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteDecompositionDiagnostics": {
+        "type": "object",
+        "description": "`diagnostics.decomposition`. The event PVs add up to the buckets:\nsum(pv_coupons) = legs.coupons.pv and sum(pv_redemption) =\nlegs.bond_redemption.pv, less any flow the past already fixed (listed\nin `seasoning`, not here); the capital loss is on `legs.capital_loss`\nwith its standard error, as are the bucket standard errors.",
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_StructuredNoteEventDecomposition"
+            }
+          },
+          "p_survive_to_maturity": {
+            "type": "number",
+            "description": "Probability that the note is not called before the final event."
+          },
+          "p_breach": {
+            "type": "number",
+            "description": "Probability that the capital barrier is breached."
+          },
+          "expected_life_years": {
+            "type": "number",
+            "description": "Expected time to the note's end, in years from the valuation date."
+          },
+          "expected_loss_given_breach": {
+            "type": "number",
+            "description": "Expected loss conditional on a breach, as a positive fraction of the\nnotional, undiscounted: E[loss x 1{breach}] / p_breach with loss =\nparticipation x max(put_strike - perf_final, 0). Absent when no path\nbreached (p_breach = 0)."
+          }
+        },
+        "required": [
+          "events"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteRunningMean": {
+        "type": "object",
+        "description": "Running estimate of the NPV after a fraction of the samples, in\nsimulation order (an antithetic pair is one sample).",
+        "properties": {
+          "fraction": {
+            "type": "number",
+            "description": "Fraction of the samples used (0.25, 0.5, 0.75, 1.0; a fraction is\nomitted when its sample count would be 0 or repeat the previous\none)."
+          },
+          "paths": {
+            "type": "integer",
+            "description": "Simulated paths used (samples, or 2 x samples with antithetic).",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "npv": {
+            "type": "number",
+            "description": "NPV estimate over those paths, in the note currency."
+          },
+          "standard_error": {
+            "type": "number",
+            "description": "Its standard error (the same estimator as the headline's)."
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteChecksDiagnostics": {
+        "type": "object",
+        "description": "`diagnostics.checks`.",
+        "properties": {
+          "running_means": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_StructuredNoteRunningMean"
+            }
+          },
+          "deterministic_forward_npv": {
+            "type": "number",
+            "description": "Price of the payoff walked once along the forward path: every\nunderlying at its `market` forward on every grid date (zero\nvolatility), the same state machine as the simulation, no random\nnumbers."
+          },
+          "correlation_one_npv": {
+            "type": "number",
+            "description": "Price with every off-diagonal correlation forced to 1 (one extra run\non the same random stream, paths, seed and grid). With a single\nunderlying it is the headline price (no extra run)."
+          },
+          "correlation_one_standard_error": {
+            "type": "number",
+            "description": "Standard error of `correlation_one_npv`."
+          },
+          "correlation_zero_npv": {
+            "type": "number",
+            "description": "Price with every off-diagonal correlation forced to 0 (the identity\nmatrix; one extra run on the same stream). With a single underlying\nit is the headline price (no extra run)."
+          },
+          "correlation_zero_standard_error": {
+            "type": "number",
+            "description": "Standard error of `correlation_zero_npv`."
+          },
+          "bond_only_npv": {
+            "type": "number",
+            "description": "notional x discount factor (funding spread included) at\n`maturity_payment_date`: the value of the note if it were a\nzero-coupon bond of the issuer."
+          }
+        },
+        "required": [
+          "running_means"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteQuantiles": {
+        "type": "object",
+        "description": "Quantiles of the basket performance (`performance_rule` applied) at one\nsimulated observation date, over every simulated path: each path of an\nantithetic pair counts on its own (the pairs are averaged for the price\nstatistics only). Quantile definition: linear interpolation between\norder statistics, q(p) = x[h] + (h - floor(h)) x (x[floor(h) + 1] -\nx[floor(h)]) with h = (n - 1) x p on the ascending values x[0..n-1]\n(the default of R and NumPy). The basket performance is recorded at the\nobservation date whether or not the note is still alive on that path.",
+        "properties": {
+          "observation_date": {
+            "type": "string"
+          },
+          "q05": {
+            "type": "number"
+          },
+          "q25": {
+            "type": "number"
+          },
+          "q50": {
+            "type": "number"
+          },
+          "q75": {
+            "type": "number"
+          },
+          "q95": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "observation_date"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteHistogramBin": {
+        "type": "object",
+        "description": "One bin of the payout histogram: 20 bins of equal width between the\nsmallest and the largest payout over the paths, edges lower_k = min +\nk x (max - min) / 20. When every path pays the same amount all 20 bins\nhave zero width and every path is in the first one.",
+        "properties": {
+          "lower": {
+            "type": "number",
+            "description": "Lower edge (fraction of notional), inclusive."
+          },
+          "upper": {
+            "type": "number",
+            "description": "Upper edge, exclusive (inclusive for the last bin)."
+          },
+          "paths": {
+            "type": "integer",
+            "description": "Simulated paths in the bin; the bins sum to the result's `paths`.",
+            "minimum": 0,
+            "maximum": 4294967295
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteSamplePath": {
+        "type": "object",
+        "description": "One simulated path, summarised (raw levels are never returned).",
+        "properties": {
+          "basket_performances": {
+            "type": "array",
+            "description": "Basket performance at each simulated observation date (the\n`observation_date`s of `basket_performance_quantiles`), recorded\nwhether or not the note is still alive on that date.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "payout": {
+            "type": "number",
+            "description": "Undiscounted total payout of the path, fraction of notional:\nevery coupon and redemption paid after the valuation date on this\npath, loss and upside included, plus any flow the past already\nfixed (identical on every path)."
+          },
+          "payout_pv": {
+            "type": "number",
+            "description": "The same payout discounted on the funding curve, fraction of\nnotional; its average over the paths is npv / notional."
+          },
+          "called_on": {
+            "type": "string",
+            "description": "Observation date of the call; absent when the path reached the\nfinal event."
+          },
+          "breached": {
+            "type": "boolean",
+            "description": "True when the capital barrier was breached."
+          }
+        },
+        "required": [
+          "basket_performances"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteDistributionDiagnostics": {
+        "type": "object",
+        "description": "`diagnostics.distribution`. Every statistic is over the individual\nsimulated paths (`paths` of the result).",
+        "properties": {
+          "basket_performance_quantiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_StructuredNoteQuantiles"
+            }
+          },
+          "payout_q05": {
+            "type": "number",
+            "description": "Quantiles of the undiscounted total payout per path (fraction of\nnotional, as `StructuredNoteSamplePath.payout`), same quantile\ndefinition as `StructuredNoteQuantiles`."
+          },
+          "payout_q25": {
+            "type": "number"
+          },
+          "payout_q50": {
+            "type": "number"
+          },
+          "payout_q75": {
+            "type": "number"
+          },
+          "payout_q95": {
+            "type": "number"
+          },
+          "payout_histogram": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_StructuredNoteHistogramBin"
+            }
+          },
+          "sample_paths": {
+            "type": "array",
+            "description": "The first `sample_paths` paths in simulation order (with antithetic:\npath, its antithetic, next path, ...); empty when 0.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_StructuredNoteSamplePath"
+            }
+          }
+        },
+        "required": [
+          "basket_performance_quantiles",
+          "payout_histogram"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteTimingStage": {
+        "type": "object",
+        "description": "One timed stage (wall clock).",
+        "properties": {
+          "stage": {
+            "type": "string",
+            "description": "`market_build` (curves, quanto curves, grid, processes),\n`simulation` (path generation and payoff walk together: the path\nengine hands each path to the walk as it is generated, so the two\nare not separable), `deterministic_forward`, `correlation_one`,\n`correlation_zero` (the extra runs of `checks`, present only when\nrun), `diagnostics` (sorting and summarising the per-path records),\nand with `greeks` one stage per bumped run: `greek_spot_up_<id>`,\n`greek_spot_down_<id>`, `greek_vol_<id>` per underlying,\n`greek_correlation` (two or more underlyings), `greek_funding`,\n`greek_rate`."
+          },
+          "milliseconds": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "stage"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteTimingDiagnostics": {
+        "type": "object",
+        "description": "`diagnostics.timing`.",
+        "properties": {
+          "stages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_StructuredNoteTimingStage"
+            }
+          },
+          "total_milliseconds": {
+            "type": "number",
+            "description": "Wall-clock time of the whole note, from the first market lookup to\nthe last diagnostic (the stages' sum plus the untimed remainder)."
+          }
+        },
+        "required": [
+          "stages"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_StructuredNoteResult": {
+        "type": "object",
+        "description": "Pricing result of one structured note. The headline is `npv` with its\nstandard error, the path count and the seed; the terms echo, the\nseasoning resolution and the model echo are always present so the\nbooked terms can be checked before the price is trusted; Greeks and\nthe diagnostic blocks are present only when requested. For a note whose\npast already decided it (`seasoning.status` Called or Matured) nothing\nis simulated: `paths` is 0 and every simulation statistic is absent.",
+        "properties": {
+          "trade_id": {
+            "type": "string"
+          },
+          "npv": {
+            "type": "number",
+            "description": "Present value in the note currency."
+          },
+          "npv_pct_of_notional": {
+            "type": "number",
+            "description": "npv / notional x 100."
+          },
+          "standard_error": {
+            "type": "number",
+            "description": "Monte Carlo standard error of `npv`; absent when nothing was\nsimulated."
+          },
+          "paths": {
+            "type": "integer",
+            "description": "Paths actually simulated (0 when nothing was).",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "seed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 18446744073709551615
+          },
+          "status": {
+            "$ref": "#/components/schemas/quantra_enums_StructuredNoteStatus"
+          },
+          "legs": {
+            "$ref": "#/components/schemas/quantra_StructuredNoteLegs"
+          },
+          "event_probabilities": {
+            "type": "array",
+            "description": "One entry per simulated event, in order; empty when nothing was\nsimulated.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_StructuredNoteEventProbability"
+            }
+          },
+          "p_barrier_breach": {
+            "type": "number",
+            "description": "Probability that the capital barrier is breached; absent when\nnothing was simulated."
+          },
+          "expected_life_years": {
+            "type": "number",
+            "description": "Expected time to the note's end in years from the valuation date;\nabsent when nothing was simulated."
+          },
+          "greeks": {
+            "$ref": "#/components/schemas/quantra_StructuredNoteGreeks"
+          },
+          "terms": {
+            "$ref": "#/components/schemas/quantra_StructuredNoteTermsEcho"
+          },
+          "seasoning": {
+            "$ref": "#/components/schemas/quantra_StructuredNoteSeasoning"
+          },
+          "model": {
+            "$ref": "#/components/schemas/quantra_StructuredNoteModelEcho"
+          },
+          "market": {
+            "$ref": "#/components/schemas/quantra_StructuredNoteMarketDiagnostics"
+          },
+          "decomposition": {
+            "$ref": "#/components/schemas/quantra_StructuredNoteDecompositionDiagnostics"
+          },
+          "checks": {
+            "$ref": "#/components/schemas/quantra_StructuredNoteChecksDiagnostics"
+          },
+          "distribution": {
+            "$ref": "#/components/schemas/quantra_StructuredNoteDistributionDiagnostics"
+          },
+          "timing": {
+            "$ref": "#/components/schemas/quantra_StructuredNoteTimingDiagnostics"
+          }
+        },
+        "required": [
+          "trade_id",
+          "event_probabilities",
+          "terms",
+          "seasoning",
+          "model"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_PriceStructuredNoteResponse": {
+        "type": "object",
+        "description": "Response wrapper for multiple structured notes, in request order.",
+        "properties": {
+          "notes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_StructuredNoteResult"
+            }
+          }
+        },
+        "required": [
+          "notes"
         ],
         "additionalProperties": false
       },

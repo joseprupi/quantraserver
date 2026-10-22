@@ -1,0 +1,407 @@
+{
+  "pricing": {
+    "as_of_date": "2026-10-21",
+    "quotes": [
+      {
+        "id": "SPX_SPOT",
+        "kind": "Price",
+        "value": 6000.0,
+        "quote_type": "Curve"
+      }
+    ],
+    "rates": {
+      "indices": [
+        {
+          "id": "USD_SOFR",
+          "name": "SOFR",
+          "index_type": "Overnight",
+          "currency": "USD",
+          "tenor": {
+            "n": 0,
+            "unit": "Days"
+          },
+          "fixing_days": 0,
+          "calendar": "UnitedStatesGovernmentBond",
+          "day_counter": "Actual360",
+          "business_day_convention": "ModifiedFollowing",
+          "end_of_month": true
+        }
+      ],
+      "curves": [
+        {
+          "id": "USD_SOFR_OIS",
+          "reference_date": "2026-10-21",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0533,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 1,
+                  "unit": "Months"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.053,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 3,
+                  "unit": "Months"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.052,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 6,
+                  "unit": "Months"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0495,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 1,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.044,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 2,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0415,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 3,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.04,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0398,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 7,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.04,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 10,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0402,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 12,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            }
+          ]
+        },
+        {
+          "id": "SPX_DIV",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2026-10-21",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.02,
+                "calendar": "UnitedStatesNYSE",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-10-21"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.02,
+                "calendar": "UnitedStatesNYSE",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2036-10-21"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "volatility": {
+      "vol_surfaces": [
+        {
+          "id": "SPX_VOL",
+          "payload_type": "BlackVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-10-21",
+              "calendar": "UnitedStatesNYSE",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "shape": "Constant",
+              "constant_vol": 0.2
+            }
+          }
+        }
+      ]
+    },
+    "equity": {
+      "equity_underlyings": [
+        {
+          "id": "SPX",
+          "currency": "USD",
+          "spot_quote_id": "SPX_SPOT",
+          "dividend_yield_curve_id": "SPX_DIV"
+        }
+      ]
+    }
+  },
+  "notes": [
+    {
+      "trade_id": "SINGLE_UNDERLYING_REVERSE_CONVERTIBLE",
+      "currency": "USD",
+      "notional": 1000.0,
+      "underlyings": [
+        {
+          "underlying_id": "SPX",
+          "volatility_id": "SPX_VOL",
+          "initial_level": 6000.0
+        }
+      ],
+      "performance_rule": "WorstOf",
+      "events": [
+        {
+          "observation_date": "2027-01-21",
+          "payment_date": "2027-01-28",
+          "coupon_trigger": 0.0,
+          "coupon": 0.02
+        },
+        {
+          "observation_date": "2027-04-21",
+          "payment_date": "2027-04-28",
+          "coupon_trigger": 0.0,
+          "coupon": 0.02
+        },
+        {
+          "observation_date": "2027-07-21",
+          "payment_date": "2027-07-28",
+          "coupon_trigger": 0.0,
+          "coupon": 0.02
+        },
+        {
+          "observation_date": "2027-10-21",
+          "payment_date": "2027-10-28",
+          "coupon_trigger": 0.0,
+          "coupon": 0.02
+        },
+        {
+          "observation_date": "2028-01-21",
+          "payment_date": "2028-01-28",
+          "coupon_trigger": 0.0,
+          "coupon": 0.02
+        },
+        {
+          "observation_date": "2028-04-21",
+          "payment_date": "2028-04-28",
+          "coupon_trigger": 0.0,
+          "coupon": 0.02
+        },
+        {
+          "observation_date": "2028-07-21",
+          "payment_date": "2028-07-28",
+          "coupon_trigger": 0.0,
+          "coupon": 0.02
+        },
+        {
+          "observation_date": "2028-10-23",
+          "payment_date": "2028-10-30",
+          "coupon_trigger": 0.0,
+          "coupon": 0.02
+        }
+      ],
+      "coupon_rule": {
+        "memory": false,
+        "pay_only_on_call": false
+      },
+      "capital": {
+        "barrier": 0.7,
+        "monitoring": "European",
+        "put_strike": 1.0,
+        "participation": 1.0
+      },
+      "maturity_payment_date": "2028-10-30",
+      "discounting_curve": "USD_SOFR_OIS",
+      "funding_spread_bp": 80.0,
+      "monte_carlo": {
+        "paths": 65536,
+        "seed": 42,
+        "sequence": "Sobol",
+        "antithetic": true,
+        "brownian_bridge": true
+      }
+    }
+  ]
+}

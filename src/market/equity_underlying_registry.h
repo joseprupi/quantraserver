@@ -18,6 +18,10 @@ namespace quantra {
 struct PricingRegistry;
 
 struct EquityUnderlyingRuntime {
+    /// ISO 4217 code from `EquityUnderlyingSpec.currency`; empty when the spec
+    /// carries none (the equity option endpoint does not need it; basket
+    /// products that pay in a note currency require it).
+    std::string currency;
     QuantLib::Handle<QuantLib::Quote> spot;
     QuantLib::Handle<QuantLib::YieldTermStructure> dividend;
     /// Discrete cash dividends declared on the underlying spec (ex-dividend

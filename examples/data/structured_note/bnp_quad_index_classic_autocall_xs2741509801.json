@@ -1,0 +1,868 @@
+{
+  "pricing": {
+    "as_of_date": "2026-10-21",
+    "quotes": [
+      {
+        "id": "SMI_SPOT",
+        "kind": "Price",
+        "value": 12000.0,
+        "quote_type": "Curve"
+      },
+      {
+        "id": "SPX_SPOT",
+        "kind": "Price",
+        "value": 6000.0,
+        "quote_type": "Curve"
+      },
+      {
+        "id": "SX5E_SPOT",
+        "kind": "Price",
+        "value": 5000.0,
+        "quote_type": "Curve"
+      },
+      {
+        "id": "NKY_SPOT",
+        "kind": "Price",
+        "value": 40000.0,
+        "quote_type": "Curve"
+      }
+    ],
+    "rates": {
+      "indices": [
+        {
+          "id": "USD_SOFR",
+          "name": "SOFR",
+          "index_type": "Overnight",
+          "currency": "USD",
+          "tenor": {
+            "n": 0,
+            "unit": "Days"
+          },
+          "fixing_days": 0,
+          "calendar": "UnitedStatesGovernmentBond",
+          "day_counter": "Actual360",
+          "business_day_convention": "ModifiedFollowing",
+          "end_of_month": true
+        }
+      ],
+      "curves": [
+        {
+          "id": "USD_SOFR_OIS",
+          "reference_date": "2026-10-21",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0533,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 1,
+                  "unit": "Months"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.053,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 3,
+                  "unit": "Months"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.052,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 6,
+                  "unit": "Months"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0495,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 1,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.044,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 2,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0415,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 3,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.04,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0398,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 7,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.04,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 10,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0402,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 12,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            }
+          ]
+        },
+        {
+          "id": "SMI_DIV",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2026-10-21",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.03,
+                "calendar": "Switzerland",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-10-21"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.03,
+                "calendar": "Switzerland",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2036-10-21"
+              }
+            }
+          ]
+        },
+        {
+          "id": "CHF_FLAT",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2026-10-21",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0,
+                "calendar": "Switzerland",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-10-21"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0,
+                "calendar": "Switzerland",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2036-10-21"
+              }
+            }
+          ]
+        },
+        {
+          "id": "SPX_DIV",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2026-10-21",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.02,
+                "calendar": "UnitedStatesNYSE",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-10-21"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.02,
+                "calendar": "UnitedStatesNYSE",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2036-10-21"
+              }
+            }
+          ]
+        },
+        {
+          "id": "SX5E_DIV",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2026-10-21",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.03,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-10-21"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.03,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2036-10-21"
+              }
+            }
+          ]
+        },
+        {
+          "id": "EUR_FLAT",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2026-10-21",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.02,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-10-21"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.02,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2036-10-21"
+              }
+            }
+          ]
+        },
+        {
+          "id": "NKY_DIV",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2026-10-21",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.02,
+                "calendar": "Japan",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-10-21"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.02,
+                "calendar": "Japan",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2036-10-21"
+              }
+            }
+          ]
+        },
+        {
+          "id": "JPY_FLAT",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2026-10-21",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.01,
+                "calendar": "Japan",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-10-21"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.01,
+                "calendar": "Japan",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2036-10-21"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "volatility": {
+      "vol_surfaces": [
+        {
+          "id": "SMI_VOL",
+          "payload_type": "BlackVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-10-21",
+              "calendar": "Switzerland",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "shape": "Constant",
+              "constant_vol": 0.15
+            }
+          }
+        },
+        {
+          "id": "SPX_VOL",
+          "payload_type": "BlackVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-10-21",
+              "calendar": "UnitedStatesNYSE",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "shape": "Constant",
+              "constant_vol": 0.2
+            }
+          }
+        },
+        {
+          "id": "SX5E_VOL",
+          "payload_type": "BlackVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-10-21",
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "shape": "Constant",
+              "constant_vol": 0.2
+            }
+          }
+        },
+        {
+          "id": "NKY_VOL",
+          "payload_type": "BlackVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-10-21",
+              "calendar": "Japan",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "shape": "Constant",
+              "constant_vol": 0.25
+            }
+          }
+        },
+        {
+          "id": "CHFUSD_VOL",
+          "payload_type": "BlackVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-10-21",
+              "calendar": "Switzerland",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "shape": "Constant",
+              "constant_vol": 0.08
+            }
+          }
+        },
+        {
+          "id": "EURUSD_VOL",
+          "payload_type": "BlackVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-10-21",
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "shape": "Constant",
+              "constant_vol": 0.08
+            }
+          }
+        },
+        {
+          "id": "JPYUSD_VOL",
+          "payload_type": "BlackVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-10-21",
+              "calendar": "Japan",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "shape": "Constant",
+              "constant_vol": 0.1
+            }
+          }
+        }
+      ]
+    },
+    "equity": {
+      "equity_underlyings": [
+        {
+          "id": "SMI",
+          "currency": "CHF",
+          "spot_quote_id": "SMI_SPOT",
+          "dividend_yield_curve_id": "SMI_DIV"
+        },
+        {
+          "id": "SPX",
+          "currency": "USD",
+          "spot_quote_id": "SPX_SPOT",
+          "dividend_yield_curve_id": "SPX_DIV"
+        },
+        {
+          "id": "SX5E",
+          "currency": "EUR",
+          "spot_quote_id": "SX5E_SPOT",
+          "dividend_yield_curve_id": "SX5E_DIV"
+        },
+        {
+          "id": "NKY",
+          "currency": "JPY",
+          "spot_quote_id": "NKY_SPOT",
+          "dividend_yield_curve_id": "NKY_DIV"
+        }
+      ]
+    },
+    "fx": {
+      "spots": [
+        {
+          "id": "CHFUSD_SPOT",
+          "base_currency": "CHF",
+          "quote_currency": "USD",
+          "rate": 1.25,
+          "spot_days": 2,
+          "settlement_calendars": [
+            "Switzerland",
+            "UnitedStatesSettlement"
+          ],
+          "business_day_convention": "ModifiedFollowing"
+        },
+        {
+          "id": "EURUSD_SPOT",
+          "base_currency": "EUR",
+          "quote_currency": "USD",
+          "rate": 1.1,
+          "spot_days": 2,
+          "settlement_calendars": [
+            "TARGET",
+            "UnitedStatesSettlement"
+          ],
+          "business_day_convention": "ModifiedFollowing"
+        },
+        {
+          "id": "JPYUSD_SPOT",
+          "base_currency": "JPY",
+          "quote_currency": "USD",
+          "rate": 0.0065,
+          "spot_days": 2,
+          "settlement_calendars": [
+            "Japan",
+            "UnitedStatesSettlement"
+          ],
+          "business_day_convention": "ModifiedFollowing"
+        }
+      ]
+    },
+    "correlations": {
+      "matrices": [
+        {
+          "id": "QUAD_INDEX_CORR",
+          "labels": [
+            "SMI",
+            "SPX",
+            "SX5E",
+            "NKY"
+          ],
+          "values": {
+            "n_rows": 4,
+            "n_cols": 4,
+            "values": [
+              1.0,
+              0.6,
+              0.8,
+              0.5,
+              0.6,
+              1.0,
+              0.7,
+              0.5,
+              0.8,
+              0.7,
+              1.0,
+              0.5,
+              0.5,
+              0.5,
+              0.5,
+              1.0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "notes": [
+    {
+      "trade_id": "XS2741509801",
+      "currency": "USD",
+      "notional": 1000.0,
+      "underlyings": [
+        {
+          "underlying_id": "SMI",
+          "volatility_id": "SMI_VOL",
+          "initial_level": 12000.0,
+          "quanto": {
+            "discounting_curve": "CHF_FLAT",
+            "fx_spot_id": "CHFUSD_SPOT",
+            "fx_volatility_id": "CHFUSD_VOL",
+            "fx_underlying_correlation": -0.1
+          },
+          "historical_levels": [
+            {
+              "date": "2026-06-29",
+              "value": 11400.0
+            }
+          ]
+        },
+        {
+          "underlying_id": "SPX",
+          "volatility_id": "SPX_VOL",
+          "initial_level": 6000.0,
+          "historical_levels": [
+            {
+              "date": "2026-06-29",
+              "value": 6300.0
+            }
+          ]
+        },
+        {
+          "underlying_id": "SX5E",
+          "volatility_id": "SX5E_VOL",
+          "initial_level": 5000.0,
+          "quanto": {
+            "discounting_curve": "EUR_FLAT",
+            "fx_spot_id": "EURUSD_SPOT",
+            "fx_volatility_id": "EURUSD_VOL",
+            "fx_underlying_correlation": 0.2
+          },
+          "historical_levels": [
+            {
+              "date": "2026-06-29",
+              "value": 4750.0
+            }
+          ]
+        },
+        {
+          "underlying_id": "NKY",
+          "volatility_id": "NKY_VOL",
+          "initial_level": 40000.0,
+          "quanto": {
+            "discounting_curve": "JPY_FLAT",
+            "fx_spot_id": "JPYUSD_SPOT",
+            "fx_volatility_id": "JPYUSD_VOL",
+            "fx_underlying_correlation": 0.3
+          },
+          "historical_levels": [
+            {
+              "date": "2026-06-29",
+              "value": 42000.0
+            }
+          ]
+        }
+      ],
+      "performance_rule": "WorstOf",
+      "events": [
+        {
+          "observation_date": "2025-12-29",
+          "coupon": 0.07
+        },
+        {
+          "observation_date": "2026-06-29",
+          "payment_date": "2026-07-06",
+          "autocall_trigger": 1.0,
+          "coupon": 0.07
+        },
+        {
+          "observation_date": "2026-12-28",
+          "payment_date": "2027-01-05",
+          "autocall_trigger": 1.0,
+          "coupon": 0.07
+        },
+        {
+          "observation_date": "2027-06-28",
+          "payment_date": "2027-07-06",
+          "autocall_trigger": 1.0,
+          "coupon": 0.07
+        },
+        {
+          "observation_date": "2027-12-27",
+          "payment_date": "2028-01-03",
+          "autocall_trigger": 1.0,
+          "coupon": 0.07
+        },
+        {
+          "observation_date": "2028-06-27",
+          "payment_date": "2028-07-05",
+          "autocall_trigger": 1.0,
+          "coupon": 0.07
+        },
+        {
+          "observation_date": "2028-12-27",
+          "payment_date": "2029-01-04",
+          "autocall_trigger": 1.0,
+          "coupon": 0.07
+        },
+        {
+          "observation_date": "2029-06-27",
+          "payment_date": "2029-07-05",
+          "autocall_trigger": 1.0,
+          "coupon": 0.07
+        },
+        {
+          "observation_date": "2029-12-27",
+          "payment_date": "2030-01-04",
+          "autocall_trigger": 1.0,
+          "coupon": 0.07
+        },
+        {
+          "observation_date": "2030-06-27",
+          "payment_date": "2030-07-05",
+          "autocall_trigger": 1.0,
+          "coupon": 0.07
+        },
+        {
+          "observation_date": "2030-12-27",
+          "payment_date": "2031-01-06",
+          "autocall_trigger": 1.0,
+          "coupon": 0.07
+        },
+        {
+          "observation_date": "2031-06-27",
+          "payment_date": "2031-07-07",
+          "autocall_trigger": 1.0,
+          "coupon": 0.07
+        }
+      ],
+      "coupon_rule": {
+        "memory": true,
+        "pay_only_on_call": true
+      },
+      "capital": {
+        "barrier": 0.6,
+        "monitoring": "European",
+        "put_strike": 1.0,
+        "participation": 1.0
+      },
+      "maturity_payment_date": "2031-07-07",
+      "discounting_curve": "USD_SOFR_OIS",
+      "funding_spread_bp": 100.0,
+      "correlation_id": "QUAD_INDEX_CORR",
+      "monte_carlo": {
+        "paths": 65536,
+        "seed": 42,
+        "sequence": "Sobol",
+        "antithetic": true,
+        "brownian_bridge": true
+      }
+    }
+  ]
+}

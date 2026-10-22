@@ -79,6 +79,7 @@ Quantra provides a high-performance JSON HTTP API for pricing financial instrume
 | Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |
 | FX Forward | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount curves |
 | Cross-Currency Swap | `/price-cross-currency-swap` | Price cross-currency swaps (two SwapLeg entries in two currencies, fixed / IBOR / overnight coupons, principal exchanges) |
+| Structured Note | `/price-structured-note` | Price structured notes on equity-index baskets (autocallables, Phoenix / Athena coupons, capital barriers) by Monte Carlo |
 | Status | `/status` | Runtime health and worker aggregation |
 | Meta | `/meta` | Service/version/build metadata |
 | Health | `/health` | Lightweight liveness check |
@@ -229,6 +230,11 @@ ENDPOINT_METADATA = {
         "summary": "Price Cross-Currency Swap",
         "description": "Calculate the NPV in a reporting currency, each leg's NPV in its own currency and in the reporting currency, the fair fixed rate (exactly one fixed leg) or the fair spread on leg2 (no fixed leg), and optional per-leg flows (coupons and notional exchanges) for cross-currency swaps: two SwapLeg entries in two currencies, each paying or receiving fixed, IBOR or compounded/averaged overnight coupons (FixedCoupons / IborCoupons / OvernightCoupons), discounted on its own curve, with initial and/or final principal exchanges, converted at the as-of exchange rate implied by an FX spot (pricing.fx.spots) and the two discount curves. QuantLib leg cash-flow primitives only (the same leg builder as the single-currency swap endpoints); no currency is inferred from curve or index ids.",
         "tags": ["FX"]
+    },
+    "structured_note": {
+        "summary": "Price Structured Note",
+        "description": "Price structured notes on baskets of equity indices (classic and snowball autocallables, low-hurdle finals, Phoenix coupons with or without memory, step-down triggers, European or daily-close capital barriers with geared puts, upside participation) by Monte Carlo under correlated Black-Scholes or Dupire local-vol dynamics (QuantLib GeneralizedBlackScholesProcess, StochasticProcessArray, Sobol Brownian-bridge or Mersenne-Twister paths, antithetic variates), with quanto drift adjustments (QuantoTermStructure) for underlyings in another currency and cash flows discounted on the note curve plus a flat funding spread (ZeroSpreadedTermStructure). The payoff is one declarative walk over the note's observation events (autocall and coupon triggers, coupon memory, final capital test); past events are resolved from the supplied historical levels before anything is simulated. Every result carries its standard error, path count, seed, NPV by bucket (notional, coupons, capital loss), call and coupon probabilities per event, breach probability, expected life, an echo of the booked terms, the seasoning resolution and the model used. Opt-in diagnostic blocks (market as used, PV decomposition by event, convergence and limit checks, payout distribution with sample paths, timing) are computed from the same paths; Greeks are schema-ready and not available yet (501).",
+        "tags": ["Equity Derivatives"]
     },
     "fx_forward": {
         "summary": "Price FX Forward",
@@ -577,7 +583,7 @@ def generate_openapi() -> Dict[str, Any]:
             {"name": "Bonds", "description": "Fixed and floating rate bond pricing"},
             {"name": "Interest Rate Derivatives", "description": "Swaps, FRAs, caps/floors, swaptions"},
             {"name": "Credit Derivatives", "description": "Credit default swaps"},
-            {"name": "Equity Derivatives", "description": "Equity option pricing"},
+            {"name": "Equity Derivatives", "description": "Equity option and structured-note (basket autocallable) pricing"},
             {"name": "FX", "description": "FX forwards and cross-currency swaps priced off FX spots and per-currency discount curves"},
             {"name": "Curves", "description": "Yield curve bootstrapping and rate extraction"},
             {"name": "Inflation", "description": "Inflation curve bootstrap and sampling"},
