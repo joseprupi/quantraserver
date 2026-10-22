@@ -1,0 +1,252 @@
+{
+  "pricing": {
+    "as_of_date": "2026-10-21",
+    "quotes": [
+      {
+        "id": "IDX_A_SPOT",
+        "kind": "Price",
+        "value": 100.0,
+        "quote_type": "Curve"
+      },
+      {
+        "id": "IDX_B_SPOT",
+        "kind": "Price",
+        "value": 50.0,
+        "quote_type": "Curve"
+      }
+    ],
+    "rates": {
+      "curves": [
+        {
+          "id": "USD_FLAT",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2026-10-21",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.04,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-10-21"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.04,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2036-10-21"
+              }
+            }
+          ]
+        },
+        {
+          "id": "IDX_A_DIV",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2026-10-21",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.02,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-10-21"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.02,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2036-10-21"
+              }
+            }
+          ]
+        },
+        {
+          "id": "IDX_B_DIV",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2026-10-21",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.01,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-10-21"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.01,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2036-10-21"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "volatility": {
+      "vol_surfaces": [
+        {
+          "id": "IDX_A_VOL",
+          "payload_type": "BlackVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-10-21",
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "shape": "Constant",
+              "constant_vol": 0.25
+            }
+          }
+        },
+        {
+          "id": "IDX_B_VOL",
+          "payload_type": "BlackVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-10-21",
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "shape": "Constant",
+              "constant_vol": 0.3
+            }
+          }
+        }
+      ]
+    },
+    "equity": {
+      "equity_underlyings": [
+        {
+          "id": "IDX_A",
+          "currency": "USD",
+          "spot_quote_id": "IDX_A_SPOT",
+          "dividend_yield_curve_id": "IDX_A_DIV"
+        },
+        {
+          "id": "IDX_B",
+          "currency": "USD",
+          "spot_quote_id": "IDX_B_SPOT",
+          "dividend_yield_curve_id": "IDX_B_DIV"
+        }
+      ]
+    },
+    "correlations": {
+      "matrices": [
+        {
+          "id": "BASKET_CORR",
+          "labels": [
+            "IDX_A",
+            "IDX_B"
+          ],
+          "values": {
+            "n_rows": 2,
+            "n_cols": 2,
+            "values": [
+              1.0,
+              0.7,
+              0.7,
+              1.0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "notes": [
+    {
+      "trade_id": "SYNTHETIC_TWO_ASSETS_RHO_0_7",
+      "currency": "USD",
+      "notional": 1000.0,
+      "underlyings": [
+        {
+          "underlying_id": "IDX_A",
+          "volatility_id": "IDX_A_VOL",
+          "initial_level": 100.0
+        },
+        {
+          "underlying_id": "IDX_B",
+          "volatility_id": "IDX_B_VOL",
+          "initial_level": 50.0
+        }
+      ],
+      "performance_rule": "WorstOf",
+      "events": [
+        {
+          "observation_date": "2027-04-21",
+          "payment_date": "2027-04-28",
+          "coupon": 0.05,
+          "autocall_trigger": 1.0
+        },
+        {
+          "observation_date": "2027-10-21",
+          "payment_date": "2027-10-28",
+          "coupon": 0.05,
+          "autocall_trigger": 1.0
+        },
+        {
+          "observation_date": "2028-04-24",
+          "payment_date": "2028-05-01",
+          "coupon": 0.05,
+          "autocall_trigger": 1.0
+        },
+        {
+          "observation_date": "2028-10-23",
+          "payment_date": "2028-10-30",
+          "coupon": 0.05,
+          "autocall_trigger": 1.0
+        }
+      ],
+      "coupon_rule": {
+        "memory": true,
+        "pay_only_on_call": true
+      },
+      "capital": {
+        "barrier": 0.7,
+        "monitoring": "European",
+        "put_strike": 1.0,
+        "participation": 1.0
+      },
+      "maturity_payment_date": "2028-10-30",
+      "discounting_curve": "USD_FLAT",
+      "funding_spread_bp": 50.0,
+      "correlation_id": "BASKET_CORR",
+      "monte_carlo": {
+        "paths": 1024,
+        "seed": 42,
+        "sequence": "Sobol",
+        "antithetic": true,
+        "brownian_bridge": true
+      }
+    }
+  ]
+}

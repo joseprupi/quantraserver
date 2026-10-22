@@ -56,8 +56,9 @@ examples/data/swaption/, CDS in examples/data/cds/, curve sampling in
 examples/data/curves/, calendar utilities in examples/data/calendar/,
 inflation swaps in examples/data/inflation/, equity options in
 examples/data/equity/, FX forwards in examples/data/fx_forward/, cross-currency
-swaps in examples/data/cross_currency_swap/, vol sampling
-and calibration in examples/data/vol/),
+swaps in examples/data/cross_currency_swap/, structured notes in
+examples/data/structured_note/, vol sampling and calibration in
+examples/data/vol/),
 append a dict here, regenerate the catalog
 (python3 tests/functional/generate_catalog.py inside the test image) and run
 the gate. See tests/functional/README.md for the full walkthrough.
@@ -105,6 +106,21 @@ CROSS_CURRENCY_SWAP_TOLERANCE = 1e-4
 # visibly different points — are excluded from the catalog instead of being
 # hidden under a loose tolerance (see tests/functional/README.md).
 CALIBRATION_TOLERANCE = 1e-7
+# Structured-note cases compare every scalar the engine reports for the note
+# (npv, standard error, the three cash-flow buckets with their standard
+# errors, barrier-breach probability, expected life, per-event call / coupon
+# probabilities, the coupon memory carried in) with
+# tests/contract/ql_reference.structured_note_ql, a Python QuantLib Monte
+# Carlo driven by the SAME random stream as the engine (same Sobol /
+# Brownian-bridge sequence, time-major consumption, antithetic rule and
+# summation order), so the two estimates are bit-identical up to the 12
+# decimal places the JSON gateway prints (5e-13 absolute on amounts of up to
+# ~1000 and on probabilities). 1e-9 keeps three orders of margin over that
+# print floor and is far inside any Monte Carlo standard error; the same
+# stream is what makes a tight tolerance possible on a simulated value (the
+# stricter per-field rule, 1e-9 relative + 1e-11 absolute, is in
+# tests/contract/structured_note_parity_test.py).
+STRUCTURED_NOTE_TOLERANCE = 1e-9
 
 CASES = [
     # ------------------------------------------------------------------
@@ -4335,5 +4351,124 @@ CASES = [
         "compare": "fields",
         "exercises": ["cross-currency swap", "fixed leg in the quote currency", "IborCoupons",
                       "fixed leg received", "reporting in base ccy", "fair rate"],
+    },
+    # ------------------------------------------------------------------
+    # Structured Notes — worst-of autocallables on index baskets, Monte Carlo
+    # on the engine's own random stream
+    # ------------------------------------------------------------------
+    {
+        "id": "structured_note_bnp_quad_index_classic_autocall_xs2741509801",
+        "product": "structured_note",
+        "family": "Structured Notes",
+        "title": "BNP Quad Index Classic Autocall June 2025 (XS2741509801), seasoned, 4 assets, 65 536 paths",
+        "description": (
+            "Worst-of autocallable on SMI, SPX, SX5E and NKY in USD: eleven "
+            "semi-annual observations with a 100 % autocall trigger paying a "
+            "7 % snowball coupon (memory, paid only on call), 60 % European "
+            "capital barrier with 1-for-1 loss, SOFR OIS discounting plus a "
+            "100 bp funding spread. Three indices are quanto (CHF, EUR, JPY "
+            "curves, FX spots and vols, index/FX correlations). Valued on "
+            "2026-10-21 after one accrual-only period and one missed "
+            "observation resolved from historical levels (memory carried "
+            "0.14). Sobol + Brownian bridge, antithetic, 65 536 paths, grid = "
+            "the ten future observation dates. Every market number is a "
+            "placeholder (see the examples README): a parity case, not a "
+            "valuation."
+        ),
+        "request": "structured_note/bnp_quad_index_classic_autocall_xs2741509801.json",
+        "ql_pricer": "price_structured_note_ql",
+        "tolerance": STRUCTURED_NOTE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["structured note", "worst-of autocall", "snowball coupon", "quanto",
+                      "seasoning from historical levels", "OIS discounting + funding spread",
+                      "Sobol Brownian bridge", "same-stream Monte Carlo parity"],
+    },
+    {
+        "id": "structured_note_santander_quad_index_low_hurdle_autocall_xs3109492564",
+        "product": "structured_note",
+        "family": "Structured Notes",
+        "title": "Santander Quad Index Low Hurdle Autocall August 2025 (XS3109492564), seasoned, 4 assets, 65 536 paths",
+        "description": (
+            "The quarterly sibling: twenty-one observations with a 100 % "
+            "autocall trigger and a 2.5 % snowball coupon, and at the final "
+            "observation an 80 % low hurdle (coupon_trigger with no call) "
+            "before the 60 % European barrier. Three accrual-only periods and "
+            "one missed observation precede the valuation date (memory "
+            "carried 0.10). Twenty future observations, dimension 80 of the "
+            "Sobol bridge sequence. Placeholder market data."
+        ),
+        "request": "structured_note/santander_quad_index_low_hurdle_autocall_xs3109492564.json",
+        "ql_pricer": "price_structured_note_ql",
+        "tolerance": STRUCTURED_NOTE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["structured note", "low hurdle final coupon", "quarterly observations",
+                      "quanto", "seasoning from historical levels",
+                      "same-stream Monte Carlo parity"],
+    },
+    {
+        "id": "structured_note_synthetic_two_asset_worst_of_flat_vol_autocall",
+        "product": "structured_note",
+        "family": "Structured Notes",
+        "title": "Synthetic two-index worst-of autocall, flat vols, rho 0.7, 1024 paths",
+        "description": (
+            "The smallest wire-valid note: two USD indices (flat 25 % and 30 % "
+            "vols, correlation 0.7, flat 2 % / 1 % dividend yields) on a flat "
+            "4 % USD curve with a 50 bp funding spread, worst-of, four "
+            "semi-annual 100 % autocalls paying 5 % snowball coupons, 70 % "
+            "European barrier, no past events. 1024 Sobol + bridge antithetic "
+            "paths: a fast case that pins the random stream, the antithetic "
+            "pairing and the standard errors. Generated by two_asset_request() "
+            "in tests/contract/structured_note_parity_test.py."
+        ),
+        "request": "structured_note/synthetic_two_asset_worst_of_flat_vol_autocall.json",
+        "ql_pricer": "price_structured_note_ql",
+        "tolerance": STRUCTURED_NOTE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["structured note", "worst-of", "flat vols", "no seasoning",
+                      "antithetic pairs", "standard errors", "same-stream Monte Carlo parity"],
+    },
+    {
+        "id": "structured_note_scotia_autocallable_trigger_ndx_rty_us06419jme72",
+        "product": "structured_note",
+        "family": "Structured Notes",
+        "title": "Bank of Nova Scotia autocallable trigger notes on NDX/RTY (real market data, issuer value 973.52)",
+        "description": (
+            "A public SEC-filed note (CUSIP 06419JME7) priced on primary-source "
+            "market data as of its 2026-09-30 trade date: Treasury par curve, "
+            "VXN/RVX closes as flat vols, one-year historical correlation 0.747, "
+            "QQQ/IWM trailing dividend yields, no funding spread. One 100 % "
+            "autocall at year one with a 14.75 % premium, 75 % European trigger "
+            "and 250 % upside participation at maturity. The filing states the "
+            "issuer's initial estimated value, 973.52 per 1,000; the engine gives "
+            "965.6 +/- 0.4 (see examples/data/structured_note/README.md)."
+        ),
+        "request": "structured_note/scotia_autocallable_trigger_ndx_rty_us06419jme72.json",
+        "ql_pricer": "price_structured_note_ql",
+        "tolerance": STRUCTURED_NOTE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["structured note", "worst-of", "upside participation", "real market data",
+                      "issuer estimated value", "same-stream Monte Carlo parity"],
+    },    {
+        "id": "structured_note_jpm_review_notes_ndx_rty_spx_46661pt64",
+        "product": "structured_note",
+        "family": "Structured Notes",
+        "title": "JPMorgan Review Notes on the least performing of NDX/RTY/SPX (real market data, issuer value 937.30)",
+        "description": (
+            "A public SEC-filed five-year note (CUSIP 46661PT64) priced on "
+            "primary-source market data as of its 2026-10-19 pricing date: "
+            "Treasury par curve, VXN/RVX/VIX closes as flat vols, one-year "
+            "historical 3x3 correlation, QQQ/IWM/SPY trailing dividend yields, no "
+            "funding spread. 49 monthly 100 % review dates with a step-up call "
+            "premium from 8.8 % to 44 % expressed as memory coupons, 70 % "
+            "European barrier, no upside. The filing states the issuer's "
+            "estimated value, 937.30 per 1,000; the engine gives 911.8 +/- 0.9 "
+            "(see examples/data/structured_note/README.md)."
+        ),
+        "request": "structured_note/jpm_review_notes_ndx_rty_spx_46661pt64.json",
+        "ql_pricer": "price_structured_note_ql",
+        "tolerance": STRUCTURED_NOTE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["structured note", "worst-of", "three underlyings", "step-up call premium",
+                      "memory coupons", "real market data", "issuer estimated value"],
     },
 ]

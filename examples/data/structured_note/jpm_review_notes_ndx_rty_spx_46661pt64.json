@@ -1,0 +1,812 @@
+{
+  "pricing": {
+    "as_of_date": "2026-10-19",
+    "quotes": [
+      {
+        "id": "NDX_SPOT",
+        "kind": "Price",
+        "value": 29529.34,
+        "quote_type": "Curve"
+      },
+      {
+        "id": "RTY_SPOT",
+        "kind": "Price",
+        "value": 2728.298,
+        "quote_type": "Curve"
+      },
+      {
+        "id": "SPX_SPOT",
+        "kind": "Price",
+        "value": 7690.73,
+        "quote_type": "Curve"
+      }
+    ],
+    "rates": {
+      "curves": [
+        {
+          "id": "USD_TSY",
+          "reference_date": "2026-10-19",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.04103,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-10-19"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.04103,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 1,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.042474,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 3,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.043229,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 6,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.044516,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 1,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.045862,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 18,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.04722,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 2,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.047614,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 30,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.048016,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 3,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.048239,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 42,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.048467,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 4,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.048698,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 54,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.048933,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.049198,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 66,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.049466,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 6,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.049738,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 78,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.050013,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 7,
+                  "unit": "Years"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "NDX_DIV",
+          "reference_date": "2026-10-19",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0043,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-10-19"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0043,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 7,
+                  "unit": "Years"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "RTY_DIV",
+          "reference_date": "2026-10-19",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0099,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-10-19"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0099,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 7,
+                  "unit": "Years"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "SPX_DIV",
+          "reference_date": "2026-10-19",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0098,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-10-19"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0098,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 7,
+                  "unit": "Years"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "equity": {
+      "equity_underlyings": [
+        {
+          "id": "NDX",
+          "currency": "USD",
+          "spot_quote_id": "NDX_SPOT",
+          "dividend_yield_curve_id": "NDX_DIV"
+        },
+        {
+          "id": "RTY",
+          "currency": "USD",
+          "spot_quote_id": "RTY_SPOT",
+          "dividend_yield_curve_id": "RTY_DIV"
+        },
+        {
+          "id": "SPX",
+          "currency": "USD",
+          "spot_quote_id": "SPX_SPOT",
+          "dividend_yield_curve_id": "SPX_DIV"
+        }
+      ]
+    },
+    "volatility": {
+      "vol_surfaces": [
+        {
+          "id": "NDX_VOL",
+          "payload_type": "BlackVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-10-19",
+              "calendar": "UnitedStatesNYSE",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "shape": "Constant",
+              "constant_vol": 0.2556
+            }
+          }
+        },
+        {
+          "id": "RTY_VOL",
+          "payload_type": "BlackVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-10-19",
+              "calendar": "UnitedStatesNYSE",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "shape": "Constant",
+              "constant_vol": 0.2291
+            }
+          }
+        },
+        {
+          "id": "SPX_VOL",
+          "payload_type": "BlackVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-10-19",
+              "calendar": "UnitedStatesNYSE",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "shape": "Constant",
+              "constant_vol": 0.1844
+            }
+          }
+        }
+      ]
+    },
+    "correlations": {
+      "matrices": [
+        {
+          "id": "NDX_RTY_SPX",
+          "labels": [
+            "NDX",
+            "RTY",
+            "SPX"
+          ],
+          "values": {
+            "n_rows": 3,
+            "n_cols": 3,
+            "values": [
+              1.0,
+              0.746,
+              0.925,
+              0.746,
+              1.0,
+              0.831,
+              0.925,
+              0.831,
+              1.0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "notes": [
+    {
+      "trade_id": "46661PT64",
+      "currency": "USD",
+      "notional": 1000.0,
+      "underlyings": [
+        {
+          "underlying_id": "NDX",
+          "volatility_id": "NDX_VOL",
+          "initial_level": 29529.34
+        },
+        {
+          "underlying_id": "RTY",
+          "volatility_id": "RTY_VOL",
+          "initial_level": 2728.298
+        },
+        {
+          "underlying_id": "SPX",
+          "volatility_id": "SPX_VOL",
+          "initial_level": 7690.73
+        }
+      ],
+      "performance_rule": "WorstOf",
+      "events": [
+        {
+          "observation_date": "2027-10-21",
+          "payment_date": "2027-10-26",
+          "autocall_trigger": 1.0,
+          "coupon": 0.088
+        },
+        {
+          "observation_date": "2027-11-19",
+          "payment_date": "2027-11-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2027-12-20",
+          "payment_date": "2027-12-23",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2028-01-19",
+          "payment_date": "2028-01-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2028-02-22",
+          "payment_date": "2028-02-25",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2028-03-20",
+          "payment_date": "2028-03-23",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2028-04-19",
+          "payment_date": "2028-04-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2028-05-19",
+          "payment_date": "2028-05-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2028-06-20",
+          "payment_date": "2028-06-23",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2028-07-19",
+          "payment_date": "2028-07-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2028-08-21",
+          "payment_date": "2028-08-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2028-09-19",
+          "payment_date": "2028-09-22",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2028-10-19",
+          "payment_date": "2028-10-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2028-11-20",
+          "payment_date": "2028-11-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2028-12-19",
+          "payment_date": "2028-12-22",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2029-01-19",
+          "payment_date": "2029-01-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2029-02-20",
+          "payment_date": "2029-02-23",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2029-03-19",
+          "payment_date": "2029-03-22",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2029-04-19",
+          "payment_date": "2029-04-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2029-05-21",
+          "payment_date": "2029-05-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2029-06-20",
+          "payment_date": "2029-06-25",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2029-07-19",
+          "payment_date": "2029-07-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2029-08-20",
+          "payment_date": "2029-08-23",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2029-09-19",
+          "payment_date": "2029-09-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2029-10-19",
+          "payment_date": "2029-10-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2029-11-19",
+          "payment_date": "2029-11-23",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2029-12-19",
+          "payment_date": "2029-12-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2030-01-22",
+          "payment_date": "2030-01-25",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2030-02-19",
+          "payment_date": "2030-02-22",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2030-03-19",
+          "payment_date": "2030-03-22",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2030-04-22",
+          "payment_date": "2030-04-25",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2030-05-20",
+          "payment_date": "2030-05-23",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2030-06-20",
+          "payment_date": "2030-06-25",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2030-07-19",
+          "payment_date": "2030-07-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2030-08-19",
+          "payment_date": "2030-08-22",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2030-09-19",
+          "payment_date": "2030-09-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2030-10-21",
+          "payment_date": "2030-10-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2030-11-19",
+          "payment_date": "2030-11-22",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2030-12-19",
+          "payment_date": "2030-12-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2031-01-21",
+          "payment_date": "2031-01-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2031-02-19",
+          "payment_date": "2031-02-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2031-03-19",
+          "payment_date": "2031-03-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2031-04-21",
+          "payment_date": "2031-04-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2031-05-19",
+          "payment_date": "2031-05-22",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2031-06-20",
+          "payment_date": "2031-06-25",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2031-07-21",
+          "payment_date": "2031-07-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2031-08-19",
+          "payment_date": "2031-08-22",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2031-09-19",
+          "payment_date": "2031-09-24",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        },
+        {
+          "observation_date": "2031-10-20",
+          "payment_date": "2031-10-23",
+          "autocall_trigger": 1.0,
+          "coupon": 0.007333333333333333
+        }
+      ],
+      "coupon_rule": {
+        "memory": true,
+        "pay_only_on_call": true
+      },
+      "capital": {
+        "barrier": 0.7,
+        "monitoring": "European",
+        "put_strike": 1.0,
+        "participation": 1.0
+      },
+      "maturity_payment_date": "2031-10-23",
+      "discounting_curve": "USD_TSY",
+      "funding_spread_bp": 0.0,
+      "correlation_id": "NDX_RTY_SPX",
+      "monte_carlo": {
+        "paths": 65536,
+        "seed": 42,
+        "sequence": "Sobol",
+        "antithetic": true,
+        "brownian_bridge": true
+      }
+    }
+  ]
+}

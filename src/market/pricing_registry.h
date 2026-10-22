@@ -1,6 +1,7 @@
 #ifndef QUANTRA_PRICING_REGISTRY_H
 #define QUANTRA_PRICING_REGISTRY_H
 
+#include "correlation_registry.h"
 #include "coupon_pricer_domain.h"
 #include "credit_curve_domain.h"
 #include "equity_underlying_registry.h"
@@ -128,6 +129,12 @@ struct PricingRegistry {
     EquityRegistry equity;
     FxRegistry fx;
     InflationRegistry inflation;
+    /// Correlation matrices keyed by id, populated from
+    /// pricing.correlations.matrices via CorrelationRegistryBuilder on every
+    /// request that carries the block (parsed + PSD-checked, whether or not
+    /// a product references them). Basket products resolve their
+    /// `correlation_id` here with `subMatrix(id, underlyingIds)`.
+    CorrelationRegistry correlations;
     PricingRequestOptions options;
 };
 

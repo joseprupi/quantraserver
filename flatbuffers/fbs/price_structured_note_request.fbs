@@ -1,0 +1,81 @@
+include "common.fbs";
+include "pricing.fbs";
+include "structured_note.fbs";
+
+namespace quantra;
+
+/// Opt-in Greeks by bump-and-reprice on the same random stream (common
+/// random numbers): every bump re-runs the full simulation with the same
+/// seed, paths, grid and sequence, so the cost is (1 + 2N + N + 3) runs for
+/// N underlyings (1 + 2 + 1 + 2 for a single underlying, which has no
+/// correlation sensitivity). Absent = no Greeks (the response's `greeks`
+/// block is absent). Every bump has a default; the sizes are echoed in the
+/// response and the reported sensitivities are scaled to unit moves (1%,
+/// 1 vol point, 0.01, 1bp) and each carries the standard error of its
+/// per-path difference. Definitions: the doc comments of
+/// `StructuredNoteGreeks` in structured_note_response.fbs. A `greeks` block
+/// on a note whose past already decided it (`Called` / `Matured`) is a 400.
+table StructuredNoteGreeksSpec {
+    /// Relative spot bump per underlying (0.01 = +/-1%), for delta (central)
+    /// and gamma. Must be finite and > 0 (400 otherwise).
+    spot_bump:double = 0.01;
+    /// Absolute volatility bump per underlying in vol units (0.01 = +1 vol
+    /// point), for vega. Must be finite and > 0.
+    vol_bump:double = 0.01;
+    /// Absolute bump of every off-diagonal correlation (0.01 = +0.01), for
+    /// the correlation sensitivity; the bumped entries are clipped to
+    /// [-1, 1] and the matrix is repaired to positive semi-definite by
+    /// eigenvalue clipping when needed (the response says so and returns
+    /// the matrix used). Must be finite and > 0.
+    correlation_bump:double = 0.01;
+    /// Funding-spread bump in basis points, for funding_dv01. Must be
+    /// finite and > 0.
+    funding_bump_bp:double = 1.0;
+    /// Parallel bump of the discount curve in basis points, for rho. Must
+    /// be finite and > 0.
+    rate_bump_bp:double = 1.0;
+}
+
+/// Opt-in diagnostic blocks, each computed from the SAME paths as the
+/// price so the parts add up to the headline (the terms echo, the
+/// seasoning resolution and the model echo are always returned). Absent =
+/// no diagnostic block.
+table StructuredNoteDiagnosticsSpec {
+    /// Market as used: per underlying spot, forwards and vols at every
+    /// observation date, quanto drift; discount factors at every payment
+    /// date with and without the funding spread; the correlation matrix.
+    market:bool = false;
+    /// Per event call/coupon probabilities and PV paid there, survival and
+    /// breach probabilities, expected life, expected loss given breach.
+    decomposition:bool = false;
+    /// Convergence (running mean at 1/4, 1/2, 3/4 of the paths), the
+    /// zero-vol price along the forward path, limit prices with
+    /// correlation forced to 1 and to 0 (one extra run each), and the
+    /// bond-only value.
+    checks:bool = false;
+    /// Quantiles of the basket performance per observation date, quantiles
+    /// and a histogram of the total payout per path, and `sample_paths`
+    /// individual paths.
+    distribution:bool = false;
+    /// Milliseconds per stage (market build, path generation, payoff walk,
+    /// each Greek).
+    timing:bool = false;
+    /// Number of individual paths returned with `distribution` (basket
+    /// performance per event, payout, call date), capped at 100; 0 = none.
+    /// Raw underlying levels are never returned.
+    sample_paths:uint = 0;
+}
+
+/// Request to price one or more structured notes against one market. Each
+/// note is simulated on its own (paths are not shared between notes).
+table PriceStructuredNoteRequest {
+    pricing:Pricing;
+    /// The notes, in response order. Required; at least one entry.
+    notes:[StructuredNote] (required);
+    /// Bump-and-reprice Greeks; absent = none.
+    greeks:StructuredNoteGreeksSpec;
+    /// Diagnostic blocks; absent = none.
+    diagnostics:StructuredNoteDiagnosticsSpec;
+}
+
+root_type PriceStructuredNoteRequest;

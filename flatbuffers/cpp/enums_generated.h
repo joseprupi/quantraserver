@@ -1797,6 +1797,154 @@ inline const char *EnumNameSwapFlowKind(SwapFlowKind e) {
   return EnumNamesSwapFlowKind()[index];
 }
 
+/// How the performances of a basket's underlyings (each S_i(t) / initial
+/// level_i) are reduced to the single number the structured-note triggers
+/// are tested against. WorstOf: the minimum (every index must be at or above
+/// the trigger). BestOf: the maximum. Average: the equally-weighted mean.
+enum BasketPerformanceRule : int8_t {
+  BasketPerformanceRule_WorstOf = 0,
+  BasketPerformanceRule_BestOf = 1,
+  BasketPerformanceRule_Average = 2,
+  BasketPerformanceRule_MIN = BasketPerformanceRule_WorstOf,
+  BasketPerformanceRule_MAX = BasketPerformanceRule_Average
+};
+
+inline const BasketPerformanceRule (&EnumValuesBasketPerformanceRule())[3] {
+  static const BasketPerformanceRule values[] = {
+    BasketPerformanceRule_WorstOf,
+    BasketPerformanceRule_BestOf,
+    BasketPerformanceRule_Average
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesBasketPerformanceRule() {
+  static const char * const names[4] = {
+    "WorstOf",
+    "BestOf",
+    "Average",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameBasketPerformanceRule(BasketPerformanceRule e) {
+  if (::flatbuffers::IsOutRange(e, BasketPerformanceRule_WorstOf, BasketPerformanceRule_Average)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesBasketPerformanceRule()[index];
+}
+
+/// When a structured note's capital-protection barrier is tested.
+/// European: on the final observation date only. DailyClose: on every
+/// business-day close from the strike date to the final observation
+/// (simulated on the fine time grid; past closes are not supplied in
+/// 0.12.0, so a seasoned note with DailyClose monitoring is a 400).
+enum CapitalBarrierMonitoring : int8_t {
+  CapitalBarrierMonitoring_European = 0,
+  CapitalBarrierMonitoring_DailyClose = 1,
+  CapitalBarrierMonitoring_MIN = CapitalBarrierMonitoring_European,
+  CapitalBarrierMonitoring_MAX = CapitalBarrierMonitoring_DailyClose
+};
+
+inline const CapitalBarrierMonitoring (&EnumValuesCapitalBarrierMonitoring())[2] {
+  static const CapitalBarrierMonitoring values[] = {
+    CapitalBarrierMonitoring_European,
+    CapitalBarrierMonitoring_DailyClose
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCapitalBarrierMonitoring() {
+  static const char * const names[3] = {
+    "European",
+    "DailyClose",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCapitalBarrierMonitoring(CapitalBarrierMonitoring e) {
+  if (::flatbuffers::IsOutRange(e, CapitalBarrierMonitoring_European, CapitalBarrierMonitoring_DailyClose)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCapitalBarrierMonitoring()[index];
+}
+
+/// Random-number source of a Monte Carlo simulation. Sobol: low-discrepancy
+/// Sobol sequence (QuantLib SobolRsg, Jaeckel direction integers; with
+/// `brownian_bridge` the SobolBrownianBridgeRsg ordering). PseudoRandom:
+/// Mersenne Twister with inverse-cumulative Gaussian draws.
+enum RandomSequence : int8_t {
+  RandomSequence_Sobol = 0,
+  RandomSequence_PseudoRandom = 1,
+  RandomSequence_MIN = RandomSequence_Sobol,
+  RandomSequence_MAX = RandomSequence_PseudoRandom
+};
+
+inline const RandomSequence (&EnumValuesRandomSequence())[2] {
+  static const RandomSequence values[] = {
+    RandomSequence_Sobol,
+    RandomSequence_PseudoRandom
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesRandomSequence() {
+  static const char * const names[3] = {
+    "Sobol",
+    "PseudoRandom",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameRandomSequence(RandomSequence e) {
+  if (::flatbuffers::IsOutRange(e, RandomSequence_Sobol, RandomSequence_PseudoRandom)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesRandomSequence()[index];
+}
+
+/// Where a structured note stands at the valuation date once the past
+/// observation events have been resolved from `historical_levels`.
+/// Alive: at least one event is still to be observed and the note is
+/// simulated. Called: a past observation triggered the autocall; nothing is
+/// simulated, the NPV is the discounted call payment when its payment date
+/// is after the valuation date and 0 otherwise. Matured: the final
+/// observation is in the past; the NPV is the discounted redemption (plus
+/// any final coupon) when its payment date is after the valuation date and
+/// 0 otherwise.
+enum StructuredNoteStatus : int8_t {
+  StructuredNoteStatus_Alive = 0,
+  StructuredNoteStatus_Called = 1,
+  StructuredNoteStatus_Matured = 2,
+  StructuredNoteStatus_MIN = StructuredNoteStatus_Alive,
+  StructuredNoteStatus_MAX = StructuredNoteStatus_Matured
+};
+
+inline const StructuredNoteStatus (&EnumValuesStructuredNoteStatus())[3] {
+  static const StructuredNoteStatus values[] = {
+    StructuredNoteStatus_Alive,
+    StructuredNoteStatus_Called,
+    StructuredNoteStatus_Matured
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesStructuredNoteStatus() {
+  static const char * const names[4] = {
+    "Alive",
+    "Called",
+    "Matured",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameStructuredNoteStatus(StructuredNoteStatus e) {
+  if (::flatbuffers::IsOutRange(e, StructuredNoteStatus_Alive, StructuredNoteStatus_Matured)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesStructuredNoteStatus()[index];
+}
+
 }  // namespace enums
 }  // namespace quantra
 

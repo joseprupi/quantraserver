@@ -55,6 +55,7 @@
 #include "fx_forward_response_generated.h"
 #include "ois_swap_response_generated.h"
 #include "sample_vol_surfaces_response_generated.h"
+#include "structured_note_response_generated.h"
 #include "swaption_response_generated.h"
 #include "vanilla_swap_response_generated.h"
 #include "year_on_year_inflation_cap_floor_response_generated.h"
@@ -149,6 +150,8 @@ public:
     JsonResponse PriceFxForwardJSON(const std::string& json, const std::string& request_id = "");
     JsonResponse PriceCrossCurrencySwapJSON(
         const std::string& json, const std::string& request_id = "");
+    JsonResponse PriceStructuredNoteJSON(
+        const std::string& json, const std::string& request_id = "");
     JsonResponse PriceCapFloorJSON(const std::string& json, const std::string& request_id = "");
     JsonResponse PriceSwaptionJSON(const std::string& json, const std::string& request_id = "");
     JsonResponse PriceCDSJSON(const std::string& json, const std::string& request_id = "");
@@ -215,6 +218,10 @@ public:
     grpc::Status PriceCrossCurrencySwap(
         const Message<PriceCrossCurrencySwapRequest>& request,
         Message<PriceCrossCurrencySwapResponse>* response);
+
+    grpc::Status PriceStructuredNote(
+        const Message<PriceStructuredNoteRequest>& request,
+        Message<PriceStructuredNoteResponse>* response);
 
     grpc::Status PriceCapFloor(
         const Message<PriceCapFloorRequest>& request, Message<PriceCapFloorResponse>* response);

@@ -871,6 +871,140 @@ def _ec_unimplemented_curve_point():
 
 
 # (label, product, filename, expected_http_status, mutate_fn[, body_check])
+def _ec_correlations(matrices):
+    """Append a pricing.correlations block to any request.
+
+    Correlation matrices are shared market data: the registry parses and
+    PSD-checks every matrix on every request that carries the block, whether
+    or not the product references it, so a malformed block is a 400 on an
+    endpoint that has no use for correlations (here: vanilla swap)."""
+    def f(req):
+        req["pricing"]["correlations"] = {"matrices": matrices}
+        return req
+    return f
+
+
+def _ec_correlation_matrix(matrix_id, labels, values):
+    n = len(labels)
+    return {"id": matrix_id, "labels": labels,
+            "values": {"n_rows": n, "n_cols": n, "values": values}}
+
+
+_EC_QUAD_LABELS = ["SMI", "SPX", "SX5E", "NKY"]
+_EC_QUAD_VALUES = [1.00, 0.55, 0.80, 0.45,
+                   0.55, 1.00, 0.60, 0.50,
+                   0.80, 0.60, 1.00, 0.50,
+                   0.45, 0.50, 0.50, 1.00]
+# (SPX, SX5E) = 0.61 while (SX5E, SPX) = 0.60.
+_EC_QUAD_ASYMMETRIC = _EC_QUAD_VALUES[:6] + [0.61] + _EC_QUAD_VALUES[7:]
+# A at 0.9 with both B and C while B and C are at -0.9: eigenvalue -0.8.
+_EC_NON_PSD = [1.0, 0.9, 0.9,
+               0.9, 1.0, -0.9,
+               0.9, -0.9, 1.0]
+
+
+
+# ---------------------------------------------------------------------------
+# Structured notes (price-structured-note): the mapper's schema 400s, the
+# evaluator's market-dependent 400s, 404s and the 501 of the opt-in blocks.
+# Every mutation starts from the BNP example (4 underlyings, 3 quanto, one
+# past observation, constant vols, European barrier).
+# ---------------------------------------------------------------------------
+_EC_SN = "structured_note/bnp_quad_index_classic_autocall_xs2741509801.json"
+
+
+def _ec_sn(mutate):
+    """Mutate notes[0] in place (mutate receives the note dict)."""
+    def f(req):
+        mutate(req["notes"][0])
+        return req
+    return f
+
+
+def _ec_sn_set(field, value):
+    return _ec_sn(lambda n: n.__setitem__(field, value))
+
+
+def _ec_sn_del(field):
+    return _ec_sn(lambda n: n.pop(field, None))
+
+
+def _ec_sn_event(index, mutate):
+    return _ec_sn(lambda n: mutate(n["events"][index]))
+
+
+def _ec_sn_underlying(index, mutate):
+    return _ec_sn(lambda n: mutate(n["underlyings"][index]))
+
+
+def _ec_sn_swap_events(i, j):
+    def mut(n):
+        n["events"][i], n["events"][j] = n["events"][j], n["events"][i]
+    return _ec_sn(mut)
+
+
+def _ec_sn_correlation_labels(labels):
+    def f(req):
+        req["pricing"]["correlations"]["matrices"][0]["labels"] = labels
+        return req
+    return f
+
+
+def _ec_sn_top(field, value):
+    def f(req):
+        req[field] = value
+        return req
+    return f
+
+
+def _ec_sn_surface_vol(vol_id):
+    """Replace the BlackVolSpec `vol_id` by a strike x expiry surface."""
+    def f(req):
+        for v in req["pricing"]["volatility"]["vol_surfaces"]:
+            if v["id"] == vol_id:
+                base = v["payload"]["base"]
+                base["shape"] = "SmileCube3D"
+                base.pop("constant_vol", None)
+                v["payload"] = {
+                    "base": base,
+                    "expiries": [{"n": 1, "unit": "Years"}, {"n": 2, "unit": "Years"}],
+                    "strikes": [1.0, 1.25, 1.5],
+                    "surface_vols": {"n_rows": 2, "n_cols": 3,
+                                     "values": [0.09, 0.08, 0.085, 0.09, 0.08, 0.085]},
+                    "surface_interpolator": "Bilinear",
+                    "allow_extrapolation": True,
+                }
+        return req
+    return f
+
+
+def _ec_sn_drop_equity_currency(underlying_id):
+    def f(req):
+        for u in req["pricing"]["equity"]["equity_underlyings"]:
+            if u["id"] == underlying_id:
+                u.pop("currency")
+        return req
+    return f
+
+
+def _ec_sn_greeks_on_called():
+    """Every historical close above its initial level: the past observation
+    calls the note; then ask for Greeks."""
+    def f(req):
+        for u in req["notes"][0]["underlyings"]:
+            u["historical_levels"][0]["value"] = 2.0 * u["initial_level"]
+        req["greeks"] = {}
+        return req
+    return f
+
+
+def _ec_sn_paths_and_samples(paths, sample_paths):
+    def f(req):
+        req["notes"][0]["monte_carlo"]["paths"] = paths
+        req["diagnostics"] = {"distribution": True, "sample_paths": sample_paths}
+        return req
+    return f
+
 SCENARIOS = [
     # ---- 404 NOT_FOUND: referenced id absent from pricing ----
     ("ec:404 fixed_rate_bond discounting_curve missing", "fixed_rate_bond",
@@ -1838,6 +1972,284 @@ SCENARIOS = [
      _ec_curve_mix_zero_point_compounding(),
      _ec_body_contains(
          "ZeroRatePoint.compounding must be identical across all points")),
+    # ---- 400 INVALID_ARGUMENT: pricing.correlations is validated on every request ----
+    ("ec:400 correlations not positive semi-definite", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_correlations([_ec_correlation_matrix("IMPOSSIBLE", ["A", "B", "C"], _EC_NON_PSD)]),
+     _ec_body_contains_all("correlations[IMPOSSIBLE]", "not positive semi-definite",
+                           "smallest eigenvalue -0.8")),
+    ("ec:400 correlations asymmetric names the pair", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_correlations([_ec_correlation_matrix("QUAD", _EC_QUAD_LABELS, _EC_QUAD_ASYMMETRIC)]),
+     _ec_body_contains_all("correlations[0].values: not symmetric",
+                           "(SPX, SX5E) = 0.61", "(SX5E, SPX) = 0.6")),
+    ("ec:400 correlations diagonal not one", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_correlations([_ec_correlation_matrix(
+         "QUAD", _EC_QUAD_LABELS, _EC_QUAD_VALUES[:10] + [0.99] + _EC_QUAD_VALUES[11:])]),
+     _ec_body_contains("correlations[0].values: diagonal entry (SX5E, SX5E) must be 1, got 0.99")),
+    ("ec:400 correlations entry outside unit interval", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_correlations([_ec_correlation_matrix(
+         "QUAD", _EC_QUAD_LABELS,
+         [1.2 if i in (3, 12) else v for i, v in enumerate(_EC_QUAD_VALUES)])]),
+     _ec_body_contains("correlations[0].values: entry (SMI, NKY) must be in [-1, 1], got 1.2")),
+    ("ec:400 correlations label count mismatch", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_correlations([{"id": "QUAD", "labels": ["SMI", "SPX", "SX5E"],
+                        "values": {"n_rows": 4, "n_cols": 4, "values": _EC_QUAD_VALUES}}]),
+     _ec_body_contains("correlations[0].values: n_rows and n_cols must both equal "
+                       "len(labels) = 3, got 4x4")),
+    ("ec:400 correlations duplicate label", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_correlations([_ec_correlation_matrix(
+         "QUAD", ["SMI", "SPX", "SMI", "NKY"], _EC_QUAD_VALUES)]),
+     _ec_body_contains("correlations[0].labels: duplicate label 'SMI'")),
+    ("ec:400 correlations duplicate id", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_correlations([_ec_correlation_matrix("QUAD", _EC_QUAD_LABELS, _EC_QUAD_VALUES),
+                       _ec_correlation_matrix("QUAD", _EC_QUAD_LABELS, _EC_QUAD_VALUES)]),
+     _ec_body_contains("duplicate correlation matrix id in pricing.correlations.matrices: QUAD")),
+
+    # ---- price-structured-note ----
+    ("ec:400 structured note empty notes list", "structured_note", _EC_SN, 400,
+     _ec_sn_top("notes", []),
+     _ec_body_contains("PriceStructuredNoteRequest.notes: required")),
+    ("ec:400 structured note notional missing", "structured_note", _EC_SN, 400,
+     _ec_sn_del("notional"), _ec_body_contains("notes[0].notional: required")),
+    ("ec:400 structured note notional non-positive", "structured_note", _EC_SN, 400,
+     _ec_sn_set("notional", 0.0), _ec_body_contains("notes[0].notional: must be > 0")),
+    ("ec:400 structured note initial level missing", "structured_note", _EC_SN, 400,
+     _ec_sn_underlying(1, lambda u: u.pop("initial_level")),
+     _ec_body_contains("notes[0].underlyings[1].initial_level: required")),
+    ("ec:400 structured note initial level non-positive", "structured_note", _EC_SN, 400,
+     _ec_sn_underlying(1, lambda u: u.__setitem__("initial_level", -1.0)),
+     _ec_body_contains("notes[0].underlyings[1].initial_level: must be > 0")),
+    ("ec:400 structured note duplicate underlying", "structured_note", _EC_SN, 400,
+     _ec_sn_underlying(1, lambda u: u.__setitem__("underlying_id", "SMI")),
+     _ec_body_contains("notes[0].underlyings[1].underlying_id: duplicate 'SMI'")),
+    ("ec:400 structured note performance rule missing", "structured_note", _EC_SN, 400,
+     _ec_sn_del("performance_rule"), _ec_body_contains("notes[0].performance_rule: required")),
+    ("ec:400 structured note events not increasing", "structured_note", _EC_SN, 400,
+     _ec_sn_swap_events(3, 4),
+     _ec_body_contains("notes[0].events[4].observation_date: 2027-06-28 must be after events[3]"
+                       ".observation_date 2027-12-27 (strictly increasing)")),
+    ("ec:400 structured note final event without trigger", "structured_note", _EC_SN, 400,
+     _ec_sn_event(-1, lambda e: (e.pop("autocall_trigger"), e.pop("payment_date"))),
+     _ec_body_contains("notes[0].events[11]: the final event must carry an autocall_trigger or a "
+                       "coupon_trigger")),
+    ("ec:400 structured note accrual-only event needs memory", "structured_note", _EC_SN, 400,
+     _ec_sn(lambda n: n["coupon_rule"].__setitem__("memory", False)),
+     _ec_body_contains("notes[0].events[0]: an accrual-only event (no trigger) requires "
+                       "coupon_rule.memory = true")),
+    ("ec:400 structured note accrual-only event with payment date", "structured_note", _EC_SN, 400,
+     _ec_sn_event(0, lambda e: e.__setitem__("payment_date", "2026-01-05")),
+     _ec_body_contains("notes[0].events[0].payment_date: must be absent on an accrual-only event")),
+    ("ec:400 structured note accrual-only event without coupon", "structured_note", _EC_SN, 400,
+     _ec_sn_event(0, lambda e: e.pop("coupon")),
+     _ec_body_contains("notes[0].events[0].coupon: required on an accrual-only event")),
+    ("ec:400 structured note coupon trigger without coupon", "structured_note", _EC_SN, 400,
+     _ec_sn_event(5, lambda e: (e.__setitem__("coupon_trigger", 0.8), e.pop("coupon"))),
+     _ec_body_contains("notes[0].events[5].coupon: required when coupon_trigger is present")),
+    ("ec:400 structured note payment date missing with trigger", "structured_note", _EC_SN, 400,
+     _ec_sn_event(5, lambda e: e.pop("payment_date")),
+     _ec_body_contains("notes[0].events[5].payment_date: required when a trigger is present")),
+    ("ec:400 structured note payment date before observation", "structured_note", _EC_SN, 400,
+     _ec_sn_event(5, lambda e: e.__setitem__("payment_date", "2028-06-01")),
+     _ec_body_contains("notes[0].events[5].payment_date: 2028-06-01 is before observation_date "
+                       "2028-06-27")),
+    ("ec:400 structured note coupon rule memory missing", "structured_note", _EC_SN, 400,
+     _ec_sn(lambda n: n["coupon_rule"].pop("memory")),
+     _ec_body_contains("notes[0].coupon_rule.memory: required")),
+    ("ec:400 structured note barrier outside (0, 1]", "structured_note", _EC_SN, 400,
+     _ec_sn(lambda n: n["capital"].__setitem__("barrier", 1.2)),
+     _ec_body_contains("notes[0].capital.barrier: must be in (0, 1]")),
+    ("ec:400 structured note monitoring missing", "structured_note", _EC_SN, 400,
+     _ec_sn(lambda n: n["capital"].pop("monitoring")),
+     _ec_body_contains("notes[0].capital.monitoring: required")),
+    ("ec:400 structured note daily barrier needs steps_per_year", "structured_note", _EC_SN, 400,
+     _ec_sn(lambda n: (n["capital"].__setitem__("monitoring", "DailyClose"),
+                       n["capital"].__setitem__("knocked_in", False))),
+     _ec_body_contains("notes[0].monte_carlo.steps_per_year: required, the capital barrier is "
+                       "monitored DailyClose")),
+    ("ec:400 structured note daily barrier with a past needs knocked_in", "structured_note",
+     _EC_SN, 400,
+     _ec_sn(lambda n: (n["capital"].__setitem__("monitoring", "DailyClose"),
+                       n["monte_carlo"].__setitem__("steps_per_year", 252))),
+     _ec_body_contains("notes[0].capital.knocked_in: required when monitoring is DailyClose and "
+                       "an event is on or before the valuation date")),
+    ("ec:400 structured note knocked_in on a European barrier", "structured_note", _EC_SN, 400,
+     _ec_sn(lambda n: n["capital"].__setitem__("knocked_in", False)),
+     _ec_body_contains("notes[0].capital.knocked_in: must be absent")),
+    ("ec:400 structured note steps_per_year with constant vols", "structured_note", _EC_SN, 400,
+     _ec_sn(lambda n: n["monte_carlo"].__setitem__("steps_per_year", 12)),
+     _ec_body_contains("notes[0].monte_carlo.steps_per_year: must be absent, every volatility is "
+                       "constant or term")),
+    ("ec:400 structured note maturity before final observation", "structured_note", _EC_SN, 400,
+     _ec_sn_set("maturity_payment_date", "2031-06-01"),
+     _ec_body_contains("notes[0].maturity_payment_date: 2031-06-01 is before the final "
+                       "observation_date 2031-06-27")),
+    ("ec:400 structured note quanto on a note-currency underlying", "structured_note", _EC_SN, 400,
+     _ec_sn_underlying(1, lambda u: u.__setitem__("quanto", {
+         "discounting_curve": "USD_SOFR_OIS", "fx_spot_id": "EURUSD_SPOT",
+         "fx_volatility_id": "EURUSD_VOL", "fx_underlying_correlation": 0.0})),
+     _ec_body_contains("notes[0].underlyings[1].quanto: must be absent, the underlying 'SPX' is "
+                       "in the note currency USD")),
+    ("ec:400 structured note quanto missing on a foreign underlying", "structured_note", _EC_SN,
+     400, _ec_sn_underlying(0, lambda u: u.pop("quanto")),
+     _ec_body_contains("notes[0].underlyings[0].quanto: required, the underlying 'SMI' is in CHF "
+                       "and the note pays in USD")),
+    ("ec:400 structured note quanto correlation missing", "structured_note", _EC_SN, 400,
+     _ec_sn_underlying(0, lambda u: u["quanto"].pop("fx_underlying_correlation")),
+     _ec_body_contains("notes[0].underlyings[0].quanto.fx_underlying_correlation: required")),
+    ("ec:400 structured note quanto correlation outside [-1, 1]", "structured_note", _EC_SN, 400,
+     _ec_sn_underlying(0, lambda u: u["quanto"].__setitem__("fx_underlying_correlation", 1.5)),
+     _ec_body_contains("notes[0].underlyings[0].quanto.fx_underlying_correlation: must be in "
+                       "[-1, 1]")),
+    ("ec:400 structured note quanto fx spot of another pair", "structured_note", _EC_SN, 400,
+     _ec_sn_underlying(0, lambda u: u["quanto"].__setitem__("fx_spot_id", "EURUSD_SPOT")),
+     _ec_body_contains("notes[0].underlyings[0].quanto.fx_spot_id 'EURUSD_SPOT' (EUR/USD) does "
+                       "not quote the underlying currency CHF against the note currency USD")),
+    ("ec:400 structured note correlation labels are not the basket", "structured_note", _EC_SN,
+     400, _ec_sn_correlation_labels(["SMI", "SPX", "SX5E", "DAX"]),
+     _ec_body_contains("notes[0].correlation_id 'QUAD_INDEX_CORR': labels [SMI, SPX, SX5E, DAX] "
+                       "must be exactly the note's underlying ids [SMI, SPX, SX5E, NKY]")),
+    ("ec:400 structured note past observation without a level", "structured_note", _EC_SN, 400,
+     _ec_sn_underlying(2, lambda u: u.pop("historical_levels")),
+     _ec_body_contains("notes[0].underlyings[2].historical_levels: no level of 'SX5E' for the "
+                       "past observation date 2026-06-29 (events[1])")),
+    ("ec:400 structured note historical level after the valuation date", "structured_note",
+     _EC_SN, 400,
+     _ec_sn_underlying(1, lambda u: u["historical_levels"].append(
+         {"date": "2026-12-28", "value": 6100.0})),
+     _ec_body_contains("notes[0].underlyings[1].historical_levels[1].date: 2026-12-28 is after "
+                       "the valuation date 2026-10-21")),
+    ("ec:400 structured note odd paths with antithetic", "structured_note", _EC_SN, 400,
+     _ec_sn(lambda n: n["monte_carlo"].__setitem__("paths", 1001)),
+     _ec_body_contains("notes[0].monte_carlo.paths: must be even with antithetic = true")),
+    ("ec:400 structured note paths missing", "structured_note", _EC_SN, 400,
+     _ec_sn(lambda n: n["monte_carlo"].pop("paths")),
+     _ec_body_contains("notes[0].monte_carlo.paths: required")),
+    ("ec:400 structured note sobol seed 0", "structured_note", _EC_SN, 400,
+     _ec_sn(lambda n: n["monte_carlo"].__setitem__("seed", 0)),
+     _ec_body_contains("notes[0].monte_carlo.seed: must be > 0 with the Sobol sequence")),
+    ("ec:400 structured note brownian bridge with pseudo-random", "structured_note", _EC_SN, 400,
+     _ec_sn(lambda n: n["monte_carlo"].__setitem__("sequence", "PseudoRandom")),
+     _ec_body_contains("notes[0].monte_carlo.brownian_bridge: not supported with the "
+                       "PseudoRandom sequence")),
+    ("ec:400 structured note upside strike missing", "structured_note", _EC_SN, 400,
+     _ec_sn_set("upside", {"participation": 1.0}),
+     _ec_body_contains("notes[0].upside.strike: required")),
+    ("ec:400 structured note upside cap non-positive", "structured_note", _EC_SN, 400,
+     _ec_sn_set("upside", {"strike": 1.0, "participation": 1.0, "cap": 0.0}),
+     _ec_body_contains("notes[0].upside.cap: must be > 0")),
+    ("ec:404 structured note unknown underlying", "structured_note", _EC_SN, 404,
+     _ec_sn_underlying(1, lambda u: u.__setitem__("underlying_id", "NDX")),
+     _ec_body_contains("Equity underlying not found: NDX")),
+    ("ec:404 structured note unknown vol", "structured_note", _EC_SN, 404,
+     _ec_sn_underlying(1, lambda u: u.__setitem__("volatility_id", "NDX_VOL")),
+     _ec_body_contains("Black vol not found: NDX_VOL")),
+    ("ec:404 structured note unknown discounting curve", "structured_note", _EC_SN, 404,
+     _ec_sn_set("discounting_curve", "USD_LIBOR"),
+     _ec_body_contains("Discounting curve not found: USD_LIBOR")),
+    ("ec:404 structured note unknown correlation", "structured_note", _EC_SN, 404,
+     _ec_sn_set("correlation_id", "NOPE")),
+    # Required strings and tables of the fbs: the JSON parser rejects the
+    # request before the mapper runs.
+    ("ec:400 structured note trade_id missing", "structured_note", _EC_SN, 400,
+     _ec_sn_del("trade_id"), _ec_body_contains("required field is missing: trade_id")),
+    ("ec:400 structured note currency missing", "structured_note", _EC_SN, 400,
+     _ec_sn_del("currency"), _ec_body_contains("required field is missing: currency")),
+    ("ec:400 structured note volatility_id missing", "structured_note", _EC_SN, 400,
+     _ec_sn_underlying(1, lambda u: u.pop("volatility_id")),
+     _ec_body_contains("required field is missing: volatility_id")),
+    ("ec:400 structured note discounting_curve missing", "structured_note", _EC_SN, 400,
+     _ec_sn_del("discounting_curve"),
+     _ec_body_contains("required field is missing: discounting_curve")),
+    ("ec:400 structured note coupon_rule missing", "structured_note", _EC_SN, 400,
+     _ec_sn_del("coupon_rule"), _ec_body_contains("required field is missing: coupon_rule")),
+    ("ec:400 structured note capital missing", "structured_note", _EC_SN, 400,
+     _ec_sn_del("capital"), _ec_body_contains("required field is missing: capital")),
+    ("ec:400 structured note maturity_payment_date missing", "structured_note", _EC_SN, 400,
+     _ec_sn_del("maturity_payment_date"),
+     _ec_body_contains("required field is missing: maturity_payment_date")),
+    ("ec:400 structured note monte_carlo missing", "structured_note", _EC_SN, 400,
+     _ec_sn_del("monte_carlo"), _ec_body_contains("required field is missing: monte_carlo")),
+    ("ec:400 structured note empty underlyings", "structured_note", _EC_SN, 400,
+     _ec_sn_set("underlyings", []),
+     _ec_body_contains("notes[0].underlyings: required, at least one entry")),
+    ("ec:400 structured note empty events", "structured_note", _EC_SN, 400,
+     _ec_sn_set("events", []), _ec_body_contains("notes[0].events: required, at least one entry")),
+    # correlation_id: required with two or more underlyings, absent with one.
+    ("ec:400 structured note correlation_id missing with four underlyings", "structured_note",
+     _EC_SN, 400, _ec_sn_del("correlation_id"),
+     _ec_body_contains("notes[0].correlation_id: required with 4 underlyings")),
+    ("ec:400 structured note correlation_id with a single underlying", "structured_note",
+     _EC_SN, 400, _ec_sn(lambda n: n.__setitem__("underlyings", [n["underlyings"][1]])),
+     _ec_body_contains("notes[0].correlation_id: must be absent with a single underlying")),
+    ("ec:400 structured note duplicate historical date", "structured_note", _EC_SN, 400,
+     _ec_sn_underlying(1, lambda u: u["historical_levels"].append(
+         {"date": "2026-06-29", "value": 6200.0})),
+     _ec_body_contains("notes[0].underlyings[1].historical_levels[1].date: duplicate date "
+                       "2026-06-29")),
+    ("ec:400 structured note negative autocall trigger", "structured_note", _EC_SN, 400,
+     _ec_sn_event(5, lambda e: e.__setitem__("autocall_trigger", -1.0)),
+     _ec_body_contains("notes[0].events[5].autocall_trigger: must be >= 0")),
+    ("ec:400 structured note negative coupon", "structured_note", _EC_SN, 400,
+     _ec_sn_event(5, lambda e: e.__setitem__("coupon", -0.07)),
+     _ec_body_contains("notes[0].events[5].coupon: must be >= 0")),
+    ("ec:400 structured note steps_per_year zero", "structured_note", _EC_SN, 400,
+     _ec_sn(lambda n: n["monte_carlo"].__setitem__("steps_per_year", 0)),
+     _ec_body_contains("notes[0].monte_carlo.steps_per_year: must be > 0 when present")),
+    ("ec:400 structured note negative put_strike", "structured_note", _EC_SN, 400,
+     _ec_sn(lambda n: n["capital"].__setitem__("put_strike", -1.0)),
+     _ec_body_contains("notes[0].capital.put_strike: must be >= 0")),
+    ("ec:400 structured note negative participation", "structured_note", _EC_SN, 400,
+     _ec_sn(lambda n: n["capital"].__setitem__("participation", -1.0)),
+     _ec_body_contains("notes[0].capital.participation: must be >= 0")),
+    ("ec:400 structured note fx vol as a surface", "structured_note", _EC_SN, 400,
+     _ec_sn_surface_vol("CHFUSD_VOL"),
+     _ec_body_contains("notes[0].underlyings[0].quanto.fx_volatility_id 'CHFUSD_VOL' must be a "
+                       "Constant or term (AtmMatrix2D) BlackVolSpec")),
+    ("ec:400 structured note underlying spec without currency", "structured_note", _EC_SN, 400,
+     _ec_sn_drop_equity_currency("SPX"),
+     _ec_body_contains("notes[0].underlyings[1].underlying_id 'SPX': "
+                       "pricing.equity.equity_underlyings[].currency is required")),
+    # diagnostics
+    ("ec:400 structured note sample_paths above the cap", "structured_note", _EC_SN, 400,
+     _ec_sn_top("diagnostics", {"distribution": True, "sample_paths": 101}),
+     _ec_body_contains("PriceStructuredNoteRequest.diagnostics.sample_paths: must be <= 100, "
+                       "got 101")),
+    ("ec:400 structured note sample_paths without distribution", "structured_note", _EC_SN, 400,
+     _ec_sn_top("diagnostics", {"market": True, "sample_paths": 3}),
+     _ec_body_contains("PriceStructuredNoteRequest.diagnostics.sample_paths: requires "
+                       "distribution = true")),
+    ("ec:400 structured note sample_paths above paths", "structured_note", _EC_SN, 400,
+     _ec_sn_paths_and_samples(16, 32),
+     _ec_body_contains("PriceStructuredNoteRequest.diagnostics.sample_paths: 32 exceeds "
+                       "notes[0].monte_carlo.paths (16)")),
+    # greeks
+    ("ec:400 structured note greeks spot_bump zero", "structured_note", _EC_SN, 400,
+     _ec_sn_top("greeks", {"spot_bump": 0.0}),
+     _ec_body_contains("PriceStructuredNoteRequest.greeks.spot_bump: must be finite and > 0")),
+    ("ec:400 structured note greeks negative vol_bump", "structured_note", _EC_SN, 400,
+     _ec_sn_top("greeks", {"vol_bump": -0.01}),
+     _ec_body_contains("PriceStructuredNoteRequest.greeks.vol_bump: must be finite and > 0")),
+    ("ec:400 structured note greeks negative correlation_bump", "structured_note", _EC_SN, 400,
+     _ec_sn_top("greeks", {"correlation_bump": -0.5}),
+     _ec_body_contains("PriceStructuredNoteRequest.greeks.correlation_bump: must be finite "
+                       "and > 0")),
+    ("ec:400 structured note greeks funding_bump_bp zero", "structured_note", _EC_SN, 400,
+     _ec_sn_top("greeks", {"funding_bump_bp": 0.0}),
+     _ec_body_contains("PriceStructuredNoteRequest.greeks.funding_bump_bp: must be finite "
+                       "and > 0")),
+    ("ec:400 structured note greeks negative rate_bump_bp", "structured_note", _EC_SN, 400,
+     _ec_sn_top("greeks", {"rate_bump_bp": -1.0}),
+     _ec_body_contains("PriceStructuredNoteRequest.greeks.rate_bump_bp: must be finite "
+                       "and > 0")),
+    ("ec:400 structured note greeks on a called note", "structured_note", _EC_SN, 400,
+     _ec_sn_greeks_on_called(),
+     _ec_body_contains("notes[0]: no Greeks for a note that is not alive (status Called")),
 ]
 
 

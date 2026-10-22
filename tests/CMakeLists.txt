@@ -29,6 +29,7 @@ include_directories(
    ${CMAKE_SOURCE_DIR}/src/evaluators
    ${CMAKE_SOURCE_DIR}/src/parsers
    ${CMAKE_SOURCE_DIR}/src/market
+   ${CMAKE_SOURCE_DIR}/src/mc
    ${CMAKE_SOURCE_DIR}/src/domain
    ${CMAKE_SOURCE_DIR}/src/common
    ${CMAKE_SOURCE_DIR}/flatbuffers/fbs

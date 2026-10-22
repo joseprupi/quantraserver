@@ -1,0 +1,263 @@
+include "enums.fbs";
+include "index.fbs";
+
+namespace quantra;
+
+/// Quanto treatment of one basket underlying whose currency differs from the
+/// note currency: the note pays in its own currency the performance of an
+/// index quoted in another one, so the simulated drift of that index is
+/// r_note - q - rho * sigma_S * sigma_FX (QuantLib QuantoTermStructure) while
+/// the index keeps its own units. Present iff the underlying's currency
+/// differs from `StructuredNote.currency` (400 either way otherwise: a
+/// quanto block on a same-currency underlying, or none on a foreign one).
+table QuantoSpec {
+    /// Id of the discount curve of the UNDERLYING's currency in
+    /// pricing.rates.curves: the risk-neutral drift of the underlying in its
+    /// own currency (r_local in the quanto adjustment). The note-currency
+    /// curve is `StructuredNote.discounting_curve`. Required.
+    discounting_curve:string (required);
+    /// Id of the `FxSpotSpec` in pricing.fx.spots for the underlying's
+    /// currency against the note currency, in either direction (the engine
+    /// inverts when base/quote are the other way round). Required.
+    fx_spot_id:string (required);
+    /// Id of the `VolSurfaceSpec` (BlackVolSpec payload, Constant or term)
+    /// in pricing.volatility.vol_surfaces holding the volatility of that FX
+    /// rate; used only for the quanto drift adjustment. Required.
+    fx_volatility_id:string (required);
+    /// Correlation between the underlying and the FX rate (underlying
+    /// currency per unit of note currency, i.e. the rate that rises when
+    /// the note currency strengthens against the underlying's currency), in
+    /// [-1, 1]. A scalar input: the FX rate is not simulated and this
+    /// correlation is not read from the correlation matrix. Presence-
+    /// required (a bare double would silently mean 0 = no adjustment).
+    fx_underlying_correlation:double = null;
+}
+
+/// One underlying of a basket: an equity index (or share) from the shared
+/// equity market data, its volatility, the level it was struck at, and the
+/// closes already observed for a seasoned note.
+table BasketUnderlying {
+    /// Id of the `EquityUnderlyingSpec` in pricing.equity.equity_underlyings
+    /// (spot quote, dividend curve, currency). Required.
+    underlying_id:string (required);
+    /// Id of the `VolSurfaceSpec` (BlackVolSpec payload) in
+    /// pricing.volatility.vol_surfaces: constant, term, or strike x expiry
+    /// surface (a surface makes the simulation local-vol and requires
+    /// `MonteCarloSpec.steps_per_year`). Required.
+    volatility_id:string (required);
+    /// Strike fixing from the term sheet: the closing level on the strike
+    /// date that every performance S(t) / initial_level is measured against.
+    /// Presence-required and > 0.
+    initial_level:double = null;
+    /// Quanto block. Present iff the underlying's currency differs from the
+    /// note currency (see `QuantoSpec`).
+    quanto:QuantoSpec;
+    /// Closing levels on past observation dates (seasoned notes): one
+    /// `Fixing` (date, value > 0) per observation event whose
+    /// `observation_date` is on or before the valuation date and that
+    /// carries a trigger. Events before the valuation date are resolved from
+    /// these, never simulated; a past observation without a level is a 400
+    /// naming the date and the underlying. Accrual-only events need no
+    /// level. Levels on other dates are ignored.
+    historical_levels:[Fixing];
+}
+
+/// One date of the note's life. Which tests run at an event is decided by
+/// which triggers are present; the coupon of the event is `coupon`
+/// (fraction of notional). The basket performance perf = rule over
+/// S_i(observation_date) / initial_level_i, and every test is "perf >=
+/// trigger" (triggers are fractions of the initial level: 1.0 = 100%).
+///
+///   autocall_trigger present, coupon_trigger absent (classic autocall):
+///     the coupon test IS the call test. perf >= autocall_trigger: notional
+///     plus this event's coupon plus every unpaid coupon in the memory is
+///     paid on `payment_date` and the note ends. Otherwise nothing is paid
+///     and, with `CouponRule.memory`, `coupon` joins the memory.
+///   autocall_trigger present, coupon_trigger present (Phoenix with a call):
+///     coupon test first: perf >= coupon_trigger earns this event's coupon
+///     plus the memory (paid on `payment_date`, or held until the next call
+///     when `CouponRule.pay_only_on_call`); otherwise the coupon joins the
+///     memory. Then the call test: perf >= autocall_trigger pays the
+///     notional plus everything held, on `payment_date`, and the note ends.
+///   autocall_trigger absent, coupon_trigger present (coupon-only date):
+///     the coupon test only, as above; the note cannot end here.
+///   both absent (accrual-only period):
+///     nothing is observed and nothing is paid: `coupon` is added to the
+///     memory. This encodes a snowball coupon that accrues from the strike
+///     date while the first observation is later (a 7% semi-annual coupon
+///     first observed at 12 months pays 2 x 7% on the first call). Requires
+///     `CouponRule.memory` = true (400 otherwise: nothing could carry the
+///     coupon) and `payment_date` absent (400 when present).
+///
+/// The last event is the final observation: its tests run as above, and
+/// when the note has not ended there the capital test of
+/// `CapitalProtection` runs on the same perf and the redemption is paid on
+/// `StructuredNote.maturity_payment_date`. A final event with no trigger at
+/// all is a 400. Events must be in strictly increasing `observation_date`
+/// order; events on or before the valuation date are resolved from
+/// `BasketUnderlying.historical_levels` and never simulated.
+table ObservationEvent {
+    /// Date the basket is observed (closing levels), ISO. Required. For an
+    /// accrual-only event (no triggers) nothing is observed: the date is
+    /// nominal and only orders the event among the others.
+    observation_date:string (required);
+    /// Date a coupon or call triggered here is paid, ISO, on or after
+    /// `observation_date`. Required (400) whenever `autocall_trigger` or
+    /// `coupon_trigger` is present; must be absent for an accrual-only
+    /// event.
+    payment_date:string;
+    /// Autocall trigger as a fraction of the initial level (1.0 = 100%);
+    /// perf >= trigger ends the note. Absent = the note cannot be called at
+    /// this date.
+    autocall_trigger:double = null;
+    /// Coupon trigger as a fraction of the initial level; perf >= trigger
+    /// earns the coupon. Absent = no coupon test of its own (with an
+    /// `autocall_trigger` the coupon is earned by the call test; with
+    /// neither trigger the event is accrual-only).
+    coupon_trigger:double = null;
+    /// Coupon of this period as a fraction of notional (0.07 = 7%).
+    /// Required (400) when `coupon_trigger` is present or the event is
+    /// accrual-only. With only an `autocall_trigger` it may be absent: the
+    /// event then carries no coupon of its own and a call pays the notional
+    /// plus the memory only.
+    coupon:double = null;
+}
+
+/// How coupons that were earned or missed carry over between events.
+table CouponRule {
+    /// True: a coupon not paid at its event (test failed, or held because
+    /// `pay_only_on_call`) is added to a memory that is paid in full with
+    /// the next coupon that is paid; the memory is a sum of coupon amounts,
+    /// so events may carry different coupons. False: a missed coupon is
+    /// lost. Presence-required.
+    memory:bool = null;
+    /// True (Athena / snowball): coupons are paid only when the note ends
+    /// (a call, or the final event); an earned coupon at a non-calling
+    /// event is held in the memory. False (Phoenix): an earned coupon is
+    /// paid on its event's `payment_date`. Presence-required.
+    pay_only_on_call:bool = null;
+}
+
+/// Capital protection at the final observation. With perf the basket
+/// performance on the final observation date (or, with DailyClose
+/// monitoring, breach = any close below the barrier over the life), the
+/// redemption is notional x 1 when the barrier holds and
+/// notional x (1 - participation x max(put_strike - perf_final, 0)) when it
+/// is breached, paid on `StructuredNote.maturity_payment_date`.
+table CapitalProtection {
+    /// Barrier as a fraction of the initial level (0.6 = 60%); the capital
+    /// is at risk when perf < barrier. Presence-required and in (0, 1].
+    barrier:double = null;
+    /// When the barrier is tested. Presence-required.
+    monitoring:enums.CapitalBarrierMonitoring = null;
+    /// Strike of the embedded put as a fraction of the initial level
+    /// (1.0 = loss measured from 100%, the "1-for-1" of a factsheet).
+    put_strike:double = 1.0;
+    /// Gearing of the loss (1.0 = 1-for-1).
+    participation:double = 1.0;
+    /// Whether a DailyClose barrier has already been breached before the
+    /// valuation date. Presence-required (400) when `monitoring` is
+    /// DailyClose and any event precedes the valuation date (the engine
+    /// cannot infer it from `historical_levels`, which hold observation
+    /// dates only); must be absent otherwise.
+    knocked_in:bool = null;
+}
+
+/// Optional upside at the final observation when the note has not called:
+/// adds `participation * max(perf - strike, 0)` of the notional, capped at
+/// `cap` when present. Expresses bonus certificates, capped participation
+/// notes and twin-win structures; absent for a plain autocallable.
+table UpsideParticipation {
+    /// Strike as a fraction of the initial level. Presence-required.
+    strike:double = null;
+    /// Participation in the performance above the strike. Presence-required.
+    participation:double = null;
+    /// Maximum upside as a fraction of the notional (0.3 = at most +30%).
+    /// Absent = uncapped.
+    cap:double = null;
+}
+
+/// Monte Carlo settings. Every price carries its standard error, path
+/// count and seed, and Greeks are computed by bump-and-reprice on the same
+/// random stream.
+table MonteCarloSpec {
+    /// Number of simulated paths (antithetic pairs count as two paths).
+    /// Presence-required and > 0; a power of two is recommended with Sobol.
+    paths:uint = null;
+    /// Seed of the random sequence (Sobol scrambling / Mersenne Twister).
+    seed:ulong = 42;
+    /// Random-number source.
+    sequence:enums.RandomSequence = Sobol;
+    /// Antithetic variates (every Gaussian draw is also used negated).
+    antithetic:bool = true;
+    /// Brownian-bridge ordering of the draws (recommended with Sobol).
+    brownian_bridge:bool = true;
+    /// Time steps per year of the simulation grid between observation
+    /// dates. Required (400) when any underlying's volatility is a strike x
+    /// expiry surface (local-vol evolution) or the capital barrier is
+    /// monitored DailyClose; otherwise must be absent and the grid is the
+    /// observation dates only (exact lognormal steps). Between observation
+    /// dates the processes evolve with log-Euler steps of 1/steps_per_year
+    /// years. A DailyClose barrier is tested on the simulated closes only:
+    /// set this to the index's trading days per year (about 252); fewer
+    /// steps under-sample the barrier and bias the price. No continuity
+    /// correction (Broadie-Glasserman-Kou) is applied, because the barrier
+    /// is discrete by contract.
+    steps_per_year:uint = null;
+}
+
+/// A structured note on a basket of equity indices: a strip of observation
+/// events (autocall and/or coupon tests on the basket performance), a coupon
+/// carry rule, and capital protection at maturity. Classic and snowball
+/// autocalls, low-hurdle finals, Phoenix coupons, step-down triggers and
+/// geared puts are all configurations of these fields; there is one payoff
+/// walk, not one product per shape. Priced by Monte Carlo under correlated
+/// Black-Scholes (or local-vol) dynamics with quanto drift adjustments,
+/// discounted on `discounting_curve` plus `funding_spread_bp`.
+table StructuredNote {
+    /// Trade identifier echoed in the response. Required.
+    trade_id:string (required);
+    /// ISO 4217 code of the note currency (coupons, redemption, NPV).
+    /// Required.
+    currency:string (required);
+    /// Notional (denomination x units); coupons and the redemption are
+    /// fractions of it. Presence-required and > 0.
+    notional:double = null;
+    /// The basket. Required; at least one entry; ids distinct; with two or
+    /// more entries the set of `underlying_id`s must equal the labels of the
+    /// correlation matrix `correlation_id`.
+    underlyings:[BasketUnderlying] (required);
+    /// Reduction of the underlyings' performances to the tested perf.
+    /// Presence-required.
+    performance_rule:enums.BasketPerformanceRule = null;
+    /// The note's dates in strictly increasing `observation_date` order; the
+    /// last one is the final observation. Required; at least one entry.
+    events:[ObservationEvent] (required);
+    /// Coupon carry rule. Required.
+    coupon_rule:CouponRule (required);
+    /// Capital protection tested at the final observation. Required.
+    capital:CapitalProtection (required);
+    /// Date the redemption is paid when the note reaches the final
+    /// observation without a call, ISO, on or after the final
+    /// `observation_date`. Required.
+    maturity_payment_date:string (required);
+    /// Id of the note-currency discount curve in pricing.rates.curves
+    /// (OIS or funding curve). Required.
+    discounting_curve:string (required);
+    /// Issuer funding spread in basis points added to `discounting_curve`
+    /// as a flat zero spread (QuantLib ZeroSpreadedTermStructure) for
+    /// discounting every cash flow. 0 = discount on the curve as is.
+    funding_spread_bp:double = 0.0;
+    /// Id of the `CorrelationMatrixSpec` in pricing.correlations.matrices;
+    /// its labels must be exactly the basket's underlying ids. Required
+    /// (400) when the note has two or more underlyings; must be absent (400)
+    /// with exactly one underlying, which is simulated on a 1 x 1 unit
+    /// matrix (a `CorrelationMatrixSpec` lists at least two labels).
+    correlation_id:string;
+    /// Upside participation at the final observation. Absent = none.
+    upside:UpsideParticipation;
+    /// Simulation settings. Required.
+    monte_carlo:MonteCarloSpec (required);
+}
+
+root_type StructuredNote;

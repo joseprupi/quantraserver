@@ -404,3 +404,47 @@ enum SwapFlowKind : byte {
     Coupon = 0,
     NotionalExchange = 1
 }
+
+/// How the performances of a basket's underlyings (each S_i(t) / initial
+/// level_i) are reduced to the single number the structured-note triggers
+/// are tested against. WorstOf: the minimum (every index must be at or above
+/// the trigger). BestOf: the maximum. Average: the equally-weighted mean.
+enum BasketPerformanceRule : byte {
+    WorstOf = 0,
+    BestOf = 1,
+    Average = 2
+}
+
+/// When a structured note's capital-protection barrier is tested.
+/// European: on the final observation date only. DailyClose: on every
+/// business-day close from the strike date to the final observation
+/// (simulated on the fine time grid; past closes are not supplied in
+/// 0.12.0, so a seasoned note with DailyClose monitoring is a 400).
+enum CapitalBarrierMonitoring : byte {
+    European = 0,
+    DailyClose = 1
+}
+
+/// Random-number source of a Monte Carlo simulation. Sobol: low-discrepancy
+/// Sobol sequence (QuantLib SobolRsg, Jaeckel direction integers; with
+/// `brownian_bridge` the SobolBrownianBridgeRsg ordering). PseudoRandom:
+/// Mersenne Twister with inverse-cumulative Gaussian draws.
+enum RandomSequence : byte {
+    Sobol = 0,
+    PseudoRandom = 1
+}
+
+/// Where a structured note stands at the valuation date once the past
+/// observation events have been resolved from `historical_levels`.
+/// Alive: at least one event is still to be observed and the note is
+/// simulated. Called: a past observation triggered the autocall; nothing is
+/// simulated, the NPV is the discounted call payment when its payment date
+/// is after the valuation date and 0 otherwise. Matured: the final
+/// observation is in the past; the NPV is the discounted redemption (plus
+/// any final coupon) when its payment date is after the valuation date and
+/// 0 otherwise.
+enum StructuredNoteStatus : byte {
+    Alive = 0,
+    Called = 1,
+    Matured = 2
+}

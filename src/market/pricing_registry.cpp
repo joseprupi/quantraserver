@@ -87,6 +87,14 @@ PricingRegistry PricingRegistryBuilder::build(
     reg.fx.spots = fxBuilder.build(pricing->fx(), reg.quoteRegistry);
 
     // ==========================================================================
+    // Parse correlation domain (optional) — independent of the curves, so it
+    // runs before them: a malformed or non-PSD matrix is a 400 on every
+    // request that carries pricing.correlations, before any curve is built.
+    // ==========================================================================
+    CorrelationRegistryBuilder correlationBuilder;
+    reg.correlations = correlationBuilder.build(pricing->correlations(), reg.quoteRegistry);
+
+    // ==========================================================================
     // Parse Curves (dependency-aware via CurveBootstrapper)
     // ==========================================================================
     if (!rates || !rates->curves()) {

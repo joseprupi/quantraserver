@@ -287,6 +287,71 @@ of type `Fx`; a missing or negative `spot_days`; an empty
 `settlement_calendars`; a missing `business_day_convention`; the same `id`
 twice. An unknown `quote_id` is a `404`, as for every other quote reference.
 
+## Correlation matrices
+
+Correlation matrices live in `pricing.correlations.matrices[]` and are
+referenced by id from basket products (`StructuredNote.correlation_id`).
+There is no correlation market: the matrix is an input (a historical estimate,
+a dealer mark) and the engine only validates it. Like FX spots, the block is
+parsed and validated on every request that carries it, whether or not a
+product references a matrix, so a malformed block is a `400` on any endpoint.
+
+| Field | Meaning |
+| --- | --- |
+| `id` | Identifier referenced by products. Required, unique within `pricing.correlations.matrices`. |
+| `labels` | Ids of the underlyings the rows/columns refer to, in matrix order (`EquityUnderlyingSpec.id`). Required; at least two, none empty, no duplicates. A product names its underlyings in its own order and receives the matrix permuted to match. |
+| `values` | The matrix as a `QuoteMatrix2D`: `n_rows` = `n_cols` = number of labels, `values` row-major in label order. Entries may come from `pricing.quotes` through `quote_ids` (same length as `values`; a non-empty id replaces the inline entry, any quote type). Required. |
+
+```json
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "correlations": {
+      "matrices": [
+        {
+          "id": "QUAD_INDEX_HIST_2Y",
+          "labels": ["SMI", "SPX", "SX5E", "NKY"],
+          "values": {
+            "n_rows": 4,
+            "n_cols": 4,
+            "values": [
+              1.00, 0.55, 0.80, 0.45,
+              0.55, 1.00, 0.60, 0.50,
+              0.80, 0.60, 1.00, 0.50,
+              0.45, 0.50, 0.50, 1.00
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+### Validation
+
+A matrix must be square with the label count as its dimension, symmetric,
+with a unit diagonal, every entry in `[-1, 1]`, and positive semi-definite.
+Symmetry and the unit diagonal are checked to `1e-12`; positive
+semi-definiteness through the eigenvalues (QuantLib
+`SymmetricSchurDecomposition`), which must all be `>= -1e-10`, so a
+rank-deficient matrix such as `rho = 1` on every pair (eigenvalue 0) is
+accepted. No repair is applied to the matrix as supplied.
+
+### Rejected requests
+
+Each is a `400` naming the matrix (by position, `correlations[i]`, with the
+id appended) and the rule: a missing `id`; fewer than two labels, an empty or
+duplicate label; `n_rows`/`n_cols` different from the label count; a `values`
+(or `quote_ids`) length other than `n_rows * n_cols`; a non-finite entry or
+one outside `[-1, 1]` (the entry is named by its pair of labels); a diagonal
+entry other than 1; an asymmetric pair, e.g. `correlations[0].values: not
+symmetric, (SPX, SX5E) = 0.61 but (SX5E, SPX) = 0.6 (matrix 'QUAD')`; a
+matrix that is not positive semi-definite,
+`correlations[QUAD]: not positive semi-definite (smallest eigenvalue -0.8)`;
+the same `id` twice. An unknown `quote_id` is a `404`. A product that names a
+label the matrix does not have is a `400` naming the label.
+
 ## FX swap helper
 
 `FxSwapHelper` is a curve pillar (`pricing.rates.curves[].points[]`) that
@@ -956,6 +1021,352 @@ both exchanges reported in USD and in EUR, the same struck at its fair rate
 (NPV zero), USD SOFR vs EUR ESTR - 15 bp with both exchanges (fair spread =
 the collateral curve's 5Y basis pillar) and with the final exchange only,
 and USD 4.10% fixed vs EUR Euribor 3M received, reported in EUR.
+
+## Structured notes
+
+`POST /price-structured-note` prices notes on baskets of equity indices by
+Monte Carlo: autocallables (classic, snowball, step-down), Phoenix coupons
+with or without memory, low-hurdle finals, reverse convertibles, European or
+daily-close capital barriers with geared puts, and upside participation.
+There is one declarative payoff: a strip of observation events, each with
+an optional autocall trigger, an optional coupon trigger and a coupon, a
+coupon carry rule and a capital-protection block; every product shape is a
+configuration of those fields, never a product of its own. Market data is
+the shared `pricing` block: `EquityUnderlyingSpec` (spot, dividend curve,
+currency), `VolSurfaceSpec` with a `BlackVolSpec` payload (constant, term or
+strike x expiry surface), yield curves, `FxSpotSpec` and the correlation
+matrices of "Correlation matrices". Nothing product-specific is in
+`pricing`. The two factsheet transcriptions and the synthetic cases are in
+`examples/data/structured_note/` (its README maps every factsheet line to a
+field; every market number there is a placeholder).
+
+### Request
+
+```json
+{
+  "pricing": { "as_of_date": "2026-10-21",
+               "quotes": [ { "id": "SPX_SPOT", "kind": "Price", "value": 6000.0, "quote_type": "Curve" }, "..." ],
+               "rates": { "curves": [ { "id": "USD_SOFR_OIS", "...": "OIS helpers" },
+                                      { "id": "SPX_DIV", "...": "flat 2 % zero curve" },
+                                      { "id": "CHF_FLAT", "...": "CHF rate curve (quanto drift)" } ] },
+               "volatility": { "vol_surfaces": [ { "id": "SPX_VOL", "payload_type": "BlackVolSpec",
+                                                   "payload": { "base": { "shape": "Constant", "constant_vol": 0.2, "...": "..." } } },
+                                                 { "id": "CHFUSD_VOL", "...": "FX vol, Constant or term" } ] },
+               "equity": { "equity_underlyings": [ { "id": "SPX", "currency": "USD", "spot_quote_id": "SPX_SPOT",
+                                                     "dividend_yield_curve_id": "SPX_DIV" },
+                                                   { "id": "SMI", "currency": "CHF", "...": "..." } ] },
+               "fx": { "spots": [ { "id": "CHFUSD_SPOT", "base_currency": "CHF", "quote_currency": "USD", "rate": 1.25, "...": "..." } ] },
+               "correlations": { "matrices": [ { "id": "QUAD_INDEX_CORR", "labels": ["SMI", "SPX", "SX5E", "NKY"],
+                                                 "values": { "n_rows": 4, "n_cols": 4, "values": [ 1.0, 0.6, "..." ] } } ] } },
+  "notes": [
+    {
+      "trade_id": "XS2741509801",
+      "currency": "USD",
+      "notional": 1000.0,
+      "underlyings": [
+        { "underlying_id": "SMI", "volatility_id": "SMI_VOL", "initial_level": 12000.0,
+          "quanto": { "discounting_curve": "CHF_FLAT", "fx_spot_id": "CHFUSD_SPOT",
+                      "fx_volatility_id": "CHFUSD_VOL", "fx_underlying_correlation": -0.1 },
+          "historical_levels": [ { "date": "2026-06-29", "value": 11400.0 } ] },
+        { "underlying_id": "SPX", "volatility_id": "SPX_VOL", "initial_level": 6000.0,
+          "historical_levels": [ { "date": "2026-06-29", "value": 6300.0 } ] },
+        "..."
+      ],
+      "performance_rule": "WorstOf",
+      "events": [
+        { "observation_date": "2025-12-29", "coupon": 0.07 },
+        { "observation_date": "2026-06-29", "payment_date": "2026-07-06", "autocall_trigger": 1.0, "coupon": 0.07 },
+        "...",
+        { "observation_date": "2031-06-27", "payment_date": "2031-07-07", "autocall_trigger": 1.0, "coupon": 0.07 }
+      ],
+      "coupon_rule": { "memory": true, "pay_only_on_call": true },
+      "capital": { "barrier": 0.6, "monitoring": "European", "put_strike": 1.0, "participation": 1.0 },
+      "maturity_payment_date": "2031-07-07",
+      "discounting_curve": "USD_SOFR_OIS",
+      "funding_spread_bp": 100.0,
+      "correlation_id": "QUAD_INDEX_CORR",
+      "monte_carlo": { "paths": 65536, "seed": 42, "sequence": "Sobol", "antithetic": true, "brownian_bridge": true }
+    }
+  ],
+  "diagnostics": { "market": true, "decomposition": true, "checks": true, "distribution": true, "timing": true, "sample_paths": 3 }
+}
+```
+
+`StructuredNote` (one per entry of `notes`, priced on its own; paths are not
+shared between notes):
+
+| Field | Meaning |
+| --- | --- |
+| `trade_id` | Echoed in the response. Required. |
+| `currency` | ISO code of the note: coupons, redemption and NPV. Required. |
+| `notional` | Coupons and the redemption are fractions of it. Presence-required, `> 0`. |
+| `underlyings[]` | The basket, at least one entry, ids distinct. Each: `underlying_id` (an `EquityUnderlyingSpec`, whose `currency` is required here), `volatility_id` (a `VolSurfaceSpec` with a `BlackVolSpec` payload: constant or term vols step exactly between observation dates; a strike x expiry surface makes the simulation Dupire local-vol and requires `monte_carlo.steps_per_year`), `initial_level` (the strike fixing every performance `S(t) / initial_level` is measured against; presence-required, `> 0`), `quanto` (present iff the underlying's currency differs from the note's: `discounting_curve` = the rate curve of the underlying's currency, `fx_spot_id` = an `FxSpotSpec` quoting the two currencies in either direction, `fx_volatility_id` = a constant or term `BlackVolSpec`, `fx_underlying_correlation` in `[-1, 1]`, presence-required), `historical_levels[]` (`{date, value}` closes on past dated observation dates; a past observation without one is a `400` naming the date). |
+| `performance_rule` | `WorstOf`, `BestOf` or `Average` of the underlyings' performances. Presence-required. |
+| `events[]` | Strictly increasing `observation_date`s; the last is the final observation. `autocall_trigger` present: `perf >= trigger` ends the note (notional plus this coupon plus the memory on `payment_date`). `coupon_trigger` present: `perf >= trigger` earns `coupon` plus the memory, paid on `payment_date` or held (`pay_only_on_call`). Both present (Phoenix with a call): the coupon test runs first. Neither: an accrual-only event, `coupon` joins the memory, nothing is observed or paid (`coupon_rule.memory` must be true, `payment_date` absent). `payment_date` is required iff a trigger is present and must be on or after the observation date; `coupon` is required with `coupon_trigger` and on accrual-only events. The final event must carry a trigger. |
+| `coupon_rule` | `memory` (a missed coupon is added to a memory paid with the next coupon; the memory is a sum of amounts) and `pay_only_on_call` (true = Athena / snowball: earned coupons are held until a call or the final event; false = Phoenix: paid on their `payment_date`). Both presence-required. |
+| `capital` | `barrier` in `(0, 1]`, `monitoring` (`European`: tested on the final observation; `DailyClose`: breached when the basket performance is below the barrier on any simulated close), `put_strike` (default 1), `participation` (default 1); when breached the redemption is `1 - participation x max(put_strike - perf_final, 0)`. `knocked_in` is presence-required with `DailyClose` when an event is on or before the valuation date, absent otherwise. |
+| `upside` | Optional: `participation x max(perf_final - strike, 0)`, capped at `cap` when present, added to the redemption when the note is not called. |
+| `maturity_payment_date` | Payment date of the redemption when the note is not called; on or after the final observation. Required. |
+| `discounting_curve`, `funding_spread_bp` | The note-currency curve and a flat continuously compounded zero spread added on top for discounting (default 0). |
+| `correlation_id` | A `CorrelationMatrixSpec` whose labels are exactly the basket's ids. Required with two or more underlyings; must be absent with one (a 1 x 1 unit matrix is used). |
+| `monte_carlo` | `paths` (presence-required, even with `antithetic`), `seed` (default 42; `> 0` with Sobol), `sequence` (`Sobol` default, or `PseudoRandom`), `antithetic` (default true), `brownian_bridge` (default true; must be false with `PseudoRandom`), `steps_per_year` (required with a surface vol or a `DailyClose` barrier, must be absent otherwise). |
+
+Top-level: `greeks` (schema-ready, a `501` in this version) and `diagnostics`
+(`market`, `decomposition`, `checks`, `distribution`, `timing`, each false
+by default, and `sample_paths`, at most 100, only with `distribution`).
+
+### The two factsheets in short
+
+Both IDAD notes are worst-of autocalls on SMI / SPX / SX5E / NKY in USD, so
+three underlyings carry a `quanto` block. BNP XS2741509801: 7 % per
+half-year snowball coupon, first observation at 12 months, so one
+accrual-only event (`{observation_date, coupon: 0.07}`) precedes eleven dated
+events with `autocall_trigger: 1.0` (the coupon test is the call test), 60 %
+European barrier, `coupon_rule = {memory: true, pay_only_on_call: true}`.
+Santander XS3109492564: 2.5 % per quarter, three accrual-only events then
+twenty quarterly 100 % autocalls and a final event with `coupon_trigger: 0.8`
+and no `autocall_trigger` (the 80 % low hurdle: at the final observation a
+call and a coupon-plus-redemption pay the same amounts on the same date), 60 %
+European barrier. A reverse convertible is `coupon_trigger: 0.0` on every
+event and no `autocall_trigger`; a step-down is a per-event trigger; a
+Phoenix is `pay_only_on_call: false`; a geared put is `participation > 1`.
+
+### Response
+
+One row per note, in request order.
+
+| Field | Meaning |
+| --- | --- |
+| `npv`, `npv_pct_of_notional`, `standard_error` | The price in the note currency, as a percentage of the notional, and its Monte Carlo standard error (absent when nothing was simulated). |
+| `paths`, `seed`, `status` | Paths simulated (0 for a `Called` / `Matured` note), the seed, `Alive` / `Called` / `Matured`. |
+| `legs` | `bond_redemption`, `coupons`, `capital_loss` (`<= 0`), each `{pv, standard_error}`; the three sum to `npv`. `upside` is in `bond_redemption`. |
+| `event_probabilities[]` | Per simulated event: `p_call` (present iff `autocall_trigger`), `p_coupon` (present iff a coupon test), both "alive at this event and the test holds". |
+| `p_barrier_breach`, `expected_life_years` | Breach probability; `E[t]` of the call (or the final observation), Actual/365 (Fixed) from the valuation date. |
+| `terms` | Every booked field as understood, defaults filled, each event flagged `accrual_only` / `final` / `resolved_from_history`. Check it before trusting the price. |
+| `seasoning` | How the past was resolved: per past event the levels, performances, basket performance, call and coupon outcomes, coupon paid, memory after; `memory_carried` into the simulation; `next_event_index`; for a decided note `known_payment_date` and `known_payment`. |
+| `model` | Per underlying `vol_shape`, `local_vol`, `quanto_drift` (rate units, at the first observation); `observation_dates_only`, `time_steps`, `time_grid`, `sequence_dimension`. |
+| `greeks` | The bump-and-reprice sensitivities below, present iff `greeks` was in the request. |
+| `market`, `decomposition`, `checks`, `distribution`, `timing` | The diagnostic blocks below, each present iff its flag was set and something was simulated. |
+
+### Diagnostics
+
+Every block is computed from the same paths as the price, so the parts add
+up to the headline. The definitions below are the contract (they are also
+the doc comments of `flatbuffers/fbs/structured_note_response.fbs`).
+
+`market` (deterministic, no simulation): `observation_dates` (the simulated
+dated events); per underlying `spot`, `forwards[]` = `spot x D_div(t) /
+D_note(t)` with `D_div` the process's dividend curve (the
+`QuantoTermStructure` for a quanto underlying, so the quanto drift is in the
+forward) and `D_note` the discounting curve without the funding spread, at
+the grid time `t`; `implied_dividend_yields[]` and `implied_rates[]`, the
+continuously compounded rates `-ln(D(t_j) / D(t_{j-1})) / (t_j - t_{j-1})`
+of the underlying's own dividend curve and of its own currency's rate curve
+between consecutive observation dates (the first from the valuation date);
+`atm_vols[]` = the Black vol to each observation date at that date's
+forward; `barrier_vols[]` = the Black vol at `capital.barrier x
+initial_level`, equal to `atm_vols` unless the vol is a strike x expiry
+surface; `quanto_drift_bp` = `-rho x sigma_S x sigma_FX x 1e4` with the vols
+to the final simulated observation date (`sigma_S` at `initial_level`,
+`sigma_FX` at the FX spot). `payment_dates` = the simulated events' payment
+dates followed by `maturity_payment_date` when it differs, with
+`discount_factors` (plain curve) and `discount_factors_with_funding`.
+`correlation_labels` / `correlation` = the matrix as used, row-major, in the
+note's underlying order (`[1]` for a single underlying; never repaired: a
+matrix that is not positive semi-definite is a `400` at parse).
+
+`decomposition`: per simulated dated event `p_call` / `p_coupon` (the values
+of `event_probabilities`), `pv_coupons` (PV of the coupons paid on that
+event's payment date, memory included) and `pv_redemption` (PV of the
+notional returned there on a call, or of the redemption before any loss,
+upside included, on `maturity_payment_date` for the final event);
+`sum(pv_coupons) = legs.coupons.pv` and `sum(pv_redemption) =
+legs.bond_redemption.pv`, less any flow the past already fixed (those are in
+`seasoning`). `p_survive_to_maturity` (`= 1 - sum(p_call)`), `p_breach`,
+`expected_life_years`, and `expected_loss_given_breach` = `E[loss x
+1{breach}] / p_breach` with `loss = participation x max(put_strike -
+perf_final, 0)`, undiscounted, a positive fraction of the notional, absent
+when no path breached. Bucket standard errors are on `legs`.
+
+`checks`: `running_means[]` = the NPV estimate and its standard error after
+1/4, 1/2, 3/4 and all of the samples in simulation order (`paths` = samples,
+or 2 x samples with antithetic; a fraction is omitted when its sample count
+would be 0 or repeat the previous one); `deterministic_forward_npv` = the
+payoff walked once along the forward path (every underlying at its `market`
+forward on every grid point, zero volatility, the same state machine, no
+random numbers; at zero vol the Monte Carlo price equals it);
+`correlation_one_npv` / `correlation_zero_npv` with their standard errors =
+two extra runs on the same stream, paths, seed and grid with every
+off-diagonal correlation forced to 1 (QuantLib's `StochasticProcessArray`
+takes the spectral pseudo-square-root, so the rank-one matrix needs no
+tweak) and to 0 (the identity); a worst-of structure is short correlation,
+so `correlation_one_npv >= npv >= correlation_zero_npv` up to Monte Carlo
+noise; with a single underlying both are the headline and no extra run is
+made. `bond_only_npv` = `notional x DF_funding(maturity_payment_date)`.
+
+`distribution` (over the individual simulated paths, each path of an
+antithetic pair on its own; the pairs are averaged for the price statistics
+only): `basket_performance_quantiles[]` per simulated observation date, the
+5 / 25 / 50 / 75 / 95 % quantiles of the basket performance
+(`performance_rule` applied, recorded whether or not the note is still alive
+on that path), quantile = linear interpolation between order statistics, `h
+= (n - 1) p`, `q = x[floor(h)] + (h - floor(h)) (x[floor(h) + 1] -
+x[floor(h)])` on the ascending values (R / NumPy default); `payout_q05` ..
+`payout_q95` of the undiscounted total payout per path as a fraction of the
+notional (every coupon and redemption paid after the valuation date, loss
+and upside included, plus any flow the past already fixed, the same on every
+path); `payout_histogram[]` = 20 bins of equal width between the smallest
+and the largest payout, `lower_k = min + k (max - min) / 20`, lower edge
+inclusive, upper exclusive except the last, counts summing to `paths` (all
+bins have zero width and every path is in the first one when every path pays
+the same); `sample_paths[]` = the first `sample_paths` paths in simulation
+order (path, its antithetic, next path, ...): `basket_performances[]` per
+observation date, `payout`, `payout_pv` (discounted on the funding curve;
+its average over the paths is `npv / notional`), `called_on` (absent when
+the path reached the final event), `breached`. Raw underlying levels are
+never returned.
+
+`timing`: wall-clock milliseconds per stage: `market_build` (curves, quanto
+curves, grid, processes), `simulation` (path generation and payoff walk
+together: the path engine hands each path to the walk as it is generated,
+the two are not separable), `deterministic_forward`, `correlation_one`,
+`correlation_zero` (only when run), `diagnostics` (sorting and summarising
+the per-path records); `total_milliseconds` covers the whole note.
+
+### Greeks
+
+`greeks` in the request (`{}` for the defaults, or any of `spot_bump`,
+`vol_bump`, `correlation_bump`, `funding_bump_bp`, `rate_bump_bp`, each
+finite and `> 0`) turns on bump-and-reprice sensitivities. Every bumped run
+is a full simulation on **common random numbers**: the same seed, paths,
+grid and random sequence as the price, so the per-path difference between
+the bumped and the base run is what is averaged, and its standard error is
+small even where the price's is not. Cost: `1 + 2N + N + 3` simulations for
+`N` underlyings (`1 + 2 + 1 + 2` for a single underlying, which has no
+correlation sensitivity): the BNP note (4 underlyings) is 16 runs, about
+21 s of engine time at 65 536 Sobol paths against 1.5 s for the plain
+price. The JSON gateway's RPC deadline is 10 s and a deployment adds its
+own (`QUANTRA_REQUEST_BUDGET_MS`, the proxy's route timeout; the engine
+checks the budget before every extra run and returns `504` when it has
+expired), so size the paths of a Greeks request to the deadline: the BNP
+Greeks example uses 16 384 paths (about 6 s through the gateway). Every
+sensitivity is in the note currency,
+scaled to the unit move, and carries `<name>_standard_error`, the Monte
+Carlo standard error of the per-sample difference (the path engine's
+estimator on the differences, not a difference of two standard errors). A
+`greeks` block on a note whose past already decided it (`Called` /
+`Matured`) is a `400`: there is nothing to bump. The bump sizes used are
+echoed in the block.
+
+| Field | Definition |
+| --- | --- |
+| `underlyings[].delta` | NPV change per +1 % of the spot: central difference, the spot quote bumped to `spot x (1 +/- spot_bump)`, `(V+ - V-) / (2 spot_bump) x 0.01`. Only the spot moves: the initial level (strike fixing), the dividend curve and the volatility stay (sticky strike for a surface, whose local vol is unchanged in absolute strike). |
+| `underlyings[].gamma` | Change of `delta` per +1 % of the spot: `(V+ - 2 V0 + V-) / spot_bump^2 x 0.01^2`. |
+| `underlyings[].vega` | NPV change per +1 vol point: the underlying's Black volatility rebuilt with every value shifted by `+vol_bump` (the constant, every node of a term vol, every entry of a strike x expiry surface, from which the Dupire local vol is re-derived), `(V(sigma + vol_bump) - V0) / vol_bump x 0.01`. For a quanto underlying the shifted vol also enters the quanto drift `-rho sigma_S sigma_FX`. |
+| `correlation_sensitivity` | NPV change per +0.01 on every off-diagonal correlation: every entry shifted by `+correlation_bump` and clipped to `[-1, 1]`, `(V(rho + bump) - V0) / correlation_bump x 0.01`. Absent for a single underlying. A worst-of structure is long correlation (its coupons and calls become likelier, its put cheaper), so it is normally positive. |
+| `correlation_bump_repaired`, `correlation_bumped` | When the bumped matrix is not positive semi-definite (smallest eigenvalue below `-1e-10`) it is repaired before the run: `V diag(max(lambda, 0)) V^T` (`SymmetricSchurDecomposition`), rescaled to unit diagonal; the flag says so and `correlation_bumped` is the matrix actually used (row-major, underlying order, after clipping and any repair). A 2 x 2 matrix never needs the repair; a singular 3 x 3 one bumped uniformly does. Absent / `false` for a single underlying. |
+| `funding_dv01` | NPV change per +1 bp of funding spread: `funding_spread_bp + funding_bump_bp` on the discounting only (the processes still drift on the plain curve), `(V(s + bump) - V0) / funding_bump_bp`. Negative for any note that pays. |
+| `rho` | NPV change per +1 bp parallel move of `discounting_curve`: a continuously compounded zero spread of `+rate_bump_bp` (`ZeroSpreadedTermStructure`, Actual/365 (Fixed)) on the note curve, used both as the processes' risk-free curve and under the funding spread for discounting, `(V(r + bump) - V0) / rate_bump_bp`. A note-currency underlying's forward rises with it; a quanto underlying's drift `r_local - q - rho sigma_S sigma_FX` does not move (its quanto curve is rebuilt on the shifted note curve, which cancels), so for a quanto basket `rho` is mostly the discounting. |
+
+Each bumped run adds a `timing` stage when `timing` is on:
+`greek_spot_up_<id>`, `greek_spot_down_<id>`, `greek_vol_<id>` per
+underlying, `greek_correlation` (two or more underlyings), `greek_funding`,
+`greek_rate`, after the diagnostic stages.
+
+The Python reference reproduces every bumped market from the request JSON
+exactly as the engine rebuilds it and forms the same per-sample
+differences on the same stream, so the gate compares every Greek, its
+standard error and the bumped matrix to the print precision (12 decimals),
+the surface-vol case included (the bumped surface is rebuilt on both sides,
+there is no adapter around the original object).
+
+### Pricing conventions
+
+- Model: per underlying a `GeneralizedBlackScholesProcess(spot, dividend',
+  r_note, vol)` where `r_note` is `discounting_curve` without the funding
+  spread and `dividend'` is the underlying's dividend curve, or for a quanto
+  underlying the `QuantoTermStructure(dividend, riskFree = r_note, foreign =
+  quanto.discounting_curve, sigma_S at initial_level, sigma_FX at the FX
+  spot, rho)`, so the drift is `r_local - q - rho sigma_S sigma_FX`. `rho` is
+  QuantLib's convention: the correlation with the FX rate quoted as
+  underlying-currency units per note-currency unit (CHF per USD for a CHF
+  index in a USD note); the other quoting direction flips its sign. Positive
+  `rho` lowers the drift. The processes are correlated by the
+  `StochasticProcessArray` (spectral pseudo-square-root).
+- Grid: Actual/365 (Fixed) years from the valuation date to every future
+  dated observation (accrual-only events are not observed); with
+  `steps_per_year` each interval is split into `ceil(length x
+  steps_per_year)` equal log-Euler steps; without it the steps are the
+  exact lognormal ones. A `DailyClose` barrier is tested on the simulated
+  closes only, with no continuity correction (the barrier is discrete by
+  contract); set `steps_per_year` to the trading days per year.
+- Random numbers: `Sobol` + `brownian_bridge` = `SobolBrownianBridgeRsg`
+  (Diagonal ordering, JoeKuoD7 direction integers); `Sobol` without the
+  bridge = `SobolRsg` with JoeKuoD7 through the inverse normal;
+  `PseudoRandom` = Mersenne Twister. The dimension is `underlyings x steps`,
+  consumed time-major; the antithetic path negates every draw and the pair
+  is one sample of the standard error. The Python reference
+  (`tests/contract/ql_reference.py`) reproduces the stream, so the gate
+  compares the two to the print precision.
+- Discounting: every cash flow at its payment date on
+  `ZeroSpreadedTermStructure(discounting_curve, funding_spread_bp / 1e4,
+  Continuous, Annual, Actual/365 (Fixed))`; the processes drift on the plain
+  curve.
+- Seasoning: events on or before the valuation date are resolved from
+  `historical_levels` through the same walk; a note the past already decided
+  is not simulated (`npv` = the known payment discounted when it is still
+  ahead, 0 otherwise, `paths = 0`). A past Phoenix coupon paid after the
+  valuation date is added to an `Alive` note's NPV with zero standard error.
+- Standard errors are the sample standard error of the (antithetic)
+  estimator; with Sobol it is an indication, not a confidence bound.
+
+### Rejected requests
+
+Each is a `400` naming the field (`notes[<i>].<path>: ...`): an empty
+`notes`, `underlyings` or `events`; a missing, non-positive or non-finite
+`notional` or `initial_level`; a duplicate `underlying_id`; a missing
+`performance_rule`, `coupon_rule.memory` / `pay_only_on_call`,
+`capital.barrier` (or outside `(0, 1]`) / `monitoring`, `monte_carlo.paths`;
+events not strictly increasing; a final event without a trigger; an
+accrual-only event with a `payment_date`, without a `coupon` or without
+`coupon_rule.memory`; a `coupon_trigger` without a `coupon`; a trigger
+without a `payment_date`, or one before the observation date; a negative
+trigger, coupon, `put_strike` or `participation`; `maturity_payment_date`
+before the final observation; a duplicate `historical_levels` date, a level
+after the valuation date, or a past observation without a level; a `quanto`
+block on a note-currency underlying or none on a foreign one, its
+correlation missing or outside `[-1, 1]`, an FX spot of another pair, an FX
+vol that is a surface; an `EquityUnderlyingSpec` without `currency`;
+`correlation_id` missing with two or more underlyings or present with one,
+or whose labels are not exactly the basket; a `DailyClose` barrier or a
+surface vol without `steps_per_year`, `steps_per_year` with constant / term
+vols and a European barrier, or 0; `knocked_in` missing when required or
+present otherwise; odd `paths` with `antithetic`; Sobol `seed` 0;
+`brownian_bridge` with `PseudoRandom`; `upside.strike` / `participation`
+missing or `cap <= 0`; a surface whose local vol cannot be evaluated along
+the paths (names the vol ids and the remedy); `diagnostics.sample_paths`
+above 100, without `distribution`, or above `paths`. Missing required
+strings and tables (`trade_id`, `currency`, `volatility_id`,
+`discounting_curve`, `coupon_rule`, `capital`, `maturity_payment_date`,
+`monte_carlo`, ...) are rejected by the JSON parser. A `greeks` bump that
+is not finite and `> 0` (`PriceStructuredNoteRequest.greeks.<field>`), or
+`greeks` on a note whose past already decided it (`notes[<i>]: no Greeks
+for a note that is not alive`), is a `400`. An unknown underlying, vol,
+curve, FX spot or correlation id is a `404`.
+
+### Known limits
+
+Composite (non-quanto) foreign underlyings are not supported (the FX rate
+is not simulated); the funding spread is flat (use a funding curve as
+`discounting_curve` for a term structure); best-of / average baskets have
+no weights; issuer-callable notes (Longstaff-Schwartz), lookbacks, coupon
+floors, FX-settled notes and scripted payoffs are out of scope; paths are
+not shared across the notes of one request; the correlation sensitivity is
+one uniform off-diagonal bump (no per-pair Greeks); delta and vega are per
+underlying (no cross-gammas, no vol-of-vol). The correlation matrix of the
+price is validated (symmetric, unit diagonal, positive semi-definite) and
+never repaired; only the bumped matrix of the Greeks is repaired, and the
+response says so.
 
 ## Swaption greeks: units and definitions
 

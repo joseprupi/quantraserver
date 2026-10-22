@@ -1600,6 +1600,7 @@ BlackVolEntry parseBlackVol(
         default: QUANTRA_INVALID_ARGUMENT("Unsupported BlackVolSpec shape for vol id: " + id);
     }
 
+    BlackVolEntry retained; // the inputs, for shiftedBlackVol
     auto build_equity_black_vol_surface =
         [&]() -> std::pair<QuantLib::Handle<QuantLib::BlackVolTermStructure>, double> {
         switch (shape) {
@@ -1647,6 +1648,8 @@ BlackVolEntry parseBlackVol(
 
                 auto qlVol =
                     std::make_shared<QuantLib::BlackVarianceCurve>(ref, dates, vols, dc, true);
+                retained.pillarDates = dates;
+                retained.termVols = vols;
                 return {
                     QuantLib::Handle<QuantLib::BlackVolTermStructure>(qlVol),
                     std::numeric_limits<double>::quiet_NaN()};
@@ -1713,6 +1716,10 @@ BlackVolEntry parseBlackVol(
                 } else {
                     qlVol->setInterpolation<QuantLib::Bilinear>();
                 }
+                retained.pillarDates = dates;
+                retained.strikes = strikes;
+                retained.surfaceVols = blackVolMatrix;
+                retained.bicubic = surfaceInterp == SurfaceInterpolationMode::Bicubic;
                 return {
                     QuantLib::Handle<QuantLib::BlackVolTermStructure>(qlVol),
                     std::numeric_limits<double>::quiet_NaN()};
@@ -1911,6 +1918,10 @@ BlackVolEntry parseBlackVol(
                 } else {
                     qlVol->setInterpolation<QuantLib::Bilinear>();
                 }
+                retained.pillarDates = dates;
+                retained.strikes = strikes;
+                retained.surfaceVols = blackVolMatrix;
+                retained.bicubic = surfaceInterp == SurfaceInterpolationMode::Bicubic;
                 return {
                     QuantLib::Handle<QuantLib::BlackVolTermStructure>(qlVol),
                     std::numeric_limits<double>::quiet_NaN()};
@@ -1922,21 +1933,96 @@ BlackVolEntry parseBlackVol(
     };
 
     auto built = build_equity_black_vol_surface();
-    BlackVolEntry entry;
+    BlackVolEntry entry = retained;
     entry.handle = built.first;
     entry.constantVol = built.second;
+    entry.shapeFb = shape;
     entry.referenceDate = ref;
     entry.calendar = cal;
     entry.calendarFb = b->calendar().value();
     entry.businessDayConvention = bdc;
     entry.businessDayConventionFb = b->business_day_convention().value();
     entry.dayCounter = dc;
+    entry.allowExtrapolation = payload->allow_extrapolation();
     if (payload->allow_extrapolation()) {
         entry.handle->enableExtrapolation();
     } else {
         entry.handle->disableExtrapolation();
     }
     return entry;
+}
+
+QuantLib::Handle<QuantLib::BlackVolTermStructure> shiftedBlackVol(
+    const BlackVolEntry& entry, double shift) {
+    if (!std::isfinite(shift)) {
+        QUANTRA_INVALID_ARGUMENT("Black vol shift must be finite");
+    }
+    const auto checkPositive = [&](double v) {
+        if (!(v > 0.0)) {
+            std::ostringstream msg;
+            msg << "Black vol shift " << shift << " makes a volatility non-positive (" << v << ")";
+            QUANTRA_INVALID_ARGUMENT(msg.str());
+        }
+    };
+    std::shared_ptr<QuantLib::BlackVolTermStructure> ts;
+    switch (entry.shapeFb) {
+        case quantra::enums::VolSurfaceShape_Constant: {
+            if (!std::isfinite(entry.constantVol)) {
+                QUANTRA_ERROR("Black vol entry has no constant vol to shift");
+            }
+            const double v = entry.constantVol + shift;
+            checkPositive(v);
+            ts = std::make_shared<QuantLib::BlackConstantVol>(
+                entry.referenceDate, entry.calendar, v, entry.dayCounter);
+            break;
+        }
+        case quantra::enums::VolSurfaceShape_AtmMatrix2D: {
+            if (entry.pillarDates.empty() || entry.termVols.size() != entry.pillarDates.size()) {
+                QUANTRA_ERROR("Black vol entry has no term vols to shift");
+            }
+            std::vector<QuantLib::Volatility> vols;
+            vols.reserve(entry.termVols.size());
+            for (double v : entry.termVols) {
+                checkPositive(v + shift);
+                vols.push_back(v + shift);
+            }
+            ts = std::make_shared<QuantLib::BlackVarianceCurve>(
+                entry.referenceDate, entry.pillarDates, vols, entry.dayCounter, true);
+            break;
+        }
+        case quantra::enums::VolSurfaceShape_SmileCube3D:
+        case quantra::enums::VolSurfaceShape_SurfaceFromPrices: {
+            if (entry.pillarDates.empty() || entry.strikes.empty() ||
+                entry.surfaceVols.rows() != entry.strikes.size() ||
+                entry.surfaceVols.columns() != entry.pillarDates.size()) {
+                QUANTRA_ERROR("Black vol entry has no surface to shift");
+            }
+            QuantLib::Matrix m(entry.surfaceVols);
+            for (QuantLib::Size i = 0; i < m.rows(); ++i) {
+                for (QuantLib::Size j = 0; j < m.columns(); ++j) {
+                    m[i][j] = entry.surfaceVols[i][j] + shift;
+                    checkPositive(m[i][j]);
+                }
+            }
+            auto surface = std::make_shared<QuantLib::BlackVarianceSurface>(
+                entry.referenceDate, entry.calendar, entry.pillarDates, entry.strikes, m,
+                entry.dayCounter);
+            if (entry.bicubic) {
+                surface->setInterpolation<QuantLib::Bicubic>();
+            } else {
+                surface->setInterpolation<QuantLib::Bilinear>();
+            }
+            ts = surface;
+            break;
+        }
+        default: QUANTRA_ERROR("Black vol entry has an unsupported shape to shift");
+    }
+    if (entry.allowExtrapolation) {
+        ts->enableExtrapolation();
+    } else {
+        ts->disableExtrapolation();
+    }
+    return QuantLib::Handle<QuantLib::BlackVolTermStructure>(ts);
 }
 
 SwaptionVolEntry bumpSwaptionVolEntry(const SwaptionVolEntry& base, double volBump, int rollDays) {

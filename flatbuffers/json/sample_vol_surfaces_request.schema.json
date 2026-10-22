@@ -185,6 +185,22 @@
       "type" : "string",
       "enum": ["Coupon", "NotionalExchange"]
     },
+    "quantra_enums_BasketPerformanceRule" : {
+      "type" : "string",
+      "enum": ["WorstOf", "BestOf", "Average"]
+    },
+    "quantra_enums_CapitalBarrierMonitoring" : {
+      "type" : "string",
+      "enum": ["European", "DailyClose"]
+    },
+    "quantra_enums_RandomSequence" : {
+      "type" : "string",
+      "enum": ["Sobol", "PseudoRandom"]
+    },
+    "quantra_enums_StructuredNoteStatus" : {
+      "type" : "string",
+      "enum": ["Alive", "Called", "Matured"]
+    },
     "quantra_Flow" : {
       "type" : "string",
       "enum": ["NONE", "FlowInterest", "FlowPastInterest", "FlowNotional"]
@@ -2384,6 +2400,37 @@
       },
       "additionalProperties" : false
     },
+    "quantra_CorrelationMatrixSpec" : {
+      "type" : "object",
+      "description" : "Correlation matrix between the underlyings of a basket product, referenced\nby id from the trade (`StructuredNote.correlation_id`). There is no\ncorrelation market: the matrix is an input (historical estimate, dealer\nmark) and the engine only validates it. It must be square, symmetric,\nwith a unit diagonal and every entry in [-1, 1], and positive\nsemi-definite (a Cholesky factorisation must succeed); otherwise the\nrequest is a 400 naming the first offending pair of labels, or \"not\npositive semi-definite\". No repair is applied to the matrix as supplied;\na bump-and-reprice correlation sensitivity may repair the BUMPED matrix\nand says so in the response.",
+      "properties" : {
+        "id" : {
+                "type" : "string",
+                "description" : "Identifier referenced by trades (e.g. \"QUAD_INDEX_HIST_2Y\"). Required;\nunique within pricing.correlations.matrices."
+              },
+        "labels" : {
+                "type" : "array", "items" : {"type" : "string"},
+                "description" : "Ids of the underlyings the rows/columns refer to, in matrix order:\n`EquityUnderlyingSpec.id` (or `FxSpotSpec.id` for products that\nsimulate an FX rate). Required; at least two distinct entries. A\ntrade referencing this matrix must have exactly these underlyings\n(any order; the engine permutes), 400 naming the missing or extra\nlabel otherwise."
+              },
+        "values" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D",
+                "description" : "The matrix: n_rows = n_cols = len(labels), values row-major in label\norder, inline or via quote_ids into pricing.quotes. Required."
+              }
+      },
+      "required" : ["id", "labels", "values"],
+      "additionalProperties" : false
+    },
+    "quantra_CorrelationMarketData" : {
+      "type" : "object",
+      "description" : "Correlation market data grouped under the shared Pricing context.",
+      "properties" : {
+        "matrices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CorrelationMatrixSpec"},
+                "description" : "Correlation matrices referenced by id from basket products."
+              }
+      },
+      "additionalProperties" : false
+    },
     "quantra_RatesMarketData" : {
       "type" : "object",
       "description" : "Rates market data shared across interest-rate products.",
@@ -2522,6 +2569,10 @@
         "fx" : {
                 "$ref" : "#/definitions/quantra_FxMarketData",
                 "description" : "FX spot rates referenced by FX-implied curve helpers (FxSwapHelper,\nCrossCcyBasisHelper) and FX products. Optional."
+              },
+        "correlations" : {
+                "$ref" : "#/definitions/quantra_CorrelationMarketData",
+                "description" : "Correlation matrices between basket underlyings, referenced by id\nfrom basket products (`StructuredNote.correlation_id`). Optional;\nvalidated (symmetric, unit diagonal, |rho| <= 1, positive\nsemi-definite) on every request that carries the block, whether or\nnot a product references a matrix. Used by: structured notes."
               }
       },
       "required" : ["as_of_date"],

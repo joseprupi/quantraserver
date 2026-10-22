@@ -36,6 +36,7 @@ from quantra.PriceBasisSwapRequest import PriceBasisSwapRequestT
 from quantra.PriceFRARequest import PriceFRARequestT
 from quantra.PriceFxForwardRequest import PriceFxForwardRequestT
 from quantra.PriceCrossCurrencySwapRequest import PriceCrossCurrencySwapRequestT
+from quantra.PriceStructuredNoteRequest import PriceStructuredNoteRequestT
 from quantra.PriceCapFloorRequest import PriceCapFloorRequestT
 from quantra.PriceSwaptionRequest import PriceSwaptionRequestT
 from quantra.PriceCDSRequest import PriceCDSRequestT
@@ -60,6 +61,7 @@ from quantra.PriceBasisSwapResponse import PriceBasisSwapResponse
 from quantra.PriceFRAResponse import PriceFRAResponse
 from quantra.PriceFxForwardResponse import PriceFxForwardResponse
 from quantra.PriceCrossCurrencySwapResponse import PriceCrossCurrencySwapResponse
+from quantra.PriceStructuredNoteResponse import PriceStructuredNoteResponse
 from quantra.PriceCapFloorResponse import PriceCapFloorResponse
 from quantra.PriceSwaptionResponse import PriceSwaptionResponse
 from quantra.PriceCDSResponse import PriceCDSResponse
@@ -92,6 +94,7 @@ class Client:
         'fra': '/quantra.QuantraServer/PriceFRA',
         'fx_forward': '/quantra.QuantraServer/PriceFxForward',
         'cross_currency_swap': '/quantra.QuantraServer/PriceCrossCurrencySwap',
+        'structured_note': '/quantra.QuantraServer/PriceStructuredNote',
         'cap_floor': '/quantra.QuantraServer/PriceCapFloor',
         'swaption': '/quantra.QuantraServer/PriceSwaption',
         'cds': '/quantra.QuantraServer/PriceCDS',
@@ -256,6 +259,21 @@ class Client:
             'cross_currency_swap',
             request,
             PriceCrossCurrencySwapResponse
+        )
+    
+    def price_structured_notes(
+        self,
+        request: PriceStructuredNoteRequestT
+    ) -> PriceStructuredNoteResponse:
+        """Price structured notes on equity-index baskets (autocallables,
+        Phoenix / Athena coupons, capital barriers) by Monte Carlo: equity
+        underlyings, Black vols, FX spots/vols for quanto underlyings and a
+        correlation matrix in pricing; one result per note with its standard
+        error, terms echo, seasoning resolution and model echo."""
+        return self._call(
+            'structured_note',
+            request,
+            PriceStructuredNoteResponse
         )
     
     def price_cap_floors(
@@ -444,6 +462,18 @@ from quantra.PriceFxForward import PriceFxForwardT
 from quantra.CrossCurrencySwap import CrossCurrencySwapT
 from quantra.PriceCrossCurrencySwap import PriceCrossCurrencySwapT
 
+# Structured note (basket autocallables; correlation market data)
+from quantra.StructuredNote import StructuredNoteT
+from quantra.BasketUnderlying import BasketUnderlyingT
+from quantra.QuantoSpec import QuantoSpecT
+from quantra.ObservationEvent import ObservationEventT
+from quantra.CouponRule import CouponRuleT
+from quantra.CapitalProtection import CapitalProtectionT
+from quantra.UpsideParticipation import UpsideParticipationT
+from quantra.MonteCarloSpec import MonteCarloSpecT
+from quantra.CorrelationMatrixSpec import CorrelationMatrixSpecT
+from quantra.CorrelationMarketData import CorrelationMarketDataT
+
 # Cap/Floor
 from quantra.CapFloor import CapFloorT
 from quantra.PriceCapFloor import PriceCapFloorT
@@ -502,6 +532,7 @@ __all__ = [
     'PriceFRARequestT',
     'PriceFxForwardRequestT',
     'PriceCrossCurrencySwapRequestT',
+    'PriceStructuredNoteRequestT',
     'PriceCapFloorRequestT',
     'PriceSwaptionRequestT',
     'PriceCDSRequestT',
@@ -517,6 +548,7 @@ __all__ = [
     'PriceFRAResponse',
     'PriceFxForwardResponse',
     'PriceCrossCurrencySwapResponse',
+    'PriceStructuredNoteResponse',
     'PriceCapFloorResponse',
     'PriceSwaptionResponse',
     'PriceCDSResponse',
@@ -599,6 +631,16 @@ __all__ = [
     'PriceFxForwardT',
     'CrossCurrencySwapT',
     'PriceCrossCurrencySwapT',
+    'StructuredNoteT',
+    'BasketUnderlyingT',
+    'QuantoSpecT',
+    'ObservationEventT',
+    'CouponRuleT',
+    'CapitalProtectionT',
+    'UpsideParticipationT',
+    'MonteCarloSpecT',
+    'CorrelationMatrixSpecT',
+    'CorrelationMarketDataT',
     'CapFloorT',
     'PriceCapFloorT',
     'SwaptionT',
