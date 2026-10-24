@@ -472,6 +472,115 @@ TEST_F(StructuredNoteCollapseTest, SeasoningResolvesThePastBeforeSimulating) {
     }
 }
 
+// `is_final` (maturity-only observation) vs the zero-coupon workaround
+// (`coupon_trigger 0.0, coupon 0.0` on the last event): the Scotia shape (one
+// 100 % call with a premium, then the final date with the 75 % trigger and the
+// 250 % upside, no coupon). Same stream, same walk apart from the always-true
+// zero coupon test, so every number is bit-identical; the marker shows in the
+// terms echo and the final event carries no coupon probability.
+TEST_F(StructuredNoteCollapseTest, FinalMarkerEqualsTheZeroCouponWorkaround) {
+    std::cout << "\n=== Structured note: is_final vs coupon_trigger 0.0 / coupon 0.0 ==="
+              << std::endl;
+    const Date obs2y{20, QuantLib::October, 2028}, pay2y{25, QuantLib::October, 2028};
+    NoteMarket m(valuation);
+    m.addUnderlying("NDX", kSpot, 0.0043, 0.2246);
+    m.addUnderlying("RTY", kSpot, 0.0098, 0.2156);
+    m.addCorrelation("NDX_RTY", {"NDX", "RTY"}, 0.747);
+    auto makeTrade = [&](bool marker) {
+        auto t = baseTrade({"NDX", "RTY"}, "NDX_RTY");
+        t.events.push_back(event(obs1y, pay1y, 1.0, std::nullopt, 0.1475));
+        if (marker) {
+            ObservationEventData fin;
+            fin.observationDate = obs2y;
+            fin.paymentDate = pay2y;
+            fin.isFinal = true;
+            t.events.push_back(fin);
+        } else {
+            t.events.push_back(event(obs2y, pay2y, std::nullopt, 0.0, 0.0));
+        }
+        t.maturityPaymentDate = pay2y;
+        t.capital.barrier = 0.75;
+        t.upside = UpsideData{1.0, 2.5, std::nullopt};
+        t.monteCarlo.sequence = RandomSequenceKind::Sobol;
+        t.monteCarlo.brownianBridge = true;
+        t.monteCarlo.paths = 1 << 12;
+        return t;
+    };
+    const auto a = price(m, makeTrade(false));
+    const auto b = price(m, makeTrade(true));
+    std::cout << "  workaround " << a.npv << " marker " << b.npv << std::endl;
+    EXPECT_EQ(a.npv, b.npv);
+    EXPECT_EQ(*a.standardError, *b.standardError);
+    ASSERT_TRUE(a.legs && b.legs);
+    EXPECT_EQ(a.legs->bondRedemption.pv, b.legs->bondRedemption.pv);
+    EXPECT_EQ(a.legs->coupons.pv, b.legs->coupons.pv);
+    EXPECT_EQ(a.legs->capitalLoss.pv, b.legs->capitalLoss.pv);
+    EXPECT_EQ(*a.pBarrierBreach, *b.pBarrierBreach);
+    EXPECT_EQ(*a.expectedLifeYears, *b.expectedLifeYears);
+    EXPECT_GT(b.npv, 0.0);
+    EXPECT_GT(*b.pBarrierBreach, 0.0);
+    // Echo: both last events are `final`; only the marker one is `is_final`.
+    ASSERT_EQ(b.terms.events.size(), 2u);
+    EXPECT_TRUE(b.terms.events[1].final);
+    EXPECT_TRUE(b.terms.events[1].isFinal);
+    EXPECT_FALSE(b.terms.events[0].isFinal);
+    EXPECT_FALSE(b.terms.events[1].accrualOnly);
+    EXPECT_FALSE(a.terms.events[1].isFinal);
+    // Probabilities: the workaround's zero coupon test holds on every path
+    // that is still alive at the final (p_coupon = 1 - p_call at 1y); the
+    // marker has no coupon test, so no p_coupon (and no p_call) at the final.
+    ASSERT_EQ(a.eventProbabilities.size(), 2u);
+    ASSERT_EQ(b.eventProbabilities.size(), 2u);
+    EXPECT_NEAR(*a.eventProbabilities[1].pCoupon, 1.0 - *a.eventProbabilities[0].pCall, 1e-12);
+    EXPECT_FALSE(b.eventProbabilities[1].pCoupon.has_value());
+    EXPECT_FALSE(b.eventProbabilities[1].pCall.has_value());
+    EXPECT_EQ(*a.eventProbabilities[0].pCall, *b.eventProbabilities[0].pCall);
+
+    // Memory is NOT paid at an is_final event (no coupon test): with memory
+    // and zero vol from below the trigger, the workaround pays the carried
+    // 14.75 % at maturity, the marker pays nothing but the redemption.
+    {
+        NoteMarket zero(valuation);
+        zero.addUnderlying("NDX", 0.9 * kSpot, 0.0, 1e-8);
+        zero.addUnderlying("RTY", 0.9 * kSpot, 0.0, 1e-8);
+        zero.addCorrelation("NDX_RTY", {"NDX", "RTY"}, 0.747);
+        auto w = makeTrade(false), k = makeTrade(true);
+        w.couponRule.memory = k.couponRule.memory = true;
+        w.monteCarlo.paths = k.monteCarlo.paths = 4;
+        const auto rw = price(zero, w), rk = price(zero, k);
+        EXPECT_NEAR(rw.legs->coupons.pv, zero.df(pay2y) * kNotional * 0.1475, 1e-7 * kNotional);
+        EXPECT_NEAR(rk.legs->coupons.pv, 0.0, 1e-12);
+        EXPECT_NEAR(rw.legs->bondRedemption.pv, rk.legs->bondRedemption.pv, 1e-9 * kNotional);
+    }
+
+    // Seasoning: an is_final event in the past means the note has matured;
+    // the redemption (with the upside) is the known payment.
+    {
+        NoteMarket past(Date(22, QuantLib::October, 2028));
+        past.addUnderlying("NDX", 120.0, 0.0, 0.2);
+        past.addUnderlying("RTY", 115.0, 0.0, 0.2);
+        past.addCorrelation("NDX_RTY", {"NDX", "RTY"}, 0.747);
+        auto k = makeTrade(true);
+        for (auto& u : k.underlyings) {
+            u.historicalLevels.push_back({obs1y, 0.95 * kSpot}); // no call at 1y
+            u.historicalLevels.push_back({obs2y, u.underlyingId == "NDX" ? 120.0 : 115.0});
+        }
+        const auto r = price(past, k);
+        EXPECT_EQ(r.status, StructuredNoteStatus::Matured);
+        EXPECT_EQ(r.paths, 0u);
+        EXPECT_FALSE(r.standardError.has_value());
+        ASSERT_EQ(r.seasoning.events.size(), 2u);
+        EXPECT_FALSE(r.seasoning.events[1].called.has_value());
+        EXPECT_FALSE(r.seasoning.events[1].couponEarned.has_value());
+        EXPECT_NEAR(*r.seasoning.events[1].basketPerformance, 1.15, 1e-12);
+        // worst-of 1.15: upside 2.5 x 0.15 = 0.375 on top of the notional.
+        EXPECT_NEAR(*r.seasoning.knownPayment, 1.375, 1e-12);
+        EXPECT_EQ(*r.seasoning.knownPaymentDate, "2028-10-25");
+        EXPECT_NEAR(r.npv, past.df(pay2y) * kNotional * 1.375, 1e-9 * kNotional);
+        EXPECT_TRUE(r.terms.events[1].isFinal && r.terms.events[1].resolvedFromHistory);
+    }
+}
+
 // Rules that need the market: steps_per_year with constant vols, quanto.
 TEST_F(StructuredNoteCollapseTest, MarketDependentRulesAre400s) {
     NoteMarket m(valuation);

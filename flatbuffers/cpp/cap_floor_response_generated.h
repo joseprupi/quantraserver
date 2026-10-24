@@ -39,7 +39,12 @@ struct CapFloorLetT : public ::flatbuffers::NativeTable {
   double price = 0.0;
 };
 
-/// Individual caplet/floorlet detail.
+/// One accrual period of the underlying IBOR leg (one row per coupon that has
+/// not yet paid), present when `PriceCapFloor.include_details` is set. The
+/// row describes the period: dates, the index forward and the discount
+/// factor at the payment date. For a Collar the row is the same period for
+/// both the caplet and the floorlet; the strikes are the request's `strike`
+/// (cap) and `floor_strike`, identical on every row, and are not repeated here.
 struct CapFloorLet FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CapFloorLetT NativeTableType;
   typedef CapFloorLetBuilder Builder;
@@ -65,6 +70,8 @@ struct CapFloorLet FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::String *fixing_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_FIXING_DATE);
   }
+  /// Not populated in this version (serialised as 0.0 for every type); the
+  /// strike(s) are the request's `strike` / `floor_strike`.
   double strike() const {
     return GetField<double>(VT_STRIKE, 0.0);
   }
@@ -74,7 +81,8 @@ struct CapFloorLet FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double discount() const {
     return GetField<double>(VT_DISCOUNT, 0.0);
   }
-  /// Individual caplet/floorlet price.
+  /// Not populated in this version (serialised as 0.0): the per-period
+  /// option value is not split out of `npv`.
   double price() const {
     return GetField<double>(VT_PRICE, 0.0);
   }

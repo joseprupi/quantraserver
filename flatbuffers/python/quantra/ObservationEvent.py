@@ -37,8 +37,20 @@ np = import_numpy()
 # when the note has not ended there the capital test of
 # `CapitalProtection` runs on the same perf and the redemption is paid on
 # `StructuredNote.maturity_payment_date`. A final event with no trigger at
-# all is a 400. Events must be in strictly increasing `observation_date`
-# order; events on or before the valuation date are resolved from
+# all is a 400 unless it is marked `is_final`:
+#   is_final = true (maturity-only observation):
+#     nothing but the capital protection block (and `upside`, when present)
+#     is tested on this date; there is no coupon test and no call test, so
+#     `coupon`, `coupon_trigger` and `autocall_trigger` must be absent and
+#     the coupon memory is NOT paid here (there is no coupon test to pay it
+#     with; a factsheet whose final date pays the memory tests a coupon,
+#     see below). A final observation that ALSO tests a coupon or a call
+#     (Santander's 80 % hurdle: `coupon_trigger 0.8`; BNP's 100 % call:
+#     `autocall_trigger 1.0`) keeps using triggers; `is_final` is for the
+#     final date that only decides the redemption (the Scotia note: 75 %
+#     trigger and 250 % upside, no coupon, no call).
+# Events must be in strictly increasing `observation_date` order; events
+# on or before the valuation date are resolved from
 # `BasketUnderlying.historical_levels` and never simulated.
 class ObservationEvent(object):
     __slots__ = ['_tab']
@@ -112,8 +124,24 @@ class ObservationEvent(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
 
+    # True: this event is the final observation and only the capital
+    # protection block (and `upside`, if present) is tested there: no
+    # coupon test, no call test, unpaid coupons in the memory are not paid.
+    # `coupon`, `coupon_trigger` and `autocall_trigger` must be absent (400
+    # naming the field); `payment_date` is required and must equal
+    # `StructuredNote.maturity_payment_date` (400 otherwise); the event
+    # must be the last one (400), so there is at most one. Absent (or
+    # false): the rules above stand, the last event must carry a trigger
+    # and a final event with a trigger behaves as today.
+    # ObservationEvent
+    def IsFinal(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return None
+
 def ObservationEventStart(builder):
-    builder.StartObject(5)
+    builder.StartObject(6)
 
 def Start(builder):
     ObservationEventStart(builder)
@@ -148,6 +176,12 @@ def ObservationEventAddCoupon(builder, coupon):
 def AddCoupon(builder, coupon):
     ObservationEventAddCoupon(builder, coupon)
 
+def ObservationEventAddIsFinal(builder, isFinal):
+    builder.PrependBoolSlot(5, isFinal, None)
+
+def AddIsFinal(builder, isFinal):
+    ObservationEventAddIsFinal(builder, isFinal)
+
 def ObservationEventEnd(builder):
     return builder.EndObject()
 
@@ -164,6 +198,7 @@ class ObservationEventT(object):
         self.autocallTrigger = None  # type: Optional[float]
         self.couponTrigger = None  # type: Optional[float]
         self.coupon = None  # type: Optional[float]
+        self.isFinal = None  # type: Optional[bool]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -191,6 +226,7 @@ class ObservationEventT(object):
         self.autocallTrigger = observationEvent.AutocallTrigger()
         self.couponTrigger = observationEvent.CouponTrigger()
         self.coupon = observationEvent.Coupon()
+        self.isFinal = observationEvent.IsFinal()
 
     # ObservationEventT
     def Pack(self, builder):
@@ -206,5 +242,6 @@ class ObservationEventT(object):
         ObservationEventAddAutocallTrigger(builder, self.autocallTrigger)
         ObservationEventAddCouponTrigger(builder, self.couponTrigger)
         ObservationEventAddCoupon(builder, self.coupon)
+        ObservationEventAddIsFinal(builder, self.isFinal)
         observationEvent = ObservationEventEnd(builder)
         return observationEvent

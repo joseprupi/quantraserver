@@ -398,7 +398,9 @@ are deliberately not half-implemented:
 ## Current coverage (Cap/Floor)
 
 * Instruments: caps and floors on quarterly Euribor 3M and semiannual
-  Euribor 6M legs (constant per-trade strike, single notional).
+  Euribor 6M legs (constant per-trade strike, single notional), and a
+  collar (long 4% cap, short 2% floor via `floor_strike`) on the baseline
+  5Y quarterly Euribor 3M leg, whose NPV is the cap's minus the floor's.
 * Moneyness: strikes bracketing the ~3.1% forwards on both sides — 2% / 5%
   caps and 2% / 4% floors around a near-the-money 3.10% baseline — so the
   NPVs span intrinsic-dominated to pure time value.
@@ -417,9 +419,6 @@ are deliberately not half-implemented:
 These need reference-pricer or engine behaviour that is not there yet; they
 are deliberately not half-implemented:
 
-* **Collars** — the `CapFloorType` enum carries `Collar` on the wire, but
-  the server rejects it ("Collar not yet supported - use separate Cap and
-  Floor"), so no collar case exists.
 * **Volatility term structures / smiles** — the optionlet vol wire spec only
   accepts a constant vol (the server validates `shape=Constant`); caplet
   vol term structures, strike-dependent surfaces and stripped caplet

@@ -13,10 +13,12 @@ namespace quantra {
 
 namespace {
 
-// Process-level record of what is currently applied. One request at a time per
-// worker, so no synchronisation is needed (same model as the evaluation date).
-std::vector<QuantLib::Calendar> g_touched;
-std::string g_fingerprint;
+// Record of what the current request applied, owned by the worker thread
+// that serves it (thread_local: another thread's guard cannot reset or
+// re-fingerprint it). The holiday sets themselves live on QuantLib's shared
+// calendar implementations, i.e. process-wide (see the header).
+thread_local std::vector<QuantLib::Calendar> g_touched;
+thread_local std::string g_fingerprint;
 
 std::string at(const std::string& path, std::size_t i) {
     return path + "[" + std::to_string(i) + "]";

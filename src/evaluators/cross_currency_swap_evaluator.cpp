@@ -7,7 +7,6 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 
 #include <cmath>
-#include <iostream>
 #include <memory>
 
 namespace quantra {
@@ -112,9 +111,6 @@ CrossCurrencySwapPerSwap priceTrade(
             ExtractSwapLegFlows(built[i].full, *built[i].discount, ctx.asOf, out.legs[i].flows);
         }
     }
-
-    std::cout << "Cross-currency swap " << l0.currency << "/" << l1.currency << " NPV ("
-              << trade.reportingCurrency << "): " << out.npv << std::endl;
     return out;
 }
 

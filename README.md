@@ -30,7 +30,7 @@ Priced instruments:
 - Zero-coupon inflation swaps
 - Year-on-year inflation swaps
 - FRAs
-- Caps and floors
+- Caps, floors and collars
 - Swaptions (on a vanilla or OIS underlying built from `SwapLeg` legs)
 - Year-on-year inflation caps, floors, and collars
 - CDS

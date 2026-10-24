@@ -7,8 +7,14 @@
 namespace quantra {
 
 /**
- * EvalDateGuard - RAII guard for QuantLib's global evaluation date (this is 
- * needed for QuantLib to work correctly).
+ * EvalDateGuard - RAII guard for QuantLib's global evaluation date: saves
+ * Settings::instance().evaluationDate() on entry and restores it on exit, so
+ * the date a request sets never leaks into the next one.
+ *
+ * Settings is QuantLib's own singleton (process-wide; per thread only when
+ * QuantLib is built with QL_ENABLE_SESSIONS), hence the model of one request
+ * at a time per worker, shared with FixingsGuard. The engine's own request
+ * state (roll offset, calendar-override record) is thread_local.
  */
 struct EvalDateGuard {
     QuantLib::Date saved;

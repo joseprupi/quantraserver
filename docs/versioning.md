@@ -26,6 +26,57 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.13.0 (October 2026) — Final-observation marker, collars, exact-step Monte Carlo
+
+`v0.13.0` is a backward-compatible MINOR release: two additive request
+fields and one previously rejected enum value now priced. No request
+shape changes: every 0.12.0 request is a valid 0.13.0 request with the
+same response values. QuantLib stays at 1.44.
+
+**`ObservationEvent.is_final` (structured notes, additive).** A maturity-
+only observation: when true, only the capital protection block (and
+`upside`, if present) is tested at that event; there is no coupon test and
+no call test, so unpaid coupons in the memory are not paid there.
+`coupon`, `coupon_trigger` and `autocall_trigger` must be absent (`400`
+naming the field), `payment_date` is required and must equal
+`maturity_payment_date` (`400`), and the event must be the last one
+(`400`). Absent, the 0.12.0 rules stand (the last event must carry a
+trigger; a final event with a trigger behaves as before). A final
+observation that also tests a coupon or a call (an 80 % low hurdle, a
+100 % call at maturity) keeps using triggers. The terms echo gains
+`StructuredNoteTermsEvent.is_final` (false for every 0.12.0 request). The
+Scotia example's last event is now `{observation_date, payment_date,
+is_final: true}` instead of `coupon_trigger 0.0, coupon 0.0`; the price is
+bit-identical on the same stream (the always-true zero coupon test paid
+nothing), and the event no longer reports a `p_coupon` (there is no coupon
+test). `event_probabilities[].p_coupon` stays "present iff a coupon test".
+
+**`price-cap-floor`: `Collar` priced.** `cap_floor_type: Collar` was a
+`400` ("Collar not yet supported"); it now builds
+`QuantLib::Collar(leg, {strike}, {floor_strike})` with the same engine as
+a cap or a floor. New field `CapFloor.floor_strike` (additive): required
+with `Collar` and `<= strike` (the cap strike), must be absent for a `Cap`
+or a `Floor` (`400` each). The response is unchanged in shape: `npv` (the
+cap's minus the floor's, held to 1e-10 relative by a gate test),
+`atm_rate`, and with `include_details` one `cap_floor_lets[]` row per
+unpaid period (the same period for the caplet and the floorlet; the row's
+`strike` / `price` fields stay unpopulated as before). One new example
+(`examples/data/cap_floor/collar_eur_5y_cap_4pct_floor_2pct_euribor3m.json`)
+and one functional-catalog row.
+
+**Internal, no wire change.** Exact-step table in the Monte Carlo core:
+for constant / term vols on the observation-date grid the paths are
+generated from a precomputed per-step drift / standard-deviation table
+with the array's own pseudo-square-root, bit-identical to QuantLib's
+`MultiPathGenerator` paths (a gate test compares every level) and 28x
+cheaper per step; the BNP example round trip through the JSON gateway
+goes from 1.5 s to 0.21 s. Debug `std::cout` NPV prints removed from the
+swap, FRA, FX, cap/floor, swaption and structured-note evaluators.
+Per-request guards (roll offset, calendar overrides) are `thread_local`.
+Zero-rate sampling at or before a curve's reference date returns the
+curve's t -> 0 limit instead of the one-day-out rate (bootstrap-curves
+`zero_rates` only; no catalog value moved).
+
 ## Version 0.12.0 (October 2026) — Structured notes on index baskets (Monte Carlo)
 
 `v0.12.0` is a backward-compatible MINOR release: one new endpoint, one new

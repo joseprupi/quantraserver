@@ -71,29 +71,34 @@ EventOutcome stepEvent(
         st.memory += ev.couponOrZero();
         return o;
     }
-    const bool callNow = ev.autocallTrigger.has_value() && perf >= *ev.autocallTrigger;
-    // Coupon test: its own trigger, or (autocall only) the call test itself.
-    const bool earned = ev.couponTrigger ? perf >= *ev.couponTrigger : callNow;
-    o.couponEarned = earned;
-    if (earned) {
-        const double amount = ev.couponOrZero() + st.memory;
-        st.memory = 0.0;
-        if (callNow || isFinal || !trade.couponRule.payOnlyOnCall) {
-            o.couponPaid += amount;
-        } else {
-            st.memory = amount; // held until the next call or the final event
-        }
-    } else if (trade.couponRule.memory) {
-        st.memory += ev.couponOrZero();
-    }
-    if (ev.autocallTrigger) {
-        o.called = callNow;
-        if (callNow) {
-            o.couponPaid += st.memory; // everything held
+    // An `is_final` event (maturity-only observation) has no coupon test and
+    // no call test: the memory stays unpaid and only the capital block below
+    // runs (the mapper guarantees it is the last event).
+    if (!ev.isFinal) {
+        const bool callNow = ev.autocallTrigger.has_value() && perf >= *ev.autocallTrigger;
+        // Coupon test: its own trigger, or (autocall only) the call test itself.
+        const bool earned = ev.couponTrigger ? perf >= *ev.couponTrigger : callNow;
+        o.couponEarned = earned;
+        if (earned) {
+            const double amount = ev.couponOrZero() + st.memory;
             st.memory = 0.0;
-            o.redemptionPaid = 1.0;
-            st.called = true;
-            return o;
+            if (callNow || isFinal || !trade.couponRule.payOnlyOnCall) {
+                o.couponPaid += amount;
+            } else {
+                st.memory = amount; // held until the next call or the final event
+            }
+        } else if (trade.couponRule.memory) {
+            st.memory += ev.couponOrZero();
+        }
+        if (ev.autocallTrigger) {
+            o.called = callNow;
+            if (callNow) {
+                o.couponPaid += st.memory; // everything held
+                st.memory = 0.0;
+                o.redemptionPaid = 1.0;
+                st.called = true;
+                return o;
+            }
         }
     }
     if (isFinal) {
@@ -446,6 +451,7 @@ NoteTermsEcho echoTerms(
         te.coupon = ev.coupon;
         te.accrualOnly = ev.accrualOnly();
         te.final = (i + 1 == t.events.size());
+        te.isFinal = ev.isFinal;
         te.resolvedFromHistory = ev.observationDate <= asOf;
         e.events.push_back(te);
     }
@@ -699,10 +705,6 @@ NoteResultRow priceNote(
         row.npv = knownNpv * trade.notional;
         row.npvPctOfNotional = knownNpv * 100.0;
         row.paths = 0;
-        std::cout << "Structured note " << trade.tradeId << " "
-                  << (seas.status == StructuredNoteStatus::Called ? "called" : "matured")
-                  << " before the valuation date, NPV (" << trade.currency << "): " << row.npv
-                  << std::endl;
         return row;
     }
     seas.nextEventIndex = static_cast<unsigned int>(firstFuture);
@@ -993,10 +995,6 @@ NoteResultRow priceNote(
         }
         row.eventProbabilities.push_back(p);
     }
-
-    std::cout << "Structured note " << trade.tradeId << " (" << ruleName(rule) << " of " << nU
-              << ", " << nFuture << " future events, " << sim.paths << " paths) NPV ("
-              << trade.currency << "): " << row.npv << " +/- " << *row.standardError << std::endl;
 
     // --- diagnostics ----------------------------------------------------------------------
     // Forward of underlying k at grid point j: spot x D_div(t) / D_note(t) on

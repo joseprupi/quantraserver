@@ -182,6 +182,38 @@ ObservationEventData decodeEvent(
         d.coupon = requireNonNegative(ev->coupon().value(), path + ".coupon");
     }
     const bool hasTrigger = d.autocallTrigger || d.couponTrigger;
+    if (ev->is_final().has_value() && ev->is_final().value()) {
+        // Maturity-only observation: the capital block (and the upside) only.
+        d.isFinal = true;
+        if (!isLast) {
+            QUANTRA_INVALID_ARGUMENT(
+                path + ".is_final: must be the last event (the final observation); this "
+                       "event is followed by another one");
+        }
+        const char* present = d.autocallTrigger ? "autocall_trigger"
+                              : d.couponTrigger ? "coupon_trigger"
+                              : d.coupon        ? "coupon"
+                                                : nullptr;
+        if (present != nullptr) {
+            QUANTRA_INVALID_ARGUMENT(
+                path + "." + present +
+                ": must be absent on an is_final event (a maturity-only observation has no "
+                "coupon test and no call test; a final observation that tests a coupon or a "
+                "call uses a trigger, not is_final)");
+        }
+        if (!ev->payment_date() || ev->payment_date()->str().empty()) {
+            QUANTRA_INVALID_ARGUMENT(
+                path + ".payment_date: required on an is_final event (the maturity payment "
+                       "date, equal to maturity_payment_date)");
+        }
+        d.paymentDate = DateToQL(ev->payment_date()->str());
+        if (*d.paymentDate < d.observationDate) {
+            QUANTRA_INVALID_ARGUMENT(
+                path + ".payment_date: " + DateToIso(*d.paymentDate) +
+                " is before observation_date " + DateToIso(d.observationDate));
+        }
+        return d;
+    }
     if (hasTrigger) {
         if (!ev->payment_date() || ev->payment_date()->str().empty()) {
             QUANTRA_INVALID_ARGUMENT(path + ".payment_date: required when a trigger is present");
@@ -295,6 +327,14 @@ StructuredNoteTrade decodeNote(const quantra::StructuredNote* n, std::size_t i) 
         QUANTRA_INVALID_ARGUMENT(
             p + ".maturity_payment_date: " + DateToIso(t.maturityPaymentDate) +
             " is before the final observation_date " + DateToIso(t.events.back().observationDate));
+    }
+    if (t.events.back().isFinal && *t.events.back().paymentDate != t.maturityPaymentDate) {
+        QUANTRA_INVALID_ARGUMENT(
+            p + ".events[" + std::to_string(nE - 1) +
+            "].payment_date: " + DateToIso(*t.events.back().paymentDate) +
+            " must equal maturity_payment_date " + DateToIso(t.maturityPaymentDate) +
+            " on an is_final event (the redemption is the only payment of a maturity-only "
+            "observation)");
     }
     t.discountingCurveId = requireString(n->discounting_curve(), p + ".discounting_curve");
     t.fundingSpreadBp = requireFinite(n->funding_spread_bp(), p + ".funding_spread_bp");
@@ -430,6 +470,7 @@ flatbuffers::Offset<quantra::StructuredNoteTermsEcho> serializeTerms(
         if (e.coupon) eb.add_coupon(*e.coupon);
         eb.add_accrual_only(e.accrualOnly);
         eb.add_final(e.final);
+        eb.add_is_final(e.isFinal);
         eb.add_resolved_from_history(e.resolvedFromHistory);
         evs.push_back(eb.Finish());
     }

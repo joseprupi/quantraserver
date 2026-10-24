@@ -47,6 +47,11 @@ table StructuredNoteTermsEvent {
     accrual_only:bool;
     /// True for the last event (capital test runs here).
     final:bool;
+    /// True when the request marked the event `is_final`: a maturity-only
+    /// observation where only the capital protection block (and `upside`)
+    /// is tested, with no coupon test and no call test. False for a final
+    /// event that carries a trigger.
+    is_final:bool;
     /// True when `observation_date` is on or before the valuation date:
     /// the event was resolved from `historical_levels` (see
     /// `StructuredNoteSeasoning`) and not simulated.

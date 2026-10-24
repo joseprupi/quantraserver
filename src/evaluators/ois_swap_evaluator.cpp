@@ -3,7 +3,6 @@
 #include "error.h"
 
 #include <cmath>
-#include <iostream>
 
 namespace quantra {
 
@@ -41,8 +40,6 @@ OisSwapPerSwap priceTrade(
             trade.overnightLeg.level() - out.npv / (overnightBps / kBasisPoint);
         if (std::isfinite(fairSpread)) out.fairSpread = fairSpread;
     }
-
-    std::cout << "OIS swap NPV (" << trade.fixedLeg.currency << "): " << out.npv << std::endl;
     return out;
 }
 

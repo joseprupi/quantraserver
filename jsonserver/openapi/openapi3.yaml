@@ -42,7 +42,7 @@ info:
     # Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\n\
     curl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type:\
     \ application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n"
-  version: 0.12.0
+  version: 0.13.0
   contact:
     name: Quantra API Support
     url: https://github.com/joseprupi/quantraserver
@@ -5377,7 +5377,14 @@ components:
       additionalProperties: false
     quantra_CapFloor:
       type: object
-      description: Cap or Floor instrument.
+      description: 'Cap, Floor or Collar on an IBOR leg. A Collar is long the cap
+        at `strike`
+
+        and short the floor at `floor_strike` on the same leg (QuantLib::Collar),
+
+        so its NPV is the cap''s NPV minus the floor''s NPV priced on the same
+
+        curves, vol and engine.'
       properties:
         cap_floor_type:
           $ref: '#/components/schemas/quantra_enums_CapFloorType'
@@ -5386,10 +5393,21 @@ components:
           description: Notional. Presence-required and must be > 0.
         strike:
           type: number
-          description: 'Strike rate (e.g., 0.04 for 4%). Presence-required; may be
-            negative, only
+          description: 'Strike rate (e.g., 0.04 for 4%); for a Collar, the CAP strike.
 
-            a missing or non-finite value is rejected.'
+            Presence-required; may be negative, only a missing or non-finite value
+
+            is rejected.'
+        floor_strike:
+          type: number
+          description: 'Floor strike of a Collar (e.g., 0.02 for 2%). Required (400)
+            when
+
+            `cap_floor_type` is Collar and must be <= `strike` (400 otherwise);
+
+            must be absent (400) for a Cap or a Floor, whose single strike is
+
+            `strike`.'
         schedule:
           $ref: '#/components/schemas/quantra_Schedule'
         index:
@@ -5403,7 +5421,18 @@ components:
       additionalProperties: false
     quantra_CapFloorLet:
       type: object
-      description: Individual caplet/floorlet detail.
+      description: 'One accrual period of the underlying IBOR leg (one row per coupon
+        that has
+
+        not yet paid), present when `PriceCapFloor.include_details` is set. The
+
+        row describes the period: dates, the index forward and the discount
+
+        factor at the payment date. For a Collar the row is the same period for
+
+        both the caplet and the floorlet; the strikes are the request''s `strike`
+
+        (cap) and `floor_strike`, identical on every row, and are not repeated here.'
       properties:
         payment_date:
           type: string
@@ -5415,13 +5444,19 @@ components:
           type: string
         strike:
           type: number
+          description: 'Not populated in this version (serialised as 0.0 for every
+            type); the
+
+            strike(s) are the request''s `strike` / `floor_strike`.'
         forward_rate:
           type: number
         discount:
           type: number
         price:
           type: number
-          description: Individual caplet/floorlet price.
+          description: 'Not populated in this version (serialised as 0.0): the per-period
+
+            option value is not split out of `npv`.'
       additionalProperties: false
     quantra_CapFloorResponse:
       type: object
@@ -6795,9 +6830,33 @@ components:
 
         `StructuredNote.maturity_payment_date`. A final event with no trigger at
 
-        all is a 400. Events must be in strictly increasing `observation_date`
+        all is a 400 unless it is marked `is_final`:
 
-        order; events on or before the valuation date are resolved from
+        is_final = true (maturity-only observation):
+
+        nothing but the capital protection block (and `upside`, when present)
+
+        is tested on this date; there is no coupon test and no call test, so
+
+        `coupon`, `coupon_trigger` and `autocall_trigger` must be absent and
+
+        the coupon memory is NOT paid here (there is no coupon test to pay it
+
+        with; a factsheet whose final date pays the memory tests a coupon,
+
+        see below). A final observation that ALSO tests a coupon or a call
+
+        (Santander''s 80 % hurdle: `coupon_trigger 0.8`; BNP''s 100 % call:
+
+        `autocall_trigger 1.0`) keeps using triggers; `is_final` is for the
+
+        final date that only decides the redemption (the Scotia note: 75 %
+
+        trigger and 250 % upside, no coupon, no call).
+
+        Events must be in strictly increasing `observation_date` order; events
+
+        on or before the valuation date are resolved from
 
         `BasketUnderlying.historical_levels` and never simulated.'
       properties:
@@ -6847,6 +6906,25 @@ components:
             event then carries no coupon of its own and a call pays the notional
 
             plus the memory only.'
+        is_final:
+          type: boolean
+          description: 'True: this event is the final observation and only the capital
+
+            protection block (and `upside`, if present) is tested there: no
+
+            coupon test, no call test, unpaid coupons in the memory are not paid.
+
+            `coupon`, `coupon_trigger` and `autocall_trigger` must be absent (400
+
+            naming the field); `payment_date` is required and must equal
+
+            `StructuredNote.maturity_payment_date` (400 otherwise); the event
+
+            must be the last one (400), so there is at most one. Absent (or
+
+            false): the rules above stand, the last event must carry a trigger
+
+            and a final event with a trigger behaves as today.'
       required:
       - observation_date
       additionalProperties: false
@@ -8042,6 +8120,15 @@ components:
         final:
           type: boolean
           description: True for the last event (capital test runs here).
+        is_final:
+          type: boolean
+          description: 'True when the request marked the event `is_final`: a maturity-only
+
+            observation where only the capital protection block (and `upside`)
+
+            is tested, with no coupon test and no call test. False for a final
+
+            event that carries a trigger.'
         resolved_from_history:
           type: boolean
           description: 'True when `observation_date` is on or before the valuation

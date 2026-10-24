@@ -3,8 +3,10 @@
 namespace quantra {
 
 namespace {
-int g_rollOffsetDays = 0;
-}
+// Per-request state of the worker thread that owns the request (see the
+// header). thread_local: a request never observes another thread's guard.
+thread_local int g_rollOffsetDays = 0;
+} // namespace
 
 int activeRollOffsetDays() {
     return g_rollOffsetDays;

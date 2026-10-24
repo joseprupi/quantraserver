@@ -13,7 +13,6 @@
 #include <ql/termstructures/volatility/volatilitytype.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-#include <iostream>
 #include <memory>
 #include <variant>
 #include <vector>
@@ -72,9 +71,10 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
     return nullptr;
 }
 
-/// Build the QL CapFloor instrument from the plain trade. Mirrors
-/// CapFloorParser::parse: a single-strike vector is used for Cap/Floor; the
-/// Collar branch is rejected (legacy throws the same message).
+/// Build the QL CapFloor instrument from the plain trade: a single-strike
+/// vector for a Cap or a Floor; a Collar takes the cap strike (`strike`) and
+/// the floor strike (`floorStrike`, present by the mapper's rule) and is
+/// QuantLib's long cap / short floor on the same leg.
 std::shared_ptr<QuantLib::CapFloor> buildCapFloor(
     const CapFloorTrade& trade, const std::shared_ptr<QuantLib::IborIndex>& iborIndex) {
     QuantLib::Leg leg = QuantLib::IborLeg(trade.schedule, iborIndex)
@@ -87,8 +87,13 @@ std::shared_ptr<QuantLib::CapFloor> buildCapFloor(
     switch (trade.capFloorType) {
         case QuantLib::CapFloor::Cap: return std::make_shared<QuantLib::Cap>(leg, strikes);
         case QuantLib::CapFloor::Floor: return std::make_shared<QuantLib::Floor>(leg, strikes);
-        case QuantLib::CapFloor::Collar:
-            QUANTRA_INVALID_ARGUMENT("Collar not yet supported - use separate Cap and Floor");
+        case QuantLib::CapFloor::Collar: {
+            if (!trade.floorStrike) {
+                QUANTRA_INVALID_ARGUMENT("CapFloor.floor_strike is required for a Collar");
+            }
+            std::vector<QuantLib::Rate> floorStrikes(1, *trade.floorStrike);
+            return std::make_shared<QuantLib::Collar>(leg, strikes, floorStrikes);
+        }
     }
     QUANTRA_INVALID_ARGUMENT("Invalid CapFloor type");
     return nullptr;
@@ -154,9 +159,6 @@ CapFloorPerTrade priceTrade(
     CapFloorPerTrade out;
     out.npv = capFloor->NPV();
     out.atmRate = capFloor->atmRate(*discIt->second->currentLink());
-
-    std::cout << "CapFloor NPV: " << out.npv << ", ATM Rate: " << out.atmRate * 100 << "%"
-              << std::endl;
 
     if (trade.includeDetails) {
         out.details =

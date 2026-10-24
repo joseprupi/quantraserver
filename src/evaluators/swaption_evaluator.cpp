@@ -528,8 +528,6 @@ SwaptionResult SwaptionEvaluator::evaluate(
         swaption->setPricingEngine(engine);
 
         const double npv = swaption->NPV();
-        std::cout << "Swaption NPV: " << npv << std::endl;
-
         SwaptionPerTrade row;
         row.npv = npv;
         if (volEntry.volKind == quantra::enums::SwaptionVolKind_Constant) {

@@ -335,6 +335,7 @@ struct ObservationEventT : public ::flatbuffers::NativeTable {
   ::flatbuffers::Optional<double> autocall_trigger = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<double> coupon_trigger = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<double> coupon = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<bool> is_final = ::flatbuffers::nullopt;
 };
 
 /// One date of the note's life. Which tests run at an event is decided by
@@ -368,8 +369,20 @@ struct ObservationEventT : public ::flatbuffers::NativeTable {
 /// when the note has not ended there the capital test of
 /// `CapitalProtection` runs on the same perf and the redemption is paid on
 /// `StructuredNote.maturity_payment_date`. A final event with no trigger at
-/// all is a 400. Events must be in strictly increasing `observation_date`
-/// order; events on or before the valuation date are resolved from
+/// all is a 400 unless it is marked `is_final`:
+///   is_final = true (maturity-only observation):
+///     nothing but the capital protection block (and `upside`, when present)
+///     is tested on this date; there is no coupon test and no call test, so
+///     `coupon`, `coupon_trigger` and `autocall_trigger` must be absent and
+///     the coupon memory is NOT paid here (there is no coupon test to pay it
+///     with; a factsheet whose final date pays the memory tests a coupon,
+///     see below). A final observation that ALSO tests a coupon or a call
+///     (Santander's 80 % hurdle: `coupon_trigger 0.8`; BNP's 100 % call:
+///     `autocall_trigger 1.0`) keeps using triggers; `is_final` is for the
+///     final date that only decides the redemption (the Scotia note: 75 %
+///     trigger and 250 % upside, no coupon, no call).
+/// Events must be in strictly increasing `observation_date` order; events
+/// on or before the valuation date are resolved from
 /// `BasketUnderlying.historical_levels` and never simulated.
 struct ObservationEvent FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef ObservationEventT NativeTableType;
@@ -379,7 +392,8 @@ struct ObservationEvent FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_PAYMENT_DATE = 6,
     VT_AUTOCALL_TRIGGER = 8,
     VT_COUPON_TRIGGER = 10,
-    VT_COUPON = 12
+    VT_COUPON = 12,
+    VT_IS_FINAL = 14
   };
   /// Date the basket is observed (closing levels), ISO. Required. For an
   /// accrual-only event (no triggers) nothing is observed: the date is
@@ -415,6 +429,18 @@ struct ObservationEvent FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   ::flatbuffers::Optional<double> coupon() const {
     return GetOptional<double, double>(VT_COUPON);
   }
+  /// True: this event is the final observation and only the capital
+  /// protection block (and `upside`, if present) is tested there: no
+  /// coupon test, no call test, unpaid coupons in the memory are not paid.
+  /// `coupon`, `coupon_trigger` and `autocall_trigger` must be absent (400
+  /// naming the field); `payment_date` is required and must equal
+  /// `StructuredNote.maturity_payment_date` (400 otherwise); the event
+  /// must be the last one (400), so there is at most one. Absent (or
+  /// false): the rules above stand, the last event must carry a trigger
+  /// and a final event with a trigger behaves as today.
+  ::flatbuffers::Optional<bool> is_final() const {
+    return GetOptional<uint8_t, bool>(VT_IS_FINAL);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_OBSERVATION_DATE) &&
@@ -424,6 +450,7 @@ struct ObservationEvent FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<double>(verifier, VT_AUTOCALL_TRIGGER, 8) &&
            VerifyField<double>(verifier, VT_COUPON_TRIGGER, 8) &&
            VerifyField<double>(verifier, VT_COUPON, 8) &&
+           VerifyField<uint8_t>(verifier, VT_IS_FINAL, 1) &&
            verifier.EndTable();
   }
   ObservationEventT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -450,6 +477,9 @@ struct ObservationEventBuilder {
   void add_coupon(double coupon) {
     fbb_.AddElement<double>(ObservationEvent::VT_COUPON, coupon);
   }
+  void add_is_final(bool is_final) {
+    fbb_.AddElement<uint8_t>(ObservationEvent::VT_IS_FINAL, static_cast<uint8_t>(is_final));
+  }
   explicit ObservationEventBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -468,13 +498,15 @@ inline ::flatbuffers::Offset<ObservationEvent> CreateObservationEvent(
     ::flatbuffers::Offset<::flatbuffers::String> payment_date = 0,
     ::flatbuffers::Optional<double> autocall_trigger = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<double> coupon_trigger = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<double> coupon = ::flatbuffers::nullopt) {
+    ::flatbuffers::Optional<double> coupon = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> is_final = ::flatbuffers::nullopt) {
   ObservationEventBuilder builder_(_fbb);
   if(coupon) { builder_.add_coupon(*coupon); }
   if(coupon_trigger) { builder_.add_coupon_trigger(*coupon_trigger); }
   if(autocall_trigger) { builder_.add_autocall_trigger(*autocall_trigger); }
   builder_.add_payment_date(payment_date);
   builder_.add_observation_date(observation_date);
+  if(is_final) { builder_.add_is_final(*is_final); }
   return builder_.Finish();
 }
 
@@ -484,7 +516,8 @@ inline ::flatbuffers::Offset<ObservationEvent> CreateObservationEventDirect(
     const char *payment_date = nullptr,
     ::flatbuffers::Optional<double> autocall_trigger = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<double> coupon_trigger = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<double> coupon = ::flatbuffers::nullopt) {
+    ::flatbuffers::Optional<double> coupon = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> is_final = ::flatbuffers::nullopt) {
   auto observation_date__ = observation_date ? _fbb.CreateString(observation_date) : 0;
   auto payment_date__ = payment_date ? _fbb.CreateString(payment_date) : 0;
   return quantra::CreateObservationEvent(
@@ -493,7 +526,8 @@ inline ::flatbuffers::Offset<ObservationEvent> CreateObservationEventDirect(
       payment_date__,
       autocall_trigger,
       coupon_trigger,
-      coupon);
+      coupon,
+      is_final);
 }
 
 ::flatbuffers::Offset<ObservationEvent> CreateObservationEvent(::flatbuffers::FlatBufferBuilder &_fbb, const ObservationEventT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -1297,6 +1331,7 @@ inline void ObservationEvent::UnPackTo(ObservationEventT *_o, const ::flatbuffer
   { auto _e = autocall_trigger(); _o->autocall_trigger = _e; }
   { auto _e = coupon_trigger(); _o->coupon_trigger = _e; }
   { auto _e = coupon(); _o->coupon = _e; }
+  { auto _e = is_final(); _o->is_final = _e; }
 }
 
 inline ::flatbuffers::Offset<ObservationEvent> ObservationEvent::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ObservationEventT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -1312,13 +1347,15 @@ inline ::flatbuffers::Offset<ObservationEvent> CreateObservationEvent(::flatbuff
   auto _autocall_trigger = _o->autocall_trigger;
   auto _coupon_trigger = _o->coupon_trigger;
   auto _coupon = _o->coupon;
+  auto _is_final = _o->is_final;
   return quantra::CreateObservationEvent(
       _fbb,
       _observation_date,
       _payment_date,
       _autocall_trigger,
       _coupon_trigger,
-      _coupon);
+      _coupon,
+      _is_final);
 }
 
 inline CouponRuleT *CouponRule::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {

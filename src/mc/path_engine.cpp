@@ -1,5 +1,6 @@
 #include "path_engine.h"
 
+#include "basket_model.h"
 #include "error.h"
 
 #include <ql/math/randomnumbers/inversecumulativersg.hpp>
@@ -8,9 +9,11 @@
 #include <ql/math/randomnumbers/sobolrsg.hpp>
 #include <ql/methods/montecarlo/multipathgenerator.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <sstream>
+#include <utility>
 
 namespace quantra { namespace mc {
 
@@ -30,16 +33,78 @@ std::vector<std::vector<QuantLib::Real>> copyPath(const QuantLib::MultiPath& pat
     return out;
 }
 
-template <class GSG>
-PathEngineResult simulate(
-    const std::shared_ptr<QuantLib::StochasticProcessArray>& processes,
-    const QuantLib::TimeGrid& grid,
-    GSG generator,
+// Path source of the exact-step table (basket_model.h): the same Gaussian
+// sequence generator as MultiPathGenerator<GSG> would consume, the same
+// time-major reading of the draws, the same correlation matrix, and the step
+// formula of GeneralizedBlackScholesProcess::evolve in the same order of
+// operations, so that every level equals MultiPathGenerator's bit for bit
+// (tests/parity/mc_core_test.cpp). The antithetic path negates the draws, as
+// MultiPathGenerator::antithetic() does; negation commutes exactly with the
+// correlation product.
+template <class GSG> class TableStepper {
+public:
+    TableStepper(LognormalStepTable table, const QuantLib::TimeGrid& grid, GSG generator)
+        : table_(std::move(table)), generator_(std::move(generator)), path_(table_.assets, grid) {}
+
+    const QuantLib::MultiPath& next() { return step(generator_.nextSequence().value, false); }
+    const QuantLib::MultiPath& antithetic() { return step(generator_.lastSequence().value, true); }
+
+private:
+    const QuantLib::MultiPath& step(const std::vector<QuantLib::Real>& draws, bool negate) {
+        const QuantLib::Size n = table_.assets;
+        for (QuantLib::Size k = 0; k < n; ++k) {
+            path_[k].front() = table_.x0[k];
+        }
+        for (QuantLib::Size s = 0; s < table_.steps; ++s) {
+            const QuantLib::Real* w = draws.data() + s * n;
+            const QuantLib::Real* drift = table_.drift.data() + s * n;
+            const QuantLib::Real* stdDev = table_.stdDev.data() + s * n;
+            for (QuantLib::Size i = 0; i < n; ++i) {
+                // Matrix * Array in QuantLib is std::inner_product(w, w + n,
+                // row(i), 0.0): the sum runs over j from 0.0 as w[j] * c[i][j].
+                QuantLib::Real z = 0.0;
+                const QuantLib::Real* row = table_.sqrtCorrelation.row_begin(i);
+                for (QuantLib::Size j = 0; j < n; ++j) {
+                    z = z + w[j] * row[j];
+                }
+                if (negate) {
+                    z = -z;
+                }
+                QuantLib::Path& p = path_[i];
+                p[s + 1] = p[s] * std::exp(stdDev[i] * z + drift[i]);
+            }
+        }
+        return path_;
+    }
+
+    LognormalStepTable table_;
+    GSG generator_;
+    QuantLib::MultiPath path_;
+};
+
+// QuantLib's own path source (local-vol baskets, or any process array that is
+// not a LognormalBasket).
+template <class GSG> class QuantLibStepper {
+public:
+    QuantLibStepper(
+        const std::shared_ptr<QuantLib::StochasticProcessArray>& processes,
+        const QuantLib::TimeGrid& grid,
+        GSG generator)
+        : generator_(processes, grid, std::move(generator), false) {}
+
+    const QuantLib::MultiPath& next() { return generator_.next().value; }
+    const QuantLib::MultiPath& antithetic() { return generator_.antithetic().value; }
+
+private:
+    QuantLib::MultiPathGenerator<GSG> generator_;
+};
+
+template <class Stepper>
+PathEngineResult reduce(
+    Stepper& stepper,
     const PathEngineConfig& config,
     QuantLib::Size nAccumulators,
     const PathFunctor& functor) {
-    QuantLib::MultiPathGenerator<GSG> pathGenerator(processes, grid, std::move(generator), false);
-
     const QuantLib::Size samples = config.antithetic ? config.paths / 2 : config.paths;
     const QuantLib::Size quarter = samples / 4;
     const QuantLib::Size half = samples / 2;
@@ -85,7 +150,7 @@ PathEngineResult simulate(
 
     for (QuantLib::Size s = 0; s < samples; ++s) {
         {
-            const QuantLib::MultiPath& path = pathGenerator.next().value;
+            const QuantLib::MultiPath& path = stepper.next();
             if (simulated < config.samplePaths) {
                 result.samplePaths.push_back(copyPath(path));
             }
@@ -94,7 +159,7 @@ PathEngineResult simulate(
             functor(path, acc);
         }
         if (config.antithetic) {
-            const QuantLib::MultiPath& path = pathGenerator.antithetic().value;
+            const QuantLib::MultiPath& path = stepper.antithetic();
             if (simulated < config.samplePaths) {
                 result.samplePaths.push_back(copyPath(path));
             }
@@ -132,6 +197,23 @@ PathEngineResult simulate(
         }
     }
     return result;
+}
+
+template <class GSG>
+PathEngineResult simulate(
+    const std::shared_ptr<QuantLib::StochasticProcessArray>& processes,
+    const QuantLib::TimeGrid& grid,
+    GSG generator,
+    const PathEngineConfig& config,
+    QuantLib::Size nAccumulators,
+    const PathFunctor& functor) {
+    const auto basket = std::dynamic_pointer_cast<const LognormalBasket>(processes);
+    if (basket && basket->exactStep()) {
+        TableStepper<GSG> stepper(basket->stepTable(grid), grid, std::move(generator));
+        return reduce(stepper, config, nAccumulators, functor);
+    }
+    QuantLibStepper<GSG> stepper(processes, grid, std::move(generator));
+    return reduce(stepper, config, nAccumulators, functor);
 }
 
 } // namespace

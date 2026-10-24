@@ -3,7 +3,7 @@
   "definitions": {
     "quantra_CapFloorLet" : {
       "type" : "object",
-      "description" : "Individual caplet/floorlet detail.",
+      "description" : "One accrual period of the underlying IBOR leg (one row per coupon that has\nnot yet paid), present when `PriceCapFloor.include_details` is set. The\nrow describes the period: dates, the index forward and the discount\nfactor at the payment date. For a Collar the row is the same period for\nboth the caplet and the floorlet; the strikes are the request's `strike`\n(cap) and `floor_strike`, identical on every row, and are not repeated here.",
       "properties" : {
         "payment_date" : {
                 "type" : "string"
@@ -18,7 +18,8 @@
                 "type" : "string"
               },
         "strike" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Not populated in this version (serialised as 0.0 for every type); the\nstrike(s) are the request's `strike` / `floor_strike`."
               },
         "forward_rate" : {
                 "type" : "number"
@@ -28,7 +29,7 @@
               },
         "price" : {
                 "type" : "number",
-                "description" : "Individual caplet/floorlet price."
+                "description" : "Not populated in this version (serialised as 0.0): the per-period\noption value is not split out of `npv`."
               }
       },
       "additionalProperties" : false

@@ -3,7 +3,7 @@
   "info": {
     "title": "Quantra Pricing API",
     "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Zero Coupon Bond | `/price-zero-coupon-bond` | Price zero-coupon (single redemption) bonds |\n| Zero Coupon Swap | `/price-zero-coupon-swap` | Price zero-coupon fixed-vs-compounded-floating swaps |\n| Year-on-Year Inflation Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation caps, floors, and collars |\n| Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |\n| FX Forward | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount curves |\n| Cross-Currency Swap | `/price-cross-currency-swap` | Price cross-currency swaps (two SwapLeg entries in two currencies, fixed / IBOR / overnight coupons, principal exchanges) |\n| Structured Note | `/price-structured-note` | Price structured notes on equity-index baskets (autocallables, Phoenix / Athena coupons, capital barriers) by Monte Carlo |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n",
-    "version": "0.12.0",
+    "version": "0.13.0",
     "contact": {
       "name": "Quantra API Support",
       "url": "https://github.com/joseprupi/quantraserver"
@@ -6406,7 +6406,7 @@
       },
       "quantra_CapFloor": {
         "type": "object",
-        "description": "Cap or Floor instrument.",
+        "description": "Cap, Floor or Collar on an IBOR leg. A Collar is long the cap at `strike`\nand short the floor at `floor_strike` on the same leg (QuantLib::Collar),\nso its NPV is the cap's NPV minus the floor's NPV priced on the same\ncurves, vol and engine.",
         "properties": {
           "cap_floor_type": {
             "$ref": "#/components/schemas/quantra_enums_CapFloorType"
@@ -6417,7 +6417,11 @@
           },
           "strike": {
             "type": "number",
-            "description": "Strike rate (e.g., 0.04 for 4%). Presence-required; may be negative, only\na missing or non-finite value is rejected."
+            "description": "Strike rate (e.g., 0.04 for 4%); for a Collar, the CAP strike.\nPresence-required; may be negative, only a missing or non-finite value\nis rejected."
+          },
+          "floor_strike": {
+            "type": "number",
+            "description": "Floor strike of a Collar (e.g., 0.02 for 2%). Required (400) when\n`cap_floor_type` is Collar and must be <= `strike` (400 otherwise);\nmust be absent (400) for a Cap or a Floor, whose single strike is\n`strike`."
           },
           "schedule": {
             "$ref": "#/components/schemas/quantra_Schedule"
@@ -6439,7 +6443,7 @@
       },
       "quantra_CapFloorLet": {
         "type": "object",
-        "description": "Individual caplet/floorlet detail.",
+        "description": "One accrual period of the underlying IBOR leg (one row per coupon that has\nnot yet paid), present when `PriceCapFloor.include_details` is set. The\nrow describes the period: dates, the index forward and the discount\nfactor at the payment date. For a Collar the row is the same period for\nboth the caplet and the floorlet; the strikes are the request's `strike`\n(cap) and `floor_strike`, identical on every row, and are not repeated here.",
         "properties": {
           "payment_date": {
             "type": "string"
@@ -6454,7 +6458,8 @@
             "type": "string"
           },
           "strike": {
-            "type": "number"
+            "type": "number",
+            "description": "Not populated in this version (serialised as 0.0 for every type); the\nstrike(s) are the request's `strike` / `floor_strike`."
           },
           "forward_rate": {
             "type": "number"
@@ -6464,7 +6469,7 @@
           },
           "price": {
             "type": "number",
-            "description": "Individual caplet/floorlet price."
+            "description": "Not populated in this version (serialised as 0.0): the per-period\noption value is not split out of `npv`."
           }
         },
         "additionalProperties": false
@@ -7674,7 +7679,7 @@
       },
       "quantra_ObservationEvent": {
         "type": "object",
-        "description": "One date of the note's life. Which tests run at an event is decided by\nwhich triggers are present; the coupon of the event is `coupon`\n(fraction of notional). The basket performance perf = rule over\nS_i(observation_date) / initial_level_i, and every test is \"perf >=\ntrigger\" (triggers are fractions of the initial level: 1.0 = 100%).\n\nautocall_trigger present, coupon_trigger absent (classic autocall):\nthe coupon test IS the call test. perf >= autocall_trigger: notional\nplus this event's coupon plus every unpaid coupon in the memory is\npaid on `payment_date` and the note ends. Otherwise nothing is paid\nand, with `CouponRule.memory`, `coupon` joins the memory.\nautocall_trigger present, coupon_trigger present (Phoenix with a call):\ncoupon test first: perf >= coupon_trigger earns this event's coupon\nplus the memory (paid on `payment_date`, or held until the next call\nwhen `CouponRule.pay_only_on_call`); otherwise the coupon joins the\nmemory. Then the call test: perf >= autocall_trigger pays the\nnotional plus everything held, on `payment_date`, and the note ends.\nautocall_trigger absent, coupon_trigger present (coupon-only date):\nthe coupon test only, as above; the note cannot end here.\nboth absent (accrual-only period):\nnothing is observed and nothing is paid: `coupon` is added to the\nmemory. This encodes a snowball coupon that accrues from the strike\ndate while the first observation is later (a 7% semi-annual coupon\nfirst observed at 12 months pays 2 x 7% on the first call). Requires\n`CouponRule.memory` = true (400 otherwise: nothing could carry the\ncoupon) and `payment_date` absent (400 when present).\n\nThe last event is the final observation: its tests run as above, and\nwhen the note has not ended there the capital test of\n`CapitalProtection` runs on the same perf and the redemption is paid on\n`StructuredNote.maturity_payment_date`. A final event with no trigger at\nall is a 400. Events must be in strictly increasing `observation_date`\norder; events on or before the valuation date are resolved from\n`BasketUnderlying.historical_levels` and never simulated.",
+        "description": "One date of the note's life. Which tests run at an event is decided by\nwhich triggers are present; the coupon of the event is `coupon`\n(fraction of notional). The basket performance perf = rule over\nS_i(observation_date) / initial_level_i, and every test is \"perf >=\ntrigger\" (triggers are fractions of the initial level: 1.0 = 100%).\n\nautocall_trigger present, coupon_trigger absent (classic autocall):\nthe coupon test IS the call test. perf >= autocall_trigger: notional\nplus this event's coupon plus every unpaid coupon in the memory is\npaid on `payment_date` and the note ends. Otherwise nothing is paid\nand, with `CouponRule.memory`, `coupon` joins the memory.\nautocall_trigger present, coupon_trigger present (Phoenix with a call):\ncoupon test first: perf >= coupon_trigger earns this event's coupon\nplus the memory (paid on `payment_date`, or held until the next call\nwhen `CouponRule.pay_only_on_call`); otherwise the coupon joins the\nmemory. Then the call test: perf >= autocall_trigger pays the\nnotional plus everything held, on `payment_date`, and the note ends.\nautocall_trigger absent, coupon_trigger present (coupon-only date):\nthe coupon test only, as above; the note cannot end here.\nboth absent (accrual-only period):\nnothing is observed and nothing is paid: `coupon` is added to the\nmemory. This encodes a snowball coupon that accrues from the strike\ndate while the first observation is later (a 7% semi-annual coupon\nfirst observed at 12 months pays 2 x 7% on the first call). Requires\n`CouponRule.memory` = true (400 otherwise: nothing could carry the\ncoupon) and `payment_date` absent (400 when present).\n\nThe last event is the final observation: its tests run as above, and\nwhen the note has not ended there the capital test of\n`CapitalProtection` runs on the same perf and the redemption is paid on\n`StructuredNote.maturity_payment_date`. A final event with no trigger at\nall is a 400 unless it is marked `is_final`:\nis_final = true (maturity-only observation):\nnothing but the capital protection block (and `upside`, when present)\nis tested on this date; there is no coupon test and no call test, so\n`coupon`, `coupon_trigger` and `autocall_trigger` must be absent and\nthe coupon memory is NOT paid here (there is no coupon test to pay it\nwith; a factsheet whose final date pays the memory tests a coupon,\nsee below). A final observation that ALSO tests a coupon or a call\n(Santander's 80 % hurdle: `coupon_trigger 0.8`; BNP's 100 % call:\n`autocall_trigger 1.0`) keeps using triggers; `is_final` is for the\nfinal date that only decides the redemption (the Scotia note: 75 %\ntrigger and 250 % upside, no coupon, no call).\nEvents must be in strictly increasing `observation_date` order; events\non or before the valuation date are resolved from\n`BasketUnderlying.historical_levels` and never simulated.",
         "properties": {
           "observation_date": {
             "type": "string",
@@ -7695,6 +7700,10 @@
           "coupon": {
             "type": "number",
             "description": "Coupon of this period as a fraction of notional (0.07 = 7%).\nRequired (400) when `coupon_trigger` is present or the event is\naccrual-only. With only an `autocall_trigger` it may be absent: the\nevent then carries no coupon of its own and a call pays the notional\nplus the memory only."
+          },
+          "is_final": {
+            "type": "boolean",
+            "description": "True: this event is the final observation and only the capital\nprotection block (and `upside`, if present) is tested there: no\ncoupon test, no call test, unpaid coupons in the memory are not paid.\n`coupon`, `coupon_trigger` and `autocall_trigger` must be absent (400\nnaming the field); `payment_date` is required and must equal\n`StructuredNote.maturity_payment_date` (400 otherwise); the event\nmust be the last one (400), so there is at most one. Absent (or\nfalse): the rules above stand, the last event must carry a trigger\nand a final event with a trigger behaves as today."
           }
         },
         "required": [
@@ -8876,6 +8885,10 @@
           "final": {
             "type": "boolean",
             "description": "True for the last event (capital test runs here)."
+          },
+          "is_final": {
+            "type": "boolean",
+            "description": "True when the request marked the event `is_final`: a maturity-only\nobservation where only the capital protection block (and `upside`)\nis tested, with no coupon test and no call test. False for a final\nevent that carries a trigger."
           },
           "resolved_from_history": {
             "type": "boolean",

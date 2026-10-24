@@ -7,7 +7,6 @@
 #include <ql/time/calendar.hpp>
 
 #include <cmath>
-#include <iostream>
 
 namespace quantra {
 
@@ -105,10 +104,6 @@ FxForwardPerTrade priceTrade(
     out.spotDate = DateToIso(spotDate);
     out.maturityDate = DateToIso(maturity);
     out.fxSpotUsed = S;
-
-    std::cout << "FX forward " << trade.baseCurrency << "/" << trade.quoteCurrency << " NPV ("
-              << trade.reportingCurrency << "): " << out.npv << ", fair forward: " << fair
-              << std::endl;
     return out;
 }
 

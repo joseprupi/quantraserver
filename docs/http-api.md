@@ -1022,6 +1022,42 @@ both exchanges reported in USD and in EUR, the same struck at its fair rate
 the collateral curve's 5Y basis pillar) and with the final exchange only,
 and USD 4.10% fixed vs EUR Euribor 3M received, reported in EUR.
 
+## Caps, floors and collars
+
+`POST /price-cap-floor` prices caps, floors and collars on an IBOR leg
+(`PriceCapFloorRequest`: `pricing` plus `cap_floors[]`, each a `CapFloor`
+with the ids of its `discounting_curve`, `forwarding_curve`, `volatility`
+(an `OptionletVolSpec`) and `model` (a `CapFloorModelSpec`: `Black`,
+`ShiftedBlack` or `Bachelier`, matched to the vol's type and displacement)
+and `include_details`).
+
+| Field | Meaning |
+| --- | --- |
+| `cap_floor_type` | `Cap`, `Floor` or `Collar`. Presence-required. |
+| `notional` | Presence-required, `> 0`. |
+| `strike` | The strike of a cap or a floor; for a collar, the CAP strike. Presence-required (may be negative). |
+| `floor_strike` | The floor strike of a collar: required with `Collar` and `<= strike`; must be absent for a `Cap` or a `Floor`. |
+| `schedule`, `index`, `day_counter`, `business_day_convention` | The IBOR leg: `QuantLib::IborLeg(schedule, index)` with the trade-level payment day counter and payment adjustment; the index projects off `forwarding_curve`. |
+
+A collar is `QuantLib::Collar(leg, {strike}, {floor_strike})`: long the cap,
+short the floor, on the same leg, curves, vol and engine, so its `npv` is the
+cap's `npv` minus the floor's from two separate requests (a gate test holds
+the identity to 1e-10 relative). The response carries `npv`, `atm_rate`
+(the leg's ATM rate on the discounting curve) and, with `include_details`,
+one `cap_floor_lets[]` row per unpaid period (`payment_date`,
+`accrual_start_date`, `accrual_end_date`, `fixing_date`, `forward_rate`,
+`discount`). For a collar the row is the same period for the caplet and the
+floorlet; the strikes are the request's `strike` and `floor_strike`,
+identical on every row, so they are not repeated per row. The row's `strike`
+and `price` fields are not populated in this version (`0.0` for every type).
+
+Rejected (`400`): a missing `cap_floor_type`, `notional`, `strike`,
+`day_counter`, `business_day_convention` or `schedule`; `Collar` without
+`floor_strike` or with `floor_strike > strike`; `floor_strike` on a `Cap`
+or a `Floor`; a model / vol-type mismatch (`Bachelier` needs a `Normal`
+vol, `Black` a zero displacement, `ShiftedBlack` a positive one). A missing
+curve, vol, model or index id is a `404`.
+
 ## Structured notes
 
 `POST /price-structured-note` prices notes on baskets of equity indices by
@@ -1102,7 +1138,7 @@ shared between notes):
 | `notional` | Coupons and the redemption are fractions of it. Presence-required, `> 0`. |
 | `underlyings[]` | The basket, at least one entry, ids distinct. Each: `underlying_id` (an `EquityUnderlyingSpec`, whose `currency` is required here), `volatility_id` (a `VolSurfaceSpec` with a `BlackVolSpec` payload: constant or term vols step exactly between observation dates; a strike x expiry surface makes the simulation Dupire local-vol and requires `monte_carlo.steps_per_year`), `initial_level` (the strike fixing every performance `S(t) / initial_level` is measured against; presence-required, `> 0`), `quanto` (present iff the underlying's currency differs from the note's: `discounting_curve` = the rate curve of the underlying's currency, `fx_spot_id` = an `FxSpotSpec` quoting the two currencies in either direction, `fx_volatility_id` = a constant or term `BlackVolSpec`, `fx_underlying_correlation` in `[-1, 1]`, presence-required), `historical_levels[]` (`{date, value}` closes on past dated observation dates; a past observation without one is a `400` naming the date). |
 | `performance_rule` | `WorstOf`, `BestOf` or `Average` of the underlyings' performances. Presence-required. |
-| `events[]` | Strictly increasing `observation_date`s; the last is the final observation. `autocall_trigger` present: `perf >= trigger` ends the note (notional plus this coupon plus the memory on `payment_date`). `coupon_trigger` present: `perf >= trigger` earns `coupon` plus the memory, paid on `payment_date` or held (`pay_only_on_call`). Both present (Phoenix with a call): the coupon test runs first. Neither: an accrual-only event, `coupon` joins the memory, nothing is observed or paid (`coupon_rule.memory` must be true, `payment_date` absent). `payment_date` is required iff a trigger is present and must be on or after the observation date; `coupon` is required with `coupon_trigger` and on accrual-only events. The final event must carry a trigger. |
+| `events[]` | Strictly increasing `observation_date`s; the last is the final observation. `autocall_trigger` present: `perf >= trigger` ends the note (notional plus this coupon plus the memory on `payment_date`). `coupon_trigger` present: `perf >= trigger` earns `coupon` plus the memory, paid on `payment_date` or held (`pay_only_on_call`). Both present (Phoenix with a call): the coupon test runs first. Neither: an accrual-only event, `coupon` joins the memory, nothing is observed or paid (`coupon_rule.memory` must be true, `payment_date` absent). `payment_date` is required iff a trigger is present and must be on or after the observation date; `coupon` is required with `coupon_trigger` and on accrual-only events. The final event must carry a trigger, unless it is marked `is_final: true`: a maturity-only observation where only the capital protection block (and `upside`) is tested, with no coupon test and no call test (the memory is not paid there); `coupon`, `coupon_trigger` and `autocall_trigger` must then be absent, `payment_date` is required and must equal `maturity_payment_date`, and the event must be the last one. A final observation that also tests a coupon or a call (Santander's 80 % hurdle, BNP's 100 % call) keeps its trigger; `is_final` is for a final date that only decides the redemption (the Scotia note). |
 | `coupon_rule` | `memory` (a missed coupon is added to a memory paid with the next coupon; the memory is a sum of amounts) and `pay_only_on_call` (true = Athena / snowball: earned coupons are held until a call or the final event; false = Phoenix: paid on their `payment_date`). Both presence-required. |
 | `capital` | `barrier` in `(0, 1]`, `monitoring` (`European`: tested on the final observation; `DailyClose`: breached when the basket performance is below the barrier on any simulated close), `put_strike` (default 1), `participation` (default 1); when breached the redemption is `1 - participation x max(put_strike - perf_final, 0)`. `knocked_in` is presence-required with `DailyClose` when an event is on or before the valuation date, absent otherwise. |
 | `upside` | Optional: `participation x max(perf_final - strike, 0)`, capped at `cap` when present, added to the redemption when the note is not called. |
@@ -1130,6 +1166,10 @@ call and a coupon-plus-redemption pay the same amounts on the same date), 60 %
 European barrier. A reverse convertible is `coupon_trigger: 0.0` on every
 event and no `autocall_trigger`; a step-down is a per-event trigger; a
 Phoenix is `pay_only_on_call: false`; a geared put is `participation > 1`.
+The Scotia note (`scotia_autocallable_trigger_ndx_rty_us06419jme72.json`)
+has one 100 % call with a 14.75 % premium and a final date that only tests
+the 75 % trigger and the 250 % upside: its last event is `{observation_date,
+payment_date, is_final: true}`, no coupon and no trigger.
 
 ### Response
 
@@ -1142,7 +1182,7 @@ One row per note, in request order.
 | `legs` | `bond_redemption`, `coupons`, `capital_loss` (`<= 0`), each `{pv, standard_error}`; the three sum to `npv`. `upside` is in `bond_redemption`. |
 | `event_probabilities[]` | Per simulated event: `p_call` (present iff `autocall_trigger`), `p_coupon` (present iff a coupon test), both "alive at this event and the test holds". |
 | `p_barrier_breach`, `expected_life_years` | Breach probability; `E[t]` of the call (or the final observation), Actual/365 (Fixed) from the valuation date. |
-| `terms` | Every booked field as understood, defaults filled, each event flagged `accrual_only` / `final` / `resolved_from_history`. Check it before trusting the price. |
+| `terms` | Every booked field as understood, defaults filled, each event flagged `accrual_only` / `final` (the last event) / `is_final` (the request's maturity-only marker) / `resolved_from_history`. Check it before trusting the price. |
 | `seasoning` | How the past was resolved: per past event the levels, performances, basket performance, call and coupon outcomes, coupon paid, memory after; `memory_carried` into the simulation; `next_event_index`; for a decided note `known_payment_date` and `known_payment`. |
 | `model` | Per underlying `vol_shape`, `local_vol`, `quanto_drift` (rate units, at the first observation); `observation_dates_only`, `time_steps`, `time_grid`, `sequence_dimension`. |
 | `greeks` | The bump-and-reprice sensitivities below, present iff `greeks` was in the request. |
@@ -1327,7 +1367,10 @@ Each is a `400` naming the field (`notes[<i>].<path>: ...`): an empty
 `notional` or `initial_level`; a duplicate `underlying_id`; a missing
 `performance_rule`, `coupon_rule.memory` / `pay_only_on_call`,
 `capital.barrier` (or outside `(0, 1]`) / `monitoring`, `monte_carlo.paths`;
-events not strictly increasing; a final event without a trigger; an
+events not strictly increasing; a final event without a trigger and
+without `is_final`; an `is_final` event with a `coupon`, `coupon_trigger`
+or `autocall_trigger`, without a `payment_date`, with a `payment_date`
+other than `maturity_payment_date`, or that is not the last event; an
 accrual-only event with a `payment_date`, without a `coupon` or without
 `coupon_rule.memory`; a `coupon_trigger` without a `coupon`; a trigger
 without a `payment_date`, or one before the observation date; a negative

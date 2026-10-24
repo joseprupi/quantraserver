@@ -119,6 +119,55 @@ def test_example_prices(client, data_dir, filename, isin, n_events, n_accrual, n
     assert "greeks" not in n and "market" not in n and "checks" not in n
 
 
+SCOTIA_EXAMPLE = "structured_note/scotia_autocallable_trigger_ndx_rty_us06419jme72.json"
+
+
+def test_is_final_marker_is_echoed_and_has_no_coupon_test(client, data_dir):
+    """The Scotia note's last event is a maturity-only observation written as
+    `is_final: true` (no coupon, no trigger). The echo marks it `final` and
+    `is_final` with no coupon fields; the probabilities carry no `p_coupon`
+    (there is no coupon test) and no `p_call` at that event; and the price is
+    the same as the zero-coupon workaround (`coupon_trigger 0.0, coupon 0.0`)
+    on the same stream, to the print precision."""
+    with open(data_dir / SCOTIA_EXAMPLE) as fh:
+        req = json.load(fh)
+    last = req["notes"][0]["events"][-1]
+    assert last == {"observation_date": "2028-10-02", "payment_date": "2028-10-05",
+                    "is_final": True}
+    status, body = _post(client, req)
+    assert status == 200, body[:300]
+    n = json.loads(body)["notes"][0]
+    events = n["terms"]["events"]
+    assert events[-1]["final"] and events[-1]["is_final"]
+    assert not events[-1]["accrual_only"]
+    assert not events[0]["is_final"] and events[0]["final"] is False
+    for k in ("coupon", "coupon_trigger", "autocall_trigger"):
+        assert k not in events[-1]
+    assert events[-1]["payment_date"] == n["terms"]["maturity_payment_date"] == "2028-10-05"
+    probs = n["event_probabilities"]
+    assert [p["index"] for p in probs] == [0, 1]
+    assert "p_call" in probs[0] and "p_coupon" in probs[0]
+    assert "p_coupon" not in probs[1] and "p_call" not in probs[1]
+    assert 0.0 < n["p_barrier_breach"] < 1.0
+
+    workaround = json.loads(json.dumps(req))
+    workaround["notes"][0]["events"][-1] = {"observation_date": "2028-10-02",
+                                            "payment_date": "2028-10-05",
+                                            "coupon_trigger": 0.0, "coupon": 0.0}
+    status, body = _post(client, workaround)
+    assert status == 200, body[:300]
+    w = json.loads(body)["notes"][0]
+    assert w["npv"] == n["npv"]
+    assert w["standard_error"] == n["standard_error"]
+    for bucket in ("bond_redemption", "coupons", "capital_loss"):
+        assert w["legs"][bucket]["pv"] == n["legs"][bucket]["pv"]
+    assert w["p_barrier_breach"] == n["p_barrier_breach"]
+    # The zero coupon test holds on every path alive at the final observation.
+    survival = 1.0 - w["event_probabilities"][0]["p_call"]
+    assert abs(w["event_probabilities"][1]["p_coupon"] - survival) < 1e-9
+    assert not w["terms"]["events"][-1]["is_final"]
+
+
 GREEKS_EXAMPLE = "structured_note/bnp_quad_index_classic_autocall_xs2741509801_greeks.json"
 SINGLE_UNDERLYING_EXAMPLE = "structured_note/single_underlying_reverse_convertible.json"
 GREEKS_DEFAULTS = {"spot_bump": 0.01, "vol_bump": 0.01, "correlation_bump": 0.01,

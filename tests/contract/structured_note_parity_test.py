@@ -419,11 +419,14 @@ def _assert_parity(api, ref):
 # ---------------------------------------------------------------------------
 
 SINGLE_UNDERLYING_FILE = "structured_note/single_underlying_reverse_convertible.json"
+SCOTIA_FILE = "structured_note/scotia_autocallable_trigger_ndx_rty_us06419jme72.json"
 
 
-@pytest.mark.parametrize("filename", [BNP, SANTANDER, TWO_ASSET_FILE, SINGLE_UNDERLYING_FILE],
+@pytest.mark.parametrize("filename", [BNP, SANTANDER, TWO_ASSET_FILE, SINGLE_UNDERLYING_FILE,
+                                      SCOTIA_FILE],
                          ids=["bnp_xs2741509801", "santander_xs3109492564",
-                              "two_assets_rho_0_7", "single_underlying_reverse_convertible"])
+                              "two_assets_rho_0_7", "single_underlying_reverse_convertible",
+                              "scotia_us06419jme72_is_final"])
 def test_example_parity(client, data_dir, filename):
     request = load_json(data_dir / filename)
     _assert_parity(_post(client, request), structured_note_ql(request))

@@ -5,9 +5,9 @@
  * Simulation time grid for the shared Monte Carlo core.
  *
  * Time axis: t = Actual/365 (Fixed) year fraction from the valuation date,
- * i.e. t = (date - valuation) / 365. The grid is what MultiPathGenerator
- * steps over; QuantLib evaluates each process's curves and vol at these t on
- * the curves' own day counters (as its own MC engines do), so a caller that
+ * i.e. t = (date - valuation) / 365. The grid is what the path engine steps
+ * over; each process's curves and vol are evaluated at these t on the
+ * curves' own day counters (as QuantLib's MC engines do), so a caller that
  * wants the grid times to coincide with the curves' times builds the curves
  * on Actual/365 (Fixed) as well.
  *

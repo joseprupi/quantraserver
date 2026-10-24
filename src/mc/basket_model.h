@@ -40,6 +40,18 @@
  * or vol flows through to the next simulation (bump-and-reprice Greeks with
  * the same seed).
  *
+ * Exact-step table. When every asset is exact-step capable, QuantLib's step
+ * (GeneralizedBlackScholesProcess::evolve, ql/processes/blackscholesprocess.cpp)
+ * is x * exp((r - q) dt - var / 2 + sqrt(var) dz) with r, q and var read from
+ * the curves and the vol for (t0, dt) only: deterministic per (asset, step),
+ * yet QuantLib re-reads them for every path (90 % of the simulation time on a
+ * quanto basket, measured with the benchmark). `LognormalBasket::stepTable` hoists
+ * those reads into a table once per run; the path engine then applies the
+ * same formula in the same evaluation order, so the paths are bit-identical
+ * to MultiPathGenerator's (verified level by level in
+ * tests/parity/mc_core_test.cpp). A basket with a local-vol asset has no
+ * table: its log-Euler step depends on the simulated level.
+ *
  * QuantLib only: no FlatBuffers, no gRPC, no registries in this module.
  */
 
@@ -49,6 +61,7 @@
 #include <ql/quote.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
+#include <ql/timegrid.hpp>
 
 #include <memory>
 #include <string>
@@ -93,6 +106,69 @@ BasketAsset MakeBasketAsset(
     const QuantLib::Handle<QuantLib::YieldTermStructure>& riskFree,
     const QuantLib::Handle<QuantLib::BlackVolTermStructure>& vol);
 
+/**
+ * Coefficients of the exact lognormal step of every asset over every step of
+ * one time grid, so a path costs one exp per (asset, step) and no term
+ * structure read. Per asset k and step s (t0 = grid[s], dt = grid.dt(s)), the
+ * values QuantLib's evolve computes from the handles:
+ *
+ *   var   = vol.blackVariance(t0 + dt, 0.01) - vol.blackVariance(t0, 0.01)
+ *   drift = (riskFree.forwardRate(t0, t0 + dt, Continuous, NoFrequency, true)
+ *            - dividend.forwardRate(t0, t0 + dt, Continuous, NoFrequency, true))
+ *           * dt - 0.5 * var
+ *   stdDev = sqrt(var)
+ *
+ * (the strike passed to blackVariance is irrelevant for a strike-independent
+ * vol, so this equals blackForwardVariance(t0, t0 + dt, spot)). The step is
+ * then x[s + 1] = x[s] * exp(stdDev * dz + drift), dz = (sqrtCorrelation * dw)
+ * of the step's Gaussian draws, in exactly that order of operations.
+ */
+struct LognormalStepTable {
+    QuantLib::Size assets = 0;
+    QuantLib::Size steps = 0;
+    /// Row-major [step * assets + asset].
+    std::vector<QuantLib::Real> drift;
+    std::vector<QuantLib::Real> stdDev;
+    /// The spectral pseudo-square-root of the correlation: the very matrix the
+    /// StochasticProcessArray correlates its draws with.
+    QuantLib::Matrix sqrtCorrelation;
+    /// Spot of every asset at build time (the processes' initial values).
+    std::vector<QuantLib::Real> x0;
+};
+
+/**
+ * The basket's process array (one GeneralizedBlackScholesProcess per asset,
+ * correlated by QuantLib's spectral pseudo-square-root) that also keeps the
+ * assets it was built from, so that the path engine can build the exact-step
+ * table of a time grid when every asset allows it. It is a
+ * StochasticProcessArray in every other respect.
+ */
+class LognormalBasket : public QuantLib::StochasticProcessArray {
+public:
+    LognormalBasket(
+        std::vector<BasketAsset> assets,
+        const std::vector<std::shared_ptr<QuantLib::StochasticProcess1D>>& processes,
+        const QuantLib::Matrix& correlation);
+
+    const std::vector<BasketAsset>& assets() const { return assets_; }
+
+    /// True iff every asset is exact-step capable (constant or term vol):
+    /// stepTable() is then available and the paths of the table and of
+    /// QuantLib's evolve coincide bit for bit.
+    bool exactStep() const { return exactStep_; }
+
+    /// The exact-step table over `grid` (grid.size() >= 2), read from the
+    /// handles as they are linked now (a bumped spot, curve or vol is seen).
+    /// QUANTRA_ERROR when !exactStep() (caller wiring bug) or the grid is too
+    /// short. QuantLib exceptions from the curves and the vol propagate
+    /// unchanged, exactly as they would from MultiPathGenerator.
+    LognormalStepTable stepTable(const QuantLib::TimeGrid& grid) const;
+
+private:
+    std::vector<BasketAsset> assets_;
+    bool exactStep_ = false;
+};
+
 class BasketModel {
 public:
     /**
@@ -108,7 +184,7 @@ public:
      * a non-positive spot. QUANTRA_ERROR (500): an empty handle, or
      * `exactStepCapable` contradicting the vol's type (caller wiring bug).
      */
-    static std::shared_ptr<QuantLib::StochasticProcessArray> build(
+    static std::shared_ptr<LognormalBasket> build(
         const std::vector<BasketAsset>& assets, const QuantLib::Matrix& correlation);
 
     /// True iff every asset is exact-step capable (the time grid may then be
