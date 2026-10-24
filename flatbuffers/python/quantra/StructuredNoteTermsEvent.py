@@ -88,18 +88,29 @@ class StructuredNoteTermsEvent(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
-    # True when `observation_date` is on or before the valuation date:
-    # the event was resolved from `historical_levels` (see
-    # `StructuredNoteSeasoning`) and not simulated.
+    # True when the request marked the event `is_final`: a maturity-only
+    # observation where only the capital protection block (and `upside`)
+    # is tested, with no coupon test and no call test. False for a final
+    # event that carries a trigger.
     # StructuredNoteTermsEvent
-    def ResolvedFromHistory(self):
+    def IsFinal(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
+    # True when `observation_date` is on or before the valuation date:
+    # the event was resolved from `historical_levels` (see
+    # `StructuredNoteSeasoning`) and not simulated.
+    # StructuredNoteTermsEvent
+    def ResolvedFromHistory(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def StructuredNoteTermsEventStart(builder):
-    builder.StartObject(9)
+    builder.StartObject(10)
 
 def Start(builder):
     StructuredNoteTermsEventStart(builder)
@@ -152,8 +163,14 @@ def StructuredNoteTermsEventAddFinal(builder, final):
 def AddFinal(builder, final):
     StructuredNoteTermsEventAddFinal(builder, final)
 
+def StructuredNoteTermsEventAddIsFinal(builder, isFinal):
+    builder.PrependBoolSlot(8, isFinal, 0)
+
+def AddIsFinal(builder, isFinal):
+    StructuredNoteTermsEventAddIsFinal(builder, isFinal)
+
 def StructuredNoteTermsEventAddResolvedFromHistory(builder, resolvedFromHistory):
-    builder.PrependBoolSlot(8, resolvedFromHistory, 0)
+    builder.PrependBoolSlot(9, resolvedFromHistory, 0)
 
 def AddResolvedFromHistory(builder, resolvedFromHistory):
     StructuredNoteTermsEventAddResolvedFromHistory(builder, resolvedFromHistory)
@@ -177,6 +194,7 @@ class StructuredNoteTermsEventT(object):
         self.coupon = None  # type: Optional[float]
         self.accrualOnly = False  # type: bool
         self.final = False  # type: bool
+        self.isFinal = False  # type: bool
         self.resolvedFromHistory = False  # type: bool
 
     @classmethod
@@ -208,6 +226,7 @@ class StructuredNoteTermsEventT(object):
         self.coupon = structuredNoteTermsEvent.Coupon()
         self.accrualOnly = structuredNoteTermsEvent.AccrualOnly()
         self.final = structuredNoteTermsEvent.Final()
+        self.isFinal = structuredNoteTermsEvent.IsFinal()
         self.resolvedFromHistory = structuredNoteTermsEvent.ResolvedFromHistory()
 
     # StructuredNoteTermsEventT
@@ -227,6 +246,7 @@ class StructuredNoteTermsEventT(object):
         StructuredNoteTermsEventAddCoupon(builder, self.coupon)
         StructuredNoteTermsEventAddAccrualOnly(builder, self.accrualOnly)
         StructuredNoteTermsEventAddFinal(builder, self.final)
+        StructuredNoteTermsEventAddIsFinal(builder, self.isFinal)
         StructuredNoteTermsEventAddResolvedFromHistory(builder, self.resolvedFromHistory)
         structuredNoteTermsEvent = StructuredNoteTermsEventEnd(builder)
         return structuredNoteTermsEvent

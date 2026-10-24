@@ -4,14 +4,24 @@ include "schedule.fbs";
 
 namespace quantra;
 
-/// Cap or Floor instrument.
+/// Cap, Floor or Collar on an IBOR leg. A Collar is long the cap at `strike`
+/// and short the floor at `floor_strike` on the same leg (QuantLib::Collar),
+/// so its NPV is the cap's NPV minus the floor's NPV priced on the same
+/// curves, vol and engine.
 table CapFloor {
+    /// Cap, Floor or Collar. Presence-required.
     cap_floor_type:enums.CapFloorType = null;
     /// Notional. Presence-required and must be > 0.
     notional:double = null;
-    /// Strike rate (e.g., 0.04 for 4%). Presence-required; may be negative, only
-    /// a missing or non-finite value is rejected.
+    /// Strike rate (e.g., 0.04 for 4%); for a Collar, the CAP strike.
+    /// Presence-required; may be negative, only a missing or non-finite value
+    /// is rejected.
     strike:double = null;
+    /// Floor strike of a Collar (e.g., 0.02 for 2%). Required (400) when
+    /// `cap_floor_type` is Collar and must be <= `strike` (400 otherwise);
+    /// must be absent (400) for a Cap or a Floor, whose single strike is
+    /// `strike`.
+    floor_strike:double = null;
     schedule:Schedule;
     /// Reference to an IndexDef by id (e.g., "EUR_3M").
     index:IndexRef (required);

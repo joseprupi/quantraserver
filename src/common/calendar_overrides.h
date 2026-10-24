@@ -9,7 +9,10 @@
  * shared implementation, i.e. process-global per calendar, so the overrides are
  * applied for the duration of one request and reset afterwards — the same
  * set/reset pattern as the evaluation date (EvalDateGuard). This is safe because
- * a worker processes one request at a time.
+ * a worker processes one request at a time. The engine's own record of what
+ * is applied (the touched calendars and the fingerprint) is thread_local: it
+ * belongs to the worker thread whose guard applied it, so a guard on another
+ * thread cannot clear it or report its fingerprint.
  *
  * This module is FlatBuffers-free; the wire -> HolidayOverride translation lives
  * in src/parsers/calendar_override_parser.

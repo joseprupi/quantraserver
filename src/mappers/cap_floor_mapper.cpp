@@ -54,6 +54,23 @@ CapFloorTrade extractTrade(const quantra::PriceCapFloor* pricing) {
     trade.schedule = *schedule;
     trade.notional = requirePositive(capFloor->notional(), "CapFloor.notional");
     trade.strike = requireFinite(capFloor->strike(), "CapFloor.strike");
+    if (trade.capFloorType == QuantLib::CapFloor::Collar) {
+        if (!capFloor->floor_strike().has_value()) {
+            QUANTRA_INVALID_ARGUMENT(
+                "CapFloor.floor_strike is required for a Collar (strike is the cap strike)");
+        }
+        trade.floorStrike = requireFinite(capFloor->floor_strike(), "CapFloor.floor_strike");
+        if (*trade.floorStrike > trade.strike) {
+            QUANTRA_INVALID_ARGUMENT(
+                "CapFloor.floor_strike must be <= strike (the cap strike) for a Collar, got "
+                "floor_strike=" +
+                std::to_string(*trade.floorStrike) + " strike=" + std::to_string(trade.strike));
+        }
+    } else if (capFloor->floor_strike().has_value()) {
+        QUANTRA_INVALID_ARGUMENT(
+            "CapFloor.floor_strike must be absent unless cap_floor_type is Collar (a Cap or a "
+            "Floor has the single strike `strike`)");
+    }
     trade.dayCounter = DayCounterToQL(capFloor->day_counter().value());
     trade.businessDayConvention = ConventionToQL(capFloor->business_day_convention().value());
     trade.includeDetails = pricing->include_details();

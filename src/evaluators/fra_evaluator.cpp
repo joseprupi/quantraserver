@@ -8,7 +8,6 @@
 #include <ql/instruments/forwardrateagreement.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-#include <iostream>
 #include <memory>
 
 namespace quantra {
@@ -47,9 +46,6 @@ FraPerTrade priceTrade(
     out.forwardRate = fra->forwardRate();
     out.spotValue = out.npv;
     out.settlementDate = DateToIso(trade.startDate);
-
-    std::cout << "FRA NPV: " << out.npv << ", Forward Rate: " << out.forwardRate * 100 << "%"
-              << std::endl;
     return out;
 }
 

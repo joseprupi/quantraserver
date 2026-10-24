@@ -6,7 +6,10 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Cap or Floor instrument.
+# Cap, Floor or Collar on an IBOR leg. A Collar is long the cap at `strike`
+# and short the floor at `floor_strike` on the same leg (QuantLib::Collar),
+# so its NPV is the cap's NPV minus the floor's NPV priced on the same
+# curves, vol and engine.
 class CapFloor(object):
     __slots__ = ['_tab']
 
@@ -25,6 +28,7 @@ class CapFloor(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # Cap, Floor or Collar. Presence-required.
     # CapFloor
     def CapFloorType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -40,8 +44,9 @@ class CapFloor(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
 
-    # Strike rate (e.g., 0.04 for 4%). Presence-required; may be negative, only
-    # a missing or non-finite value is rejected.
+    # Strike rate (e.g., 0.04 for 4%); for a Collar, the CAP strike.
+    # Presence-required; may be negative, only a missing or non-finite value
+    # is rejected.
     # CapFloor
     def Strike(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -49,9 +54,20 @@ class CapFloor(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
 
+    # Floor strike of a Collar (e.g., 0.02 for 2%). Required (400) when
+    # `cap_floor_type` is Collar and must be <= `strike` (400 otherwise);
+    # must be absent (400) for a Cap or a Floor, whose single strike is
+    # `strike`.
+    # CapFloor
+    def FloorStrike(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
     # CapFloor
     def Schedule(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.Schedule import Schedule
@@ -63,7 +79,7 @@ class CapFloor(object):
     # Reference to an IndexDef by id (e.g., "EUR_3M").
     # CapFloor
     def Index(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.IndexRef import IndexRef
@@ -74,20 +90,20 @@ class CapFloor(object):
 
     # CapFloor
     def DayCounter(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
     # CapFloor
     def BusinessDayConvention(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
 def CapFloorStart(builder):
-    builder.StartObject(7)
+    builder.StartObject(8)
 
 def Start(builder):
     CapFloorStart(builder)
@@ -110,26 +126,32 @@ def CapFloorAddStrike(builder, strike):
 def AddStrike(builder, strike):
     CapFloorAddStrike(builder, strike)
 
+def CapFloorAddFloorStrike(builder, floorStrike):
+    builder.PrependFloat64Slot(3, floorStrike, None)
+
+def AddFloorStrike(builder, floorStrike):
+    CapFloorAddFloorStrike(builder, floorStrike)
+
 def CapFloorAddSchedule(builder, schedule):
-    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(schedule), 0)
+    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(schedule), 0)
 
 def AddSchedule(builder, schedule):
     CapFloorAddSchedule(builder, schedule)
 
 def CapFloorAddIndex(builder, index):
-    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(index), 0)
+    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(index), 0)
 
 def AddIndex(builder, index):
     CapFloorAddIndex(builder, index)
 
 def CapFloorAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(5, dayCounter, None)
+    builder.PrependInt8Slot(6, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     CapFloorAddDayCounter(builder, dayCounter)
 
 def CapFloorAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(6, businessDayConvention, None)
+    builder.PrependInt8Slot(7, businessDayConvention, None)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     CapFloorAddBusinessDayConvention(builder, businessDayConvention)
@@ -152,6 +174,7 @@ class CapFloorT(object):
         self.capFloorType = None  # type: Optional[int]
         self.notional = None  # type: Optional[float]
         self.strike = None  # type: Optional[float]
+        self.floorStrike = None  # type: Optional[float]
         self.schedule = None  # type: Optional[ScheduleT]
         self.index = None  # type: Optional[IndexRefT]
         self.dayCounter = None  # type: Optional[int]
@@ -181,6 +204,7 @@ class CapFloorT(object):
         self.capFloorType = capFloor.CapFloorType()
         self.notional = capFloor.Notional()
         self.strike = capFloor.Strike()
+        self.floorStrike = capFloor.FloorStrike()
         if capFloor.Schedule() is not None:
             self.schedule = ScheduleT.InitFromObj(capFloor.Schedule())
         if capFloor.Index() is not None:
@@ -198,6 +222,7 @@ class CapFloorT(object):
         CapFloorAddCapFloorType(builder, self.capFloorType)
         CapFloorAddNotional(builder, self.notional)
         CapFloorAddStrike(builder, self.strike)
+        CapFloorAddFloorStrike(builder, self.floorStrike)
         if self.schedule is not None:
             CapFloorAddSchedule(builder, schedule)
         if self.index is not None:

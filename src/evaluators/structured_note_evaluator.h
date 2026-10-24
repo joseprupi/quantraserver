@@ -59,7 +59,10 @@
  * called: breach = perf < barrier (European) or the DailyClose state;
  * redemption = notional x (1 - participation x max(put_strike - perf, 0))
  * when breached, else notional, plus the `upside` participation when
- * present, on maturity_payment_date. Buckets: bond_redemption (notional
+ * present, on maturity_payment_date. An `is_final` event (maturity-only
+ * observation) skips the coupon and call tests: only the capital block and
+ * the upside run, the memory is not paid, and the event reports neither a
+ * coupon nor a call probability. Buckets: bond_redemption (notional
  * returned on a call or at maturity, plus any upside), coupons (memory
  * included), capital_loss (<= 0).
  *

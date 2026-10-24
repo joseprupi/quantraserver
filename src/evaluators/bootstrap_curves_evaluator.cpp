@@ -21,8 +21,17 @@ double sampleZero(
     const QuantLib::Date& d,
     const ZeroSampleSpec& spec) {
     QuantLib::DayCounter dc = spec.useCurveDayCounter ? curve->dayCounter() : spec.dayCounter;
-    QuantLib::Date refDate = curve->referenceDate();
-    QuantLib::Date dd = (d <= refDate) ? refDate + 1 : d;
+    // A sample on or before the reference date is the t -> 0 limit of the zero
+    // rate. QuantLib's zeroRate(Date) computes that limit itself when the date
+    // IS the reference date (yieldtermstructure.cpp: t == 0 -> the rate over
+    // dt = 1e-4 years, which is the first pillar's zero for a flat curve and
+    // for the log-linear discount curves the bootstrap builds, and within
+    // 1e-4 x slope of it for a linearly interpolated zero curve), so the clamp
+    // is to the reference date itself. Clamping one day past it (the previous
+    // behaviour) returned the one-day zero, which differs from the limit on a
+    // curve whose zero is interpolated from t = 0.
+    const QuantLib::Date refDate = curve->referenceDate();
+    const QuantLib::Date dd = (d < refDate) ? refDate : d;
     return curve->zeroRate(dd, dc, spec.compounding, spec.frequency).rate();
 }
 
@@ -33,6 +42,11 @@ double sampleForward(
     QuantLib::DayCounter dc = spec.useCurveDayCounter ? curve->dayCounter() : spec.dayCounter;
     QuantLib::Date endDate;
     if (spec.instantaneous) {
+        // The eps of an instantaneous forward is a step on the curve's time
+        // axis, not a settlement period: in Days it is raw calendar days on
+        // purpose (a 1-day eps over a weekend stays 1/365, not 3/365), while
+        // Weeks / Months / Years go through the calendar like any tenor. Kept
+        // as is (documented, not changed) in 0.13.0.
         endDate = (spec.epsUnit == QuantLib::Days)
                       ? d + spec.epsNumber
                       : spec.calendar.advance(
@@ -40,6 +54,9 @@ double sampleForward(
     } else {
         endDate = spec.calendar.advance(d, spec.tenor, spec.bdc);
     }
+    // A calendar advance with a Preceding convention (or a zero tenor) can land
+    // on or before `d`; forwardRate needs a positive period, so fall back to
+    // the next calendar day.
     if (endDate <= d) endDate = d + 1;
     return curve->forwardRate(d, endDate, dc, spec.compounding, spec.frequency).rate();
 }

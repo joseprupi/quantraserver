@@ -1333,6 +1333,27 @@ CASES = [
                       "single curve"],
     },
     {
+        "id": "collar_eur_5y_cap_4pct_floor_2pct_euribor3m",
+        "product": "cap_floor",
+        "family": "Cap/Floor",
+        "title": "EUR 5Y collar on Euribor 3M (long 4% cap, short 2% floor)",
+        "description": (
+            "The baseline 5Y quarterly Euribor 3M leg collared between a "
+            "4.00% cap (long) and a 2.00% floor (short) on 1m notional, "
+            "Black engine on the flat 20% lognormal optionlet vol, single "
+            "curve. Exercises the Collar type (`strike` is the cap strike, "
+            "`floor_strike` the floor's): the NPV is the 4% cap's minus the "
+            "2% floor's, and the two legs nearly offset around the ~3.1% "
+            "forwards."
+        ),
+        "request": "cap_floor/collar_eur_5y_cap_4pct_floor_2pct_euribor3m.json",
+        "list_key": "cap_floors",
+        "ql_pricer": "price_cap_floor_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["collar", "long cap short floor", "floor_strike",
+                      "Euribor3M", "quarterly", "Black lognormal 20%"],
+    },
+    {
         "id": "cap_eur_5y_itm_strike_2pct",
         "product": "cap_floor",
         "family": "Cap/Floor",

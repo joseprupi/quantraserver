@@ -3,7 +3,6 @@
 #include "error.h"
 
 #include <cmath>
-#include <iostream>
 
 namespace quantra {
 
@@ -35,8 +34,6 @@ BasisSwapPerSwap priceTrade(
         const double fairSpread = leg.level() - out.npv * kBasisPoint / bps;
         if (std::isfinite(fairSpread)) out.fairSpread = fairSpread;
     }
-
-    std::cout << "Basis swap NPV (" << trade.leg1.currency << "): " << out.npv << std::endl;
     return out;
 }
 

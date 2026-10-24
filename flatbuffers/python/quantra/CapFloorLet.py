@@ -6,7 +6,12 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Individual caplet/floorlet detail.
+# One accrual period of the underlying IBOR leg (one row per coupon that has
+# not yet paid), present when `PriceCapFloor.include_details` is set. The
+# row describes the period: dates, the index forward and the discount
+# factor at the payment date. For a Collar the row is the same period for
+# both the caplet and the floorlet; the strikes are the request's `strike`
+# (cap) and `floor_strike`, identical on every row, and are not repeated here.
 class CapFloorLet(object):
     __slots__ = ['_tab']
 
@@ -53,6 +58,8 @@ class CapFloorLet(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Not populated in this version (serialised as 0.0 for every type); the
+    # strike(s) are the request's `strike` / `floor_strike`.
     # CapFloorLet
     def Strike(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
@@ -74,7 +81,8 @@ class CapFloorLet(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Individual caplet/floorlet price.
+    # Not populated in this version (serialised as 0.0): the per-period
+    # option value is not split out of `npv`.
     # CapFloorLet
     def Price(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))

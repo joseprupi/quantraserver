@@ -401,6 +401,10 @@
                 "type" : "boolean",
                 "description" : "True for the last event (capital test runs here)."
               },
+        "is_final" : {
+                "type" : "boolean",
+                "description" : "True when the request marked the event `is_final`: a maturity-only\nobservation where only the capital protection block (and `upside`)\nis tested, with no coupon test and no call test. False for a final\nevent that carries a trigger."
+              },
         "resolved_from_history" : {
                 "type" : "boolean",
                 "description" : "True when `observation_date` is on or before the valuation date:\nthe event was resolved from `historical_levels` (see\n`StructuredNoteSeasoning`) and not simulated."

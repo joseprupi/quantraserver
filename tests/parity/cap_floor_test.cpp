@@ -5,6 +5,9 @@
 // test_quantra_vs_quantlib gtest binary.
 #include "parity_fixture.h"
 
+#include <cmath>
+#include <optional>
+
 namespace quantra { namespace testing {
 
 TEST_F(QuantraComparisonTest, Cap_NPVMatches) {
@@ -282,6 +285,114 @@ TEST_F(QuantraComparisonTest, Cap_Bachelier_NormalVol) {
             ->Get(0)
             ->npv();
     EXPECT_NEAR(qlNPV, qNPV, 0.01);
+}
+
+// Collar = long cap (strike) / short floor (floor_strike) on the same leg.
+// Three requests through the engine on the same market: the collar's NPV is
+// the cap's minus the floor's to 1e-10 relative, and matches QuantLib::Collar
+// built directly.
+TEST_F(QuantraComparisonTest, Collar_NPVIsCapMinusFloor) {
+    std::cout << "\n=== Collar ===" << std::endl;
+    const double notional = 1000000.0, capStrike = 0.04, floorStrike = 0.02, vol = 0.20;
+    QuantLib::Schedule sch(
+        QuantLib::Date(17, QuantLib::January, 2025), QuantLib::Date(17, QuantLib::January, 2030),
+        QuantLib::Period(QuantLib::Quarterly), QuantLib::TARGET(), QuantLib::ModifiedFollowing,
+        QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
+    auto idx = std::make_shared<QuantLib::Euribor3M>(forwardHandle_);
+    QuantLib::Leg leg = QuantLib::IborLeg(sch, idx)
+                            .withNotionals(notional)
+                            .withPaymentDayCounter(QuantLib::Actual360())
+                            .withPaymentAdjustment(QuantLib::ModifiedFollowing);
+    auto qlCollar = std::make_shared<QuantLib::Collar>(
+        leg, std::vector<QuantLib::Rate>(1, capStrike),
+        std::vector<QuantLib::Rate>(1, floorStrike));
+    auto volH = QuantLib::Handle<QuantLib::OptionletVolatilityStructure>(
+        std::make_shared<QuantLib::ConstantOptionletVolatility>(
+            evaluationDate_, QuantLib::TARGET(), QuantLib::ModifiedFollowing, vol,
+            QuantLib::Actual365Fixed()));
+    qlCollar->setPricingEngine(
+        std::make_shared<QuantLib::BlackCapFloorEngine>(discountHandle_, volH));
+    const double qlNPV = qlCollar->NPV();
+
+    auto priceOne = [&](quantra::enums::CapFloorType type, double strike,
+                        std::optional<double> floorK) {
+        flatbuffers::grpc::MessageBuilder b;
+        auto ts = buildCurve(b, "discount");
+        auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+        auto volSurface = buildOptionletVolSurface(b, "vol_20pct", vol);
+        auto vols =
+            b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+        auto model = buildCapFloorModel(b, "black_model", quantra::enums::IrModelType_Black);
+        auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
+        auto indices = buildIndicesVector(b, true);
+        auto asof = b.CreateString("2025-01-15");
+        auto pricing = buildPricing(b, asof, 0, 0, indices, 0, curves, 0, 0, vols, models);
+
+        auto eff = b.CreateString("2025-01-17");
+        auto term = b.CreateString("2030-01-17");
+        quantra::ScheduleBuilder sb(b);
+        sb.add_effective_date(eff);
+        sb.add_termination_date(term);
+        sb.add_calendar(quantra::enums::Calendar_TARGET);
+        sb.add_frequency(quantra::enums::Frequency_Quarterly);
+        sb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        sb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        sb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+        sb.add_end_of_month(false);
+        auto schedule = sb.Finish();
+
+        auto idx3m = buildIndexRef(b, "EUR_3M");
+        quantra::CapFloorBuilder cb(b);
+        cb.add_cap_floor_type(type);
+        cb.add_notional(notional);
+        cb.add_schedule(schedule);
+        cb.add_strike(strike);
+        if (floorK) cb.add_floor_strike(*floorK);
+        cb.add_index(idx3m);
+        cb.add_day_counter(quantra::enums::DayCounter_Actual360);
+        cb.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        auto cf = cb.Finish();
+
+        auto dc = b.CreateString("discount");
+        auto vol_id = b.CreateString("vol_20pct");
+        auto model_id = b.CreateString("black_model");
+        quantra::PriceCapFloorBuilder pcb(b);
+        pcb.add_cap_floor(cf);
+        pcb.add_discounting_curve(dc);
+        pcb.add_forwarding_curve(dc);
+        pcb.add_volatility(vol_id);
+        pcb.add_model(model_id);
+        pcb.add_include_details(true);
+        auto list =
+            b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceCapFloor>>{pcb.Finish()});
+        quantra::PriceCapFloorRequestBuilder rb(b);
+        rb.add_pricing(pricing);
+        rb.add_cap_floors(list);
+        b.Finish(rb.Finish());
+
+        CapFloorPricingRequest req;
+        auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+        auto resp = req.request(
+            respB, flatbuffers::GetRoot<quantra::PriceCapFloorRequest>(b.GetBufferPointer()));
+        respB->Finish(resp);
+        const auto* row =
+            flatbuffers::GetRoot<quantra::PriceCapFloorResponse>(respB->GetBufferPointer())
+                ->cap_floors()
+                ->Get(0);
+        return std::make_pair(row->npv(), row->cap_floor_lets()->size());
+    };
+
+    const auto cap = priceOne(quantra::enums::CapFloorType_Cap, capStrike, std::nullopt);
+    const auto floor = priceOne(quantra::enums::CapFloorType_Floor, floorStrike, std::nullopt);
+    const auto collar = priceOne(quantra::enums::CapFloorType_Collar, capStrike, floorStrike);
+    std::cout << "QuantLib collar: " << qlNPV << " | Quantra collar: " << collar.first << " | cap "
+              << cap.first << " - floor " << floor.first << " = " << cap.first - floor.first
+              << std::endl;
+    EXPECT_NEAR(qlNPV, collar.first, 0.01);
+    EXPECT_NEAR(collar.first, cap.first - floor.first, 1e-10 * std::fabs(cap.first));
+    // One detail row per period for the collar, as for the cap and the floor.
+    EXPECT_EQ(collar.second, cap.second);
+    EXPECT_EQ(collar.second, 20u);
 }
 
 }} // namespace quantra::testing

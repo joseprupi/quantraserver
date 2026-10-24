@@ -48,6 +48,7 @@ observation is resolved from `historical_levels`, never simulated.
 | Observation dates table (observation date, payment date, 100%) | one `ObservationEvent` per row, dates copied verbatim (`observation_date`, `payment_date`) |
 | Final Observation + "80% Low Hurdle" (Santander) | the last event carries `coupon_trigger = 0.8` and no `autocall_trigger`: at the final observation a call and a coupon-plus-redemption pay the same amounts on the same date, so the 80% hurdle is the only test that matters |
 | Final Observation + 100% (BNP) | the last event carries `autocall_trigger = 1.0` (coupon test = call test) |
+| Final valuation date that only decides the redemption (Scotia: 75% trigger and 250% upside, no coupon, no call) | the last event is `{observation_date, payment_date, is_final: true}`: only `capital` (and `upside`) is tested there; `coupon`, `coupon_trigger` and `autocall_trigger` must be absent and `payment_date` must equal `maturity_payment_date` |
 | Capital Protection Barrier 60% Final level (European style) | `capital = {barrier: 0.6, monitoring: European}` |
 | "capital return reduced on a 1-for-1 basis" | `capital.put_strike = 1.0`, `capital.participation = 1.0` |
 | Maturity Date (07 July 2031 / 28 August 2031) | `maturity_payment_date` |
@@ -94,10 +95,14 @@ valuation date 2028-10-02, paid on 2028-10-05: 100% plus 250% of the worst retur
 that return is positive, 100% when the worst index is at or above its 75% trigger, and
 1-for-1 with the worst index below it. No coupons, USD, price-return indices.
 
-In the form: one event with `autocall_trigger` 1.0 and `coupon` 0.1475, a final event
-with `coupon_trigger` 0.0 and `coupon` 0.0 (a final observation with no coupon; the
-schema needs a trigger on the last event), `memory` false, `capital` barrier 0.75
-European with put strike 1.0, and `upside` strike 1.0 with participation 2.5.
+In the form: one event with `autocall_trigger` 1.0 and `coupon` 0.1475, and a final event
+`{observation_date: 2028-10-02, payment_date: 2028-10-05, is_final: true}`: a maturity-only
+observation that tests nothing but the 75 % trigger and the upside (no coupon, no call, so
+no `coupon` and no trigger; its `payment_date` is the `maturity_payment_date`). Before
+`is_final` existed the same date was written as `coupon_trigger` 0.0 with `coupon` 0.0, which
+prices identically on the same stream; the marker says what the filing says. `memory` false,
+`capital` barrier 0.75 European with put strike 1.0, and `upside` strike 1.0 with
+participation 2.5.
 
 Market data as of 2026-09-30, all from primary sources:
 

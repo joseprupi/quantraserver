@@ -54,15 +54,24 @@ struct BasketUnderlyingData {
 
 struct ObservationEventData {
     QuantLib::Date observationDate;
-    /// Present iff a trigger is present (the mapper enforces it).
+    /// Present iff a trigger is present or the event is `isFinal` (the mapper
+    /// enforces it; for an `isFinal` event it equals the maturity payment
+    /// date).
     std::optional<QuantLib::Date> paymentDate;
     std::optional<double> autocallTrigger;
     std::optional<double> couponTrigger;
     std::optional<double> coupon;
+    /// `is_final`: a maturity-only observation. Only the capital protection
+    /// block (and the upside) is tested; no coupon test, no call test, the
+    /// memory is not paid. The mapper guarantees no trigger, no coupon, and
+    /// that it is the last event.
+    bool isFinal = false;
 
-    bool accrualOnly() const { return !autocallTrigger && !couponTrigger; }
-    /// A coupon test of its own, or (autocall only) the call test.
-    bool hasCouponTest() const { return !accrualOnly(); }
+    /// Neither trigger and not the final marker: nothing is observed.
+    bool accrualOnly() const { return !isFinal && !autocallTrigger && !couponTrigger; }
+    /// A coupon test of its own, or (autocall only) the call test; an
+    /// `isFinal` event has none.
+    bool hasCouponTest() const { return !accrualOnly() && !isFinal; }
     double couponOrZero() const { return coupon ? *coupon : 0.0; }
 };
 
@@ -166,6 +175,8 @@ struct NoteTermsEvent {
     std::optional<double> coupon;
     bool accrualOnly = false;
     bool final = false;
+    /// The request's `is_final` marker (maturity-only observation).
+    bool isFinal = false;
     bool resolvedFromHistory = false;
 };
 

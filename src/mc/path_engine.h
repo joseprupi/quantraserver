@@ -2,23 +2,39 @@
 #define QUANTRA_MC_PATH_ENGINE_H
 
 /**
- * Path engine of the shared Monte Carlo core: runs QuantLib's
- * MultiPathGenerator over a process array (basket_model.h) and a time grid
- * (time_grid.h) and hands every path to a caller-supplied functor that
- * fills a vector of accumulators (discounted cash flows, indicators, ...).
- * The engine returns the mean and standard error of every accumulator, the
- * running means at 1/4, 1/2 and 3/4 of the samples (convergence diagnostic)
- * and, on request, the first simulated paths. No product logic lives here.
+ * Path engine of the shared Monte Carlo core: simulates a process array
+ * (basket_model.h) over a time grid (time_grid.h) and hands every path to a
+ * caller-supplied functor that fills a vector of accumulators (discounted
+ * cash flows, indicators, ...). The engine returns the mean and standard
+ * error of every accumulator, the running means at 1/4, 1/2 and 3/4 of the
+ * samples (convergence diagnostic) and, on request, the first simulated
+ * paths. No product logic lives here.
+ *
+ * Two path sources, one result:
+ *
+ *   * a LognormalBasket whose assets are all exact-step capable (constant or
+ *     term vols) is stepped from its LognormalStepTable: the Gaussian draws
+ *     of the generator below, correlated with the basket's own spectral
+ *     pseudo-square-root, applied as x * exp(stdDev * dz + drift) with the
+ *     table's per-(asset, step) coefficients. This is QuantLib's
+ *     GeneralizedBlackScholesProcess::evolve with its term-structure reads
+ *     hoisted out of the path loop; the levels are bit-identical to
+ *     MultiPathGenerator's (tests/parity/mc_core_test.cpp) at a fraction of
+ *     the cost (about 28 times faster);
+ *   * any other process array (a local-vol basket on a `steps_per_year`
+ *     grid, or a plain StochasticProcessArray) goes through QuantLib's
+ *     MultiPathGenerator and StochasticProcessArray::evolve.
  *
  * Random numbers (the Python parity test must reproduce the stream):
  *
  *   dimension = factors * steps, factors = number of assets, steps =
- *   grid.size() - 1. The Gaussian sequence is consumed TIME-MAJOR by
- *   MultiPathGenerator (ql/methods/montecarlo/multipathgenerator.hpp):
- *   element (step - 1) * factors + asset drives asset `asset` over the step
- *   from grid[step - 1] to grid[step]. StochasticProcessArray then
- *   correlates the draws with the spectral pseudo-square-root of the
- *   correlation matrix.
+ *   grid.size() - 1. The Gaussian sequence is consumed TIME-MAJOR, as
+ *   MultiPathGenerator does (ql/methods/montecarlo/multipathgenerator.hpp)
+ *   and the table stepper reproduces: element (step - 1) * factors + asset
+ *   drives asset `asset` over the step from grid[step - 1] to grid[step].
+ *   The draws of a step are then correlated with the spectral
+ *   pseudo-square-root of the correlation matrix (the one
+ *   StochasticProcessArray computes).
  *
  *   Sequence::Sobol, brownianBridge = true (the default):
  *     SobolBrownianBridgeRsg(factors, steps, SobolBrownianGenerator::Diagonal,
@@ -27,9 +43,9 @@
  *     InverseCumulativeNormal, Brownian-bridge construction of each factor's
  *     increments with the Diagonal ordering of the Sobol dimensions. Its
  *     output is already the time-major vector of increments above, and it is
- *     used as the generator of MultiPathGenerator<SobolBrownianBridgeRsg>
- *     with the generator's own brownianBridge flag false (QuantLib's
- *     MultiPathGenerator does not implement the bridge itself).
+ *     consumed as the sequence generator (for MultiPathGenerator with its
+ *     own brownianBridge flag false, QuantLib's MultiPathGenerator does not
+ *     implement the bridge itself).
  *   Sequence::Sobol, brownianBridge = false:
  *     InverseCumulativeRsg<SobolRsg, InverseCumulativeNormal>(
  *         SobolRsg(dimension, seed, SobolRsg::JoeKuoD7))
@@ -49,8 +65,8 @@
  *   tabulated 1898 dimensions (and seed 0 means clock-based there), so for
  *   smaller dimensions every seed gives the same stream.
  *
- * Antithetic variates: every path from generator.next() is followed by
- * generator.antithetic() (the same Gaussian draws negated). The functor runs
+ * Antithetic variates: every path from the generator's next sequence is
+ * followed by its antithetic (the same Gaussian draws negated). The functor runs
  * on both, their accumulator vectors are averaged and the PAIR is one sample
  * of the mean/standard-error statistics, so the reported standard error is
  * that of the antithetic estimator. `paths` counts simulated paths (functor
@@ -125,7 +141,9 @@ using PathFunctor =
 
 /**
  * Simulate `config.paths` paths of `processes` over `grid` and reduce the
- * functor's accumulators.
+ * functor's accumulators. A LognormalBasket (BasketModel::build) with every
+ * asset exact-step capable is stepped from its exact-step table; anything
+ * else through QuantLib's MultiPathGenerator.
  *
  * 400 (QuantraInvalidArgument): paths == 0; antithetic with an odd number of
  * paths; nAccumulators == 0; samplePaths > paths. QUANTRA_ERROR (500): a null

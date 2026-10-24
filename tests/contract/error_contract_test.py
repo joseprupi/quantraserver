@@ -546,6 +546,15 @@ def _ec_set_curve_point_field(point_type, field, value):
     return f
 
 
+def _ec_set_instrument_fields(arr_key, product_key, fields):
+    """Set several fields of the product instrument block at once (e.g. turn
+    the base cap into a Collar with or without its floor strike)."""
+    def f(req):
+        req[arr_key][0][product_key].update(fields)
+        return req
+    return f
+
+
 def _ec_del_instrument_field(arr_key, product_key, field):
     """Drop a convention or discriminator field from the product instrument
     block. The instrument-level enums (day_counter, calendar,
@@ -1581,6 +1590,20 @@ SCENARIOS = [
      "cap_floor_request.json", 400,
      _ec_del_instrument_field("cap_floors", "cap_floor", "strike"),
      _ec_body_contains("CapFloor.strike is required")),
+    # Collar: floor_strike required, <= the cap strike, and absent otherwise.
+    ("ec:400 cap_floor collar missing floor_strike", "cap_floor",
+     "cap_floor_request.json", 400,
+     _ec_set_instrument_fields("cap_floors", "cap_floor", {"cap_floor_type": "Collar"}),
+     _ec_body_contains("CapFloor.floor_strike is required for a Collar")),
+    ("ec:400 cap_floor collar floor_strike above the cap strike", "cap_floor",
+     "cap_floor_request.json", 400,
+     _ec_set_instrument_fields("cap_floors", "cap_floor",
+                               {"cap_floor_type": "Collar", "floor_strike": 0.05}),
+     _ec_body_contains("CapFloor.floor_strike must be <= strike (the cap strike) for a Collar")),
+    ("ec:400 cap_floor floor_strike on a cap", "cap_floor",
+     "cap_floor_request.json", 400,
+     _ec_set_instrument_fields("cap_floors", "cap_floor", {"floor_strike": 0.02}),
+     _ec_body_contains("CapFloor.floor_strike must be absent unless cap_floor_type is Collar")),
     # ---- 400 INVALID_ARGUMENT: fail-closed enum handling ----
     # The CDS credit-curve bootstrap supports LogLinear only; ForwardFlat
     # and LogCubic used to be silently priced as LogLinear. The complex request
@@ -2038,6 +2061,35 @@ SCENARIOS = [
      _ec_sn_event(-1, lambda e: (e.pop("autocall_trigger"), e.pop("payment_date"))),
      _ec_body_contains("notes[0].events[11]: the final event must carry an autocall_trigger or a "
                        "coupon_trigger")),
+    # `is_final` (maturity-only observation) rules, on the BNP example's last
+    # event (events[11]: autocall_trigger 1.0, coupon 0.07, paid 2031-07-07 =
+    # maturity_payment_date).
+    ("ec:400 structured note is_final with autocall_trigger", "structured_note", _EC_SN, 400,
+     _ec_sn_event(-1, lambda e: (e.__setitem__("is_final", True), e.pop("coupon"))),
+     _ec_body_contains("notes[0].events[11].autocall_trigger: must be absent on an is_final "
+                       "event")),
+    ("ec:400 structured note is_final with coupon_trigger", "structured_note", _EC_SN, 400,
+     _ec_sn_event(-1, lambda e: (e.__setitem__("is_final", True), e.pop("autocall_trigger"),
+                                 e.pop("coupon"), e.__setitem__("coupon_trigger", 0.8))),
+     _ec_body_contains("notes[0].events[11].coupon_trigger: must be absent on an is_final "
+                       "event")),
+    ("ec:400 structured note is_final with coupon", "structured_note", _EC_SN, 400,
+     _ec_sn_event(-1, lambda e: (e.__setitem__("is_final", True), e.pop("autocall_trigger"))),
+     _ec_body_contains("notes[0].events[11].coupon: must be absent on an is_final event")),
+    ("ec:400 structured note is_final without payment date", "structured_note", _EC_SN, 400,
+     _ec_sn_event(-1, lambda e: (e.__setitem__("is_final", True), e.pop("autocall_trigger"),
+                                 e.pop("coupon"), e.pop("payment_date"))),
+     _ec_body_contains("notes[0].events[11].payment_date: required on an is_final event")),
+    ("ec:400 structured note is_final payment date is not the maturity", "structured_note",
+     _EC_SN, 400,
+     _ec_sn_event(-1, lambda e: (e.__setitem__("is_final", True), e.pop("autocall_trigger"),
+                                 e.pop("coupon"), e.__setitem__("payment_date", "2031-07-01"))),
+     _ec_body_contains("notes[0].events[11].payment_date: 2031-07-01 must equal "
+                       "maturity_payment_date 2031-07-07 on an is_final event")),
+    ("ec:400 structured note is_final not the last event", "structured_note", _EC_SN, 400,
+     _ec_sn_event(10, lambda e: (e.__setitem__("is_final", True), e.pop("autocall_trigger"),
+                                 e.pop("coupon"))),
+     _ec_body_contains("notes[0].events[10].is_final: must be the last event")),
     ("ec:400 structured note accrual-only event needs memory", "structured_note", _EC_SN, 400,
      _ec_sn(lambda n: n["coupon_rule"].__setitem__("memory", False)),
      _ec_body_contains("notes[0].events[0]: an accrual-only event (no trigger) requires "

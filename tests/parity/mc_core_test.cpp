@@ -25,7 +25,12 @@
 //     final mean (scaled for the sample count);
 //  g. samplePaths = 3 returns three [asset][grid point] paths;
 //  h. time grid: mandatory-only, refined (spacing <= 1 / stepsPerYear even
-//     where QuantLib's rounding would not), indexOf, and the 400 rows.
+//     where QuantLib's rounding would not), indexOf, and the 400 rows;
+//  i. exact-step table vs QuantLib's MultiPathGenerator on the market of the
+//     four-index quanto autocall example (SOFR OIS discount curve, quanto
+//     dividend curves, constant vols, 10 observation dates): every level of
+//     every sample path and every accumulator mean are bit-identical, for
+//     Sobol + bridge, Sobol and Mersenne Twister, with and without antithetic.
 #include "basket_model.h"
 #include "error.h"
 #include "path_engine.h"
@@ -33,6 +38,7 @@
 #include "time_grid.h"
 
 #include <ql/exercise.hpp>
+#include <ql/indexes/ibor/sofr.hpp>
 #include <ql/instruments/payoffs.hpp>
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/math/distributions/bivariatenormaldistribution.hpp>
@@ -47,15 +53,24 @@
 #include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvariancesurface.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
+#include <ql/termstructures/yield/oisratehelper.hpp>
+#include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
+#include <ql/termstructures/yield/zerocurve.hpp>
+#include <ql/time/calendars/japan.hpp>
 #include <ql/time/calendars/nullcalendar.hpp>
+#include <ql/time/calendars/switzerland.hpp>
+#include <ql/time/calendars/target.hpp>
+#include <ql/time/calendars/unitedstates.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -528,6 +543,178 @@ TEST(McCoreTest, SamplePathsHaveAssetAndTimeDimensions) {
     }
     EXPECT_EQ(res.mean[0], 1.0);
     EXPECT_EQ(res.standardError[0], 0.0);
+}
+
+// i. Exact-step table vs QuantLib's MultiPathGenerator on the quanto
+//    autocall configuration (examples/data/structured_note/
+//    bnp_quad_index_classic_autocall_xs2741509801.json rebuilt in QuantLib:
+//    the same curve classes the parsers instantiate).
+namespace {
+
+struct QuantoBasketMarket {
+    Date asOf{21, QuantLib::October, 2026};
+    Handle<QuantLib::YieldTermStructure> usd;
+    std::vector<mc::BasketAsset> assets;
+    QuantLib::Matrix correlation{4, 4};
+    std::vector<Date> observation;
+
+    static Handle<QuantLib::YieldTermStructure> flatZero(const Date& asOf, double z) {
+        std::vector<Date> d{asOf, asOf + 10 * QuantLib::Years};
+        std::vector<QuantLib::Rate> r{z, z};
+        return Handle<QuantLib::YieldTermStructure>(
+            std::make_shared<QuantLib::ZeroCurve>(d, r, QuantLib::Actual365Fixed()));
+    }
+    static Handle<QuantLib::BlackVolTermStructure> constVol(
+        const Date& asOf, const QuantLib::Calendar& cal, double v) {
+        return Handle<QuantLib::BlackVolTermStructure>(
+            std::make_shared<QuantLib::BlackConstantVol>(asOf, cal, v, QuantLib::Actual365Fixed()));
+    }
+    static Handle<QuantLib::Quote> spot(double v) {
+        return Handle<QuantLib::Quote>(std::make_shared<QuantLib::SimpleQuote>(v));
+    }
+
+    QuantoBasketMarket() {
+        using namespace QuantLib;
+        Settings::instance().evaluationDate() = asOf;
+        // USD SOFR OIS: settlement 2, payment lag 2, annual, ModifiedFollowing,
+        // Discount / LogLinear on Actual/365 (Fixed).
+        auto sofr = std::make_shared<Sofr>();
+        struct P {
+            Period tenor;
+            double rate;
+        };
+        const std::vector<P> pts{{1 * Months, 0.0533}, {3 * Months, 0.053}, {6 * Months, 0.052},
+                                 {1 * Years, 0.0495},  {2 * Years, 0.044},  {3 * Years, 0.0415},
+                                 {5 * Years, 0.04},    {7 * Years, 0.0398}, {10 * Years, 0.04},
+                                 {12 * Years, 0.0402}};
+        std::vector<std::shared_ptr<RateHelper>> helpers;
+        for (const auto& p : pts) {
+            helpers.push_back(
+                std::make_shared<OISRateHelper>(
+                    2, p.tenor, Handle<Quote>(std::make_shared<SimpleQuote>(p.rate)), sofr,
+                    Handle<YieldTermStructure>(), false, 2, ModifiedFollowing, Annual));
+        }
+        auto curve = std::make_shared<PiecewiseYieldCurve<Discount, LogLinear>>(
+            asOf, helpers, Actual365Fixed());
+        curve->enableExtrapolation();
+        usd = Handle<YieldTermStructure>(curve);
+
+        const Calendar chf = Switzerland(), nyse = UnitedStates(UnitedStates::NYSE), eur = TARGET(),
+                       jpy = Japan();
+        const auto smiDiv = flatZero(asOf, 0.03), chfFlat = flatZero(asOf, 0.0);
+        const auto spxDiv = flatZero(asOf, 0.02);
+        const auto sx5eDiv = flatZero(asOf, 0.03), eurFlat = flatZero(asOf, 0.02);
+        const auto nkyDiv = flatZero(asOf, 0.02), jpyFlat = flatZero(asOf, 0.01);
+        const auto smiVol = constVol(asOf, chf, 0.15), spxVol = constVol(asOf, nyse, 0.20),
+                   sx5eVol = constVol(asOf, eur, 0.20), nkyVol = constVol(asOf, jpy, 0.25);
+        const auto chfusdVol = constVol(asOf, chf, 0.08), eurusdVol = constVol(asOf, eur, 0.08),
+                   jpyusdVol = constVol(asOf, jpy, 0.10);
+        const auto smiQ =
+            buildQuantoDividendCurve(smiDiv, chfFlat, usd, smiVol, chfusdVol, 1.25, -0.1, 12000.0);
+        const auto sx5eQ =
+            buildQuantoDividendCurve(sx5eDiv, eurFlat, usd, sx5eVol, eurusdVol, 1.1, 0.2, 5000.0);
+        const auto nkyQ =
+            buildQuantoDividendCurve(nkyDiv, jpyFlat, usd, nkyVol, jpyusdVol, 0.0065, 0.3, 40000.0);
+        assets.push_back(mc::MakeBasketAsset("SMI", spot(12000.0), smiQ, usd, smiVol));
+        assets.push_back(mc::MakeBasketAsset("SPX", spot(6000.0), spxDiv, usd, spxVol));
+        assets.push_back(mc::MakeBasketAsset("SX5E", spot(5000.0), sx5eQ, usd, sx5eVol));
+        assets.push_back(mc::MakeBasketAsset("NKY", spot(40000.0), nkyQ, usd, nkyVol));
+
+        const double c[16] = {1.0, 0.6, 0.8, 0.5, 0.6, 1.0, 0.7, 0.5,
+                              0.8, 0.7, 1.0, 0.5, 0.5, 0.5, 0.5, 1.0};
+        for (Size i = 0; i < 4; ++i)
+            for (Size j = 0; j < 4; ++j)
+                correlation[i][j] = c[4 * i + j];
+
+        observation = {Date(28, December, 2026), Date(28, June, 2027),     Date(27, December, 2027),
+                       Date(27, June, 2028),     Date(27, December, 2028), Date(27, June, 2029),
+                       Date(27, December, 2029), Date(27, June, 2030),     Date(27, December, 2030),
+                       Date(27, June, 2031)};
+    }
+
+    /// A plain StochasticProcessArray over the same handles: RunPaths takes
+    /// QuantLib's MultiPathGenerator path for it.
+    std::shared_ptr<QuantLib::StochasticProcessArray> quantLibProcesses() const {
+        std::vector<std::shared_ptr<QuantLib::StochasticProcess1D>> processes;
+        for (const auto& a : assets) {
+            processes.push_back(
+                std::make_shared<QuantLib::GeneralizedBlackScholesProcess>(
+                    a.spot, a.dividend, a.riskFree, a.vol));
+        }
+        return std::make_shared<QuantLib::StochasticProcessArray>(processes, correlation);
+    }
+};
+
+} // namespace
+
+TEST(McCoreTest, ExactStepTableReproducesQuantLibPathsBitForBit) {
+    const QuantoBasketMarket m;
+    const auto grid = mc::BuildSimulationGrid(m.asOf, m.observation, std::nullopt);
+    ASSERT_EQ(grid.size(), 11u);
+
+    const auto basket = mc::BasketModel::build(m.assets, m.correlation);
+    ASSERT_TRUE(basket->exactStep());
+    const auto quantLib = m.quantLibProcesses();
+
+    // Worst-of autocall walk: enough state to make a one-bit difference in any
+    // level visible in the means (indicators flip), plus the levels themselves.
+    const Size nAcc = 3;
+    const mc::PathFunctor worstOf = [&](const QuantLib::MultiPath& path, std::vector<Real>& acc) {
+        for (Size j = 1; j < path.pathSize(); ++j) {
+            Real perf = path[0][j] / 12000.0;
+            perf = std::min(perf, path[1][j] / 6000.0);
+            perf = std::min(perf, path[2][j] / 5000.0);
+            perf = std::min(perf, path[3][j] / 40000.0);
+            if (perf >= 1.0) {
+                acc[0] += 1.0;
+                acc[2] += grid.grid[j];
+                return;
+            }
+            if (j + 1 == path.pathSize()) acc[1] += perf < 0.6 ? 1.0 - perf : 0.0;
+        }
+    };
+
+    struct Case {
+        const char* name;
+        mc::PathEngineConfig::Sequence sequence;
+        bool antithetic;
+        bool bridge;
+        Size paths;
+    };
+    const std::vector<Case> cases{
+        {"Sobol+bridge antithetic", kSobol, true, true, 4096},
+        {"Sobol antithetic", kSobol, true, false, 1024},
+        {"Sobol+bridge plain", kSobol, false, true, 1024},
+        {"MersenneTwister antithetic", kPseudo, true, false, 1024},
+    };
+    for (const auto& c : cases) {
+        auto cfg = config(c.paths, c.sequence, c.antithetic, c.bridge);
+        cfg.samplePaths = c.paths;
+        const auto table = mc::RunPaths(basket, grid.grid, cfg, nAcc, worstOf);
+        const auto reference = mc::RunPaths(quantLib, grid.grid, cfg, nAcc, worstOf);
+
+        ASSERT_EQ(table.samplePaths.size(), c.paths) << c.name;
+        ASSERT_EQ(reference.samplePaths.size(), c.paths) << c.name;
+        Size levels = 0, identical = 0;
+        for (Size p = 0; p < c.paths; ++p) {
+            for (Size k = 0; k < 4; ++k) {
+                ASSERT_EQ(table.samplePaths[p][k].size(), grid.size()) << c.name;
+                for (Size j = 0; j < grid.size(); ++j) {
+                    ++levels;
+                    if (table.samplePaths[p][k][j] == reference.samplePaths[p][k][j]) ++identical;
+                }
+            }
+        }
+        std::cout << "[ mc ] exact-step table vs MultiPathGenerator, " << c.name << ": "
+                  << identical << "/" << levels << " levels bit-identical" << std::endl;
+        EXPECT_EQ(identical, levels) << c.name;
+        for (Size k = 0; k < nAcc; ++k) {
+            EXPECT_EQ(table.mean[k], reference.mean[k]) << c.name << " accumulator " << k;
+            EXPECT_EQ(table.standardError[k], reference.standardError[k])
+                << c.name << " accumulator " << k;
+        }
+        ASSERT_GT(table.mean[0], 0.0) << c.name << ": no path ever called, walk is degenerate";
+    }
 }
 
 // h. Time grid.

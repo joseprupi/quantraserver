@@ -2,8 +2,10 @@
 #define QUANTRA_CAP_FLOOR_EVALUATOR_H
 
 /**
- * CapFloorEvaluator — pure QuantLib pricing core for caps, floors, and
- * (eventually) collars on IBOR coupons.
+ * CapFloorEvaluator — pure QuantLib pricing core for caps, floors and
+ * collars on IBOR coupons. A collar is QuantLib::Collar(leg, {strike},
+ * {floorStrike}): long the cap, short the floor, so its NPV is the cap's
+ * minus the floor's on the same curves, vol and engine.
  *
  * INVARIANT: this file (and its .cpp) must NEVER include any *_generated.h or
  * mention FlatBuffers/gRPC namespaces. Suite 0 (scripts/check_evaluator_boundary.sh)
@@ -21,6 +23,7 @@
 #include <ql/time/daycounter.hpp>
 #include <ql/time/schedule.hpp>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -33,7 +36,11 @@ struct CapFloorTrade {
     QuantLib::CapFloor::Type capFloorType = QuantLib::CapFloor::Cap;
     QuantLib::Schedule schedule;
     double notional = 0.0;
+    /// The strike of a Cap or a Floor; the CAP strike of a Collar.
     double strike = 0.0;
+    /// Present iff capFloorType is Collar (the mapper enforces it and
+    /// floorStrike <= strike).
+    std::optional<double> floorStrike;
     QuantLib::DayCounter dayCounter;
     QuantLib::BusinessDayConvention businessDayConvention = QuantLib::Following;
     bool includeDetails = false;

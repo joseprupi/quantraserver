@@ -308,6 +308,7 @@ struct StructuredNoteTermsEventT : public ::flatbuffers::NativeTable {
   ::flatbuffers::Optional<double> coupon = ::flatbuffers::nullopt;
   bool accrual_only = false;
   bool final = false;
+  bool is_final = false;
   bool resolved_from_history = false;
 };
 
@@ -324,7 +325,8 @@ struct StructuredNoteTermsEvent FLATBUFFERS_FINAL_CLASS : private ::flatbuffers:
     VT_COUPON = 14,
     VT_ACCRUAL_ONLY = 16,
     VT_FINAL = 18,
-    VT_RESOLVED_FROM_HISTORY = 20
+    VT_IS_FINAL = 20,
+    VT_RESOLVED_FROM_HISTORY = 22
   };
   /// Position in `StructuredNote.events`, from 0.
   uint32_t index() const {
@@ -357,6 +359,13 @@ struct StructuredNoteTermsEvent FLATBUFFERS_FINAL_CLASS : private ::flatbuffers:
   bool final() const {
     return GetField<uint8_t>(VT_FINAL, 0) != 0;
   }
+  /// True when the request marked the event `is_final`: a maturity-only
+  /// observation where only the capital protection block (and `upside`)
+  /// is tested, with no coupon test and no call test. False for a final
+  /// event that carries a trigger.
+  bool is_final() const {
+    return GetField<uint8_t>(VT_IS_FINAL, 0) != 0;
+  }
   /// True when `observation_date` is on or before the valuation date:
   /// the event was resolved from `historical_levels` (see
   /// `StructuredNoteSeasoning`) and not simulated.
@@ -375,6 +384,7 @@ struct StructuredNoteTermsEvent FLATBUFFERS_FINAL_CLASS : private ::flatbuffers:
            VerifyField<double>(verifier, VT_COUPON, 8) &&
            VerifyField<uint8_t>(verifier, VT_ACCRUAL_ONLY, 1) &&
            VerifyField<uint8_t>(verifier, VT_FINAL, 1) &&
+           VerifyField<uint8_t>(verifier, VT_IS_FINAL, 1) &&
            VerifyField<uint8_t>(verifier, VT_RESOLVED_FROM_HISTORY, 1) &&
            verifier.EndTable();
   }
@@ -411,6 +421,9 @@ struct StructuredNoteTermsEventBuilder {
   void add_final(bool final) {
     fbb_.AddElement<uint8_t>(StructuredNoteTermsEvent::VT_FINAL, static_cast<uint8_t>(final), 0);
   }
+  void add_is_final(bool is_final) {
+    fbb_.AddElement<uint8_t>(StructuredNoteTermsEvent::VT_IS_FINAL, static_cast<uint8_t>(is_final), 0);
+  }
   void add_resolved_from_history(bool resolved_from_history) {
     fbb_.AddElement<uint8_t>(StructuredNoteTermsEvent::VT_RESOLVED_FROM_HISTORY, static_cast<uint8_t>(resolved_from_history), 0);
   }
@@ -436,6 +449,7 @@ inline ::flatbuffers::Offset<StructuredNoteTermsEvent> CreateStructuredNoteTerms
     ::flatbuffers::Optional<double> coupon = ::flatbuffers::nullopt,
     bool accrual_only = false,
     bool final = false,
+    bool is_final = false,
     bool resolved_from_history = false) {
   StructuredNoteTermsEventBuilder builder_(_fbb);
   if(coupon) { builder_.add_coupon(*coupon); }
@@ -445,6 +459,7 @@ inline ::flatbuffers::Offset<StructuredNoteTermsEvent> CreateStructuredNoteTerms
   builder_.add_observation_date(observation_date);
   builder_.add_index(index);
   builder_.add_resolved_from_history(resolved_from_history);
+  builder_.add_is_final(is_final);
   builder_.add_final(final);
   builder_.add_accrual_only(accrual_only);
   return builder_.Finish();
@@ -460,6 +475,7 @@ inline ::flatbuffers::Offset<StructuredNoteTermsEvent> CreateStructuredNoteTerms
     ::flatbuffers::Optional<double> coupon = ::flatbuffers::nullopt,
     bool accrual_only = false,
     bool final = false,
+    bool is_final = false,
     bool resolved_from_history = false) {
   auto observation_date__ = observation_date ? _fbb.CreateString(observation_date) : 0;
   auto payment_date__ = payment_date ? _fbb.CreateString(payment_date) : 0;
@@ -473,6 +489,7 @@ inline ::flatbuffers::Offset<StructuredNoteTermsEvent> CreateStructuredNoteTerms
       coupon,
       accrual_only,
       final,
+      is_final,
       resolved_from_history);
 }
 
@@ -4213,6 +4230,7 @@ inline void StructuredNoteTermsEvent::UnPackTo(StructuredNoteTermsEventT *_o, co
   { auto _e = coupon(); _o->coupon = _e; }
   { auto _e = accrual_only(); _o->accrual_only = _e; }
   { auto _e = final(); _o->final = _e; }
+  { auto _e = is_final(); _o->is_final = _e; }
   { auto _e = resolved_from_history(); _o->resolved_from_history = _e; }
 }
 
@@ -4232,6 +4250,7 @@ inline ::flatbuffers::Offset<StructuredNoteTermsEvent> CreateStructuredNoteTerms
   auto _coupon = _o->coupon;
   auto _accrual_only = _o->accrual_only;
   auto _final = _o->final;
+  auto _is_final = _o->is_final;
   auto _resolved_from_history = _o->resolved_from_history;
   return quantra::CreateStructuredNoteTermsEvent(
       _fbb,
@@ -4243,6 +4262,7 @@ inline ::flatbuffers::Offset<StructuredNoteTermsEvent> CreateStructuredNoteTerms
       _coupon,
       _accrual_only,
       _final,
+      _is_final,
       _resolved_from_history);
 }
 

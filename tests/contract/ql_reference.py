@@ -2376,7 +2376,8 @@ def price_cap_floor_ql(request: dict) -> float:
         calendar, convention, day count, volatility type and displacement,
       * the engine follows the referenced model: Bachelier for normal vols,
         BlackCapFloorEngine for Black and ShiftedBlack (QuantLib reads the
-        displacement from the vol structure).
+        displacement from the vol structure),
+      * a Collar is ql.Collar(leg, [strike], [floor_strike]).
     """
     pricing = _reference_pricing_view(request)
     cf_data = request["cap_floors"][0]
@@ -2427,8 +2428,11 @@ def price_cap_floor_ql(request: dict) -> float:
         ql_cf = ql.Cap(leg, [cf["strike"]])
     elif cf_type == "Floor":
         ql_cf = ql.Floor(leg, [cf["strike"]])
+    elif cf_type == "Collar":
+        # Long the cap at `strike`, short the floor at `floor_strike` on the
+        # same leg (the server's QuantLib::Collar).
+        ql_cf = ql.Collar(leg, [cf["strike"]], [cf["floor_strike"]])
     else:
-        # The server rejects Collar the same way.
         raise ValueError(f"Unsupported cap/floor type: {cf_type}")
 
     # Volatility: rebuild the referenced constant optionlet vol spec.
@@ -5270,7 +5274,12 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
             "autocall": ev.get("autocall_trigger"),
             "coupon_trigger": ev.get("coupon_trigger"),
             "coupon": float(ev.get("coupon", 0.0)),
-            "accrual_only": ev.get("autocall_trigger") is None and ev.get("coupon_trigger") is None,
+            # `is_final`: a maturity-only observation (capital block and upside
+            # only; no coupon test, no call test, the memory is not paid).
+            "is_final": bool(ev.get("is_final", False)),
+            "accrual_only": (not ev.get("is_final", False)
+                             and ev.get("autocall_trigger") is None
+                             and ev.get("coupon_trigger") is None),
             "final": i + 1 == n_events,
         })
 
@@ -5284,29 +5293,30 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
         if ev["accrual_only"]:
             state["memory"] += ev["coupon"]
             return out
-        calls = ev["autocall"] is not None and perf >= ev["autocall"]
-        if ev["coupon_trigger"] is not None:
-            earned = perf >= ev["coupon_trigger"]
-        else:
-            earned = calls
-        out["earned"] = earned
-        if earned:
-            amount = ev["coupon"] + state["memory"]
-            state["memory"] = 0.0
-            if calls or ev["final"] or not pay_only_on_call:
-                out["coupon_paid"] += amount
+        if not ev["is_final"]:
+            calls = ev["autocall"] is not None and perf >= ev["autocall"]
+            if ev["coupon_trigger"] is not None:
+                earned = perf >= ev["coupon_trigger"]
             else:
-                state["memory"] = amount
-        elif memory_rule:
-            state["memory"] += ev["coupon"]
-        if ev["autocall"] is not None:
-            out["called"] = calls
-            if calls:
-                out["coupon_paid"] += state["memory"]
+                earned = calls
+            out["earned"] = earned
+            if earned:
+                amount = ev["coupon"] + state["memory"]
                 state["memory"] = 0.0
-                out["call_redemption"] = 1.0
-                state["called"] = True
-                return out
+                if calls or ev["final"] or not pay_only_on_call:
+                    out["coupon_paid"] += amount
+                else:
+                    state["memory"] = amount
+            elif memory_rule:
+                state["memory"] += ev["coupon"]
+            if ev["autocall"] is not None:
+                out["called"] = calls
+                if calls:
+                    out["coupon_paid"] += state["memory"]
+                    state["memory"] = 0.0
+                    out["call_redemption"] = 1.0
+                    state["called"] = True
+                    return out
         if ev["final"]:
             breached = state["knocked_in"] if daily_close else perf < barrier
             out["breached"] = breached
@@ -5625,7 +5635,8 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
         b = A_BASE + per_event * e
         if ev["autocall"] is not None:
             row["p_call"] = mean[b]
-        row["p_coupon"] = mean[b + 1]
+        if not ev["is_final"]:  # an is_final event has no coupon test
+            row["p_coupon"] = mean[b + 1]
         result["event_probabilities"].append(row)
 
     # --- diagnostics (flatbuffers/fbs/structured_note_response.fbs doc comments) ---
@@ -5685,7 +5696,8 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
             row = {"index": ev["index"], "observation_date": ev["observation_iso"]}
             if ev["autocall"] is not None:
                 row["p_call"] = mean[b]
-            row["p_coupon"] = mean[b + 1]
+            if not ev["is_final"]:
+                row["p_coupon"] = mean[b + 1]
             row["pv_coupons"] = mean[b + 2] * notional
             row["pv_redemption"] = mean[b + 3] * notional
             dec["events"].append(row)

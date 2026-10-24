@@ -28,6 +28,7 @@ struct CapFloorT : public ::flatbuffers::NativeTable {
   ::flatbuffers::Optional<quantra::enums::CapFloorType> cap_floor_type = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<double> strike = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> floor_strike = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::ScheduleT> schedule{};
   std::unique_ptr<quantra::IndexRefT> index{};
   ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
@@ -38,7 +39,10 @@ struct CapFloorT : public ::flatbuffers::NativeTable {
   CapFloorT &operator=(CapFloorT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Cap or Floor instrument.
+/// Cap, Floor or Collar on an IBOR leg. A Collar is long the cap at `strike`
+/// and short the floor at `floor_strike` on the same leg (QuantLib::Collar),
+/// so its NPV is the cap's NPV minus the floor's NPV priced on the same
+/// curves, vol and engine.
 struct CapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CapFloorT NativeTableType;
   typedef CapFloorBuilder Builder;
@@ -46,11 +50,13 @@ struct CapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_CAP_FLOOR_TYPE = 4,
     VT_NOTIONAL = 6,
     VT_STRIKE = 8,
-    VT_SCHEDULE = 10,
-    VT_INDEX = 12,
-    VT_DAY_COUNTER = 14,
-    VT_BUSINESS_DAY_CONVENTION = 16
+    VT_FLOOR_STRIKE = 10,
+    VT_SCHEDULE = 12,
+    VT_INDEX = 14,
+    VT_DAY_COUNTER = 16,
+    VT_BUSINESS_DAY_CONVENTION = 18
   };
+  /// Cap, Floor or Collar. Presence-required.
   ::flatbuffers::Optional<quantra::enums::CapFloorType> cap_floor_type() const {
     return GetOptional<int8_t, quantra::enums::CapFloorType>(VT_CAP_FLOOR_TYPE);
   }
@@ -58,10 +64,18 @@ struct CapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   ::flatbuffers::Optional<double> notional() const {
     return GetOptional<double, double>(VT_NOTIONAL);
   }
-  /// Strike rate (e.g., 0.04 for 4%). Presence-required; may be negative, only
-  /// a missing or non-finite value is rejected.
+  /// Strike rate (e.g., 0.04 for 4%); for a Collar, the CAP strike.
+  /// Presence-required; may be negative, only a missing or non-finite value
+  /// is rejected.
   ::flatbuffers::Optional<double> strike() const {
     return GetOptional<double, double>(VT_STRIKE);
+  }
+  /// Floor strike of a Collar (e.g., 0.02 for 2%). Required (400) when
+  /// `cap_floor_type` is Collar and must be <= `strike` (400 otherwise);
+  /// must be absent (400) for a Cap or a Floor, whose single strike is
+  /// `strike`.
+  ::flatbuffers::Optional<double> floor_strike() const {
+    return GetOptional<double, double>(VT_FLOOR_STRIKE);
   }
   const quantra::Schedule *schedule() const {
     return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
@@ -81,6 +95,7 @@ struct CapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<int8_t>(verifier, VT_CAP_FLOOR_TYPE, 1) &&
            VerifyField<double>(verifier, VT_NOTIONAL, 8) &&
            VerifyField<double>(verifier, VT_STRIKE, 8) &&
+           VerifyField<double>(verifier, VT_FLOOR_STRIKE, 8) &&
            VerifyOffset(verifier, VT_SCHEDULE) &&
            verifier.VerifyTable(schedule()) &&
            VerifyOffsetRequired(verifier, VT_INDEX) &&
@@ -106,6 +121,9 @@ struct CapFloorBuilder {
   }
   void add_strike(double strike) {
     fbb_.AddElement<double>(CapFloor::VT_STRIKE, strike);
+  }
+  void add_floor_strike(double floor_strike) {
+    fbb_.AddElement<double>(CapFloor::VT_FLOOR_STRIKE, floor_strike);
   }
   void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
     fbb_.AddOffset(CapFloor::VT_SCHEDULE, schedule);
@@ -136,11 +154,13 @@ inline ::flatbuffers::Offset<CapFloor> CreateCapFloor(
     ::flatbuffers::Optional<quantra::enums::CapFloorType> cap_floor_type = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<double> strike = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> floor_strike = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index = 0,
     ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt) {
   CapFloorBuilder builder_(_fbb);
+  if(floor_strike) { builder_.add_floor_strike(*floor_strike); }
   if(strike) { builder_.add_strike(*strike); }
   if(notional) { builder_.add_notional(*notional); }
   builder_.add_index(index);
@@ -157,6 +177,7 @@ inline CapFloorT::CapFloorT(const CapFloorT &o)
       : cap_floor_type(o.cap_floor_type),
         notional(o.notional),
         strike(o.strike),
+        floor_strike(o.floor_strike),
         schedule((o.schedule) ? new quantra::ScheduleT(*o.schedule) : nullptr),
         index((o.index) ? new quantra::IndexRefT(*o.index) : nullptr),
         day_counter(o.day_counter),
@@ -167,6 +188,7 @@ inline CapFloorT &CapFloorT::operator=(CapFloorT o) FLATBUFFERS_NOEXCEPT {
   std::swap(cap_floor_type, o.cap_floor_type);
   std::swap(notional, o.notional);
   std::swap(strike, o.strike);
+  std::swap(floor_strike, o.floor_strike);
   std::swap(schedule, o.schedule);
   std::swap(index, o.index);
   std::swap(day_counter, o.day_counter);
@@ -186,6 +208,7 @@ inline void CapFloor::UnPackTo(CapFloorT *_o, const ::flatbuffers::resolver_func
   { auto _e = cap_floor_type(); _o->cap_floor_type = _e; }
   { auto _e = notional(); _o->notional = _e; }
   { auto _e = strike(); _o->strike = _e; }
+  { auto _e = floor_strike(); _o->floor_strike = _e; }
   { auto _e = schedule(); if (_e) { if(_o->schedule) { _e->UnPackTo(_o->schedule.get(), _resolver); } else { _o->schedule = std::unique_ptr<quantra::ScheduleT>(_e->UnPack(_resolver)); } } else if (_o->schedule) { _o->schedule.reset(); } }
   { auto _e = index(); if (_e) { if(_o->index) { _e->UnPackTo(_o->index.get(), _resolver); } else { _o->index = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->index) { _o->index.reset(); } }
   { auto _e = day_counter(); _o->day_counter = _e; }
@@ -203,6 +226,7 @@ inline ::flatbuffers::Offset<CapFloor> CreateCapFloor(::flatbuffers::FlatBufferB
   auto _cap_floor_type = _o->cap_floor_type;
   auto _notional = _o->notional;
   auto _strike = _o->strike;
+  auto _floor_strike = _o->floor_strike;
   auto _schedule = _o->schedule ? CreateSchedule(_fbb, _o->schedule.get(), _rehasher) : 0;
   auto _index = _o->index ? CreateIndexRef(_fbb, _o->index.get(), _rehasher) : 0;
   auto _day_counter = _o->day_counter;
@@ -212,6 +236,7 @@ inline ::flatbuffers::Offset<CapFloor> CreateCapFloor(::flatbuffers::FlatBufferB
       _cap_floor_type,
       _notional,
       _strike,
+      _floor_strike,
       _schedule,
       _index,
       _day_counter,

@@ -16,10 +16,13 @@ namespace quantra {
  * index name. Clearing the whole store on entry (and again on exit) makes the
  * fixings in the request body the only fixings a request can see.
  *
- * Process-level state, one request at a time per worker (same model as the
- * evaluation date, the calendar overrides and the roll offset). Nothing
- * cached across requests depends on live fixings: the curve cache stores
- * frozen pillar values, and the calibration caches store fitted parameters.
+ * The store is QuantLib's own singleton (process-wide; per thread only when
+ * QuantLib is built with QL_ENABLE_SESSIONS), so the model is one request at
+ * a time per worker, as for the evaluation date (EvalDateGuard). The engine's
+ * own request state (roll offset, calendar-override record) is thread_local.
+ * Nothing cached across requests depends on live fixings: the curve cache
+ * stores frozen pillar values, and the calibration caches store fitted
+ * parameters.
  */
 struct FixingsGuard {
     FixingsGuard() { QuantLib::IndexManager::instance().clearHistories(); }

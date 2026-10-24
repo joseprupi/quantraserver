@@ -496,6 +496,12 @@
 <td class="npv">14,707.75</td>
 </tr>
 <tr>
+<td><div class="title">EUR 5Y collar on Euribor 3M (long 4% cap, short 2% floor)</div><div class="desc">The baseline 5Y quarterly Euribor 3M leg collared between a 4.00% cap (long) and a 2.00% floor (short) on 1m notional, Black engine on the flat 20% lognormal optionlet vol, single curve. Exercises the Collar type (`strike` is the cap strike, `floor_strike` the floor&#x27;s): the NPV is the 4% cap&#x27;s minus the 2% floor&#x27;s, and the two legs nearly offset around the ~3.1% forwards.</div></td>
+<td><code>collar</code> <code>long cap short floor</code> <code>floor_strike</code> <code>Euribor3M</code> <code>quarterly</code> <code>Black lognormal 20%</code></td>
+<td><a href="../../examples/data/cap_floor/collar_eur_5y_cap_4pct_floor_2pct_euribor3m.json">collar_eur_5y_cap_4pct_floor_2pct_euribor3m.json</a></td>
+<td class="npv">3,683.84</td>
+</tr>
+<tr>
 <td><div class="title">EUR 5Y cap struck at 2%, deep in the money</div><div class="desc">The baseline 5Y quarterly Euribor 3M cap struck at 2.00%, well below the ~3.1% forwards, so nearly every caplet is in the money and the premium is dominated by intrinsic value. Pins the high-NPV end of the strike spectrum.</div></td>
 <td><code>cap</code> <code>in-the-money strike</code> <code>intrinsic-dominated</code> <code>Euribor3M</code> <code>Black lognormal 20%</code></td>
 <td><a href="../../examples/data/cap_floor/cap_eur_5y_itm_strike_2pct.json">cap_eur_5y_itm_strike_2pct.json</a></td>
@@ -1397,6 +1403,6 @@
 </tr>
 </tbody>
 </table>
-<footer>213 cases across 15 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<footer>214 cases across 15 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

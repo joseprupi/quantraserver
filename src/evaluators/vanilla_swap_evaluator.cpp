@@ -3,7 +3,6 @@
 #include "error.h"
 
 #include <cmath>
-#include <iostream>
 
 namespace quantra {
 
@@ -43,8 +42,6 @@ VanillaSwapPerSwap priceTrade(
         if (std::isfinite(fairSpread)) out.fairSpread = fairSpread;
     }
     out.cmsUsed = floating.cmsUsed;
-
-    std::cout << "Vanilla swap NPV (" << trade.fixedLeg.currency << "): " << out.npv << std::endl;
     return out;
 }
 
