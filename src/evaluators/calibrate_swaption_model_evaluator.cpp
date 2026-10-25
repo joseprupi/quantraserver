@@ -20,6 +20,8 @@ CalibrateSwaptionModelResult CalibrateSwaptionModelEvaluator::evaluate(
     out.gridRows = result.gridRows;
     out.gridCols = result.gridCols;
     out.gridPoints = result.gridPoints;
+    out.aFlatness = result.aFlatness;
+    out.aPoorlyIdentified = result.aPoorlyIdentified;
     return out;
 }
 

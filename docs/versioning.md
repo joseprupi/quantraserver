@@ -26,6 +26,68 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.13.1 (October 2026) — Non-finite responses, holiday valuation with deposit helpers, bounded Hull-White calibration
+
+`v0.13.1` is a PATCH release: three fixes, no request shape changes. Every
+0.13.0 request is a valid 0.13.1 request; the two optional request fields and
+the four optional response fields below are additive and default to the
+previous behaviour where the fix does not apply. QuantLib stays at 1.44.
+
+**Non-finite values are never shipped in a JSON body (`500` naming the
+field).** FlatBuffers prints an infinite or NaN double as a bare `inf` /
+`-inf` / `nan`, which is not JSON; 0.13.0 returned such bodies with HTTP
+200 (for example `"npv": inf` for a bond on an `InterpolatedZero` curve
+whose discount factors overflow). The gateway now scans every generated
+response and answers `500` with `{"error": "non-finite value in response at
+<path>"}` (`bonds[0].npv`, `results[0].series[0].values[1]`) plus a server
+log line. Strings containing `inf` / `nan` are never flagged. Documented in
+`docs/http-api.md`, "Error body".
+
+**Valuation on a holiday with deposit helpers (QuantLib ≥ 1.44) is a `400`
+with the remedy.** With `as_of_date` on a holiday of a `DepositHelper`'s
+calendar and `fixing_days > 0`, 0.11.0–0.13.0 failed deep inside the
+bootstrap with `422 "Missing no-fix3M … fixing"` (the helper's internal
+index needs a fixing before the valuation date that no request field can
+supply; see `docs/quantlib-upgrades/1.41-to-1.44.md` § 3.1). The pillar is
+now rejected when it is built: `400 rates.curves['<id>'].points[<j>]
+(DepositHelper): the evaluation date 2025-05-01 is not a business day of the
+helper's calendar TARGET and fixing_days is 2 … Value on a business day of
+TARGET, or set fixing_days: 0 on the DepositHelper`. The date is not rolled.
+`fixing_days: 0` pillars and business-day valuation dates are unchanged
+(gate-pinned to the 0.13.0 numbers on the upgrade-notes probe: `fair_rate`
+0.03, leg NPVs ∓57,389.296863753894).
+
+**Joint Hull-White calibration is bounded in `a` and reports its
+flatness.** The joint `(a, sigma)` Levenberg-Marquardt fit was unconstrained
+on an objective that is flat in `a` below ~1e-3, so the fitted `a` was
+engine noise (2.3× apart between two QuantLib builds on the same request).
+Additive request fields on `SwaptionHwCalibrationSpec`: `a_lower` (default
+0.001) and `a_upper` (default 1.0), applied only when `calibrate_a` is true;
+`a_init` is clipped into the box; invalid bounds are `400` naming the field.
+Additive response fields, present iff `calibrate_a`: `a_flatness`
+(`1 - rmse / max(rmse(2a), rmse(a/2))` at the calibrated sigma, in `[0, 1]`)
+and `a_poorly_identified` (`a_flatness < 0.01`) on
+`CalibrateSwaptionModelResponse`, and `used_hw_a_flatness` /
+`used_hw_a_poorly_identified` on an inline-calibrated swaption. A sigma-only
+fit (`calibrate_a: false`) is unchanged and recommended for production use
+with a market `a`; see `docs/http-api.md`, "Hull-White calibration". The
+in-process Hull-White calibration cache key now includes the bounds
+(`hw-calib:v2`).
+
+Observable changes on the shipped examples where the bound binds (every
+other calibration example and every functional-catalog row is unchanged;
+`CATALOG.md` is identical):
+
+| Request | Field | 0.13.0 | 0.13.1 |
+| --- | --- | --- | --- |
+| `calibrate_swaption_model_request.json` (and the `hull_white_calibration_a_and_sigma` upgrade probe's market) | `hw_a` | 0.000278081655 | 0.001000003603 |
+| | `hw_sigma` | 0.006631481998 | 0.006646865746 |
+| | `rmse` | 0.019048784649 | 0.019114130326 (+0.34 %) |
+| | `a_flatness` / `a_poorly_identified` | — | 0.004168989254 / true |
+| `swaption_bermudan_hw_calibrated.json` (and the `swaption_bermudan_hull_white_lattice_calibrated` probe) | `npv` | 8415.43462984673 | 8420.416773859031 |
+| | `used_hw_a` / `used_hw_sigma` / `used_hw_rmse` | as above | as above |
+| `vol/hwcal_eur_atm_matrix_roundtrip.json` (catalog row) | `hw_a`, `hw_sigma`, `rmse` | 0.049999969129, 0.0079999992, 1.899e-09 | unchanged (`a_flatness` 0.999999941, not flagged) |
+
 ## Version 0.13.0 (October 2026) — Final-observation marker, collars, exact-step Monte Carlo
 
 `v0.13.0` is a backward-compatible MINOR release: two additive request

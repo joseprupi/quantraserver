@@ -259,8 +259,26 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return None
 
+    # Flatness of the calibration objective in "a" (see CalibrateSwaptionModelResponse.a_flatness).
+    # Present only for an inline calibration with calibrate_a = true.
+    # SwaptionResponse
+    def UsedHwAFlatness(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(56))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
+    # True when the inline-calibrated "a" is poorly identified (a_flatness < 0.01).
+    # Present only for an inline calibration with calibrate_a = true.
+    # SwaptionResponse
+    def UsedHwAPoorlyIdentified(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(58))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return None
+
 def SwaptionResponseStart(builder):
-    builder.StartObject(26)
+    builder.StartObject(28)
 
 def Start(builder):
     SwaptionResponseStart(builder)
@@ -421,6 +439,18 @@ def SwaptionResponseAddUsedHwGridPoints(builder, usedHwGridPoints):
 def AddUsedHwGridPoints(builder, usedHwGridPoints):
     SwaptionResponseAddUsedHwGridPoints(builder, usedHwGridPoints)
 
+def SwaptionResponseAddUsedHwAFlatness(builder, usedHwAFlatness):
+    builder.PrependFloat64Slot(26, usedHwAFlatness, None)
+
+def AddUsedHwAFlatness(builder, usedHwAFlatness):
+    SwaptionResponseAddUsedHwAFlatness(builder, usedHwAFlatness)
+
+def SwaptionResponseAddUsedHwAPoorlyIdentified(builder, usedHwAPoorlyIdentified):
+    builder.PrependBoolSlot(27, usedHwAPoorlyIdentified, None)
+
+def AddUsedHwAPoorlyIdentified(builder, usedHwAPoorlyIdentified):
+    SwaptionResponseAddUsedHwAPoorlyIdentified(builder, usedHwAPoorlyIdentified)
+
 def SwaptionResponseEnd(builder):
     return builder.EndObject()
 
@@ -458,6 +488,8 @@ class SwaptionResponseT(object):
         self.usedHwGridRows = None  # type: Optional[int]
         self.usedHwGridCols = None  # type: Optional[int]
         self.usedHwGridPoints = None  # type: Optional[int]
+        self.usedHwAFlatness = None  # type: Optional[float]
+        self.usedHwAPoorlyIdentified = None  # type: Optional[bool]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -506,6 +538,8 @@ class SwaptionResponseT(object):
         self.usedHwGridRows = swaptionResponse.UsedHwGridRows()
         self.usedHwGridCols = swaptionResponse.UsedHwGridCols()
         self.usedHwGridPoints = swaptionResponse.UsedHwGridPoints()
+        self.usedHwAFlatness = swaptionResponse.UsedHwAFlatness()
+        self.usedHwAPoorlyIdentified = swaptionResponse.UsedHwAPoorlyIdentified()
 
     # SwaptionResponseT
     def Pack(self, builder):
@@ -542,5 +576,7 @@ class SwaptionResponseT(object):
         SwaptionResponseAddUsedHwGridRows(builder, self.usedHwGridRows)
         SwaptionResponseAddUsedHwGridCols(builder, self.usedHwGridCols)
         SwaptionResponseAddUsedHwGridPoints(builder, self.usedHwGridPoints)
+        SwaptionResponseAddUsedHwAFlatness(builder, self.usedHwAFlatness)
+        SwaptionResponseAddUsedHwAPoorlyIdentified(builder, self.usedHwAPoorlyIdentified)
         swaptionResponse = SwaptionResponseEnd(builder)
         return swaptionResponse

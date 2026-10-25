@@ -62,6 +62,8 @@ struct HwCalibrateKeyInputs {
     bool calibrateSigma = true;
     double aInit = 0.0;
     double sigmaInit = 0.0;
+    double aLower = 0.0;
+    double aUpper = 0.0;
     int maxIterations = 0;       // clamped
     int functionEvaluations = 0; // clamped
     double endCriteriaEps = 0.0;
@@ -71,7 +73,7 @@ struct HwCalibrateKeyInputs {
 
 /**
  * Build a content-keyed SHA-256 cache key for a Hull-White swaption-model
- * calibration. Output: "hw-calib:v1:<sha256hex>".
+ * calibration. Output: "hw-calib:v2:<sha256hex>".
  *
  * Every field of HwCalibrateKeyInputs is serialized into a canonical buffer, so
  * two requests collide in the cache iff every consumed input matches. When in

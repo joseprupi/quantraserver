@@ -16,6 +16,7 @@ include_directories(
 # -----------------------------------------------------------------------------
 add_library(quantra_client STATIC
     cpp/src/json_parser.cpp
+    cpp/src/non_finite_scan.cpp
     cpp/src/quantra_client.cpp
 )
 

@@ -36,6 +36,14 @@
         "grid_points" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
                 "description" : "Total number of grid points in the calibration grid."
+              },
+        "a_flatness" : {
+                "type" : "number",
+                "description" : "How well the surface pins \"a\" (present iff calibrate_a): the relative\nrmse increase when \"a\" is doubled or halved at the calibrated sigma,\n1 - rmse / max(rmse(2a), rmse(a/2)). 0 = the objective is flat in \"a\";\nvalues near 1 = \"a\" is sharply identified. Absent for a sigma-only fit."
+              },
+        "a_poorly_identified" : {
+                "type" : "boolean",
+                "description" : "True when a_flatness < 0.01: the fitted \"a\" is not supported by the\nsurface and should not be read as a market value. Present iff calibrate_a."
               }
       },
       "required" : ["model_id"],

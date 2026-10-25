@@ -24,6 +24,7 @@
 
 #include <ql/time/date.hpp>
 
+#include <optional>
 #include <string>
 
 namespace quantra {
@@ -47,6 +48,9 @@ struct CalibrateSwaptionModelResult {
     int gridRows = 0;
     int gridCols = 0;
     int gridPoints = 0;
+    /// Present iff the calibration fitted "a" (see HwCalibResult).
+    std::optional<double> aFlatness;
+    std::optional<bool> aPoorlyIdentified;
 };
 
 class CalibrateSwaptionModelEvaluator {

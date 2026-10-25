@@ -187,6 +187,9 @@ struct SwaptionPerTrade {
     std::optional<int> usedHwGridRows;
     std::optional<int> usedHwGridCols;
     std::optional<int> usedHwGridPoints;
+    // Set only for an inline calibration that fitted "a" (see HwCalibResult).
+    std::optional<double> usedHwAFlatness;
+    std::optional<bool> usedHwAPoorlyIdentified;
 };
 
 /// SABR-kind vol surfaces emit a SwaptionVolDiagnostics block when the request

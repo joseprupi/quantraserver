@@ -47,7 +47,7 @@ void writeDoubles(CanonicalBuffer& buf, const std::vector<double>& xs) {
 std::string buildHwCalibrateCacheKey(const HwCalibrateKeyInputs& in) {
     CanonicalBuffer buf;
 
-    buf.writeTag("hw-calib:v1:");
+    buf.writeTag("hw-calib:v2:");
 
     // Consumed market vols + resolved grid.
     writeDoubles(buf, in.consumedVols);
@@ -85,6 +85,8 @@ std::string buildHwCalibrateCacheKey(const HwCalibrateKeyInputs& in) {
     buf.writeBool(in.calibrateSigma);
     buf.writeDouble(in.aInit);
     buf.writeDouble(in.sigmaInit);
+    buf.writeDouble(in.aLower);
+    buf.writeDouble(in.aUpper);
     buf.writeI32(in.maxIterations);
     buf.writeI32(in.functionEvaluations);
     buf.writeDouble(in.endCriteriaEps);
@@ -97,7 +99,7 @@ std::string buildHwCalibrateCacheKey(const HwCalibrateKeyInputs& in) {
     // their holidays, so an override changes the calibration.
     appendCalendarOverridesSection(buf);
 
-    return "hw-calib:v1:" + sha256hex(buf.data());
+    return "hw-calib:v2:" + sha256hex(buf.data());
 }
 
 } // namespace quantra

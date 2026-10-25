@@ -256,6 +256,8 @@ struct SwaptionHwCalibrationSpecT : public ::flatbuffers::NativeTable {
   bool calibrate_sigma = true;
   double a_init = 0.03;
   double sigma_init = 0.01;
+  double a_lower = 0.001;
+  double a_upper = 1.0;
   int32_t max_iterations = 200;
   int32_t function_evaluations = 1000;
   double end_criteria_eps = 1.0e-8;
@@ -280,9 +282,11 @@ struct SwaptionHwCalibrationSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers
     VT_CALIBRATE_SIGMA = 18,
     VT_A_INIT = 20,
     VT_SIGMA_INIT = 22,
-    VT_MAX_ITERATIONS = 24,
-    VT_FUNCTION_EVALUATIONS = 26,
-    VT_END_CRITERIA_EPS = 28
+    VT_A_LOWER = 24,
+    VT_A_UPPER = 26,
+    VT_MAX_ITERATIONS = 28,
+    VT_FUNCTION_EVALUATIONS = 30,
+    VT_END_CRITERIA_EPS = 32
   };
   /// Swaption volatility surface id used as calibration target.
   const ::flatbuffers::String *swaption_vol_id() const {
@@ -316,13 +320,26 @@ struct SwaptionHwCalibrationSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers
   bool calibrate_sigma() const {
     return GetField<uint8_t>(VT_CALIBRATE_SIGMA, 1) != 0;
   }
-  /// Initial guess for Hull-White "a".
+  /// Initial guess for Hull-White "a". When calibrate_a is true the guess is
+  /// clipped into [a_lower, a_upper] before the fit starts.
   double a_init() const {
     return GetField<double>(VT_A_INIT, 0.03);
   }
   /// Initial guess for Hull-White "sigma".
   double sigma_init() const {
     return GetField<double>(VT_SIGMA_INIT, 0.01);
+  }
+  /// Lower bound on "a" during a joint (calibrate_a = true) calibration.
+  /// Below about 1e-3 the Hull-White objective is numerically flat in "a"
+  /// and the fitted value is noise; the optimizer is kept out of that region.
+  /// Must be > 0 and < a_upper. Ignored when calibrate_a is false.
+  double a_lower() const {
+    return GetField<double>(VT_A_LOWER, 0.001);
+  }
+  /// Upper bound on "a" during a joint calibration. Must be > a_lower.
+  /// Ignored when calibrate_a is false.
+  double a_upper() const {
+    return GetField<double>(VT_A_UPPER, 1.0);
   }
   /// EndCriteria max stationarity iterations.
   int32_t max_iterations() const {
@@ -356,6 +373,8 @@ struct SwaptionHwCalibrationSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers
            VerifyField<uint8_t>(verifier, VT_CALIBRATE_SIGMA, 1) &&
            VerifyField<double>(verifier, VT_A_INIT, 8) &&
            VerifyField<double>(verifier, VT_SIGMA_INIT, 8) &&
+           VerifyField<double>(verifier, VT_A_LOWER, 8) &&
+           VerifyField<double>(verifier, VT_A_UPPER, 8) &&
            VerifyField<int32_t>(verifier, VT_MAX_ITERATIONS, 4) &&
            VerifyField<int32_t>(verifier, VT_FUNCTION_EVALUATIONS, 4) &&
            VerifyField<double>(verifier, VT_END_CRITERIA_EPS, 8) &&
@@ -400,6 +419,12 @@ struct SwaptionHwCalibrationSpecBuilder {
   void add_sigma_init(double sigma_init) {
     fbb_.AddElement<double>(SwaptionHwCalibrationSpec::VT_SIGMA_INIT, sigma_init, 0.01);
   }
+  void add_a_lower(double a_lower) {
+    fbb_.AddElement<double>(SwaptionHwCalibrationSpec::VT_A_LOWER, a_lower, 0.001);
+  }
+  void add_a_upper(double a_upper) {
+    fbb_.AddElement<double>(SwaptionHwCalibrationSpec::VT_A_UPPER, a_upper, 1.0);
+  }
   void add_max_iterations(int32_t max_iterations) {
     fbb_.AddElement<int32_t>(SwaptionHwCalibrationSpec::VT_MAX_ITERATIONS, max_iterations, 200);
   }
@@ -436,11 +461,15 @@ inline ::flatbuffers::Offset<SwaptionHwCalibrationSpec> CreateSwaptionHwCalibrat
     bool calibrate_sigma = true,
     double a_init = 0.03,
     double sigma_init = 0.01,
+    double a_lower = 0.001,
+    double a_upper = 1.0,
     int32_t max_iterations = 200,
     int32_t function_evaluations = 1000,
     double end_criteria_eps = 1.0e-8) {
   SwaptionHwCalibrationSpecBuilder builder_(_fbb);
   builder_.add_end_criteria_eps(end_criteria_eps);
+  builder_.add_a_upper(a_upper);
+  builder_.add_a_lower(a_lower);
   builder_.add_sigma_init(sigma_init);
   builder_.add_a_init(a_init);
   builder_.add_function_evaluations(function_evaluations);
@@ -468,6 +497,8 @@ inline ::flatbuffers::Offset<SwaptionHwCalibrationSpec> CreateSwaptionHwCalibrat
     bool calibrate_sigma = true,
     double a_init = 0.03,
     double sigma_init = 0.01,
+    double a_lower = 0.001,
+    double a_upper = 1.0,
     int32_t max_iterations = 200,
     int32_t function_evaluations = 1000,
     double end_criteria_eps = 1.0e-8) {
@@ -489,6 +520,8 @@ inline ::flatbuffers::Offset<SwaptionHwCalibrationSpec> CreateSwaptionHwCalibrat
       calibrate_sigma,
       a_init,
       sigma_init,
+      a_lower,
+      a_upper,
       max_iterations,
       function_evaluations,
       end_criteria_eps);
@@ -933,6 +966,8 @@ inline SwaptionHwCalibrationSpecT::SwaptionHwCalibrationSpecT(const SwaptionHwCa
         calibrate_sigma(o.calibrate_sigma),
         a_init(o.a_init),
         sigma_init(o.sigma_init),
+        a_lower(o.a_lower),
+        a_upper(o.a_upper),
         max_iterations(o.max_iterations),
         function_evaluations(o.function_evaluations),
         end_criteria_eps(o.end_criteria_eps) {
@@ -953,6 +988,8 @@ inline SwaptionHwCalibrationSpecT &SwaptionHwCalibrationSpecT::operator=(Swaptio
   std::swap(calibrate_sigma, o.calibrate_sigma);
   std::swap(a_init, o.a_init);
   std::swap(sigma_init, o.sigma_init);
+  std::swap(a_lower, o.a_lower);
+  std::swap(a_upper, o.a_upper);
   std::swap(max_iterations, o.max_iterations);
   std::swap(function_evaluations, o.function_evaluations);
   std::swap(end_criteria_eps, o.end_criteria_eps);
@@ -978,6 +1015,8 @@ inline void SwaptionHwCalibrationSpec::UnPackTo(SwaptionHwCalibrationSpecT *_o, 
   { auto _e = calibrate_sigma(); _o->calibrate_sigma = _e; }
   { auto _e = a_init(); _o->a_init = _e; }
   { auto _e = sigma_init(); _o->sigma_init = _e; }
+  { auto _e = a_lower(); _o->a_lower = _e; }
+  { auto _e = a_upper(); _o->a_upper = _e; }
   { auto _e = max_iterations(); _o->max_iterations = _e; }
   { auto _e = function_evaluations(); _o->function_evaluations = _e; }
   { auto _e = end_criteria_eps(); _o->end_criteria_eps = _e; }
@@ -1001,6 +1040,8 @@ inline ::flatbuffers::Offset<SwaptionHwCalibrationSpec> CreateSwaptionHwCalibrat
   auto _calibrate_sigma = _o->calibrate_sigma;
   auto _a_init = _o->a_init;
   auto _sigma_init = _o->sigma_init;
+  auto _a_lower = _o->a_lower;
+  auto _a_upper = _o->a_upper;
   auto _max_iterations = _o->max_iterations;
   auto _function_evaluations = _o->function_evaluations;
   auto _end_criteria_eps = _o->end_criteria_eps;
@@ -1016,6 +1057,8 @@ inline ::flatbuffers::Offset<SwaptionHwCalibrationSpec> CreateSwaptionHwCalibrat
       _calibrate_sigma,
       _a_init,
       _sigma_init,
+      _a_lower,
+      _a_upper,
       _max_iterations,
       _function_evaluations,
       _end_criteria_eps);

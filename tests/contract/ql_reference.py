@@ -4703,6 +4703,11 @@ def calibrate_swaption_model_ql(request: dict) -> dict:
         calib.get("max_iterations", 200), eps, eps, eps)
     fix_params = [not calib.get("calibrate_a", True),
                   not calib.get("calibrate_sigma", True)]
+    # The server keeps a joint fit inside [a_lower, a_upper] (defaults 1e-3 /
+    # 1.0, a box on "a" only). QuantLib-Python exposes no per-parameter
+    # constraint, so the reference runs unconstrained; every catalog case that
+    # calibrates "a" round-trips a generating a=0.05 well inside the box, where
+    # the two fits coincide to the catalog tolerance.
     hw.calibrate(helpers, ql.LevenbergMarquardt(), end_criteria,
                  ql.NoConstraint(), [], fix_params)
 

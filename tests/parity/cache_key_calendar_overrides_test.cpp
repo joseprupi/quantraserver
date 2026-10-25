@@ -35,8 +35,10 @@ const char* const kCurveKeyNoOverrides =
     "yc:v3:4a06a2ccdd85fd584b1910aee22eac58d698e9f60696a29f961752f9244344a7";
 const char* const kSabrKeyNoOverrides =
     "sabr-cube:v1:b3bf8ff6128ac5f0ad9f03570fb0d64e2cdb5446bbbfa3b3310a78f503ff3f66";
+// hw-calib moved from v1 to v2 in 0.13.1 when the joint-fit bounds on "a"
+// (a_lower / a_upper) became part of the key material; re-pinned then.
 const char* const kHwKeyNoOverrides =
-    "hw-calib:v1:065489406b70935b98cbb26a4944aed583bca61f41df6a3ebf6942a12dc6b7e3";
+    "hw-calib:v2:73547789be2a034a0e3aa9a4d5c162863d5e9b9a921e3d94c6ae64195106bf8b";
 
 std::string curveKey() {
     flatbuffers::FlatBufferBuilder fbb;
@@ -214,7 +216,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         KeyCase{"Curve", "yc:v3:", kCurveKeyNoOverrides, curveKey},
         KeyCase{"SabrCube", "sabr-cube:v1:", kSabrKeyNoOverrides, sabrKey},
-        KeyCase{"HullWhiteCalibration", "hw-calib:v1:", kHwKeyNoOverrides, hwKey}),
+        KeyCase{"HullWhiteCalibration", "hw-calib:v2:", kHwKeyNoOverrides, hwKey}),
     [](const ::testing::TestParamInfo<KeyCase>& info) { return std::string(info.param.name); });
 
 }}} // namespace quantra::testing

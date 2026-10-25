@@ -42,7 +42,7 @@ info:
     # Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\n\
     curl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type:\
     \ application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n"
-  version: 0.13.0
+  version: 0.13.1
   contact:
     name: Quantra API Support
     url: https://github.com/joseprupi/quantraserver
@@ -3676,10 +3676,27 @@ components:
           description: Whether to calibrate Hull-White parameter "sigma".
         a_init:
           type: number
-          description: Initial guess for Hull-White "a".
+          description: 'Initial guess for Hull-White "a". When calibrate_a is true
+            the guess is
+
+            clipped into [a_lower, a_upper] before the fit starts.'
         sigma_init:
           type: number
           description: Initial guess for Hull-White "sigma".
+        a_lower:
+          type: number
+          description: 'Lower bound on "a" during a joint (calibrate_a = true) calibration.
+
+            Below about 1e-3 the Hull-White objective is numerically flat in "a"
+
+            and the fitted value is noise; the optimizer is kept out of that region.
+
+            Must be > 0 and < a_upper. Ignored when calibrate_a is false.'
+        a_upper:
+          type: number
+          description: 'Upper bound on "a" during a joint calibration. Must be > a_lower.
+
+            Ignored when calibrate_a is false.'
         max_iterations:
           type: integer
           description: EndCriteria max stationarity iterations.
@@ -5052,6 +5069,22 @@ components:
           description: Total number of grid points in the calibration grid.
           minimum: -2147483648
           maximum: 2147483647
+        a_flatness:
+          type: number
+          description: 'How well the surface pins "a" (present iff calibrate_a): the
+            relative
+
+            rmse increase when "a" is doubled or halved at the calibrated sigma,
+
+            1 - rmse / max(rmse(2a), rmse(a/2)). 0 = the objective is flat in "a";
+
+            values near 1 = "a" is sharply identified. Absent for a sigma-only fit.'
+        a_poorly_identified:
+          type: boolean
+          description: 'True when a_flatness < 0.01: the fitted "a" is not supported
+            by the
+
+            surface and should not be read as a market value. Present iff calibrate_a.'
       required:
       - model_id
       additionalProperties: false
@@ -9321,6 +9354,17 @@ components:
             when no inline calibration.
           minimum: -2147483648
           maximum: 2147483647
+        used_hw_a_flatness:
+          type: number
+          description: 'Flatness of the calibration objective in "a" (see CalibrateSwaptionModelResponse.a_flatness).
+
+            Present only for an inline calibration with calibrate_a = true.'
+        used_hw_a_poorly_identified:
+          type: boolean
+          description: 'True when the inline-calibrated "a" is poorly identified (a_flatness
+            < 0.01).
+
+            Present only for an inline calibration with calibrate_a = true.'
       additionalProperties: false
     quantra_PriceSwaptionResponse:
       type: object

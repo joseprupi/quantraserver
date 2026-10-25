@@ -1642,11 +1642,19 @@
               },
         "a_init" : {
                 "type" : "number",
-                "description" : "Initial guess for Hull-White \"a\"."
+                "description" : "Initial guess for Hull-White \"a\". When calibrate_a is true the guess is\nclipped into [a_lower, a_upper] before the fit starts."
               },
         "sigma_init" : {
                 "type" : "number",
                 "description" : "Initial guess for Hull-White \"sigma\"."
+              },
+        "a_lower" : {
+                "type" : "number",
+                "description" : "Lower bound on \"a\" during a joint (calibrate_a = true) calibration.\nBelow about 1e-3 the Hull-White objective is numerically flat in \"a\"\nand the fitted value is noise; the optimizer is kept out of that region.\nMust be > 0 and < a_upper. Ignored when calibrate_a is false."
+              },
+        "a_upper" : {
+                "type" : "number",
+                "description" : "Upper bound on \"a\" during a joint calibration. Must be > a_lower.\nIgnored when calibrate_a is false."
               },
         "max_iterations" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,

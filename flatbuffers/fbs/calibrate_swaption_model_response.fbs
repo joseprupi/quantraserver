@@ -18,6 +18,14 @@ table CalibrateSwaptionModelResponse {
     grid_cols:int;
     /// Total number of grid points in the calibration grid.
     grid_points:int;
+    /// How well the surface pins "a" (present iff calibrate_a): the relative
+    /// rmse increase when "a" is doubled or halved at the calibrated sigma,
+    /// 1 - rmse / max(rmse(2a), rmse(a/2)). 0 = the objective is flat in "a";
+    /// values near 1 = "a" is sharply identified. Absent for a sigma-only fit.
+    a_flatness:double = null;
+    /// True when a_flatness < 0.01: the fitted "a" is not supported by the
+    /// surface and should not be read as a market value. Present iff calibrate_a.
+    a_poorly_identified:bool = null;
 }
 
 root_type CalibrateSwaptionModelResponse;

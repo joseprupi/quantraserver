@@ -530,6 +530,14 @@
         "used_hw_grid_points" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
                 "description" : "Calibration grid points for inline-calibrated Hull-White. Absent when no inline calibration."
+              },
+        "used_hw_a_flatness" : {
+                "type" : "number",
+                "description" : "Flatness of the calibration objective in \"a\" (see CalibrateSwaptionModelResponse.a_flatness).\nPresent only for an inline calibration with calibrate_a = true."
+              },
+        "used_hw_a_poorly_identified" : {
+                "type" : "boolean",
+                "description" : "True when the inline-calibrated \"a\" is poorly identified (a_flatness < 0.01).\nPresent only for an inline calibration with calibrate_a = true."
               }
       },
       "additionalProperties" : false

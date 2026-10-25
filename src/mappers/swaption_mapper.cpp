@@ -342,6 +342,9 @@ flatbuffers::Offset<quantra::PriceSwaptionResponse> SwaptionMapper::toResponse(
         if (r.usedHwGridRows) rb.add_used_hw_grid_rows(*r.usedHwGridRows);
         if (r.usedHwGridCols) rb.add_used_hw_grid_cols(*r.usedHwGridCols);
         if (r.usedHwGridPoints) rb.add_used_hw_grid_points(*r.usedHwGridPoints);
+        if (r.usedHwAFlatness) rb.add_used_hw_a_flatness(*r.usedHwAFlatness);
+        if (r.usedHwAPoorlyIdentified)
+            rb.add_used_hw_a_poorly_identified(*r.usedHwAPoorlyIdentified);
         rowOffsets.push_back(rb.Finish());
     }
 

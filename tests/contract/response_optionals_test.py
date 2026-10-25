@@ -25,6 +25,8 @@ HW_KEYS = [
     "used_hw_grid_rows",
     "used_hw_grid_cols",
     "used_hw_grid_points",
+    "used_hw_a_flatness",
+    "used_hw_a_poorly_identified",
 ]
 
 CMS_KEYS = [

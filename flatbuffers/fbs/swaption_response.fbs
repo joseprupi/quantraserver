@@ -83,6 +83,12 @@ table SwaptionResponse {
     used_hw_grid_cols:int = null;
     /// Calibration grid points for inline-calibrated Hull-White. Absent when no inline calibration.
     used_hw_grid_points:int = null;
+    /// Flatness of the calibration objective in "a" (see CalibrateSwaptionModelResponse.a_flatness).
+    /// Present only for an inline calibration with calibrate_a = true.
+    used_hw_a_flatness:double = null;
+    /// True when the inline-calibrated "a" is poorly identified (a_flatness < 0.01).
+    /// Present only for an inline calibration with calibrate_a = true.
+    used_hw_a_poorly_identified:bool = null;
 }
 
 /// Response wrapper for multiple swaptions.

@@ -333,8 +333,11 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
                 }
                 auto point = pw->point();
                 auto type = pw->point_type();
-                auto helper =
-                    pointParser.parse(type, point, quotes, curves, indices, bump, fxSpots);
+                const std::string location = "rates.curves['" +
+                                             (ts->id() ? ts->id()->str() : std::string()) +
+                                             "'].points[" + std::to_string(i) + "]";
+                auto helper = pointParser.parse(
+                    type, point, quotes, curves, indices, bump, fxSpots, location);
                 if (!helper)
                     QUANTRA_INVALID_ARGUMENT(
                         "Failed to parse term structure point at index " + std::to_string(i));

@@ -28,6 +28,7 @@ per-item error entry (validated by an optional body checker).
 """
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -852,6 +853,68 @@ def _ec_body_valid_json_without(*absent_keys):
                 if k in swap:
                     return (f"expected field {k!r} to be omitted (non-finite), "
                             f"but it is present: {json.dumps(swap)[:200]}")
+        return None
+    return check
+
+
+def _ec_load_probe(relpath):
+    """Mutator that REPLACES the base request with a version-diff probe from
+    tests/version_diff/probes/<relpath> (the base filename only has to exist).
+    Used where the scenario is a probe written for the QuantLib upgrade notes
+    and should stay byte-identical to the one the notes cite."""
+    def f(_req):
+        probe = (Path(__file__).resolve().parents[1] / "version_diff" / "probes" / relpath)
+        with open(probe) as fh:
+            return json.load(fh)
+    return f
+
+
+def _ec_overflowing_zero_curve():
+    """Set every ZeroRatePoint of the request's curves to a continuously
+    compounded zero rate of -1e4 (-1,000,000 %). The request is valid on the
+    wire (finite rate, well-formed points) but the discount factors overflow
+    to +inf, so the priced NPV is non-finite: the gateway must answer 500
+    naming the field rather than a 200 body with a bare `inf` token."""
+    def f(req):
+        for curve in req["pricing"]["rates"]["curves"]:
+            for pt in curve["points"]:
+                if pt.get("point_type") == "ZeroRatePoint":
+                    pt["point"]["zero_rate"] = -1.0e4
+        return req
+    return f
+
+
+def _ec_bootstrap_overflowing_zero_curve():
+    """Rebuild the bootstrap-curves request around the bond example's
+    InterpolatedZero curve with every zero rate at -1e4 and sample only the
+    discount factors, so the second grid point already carries +inf."""
+    def f(req):
+        bond_file = (Path(__file__).resolve().parents[2] / "examples" / "data" / "bonds"
+                     / "frb_usd_10y_treasury_semiannual_zero_curve.json")
+        with open(bond_file) as fh:
+            bond = json.load(fh)
+        curve = bond["pricing"]["rates"]["curves"][0]
+        for pt in curve["points"]:
+            pt["point"]["zero_rate"] = -1.0e4
+        req["pricing"]["as_of_date"] = bond["pricing"]["as_of_date"]
+        req["pricing"]["rates"] = {"curves": [curve]}
+        req["queries"] = [req["queries"][0]]
+        req["queries"][0]["curve_id"] = curve["id"]
+        req["queries"][0]["measures"] = ["DF"]
+        return req
+    return f
+
+
+def _ec_body_is_error_json(expected_error):
+    """Body validator for the gateway's own 500s: the body must be valid JSON
+    whose `error` equals expected_error exactly (no bare non-finite tokens)."""
+    def check(body_text):
+        try:
+            body = json.loads(body_text)
+        except Exception as e:
+            return f"response body is not valid JSON: {e} :: {body_text[:200]}"
+        if body.get("error") != expected_error:
+            return f"expected error {expected_error!r}, got {body.get('error')!r}"
         return None
     return check
 
@@ -2302,6 +2365,35 @@ SCENARIOS = [
     ("ec:400 structured note greeks on a called note", "structured_note", _EC_SN, 400,
      _ec_sn_greeks_on_called(),
      _ec_body_contains("notes[0]: no Greeks for a note that is not alive (status Called")),
+    # ---- 400: deposit helper on a valuation date that is a holiday of its calendar ----
+    # Since QuantLib 1.44 the helper's spot date is counted from the actual
+    # evaluation date even when it is a holiday; with fixing_days > 0 the
+    # deposit's fixing date then precedes the evaluation date and the bootstrap
+    # would ask for a fixing of the helper's internal index, which no request
+    # field can supply (was an opaque 422 "Missing no-fix3M ... fixing"). The
+    # engine now reports it early as a 400 naming the pillar, the date, the
+    # calendar and both remedies. The probe is the one the upgrade notes cite.
+    ("ec:400 vanilla_swap deposit helper as_of on TARGET holiday fixing_days 2", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_load_probe("price-vanilla-swap/vanilla_as_of_on_target_holiday.json"),
+     _ec_body_contains_all("rates.curves['discount'].points[0] (DepositHelper)",
+                           "2025-05-01", "TARGET", "fixing_days is 2",
+                           "Value on a business day of TARGET",
+                           "set fixing_days: 0")),
+    # ---- 500: non-finite value in a response ----
+    # FlatBuffers prints a non-finite double as a bare `inf` / `nan`, which is
+    # not JSON. The gateway scans every generated response and turns the first
+    # offender into a 500 naming its path. The requests are valid on the wire
+    # (-1e4 continuously compounded zero rate): the discount factors overflow.
+    ("ec:500 fixed_rate_bond npv non-finite (overflowing zero curve)", "fixed_rate_bond",
+     "bonds/frb_usd_10y_treasury_semiannual_zero_curve.json", 500,
+     _ec_overflowing_zero_curve(),
+     _ec_body_is_error_json("non-finite value in response at bonds[0].npv")),
+    ("ec:500 bootstrap_curves sampled DF non-finite (overflowing zero curve)", "bootstrap_curves",
+     "bootstrap_curves_forward.json", 500,
+     _ec_bootstrap_overflowing_zero_curve(),
+     _ec_body_is_error_json(
+         "non-finite value in response at results[0].series[0].values[1]")),
 ]
 
 
