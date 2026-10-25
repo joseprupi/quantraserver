@@ -42,6 +42,8 @@ their log lines appear in the engine's output, not the gateway's.
 | `QUANTRA_CURVE_CACHE_MAX_ENTRIES` | engine | `100` | LRU capacity of the curve cache. An unparseable or non-positive value logs a warning and keeps the default. |
 | `QUANTRA_SABR_CACHE_ENABLED` | engine | off | `1` enables the SABR swaption-cube calibration cache (fixed LRU capacity). Set to `1` in the container. |
 | `QUANTRA_SABR_CACHE_LOG` | engine | off | `1` logs SABR cache hits/misses. |
+| `QUANTRA_SSVI_CACHE_ENABLED` | engine | off | `1` enables the equity SSVI calibration cache (`/calibrate-equity-vol` and `SsviCalibrate` surfaces; content-keyed, fixed LRU capacity). Set to `1` in the container (from 0.14.0). |
+| `QUANTRA_SSVI_CACHE_LOG` | engine | off | `1` logs SSVI cache hits/misses. |
 | `QUANTRA_HW_CACHE_ENABLED` | engine | off | `1` enables the Hull-White model-calibration cache (fixed LRU capacity). Set to `1` in the container (from 0.5.0). |
 | `QUANTRA_HW_CACHE_LOG` | engine | off | `1` logs Hull-White calibration cache hits/misses. |
 
@@ -73,6 +75,7 @@ QUANTRA_FBS_DIR=/app/flatbuffers/fbs
 QUANTRA_FBS_INCLUDE_DIR=/app/flatbuffers/fbs
 QUANTRA_CURVE_CACHE_ENABLED=1
 QUANTRA_SABR_CACHE_ENABLED=1
+QUANTRA_SSVI_CACHE_ENABLED=1
 QUANTRA_REQUEST_BUDGET_MS=35000
 ```
 

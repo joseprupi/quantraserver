@@ -41,6 +41,7 @@ from quantra.PriceCapFloorRequest import PriceCapFloorRequestT
 from quantra.PriceSwaptionRequest import PriceSwaptionRequestT
 from quantra.PriceCDSRequest import PriceCDSRequestT
 from quantra.BootstrapCurvesRequest import BootstrapCurvesRequestT
+from quantra.CalibrateEquityVolRequest import CalibrateEquityVolRequestT
 from quantra.BootstrapInflationCurvesRequest import BootstrapInflationCurvesRequestT
 from quantra.Pricing import PricingT
 from quantra.RatesMarketData import RatesMarketDataT
@@ -66,6 +67,7 @@ from quantra.PriceCapFloorResponse import PriceCapFloorResponse
 from quantra.PriceSwaptionResponse import PriceSwaptionResponse
 from quantra.PriceCDSResponse import PriceCDSResponse
 from quantra.BootstrapCurvesResponse import BootstrapCurvesResponse
+from quantra.CalibrateEquityVolResponse import CalibrateEquityVolResponse
 from quantra.BootstrapInflationCurvesResponse import BootstrapInflationCurvesResponse
 
 
@@ -100,6 +102,7 @@ class Client:
         'cds': '/quantra.QuantraServer/PriceCDS',
         'bootstrap_curves': '/quantra.QuantraServer/BootstrapCurves',
         'bootstrap_inflation_curves': '/quantra.QuantraServer/BootstrapInflationCurves',
+        'calibrate_equity_vol': '/quantra.QuantraServer/CalibrateEquityVol',
     }
     
     def __init__(
@@ -334,6 +337,18 @@ class Client:
             BootstrapInflationCurvesResponse
         )
     
+    def calibrate_equity_vol(
+        self,
+        request: CalibrateEquityVolRequestT
+    ) -> CalibrateEquityVolResponse:
+        """Fit an SSVI surface (BlackVolSpec shape=SsviCalibrate) to option quotes and
+        return the calibrated slices with their forwards plus fit diagnostics."""
+        return self._call(
+            'calibrate_equity_vol',
+            request,
+            CalibrateEquityVolResponse
+        )
+
     # =========================================================================
     # Internal Methods
     # =========================================================================

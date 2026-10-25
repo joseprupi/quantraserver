@@ -10,3 +10,7 @@ class VolSurfaceShape(object):
     SurfaceFromPrices = 3
     SabrParams = 4
     SabrCalibrate = 5
+    # Equity eSSVI surface from user-supplied slice parameters (BlackVolSpec.ssvi_slices).
+    SsviParams = 6
+    # Equity eSSVI surface calibrated from option quotes (BlackVolSpec.option_quotes).
+    SsviCalibrate = 7

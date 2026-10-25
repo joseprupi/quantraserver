@@ -1,0 +1,18 @@
+include "pricing.fbs";
+
+namespace quantra;
+
+/// Request to calibrate an equity eSSVI volatility surface from option quotes.
+///
+/// Mirrors `/calibrate-swaption-vol`: the caller supplies a full pricing
+/// context plus a `vol_id` referencing the surface to calibrate. Spot, discount
+/// and dividend curves are those of the referenced BlackVolSpec.
+table CalibrateEquityVolRequest {
+    /// Full pricing context (as_of, curves, quotes, vols).
+    pricing:Pricing (required);
+    /// Vol surface id inside `pricing.volatility.vol_surfaces`. Must reference a
+    /// BlackVolSpec with base.shape=SsviCalibrate; every other shape is rejected.
+    vol_id:string (required);
+}
+
+root_type CalibrateEquityVolRequest;

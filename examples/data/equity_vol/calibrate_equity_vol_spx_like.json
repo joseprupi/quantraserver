@@ -1,0 +1,746 @@
+{
+  "pricing": {
+    "as_of_date": "2026-10-21",
+    "quotes": [
+      {
+        "id": "SPX_SPOT",
+        "kind": "Price",
+        "value": 6000.0,
+        "quote_type": "Curve"
+      }
+    ],
+    "rates": {
+      "curves": [
+        {
+          "id": "usd_risk_free",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2026-10-21",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.04,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-10-21"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.04,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2036-10-21"
+              }
+            }
+          ]
+        },
+        {
+          "id": "spx_dividend_yield",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2026-10-21",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.013,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-10-21"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.013,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2036-10-21"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "volatility": {
+      "vol_surfaces": [
+        {
+          "id": "spx_ssvi",
+          "payload_type": "BlackVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-10-21",
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "shape": "SsviCalibrate"
+            },
+            "spot_quote_id": "SPX_SPOT",
+            "discount_curve_id": "usd_risk_free",
+            "dividend_curve_id": "spx_dividend_yield",
+            "option_quotes": [
+              {
+                "expiry_date": "2026-11-20",
+                "strike": 4800.0,
+                "option_type": "Put",
+                "price": 3.04447572,
+                "bid": 2.99447572,
+                "ask": 3.09447572
+              },
+              {
+                "expiry_date": "2026-11-20",
+                "strike": 5100.0,
+                "option_type": "Put",
+                "price": 7.50900838,
+                "bid": 7.45900838,
+                "ask": 7.55900838
+              },
+              {
+                "expiry_date": "2026-11-20",
+                "strike": 5400.0,
+                "option_type": "Put",
+                "price": 18.07096653,
+                "bid": 18.00096653,
+                "ask": 18.14096653
+              },
+              {
+                "expiry_date": "2026-11-20",
+                "strike": 5725.0,
+                "option_type": "Put",
+                "price": 46.64608604,
+                "bid": 46.45608604,
+                "ask": 46.83608604
+              },
+              {
+                "expiry_date": "2026-11-20",
+                "strike": 5725.0,
+                "option_type": "Call",
+                "price": 334.27888777,
+                "bid": 332.93888777,
+                "ask": 335.61888777
+              },
+              {
+                "expiry_date": "2026-11-20",
+                "strike": 5875.0,
+                "option_type": "Put",
+                "price": 73.18448368,
+                "bid": 72.89448368,
+                "ask": 73.47448368
+              },
+              {
+                "expiry_date": "2026-11-20",
+                "strike": 5875.0,
+                "option_type": "Call",
+                "price": 211.30962632,
+                "bid": 210.45962632,
+                "ask": 212.15962632
+              },
+              {
+                "expiry_date": "2026-11-20",
+                "strike": 6025.0,
+                "option_type": "Put",
+                "price": 117.3718848,
+                "bid": 116.9018848,
+                "ask": 117.8418848
+              },
+              {
+                "expiry_date": "2026-11-20",
+                "strike": 6025.0,
+                "option_type": "Call",
+                "price": 105.98936835,
+                "bid": 105.56936835,
+                "ask": 106.40936835
+              },
+              {
+                "expiry_date": "2026-11-20",
+                "strike": 6175.0,
+                "option_type": "Put",
+                "price": 194.19751951,
+                "bid": 193.41751951,
+                "ask": 194.97751951
+              },
+              {
+                "expiry_date": "2026-11-20",
+                "strike": 6175.0,
+                "option_type": "Call",
+                "price": 33.30734398,
+                "bid": 33.17734398,
+                "ask": 33.43734398
+              },
+              {
+                "expiry_date": "2026-11-20",
+                "strike": 6325.0,
+                "option_type": "Put",
+                "price": 315.66376228,
+                "bid": 314.40376228,
+                "ask": 316.92376228
+              },
+              {
+                "expiry_date": "2026-11-20",
+                "strike": 6325.0,
+                "option_type": "Call",
+                "price": 5.26592767,
+                "bid": 5.21592767,
+                "ask": 5.31592767
+              },
+              {
+                "expiry_date": "2026-11-20",
+                "strike": 6475.0,
+                "option_type": "Call",
+                "price": 0.59192805,
+                "bid": 0.54192805,
+                "ask": 0.64192805
+              },
+              {
+                "expiry_date": "2026-11-20",
+                "strike": 6625.0,
+                "option_type": "Call",
+                "price": 0.06668811,
+                "bid": 0.01668811,
+                "ask": 0.11668811
+              },
+              {
+                "expiry_date": "2026-11-20",
+                "strike": 6925.0,
+                "option_type": "Call",
+                "price": 0.00103806,
+                "bid": -0.04896194,
+                "ask": 0.05103806
+              },
+              {
+                "expiry_date": "2027-01-21",
+                "strike": 4825.0,
+                "option_type": "Put",
+                "price": 30.16132389,
+                "bid": 30.04132389,
+                "ask": 30.28132389
+              },
+              {
+                "expiry_date": "2027-01-21",
+                "strike": 5125.0,
+                "option_type": "Put",
+                "price": 48.72081851,
+                "bid": 48.53081851,
+                "ask": 48.91081851
+              },
+              {
+                "expiry_date": "2027-01-21",
+                "strike": 5425.0,
+                "option_type": "Put",
+                "price": 77.95586614,
+                "bid": 77.64586614,
+                "ask": 78.26586614
+              },
+              {
+                "expiry_date": "2027-01-21",
+                "strike": 5750.0,
+                "option_type": "Put",
+                "price": 129.96387787,
+                "bid": 129.44387787,
+                "ask": 130.48387787
+              },
+              {
+                "expiry_date": "2027-01-21",
+                "strike": 5750.0,
+                "option_type": "Call",
+                "price": 417.26262556,
+                "bid": 415.59262556,
+                "ask": 418.93262556
+              },
+              {
+                "expiry_date": "2027-01-21",
+                "strike": 5900.0,
+                "option_type": "Put",
+                "price": 165.65186229,
+                "bid": 164.99186229,
+                "ask": 166.31186229
+              },
+              {
+                "expiry_date": "2027-01-21",
+                "strike": 5900.0,
+                "option_type": "Call",
+                "price": 304.4553405,
+                "bid": 303.2353405,
+                "ask": 305.6753405
+              },
+              {
+                "expiry_date": "2027-01-21",
+                "strike": 6050.0,
+                "option_type": "Put",
+                "price": 213.06946947,
+                "bid": 212.21946947,
+                "ask": 213.91946947
+              },
+              {
+                "expiry_date": "2027-01-21",
+                "strike": 6050.0,
+                "option_type": "Call",
+                "price": 203.37767821,
+                "bid": 202.56767821,
+                "ask": 204.18767821
+              },
+              {
+                "expiry_date": "2027-01-21",
+                "strike": 6200.0,
+                "option_type": "Put",
+                "price": 277.61784218,
+                "bid": 276.50784218,
+                "ask": 278.72784218
+              },
+              {
+                "expiry_date": "2027-01-21",
+                "strike": 6200.0,
+                "option_type": "Call",
+                "price": 119.43078146,
+                "bid": 118.95078146,
+                "ask": 119.91078146
+              },
+              {
+                "expiry_date": "2027-01-21",
+                "strike": 6350.0,
+                "option_type": "Put",
+                "price": 365.91497587,
+                "bid": 364.45497587,
+                "ask": 367.37497587
+              },
+              {
+                "expiry_date": "2027-01-21",
+                "strike": 6350.0,
+                "option_type": "Call",
+                "price": 59.23264567,
+                "bid": 58.99264567,
+                "ask": 59.47264567
+              },
+              {
+                "expiry_date": "2027-01-21",
+                "strike": 6500.0,
+                "option_type": "Call",
+                "price": 25.07557822,
+                "bid": 24.97557822,
+                "ask": 25.17557822
+              },
+              {
+                "expiry_date": "2027-01-21",
+                "strike": 6650.0,
+                "option_type": "Call",
+                "price": 9.81315451,
+                "bid": 9.76315451,
+                "ask": 9.86315451
+              },
+              {
+                "expiry_date": "2027-01-21",
+                "strike": 6950.0,
+                "option_type": "Call",
+                "price": 1.52191744,
+                "bid": 1.47191744,
+                "ask": 1.57191744
+              },
+              {
+                "expiry_date": "2027-04-21",
+                "strike": 4875.0,
+                "option_type": "Put",
+                "price": 75.71732365,
+                "bid": 75.41732365,
+                "ask": 76.01732365
+              },
+              {
+                "expiry_date": "2027-04-21",
+                "strike": 5175.0,
+                "option_type": "Put",
+                "price": 107.4771811,
+                "bid": 107.0471811,
+                "ask": 107.9071811
+              },
+              {
+                "expiry_date": "2027-04-21",
+                "strike": 5475.0,
+                "option_type": "Put",
+                "price": 151.58762767,
+                "bid": 150.97762767,
+                "ask": 152.19762767
+              },
+              {
+                "expiry_date": "2027-04-21",
+                "strike": 5775.0,
+                "option_type": "Put",
+                "price": 213.78216351,
+                "bid": 212.92216351,
+                "ask": 214.64216351
+              },
+              {
+                "expiry_date": "2027-04-21",
+                "strike": 5775.0,
+                "option_type": "Call",
+                "price": 511.08290914,
+                "bid": 509.04290914,
+                "ask": 513.12290914
+              },
+              {
+                "expiry_date": "2027-04-21",
+                "strike": 5925.0,
+                "option_type": "Put",
+                "price": 254.52989925,
+                "bid": 253.50989925,
+                "ask": 255.54989925
+              },
+              {
+                "expiry_date": "2027-04-21",
+                "strike": 5925.0,
+                "option_type": "Call",
+                "price": 404.79278724,
+                "bid": 403.17278724,
+                "ask": 406.41278724
+              },
+              {
+                "expiry_date": "2027-04-21",
+                "strike": 6075.0,
+                "option_type": "Put",
+                "price": 304.07211627,
+                "bid": 302.85211627,
+                "ask": 305.29211627
+              },
+              {
+                "expiry_date": "2027-04-21",
+                "strike": 6075.0,
+                "option_type": "Call",
+                "price": 307.29714662,
+                "bid": 306.06714662,
+                "ask": 308.52714662
+              },
+              {
+                "expiry_date": "2027-04-21",
+                "strike": 6225.0,
+                "option_type": "Put",
+                "price": 364.89769989,
+                "bid": 363.43769989,
+                "ask": 366.35769989
+              },
+              {
+                "expiry_date": "2027-04-21",
+                "strike": 6225.0,
+                "option_type": "Call",
+                "price": 221.08487259,
+                "bid": 220.20487259,
+                "ask": 221.96487259
+              },
+              {
+                "expiry_date": "2027-04-21",
+                "strike": 6375.0,
+                "option_type": "Put",
+                "price": 439.93108424,
+                "bid": 438.17108424,
+                "ask": 441.69108424
+              },
+              {
+                "expiry_date": "2027-04-21",
+                "strike": 6375.0,
+                "option_type": "Call",
+                "price": 149.08039929,
+                "bid": 148.48039929,
+                "ask": 149.68039929
+              },
+              {
+                "expiry_date": "2027-04-21",
+                "strike": 6525.0,
+                "option_type": "Call",
+                "price": 93.76649517,
+                "bid": 93.38649517,
+                "ask": 94.14649517
+              },
+              {
+                "expiry_date": "2027-04-21",
+                "strike": 6675.0,
+                "option_type": "Call",
+                "price": 55.5126152,
+                "bid": 55.2926152,
+                "ask": 55.7326152
+              },
+              {
+                "expiry_date": "2027-04-21",
+                "strike": 7000.0,
+                "option_type": "Call",
+                "price": 16.16863746,
+                "bid": 16.10863746,
+                "ask": 16.22863746
+              },
+              {
+                "expiry_date": "2027-10-21",
+                "strike": 4925.0,
+                "option_type": "Put",
+                "price": 153.78265334,
+                "bid": 153.16265334,
+                "ask": 154.40265334
+              },
+              {
+                "expiry_date": "2027-10-21",
+                "strike": 5225.0,
+                "option_type": "Put",
+                "price": 200.24275865,
+                "bid": 199.44275865,
+                "ask": 201.04275865
+              },
+              {
+                "expiry_date": "2027-10-21",
+                "strike": 5550.0,
+                "option_type": "Put",
+                "price": 264.77745062,
+                "bid": 263.71745062,
+                "ask": 265.83745062
+              },
+              {
+                "expiry_date": "2027-10-21",
+                "strike": 5850.0,
+                "option_type": "Put",
+                "price": 341.66300667,
+                "bid": 340.29300667,
+                "ask": 343.03300667
+              },
+              {
+                "expiry_date": "2027-10-21",
+                "strike": 5850.0,
+                "option_type": "Call",
+                "price": 634.67496192,
+                "bid": 632.13496192,
+                "ask": 637.21496192
+              },
+              {
+                "expiry_date": "2027-10-21",
+                "strike": 6000.0,
+                "option_type": "Put",
+                "price": 388.08544989,
+                "bid": 386.53544989,
+                "ask": 389.63544989
+              },
+              {
+                "expiry_date": "2027-10-21",
+                "strike": 6000.0,
+                "option_type": "Call",
+                "price": 536.97898927,
+                "bid": 534.82898927,
+                "ask": 539.12898927
+              },
+              {
+                "expiry_date": "2027-10-21",
+                "strike": 6150.0,
+                "option_type": "Put",
+                "price": 441.00053509,
+                "bid": 439.24053509,
+                "ask": 442.76053509
+              },
+              {
+                "expiry_date": "2027-10-21",
+                "strike": 6150.0,
+                "option_type": "Call",
+                "price": 445.7756586,
+                "bid": 443.9956586,
+                "ask": 447.5556586
+              },
+              {
+                "expiry_date": "2027-10-21",
+                "strike": 6300.0,
+                "option_type": "Put",
+                "price": 501.45561059,
+                "bid": 499.44561059,
+                "ask": 503.46561059
+              },
+              {
+                "expiry_date": "2027-10-21",
+                "strike": 6300.0,
+                "option_type": "Call",
+                "price": 362.11231823,
+                "bid": 360.66231823,
+                "ask": 363.56231823
+              },
+              {
+                "expiry_date": "2027-10-21",
+                "strike": 6475.0,
+                "option_type": "Put",
+                "price": 583.01176619,
+                "bid": 580.68176619,
+                "ask": 585.34176619
+              },
+              {
+                "expiry_date": "2027-10-21",
+                "strike": 6475.0,
+                "option_type": "Call",
+                "price": 275.53032198,
+                "bid": 274.43032198,
+                "ask": 276.63032198
+              },
+              {
+                "expiry_date": "2027-10-21",
+                "strike": 6625.0,
+                "option_type": "Call",
+                "price": 211.95303916,
+                "bid": 211.10303916,
+                "ask": 212.80303916
+              },
+              {
+                "expiry_date": "2027-10-21",
+                "strike": 6775.0,
+                "option_type": "Call",
+                "price": 158.9189006,
+                "bid": 158.2789006,
+                "ask": 159.5589006
+              },
+              {
+                "expiry_date": "2027-10-21",
+                "strike": 7075.0,
+                "option_type": "Call",
+                "price": 83.84958596,
+                "bid": 83.50958596,
+                "ask": 84.18958596
+              },
+              {
+                "expiry_date": "2028-10-20",
+                "strike": 5050.0,
+                "option_type": "Put",
+                "price": 279.22218252,
+                "bid": 278.10218252,
+                "ask": 280.34218252
+              },
+              {
+                "expiry_date": "2028-10-20",
+                "strike": 5350.0,
+                "option_type": "Put",
+                "price": 341.57294449,
+                "bid": 340.20294449,
+                "ask": 342.94294449
+              },
+              {
+                "expiry_date": "2028-10-20",
+                "strike": 5675.0,
+                "option_type": "Put",
+                "price": 422.14757134,
+                "bid": 420.45757134,
+                "ask": 423.83757134
+              },
+              {
+                "expiry_date": "2028-10-20",
+                "strike": 6000.0,
+                "option_type": "Put",
+                "price": 519.014639,
+                "bid": 516.934639,
+                "ask": 521.094639
+              },
+              {
+                "expiry_date": "2028-10-20",
+                "strike": 6000.0,
+                "option_type": "Call",
+                "price": 802.99292064,
+                "bid": 799.78292064,
+                "ask": 806.20292064
+              },
+              {
+                "expiry_date": "2028-10-20",
+                "strike": 6150.0,
+                "option_type": "Put",
+                "price": 570.14387614,
+                "bid": 567.86387614,
+                "ask": 572.42387614
+              },
+              {
+                "expiry_date": "2028-10-20",
+                "strike": 6150.0,
+                "option_type": "Call",
+                "price": 715.65470582,
+                "bid": 712.79470582,
+                "ask": 718.51470582
+              },
+              {
+                "expiry_date": "2028-10-20",
+                "strike": 6300.0,
+                "option_type": "Put",
+                "price": 625.84314142,
+                "bid": 623.34314142,
+                "ask": 628.34314142
+              },
+              {
+                "expiry_date": "2028-10-20",
+                "strike": 6300.0,
+                "option_type": "Call",
+                "price": 632.88651914,
+                "bid": 630.35651914,
+                "ask": 635.41651914
+              },
+              {
+                "expiry_date": "2028-10-20",
+                "strike": 6475.0,
+                "option_type": "Put",
+                "price": 697.12329971,
+                "bid": 694.33329971,
+                "ask": 699.91329971
+              },
+              {
+                "expiry_date": "2028-10-20",
+                "strike": 6475.0,
+                "option_type": "Call",
+                "price": 542.62131682,
+                "bid": 540.45131682,
+                "ask": 544.79131682
+              },
+              {
+                "expiry_date": "2028-10-20",
+                "strike": 6625.0,
+                "option_type": "Put",
+                "price": 764.06071021,
+                "bid": 761.00071021,
+                "ask": 767.12071021
+              },
+              {
+                "expiry_date": "2028-10-20",
+                "strike": 6625.0,
+                "option_type": "Call",
+                "price": 471.09127536,
+                "bid": 469.21127536,
+                "ask": 472.97127536
+              },
+              {
+                "expiry_date": "2028-10-20",
+                "strike": 6775.0,
+                "option_type": "Call",
+                "price": 405.32687709,
+                "bid": 403.70687709,
+                "ask": 406.94687709
+              },
+              {
+                "expiry_date": "2028-10-20",
+                "strike": 6950.0,
+                "option_type": "Call",
+                "price": 336.26700751,
+                "bid": 334.91700751,
+                "ask": 337.61700751
+              },
+              {
+                "expiry_date": "2028-10-20",
+                "strike": 7250.0,
+                "option_type": "Call",
+                "price": 237.68404456,
+                "bid": 236.73404456,
+                "ask": 238.63404456
+              }
+            ],
+            "ssvi_fit": {
+              "weighting": "BidAsk",
+              "max_abs_log_moneyness": 0.5
+            }
+          }
+        }
+      ]
+    }
+  },
+  "vol_id": "spx_ssvi"
+}

@@ -1161,6 +1161,12 @@
 <td><a href="../../examples/data/equity/eqopt_eur_asset_or_nothing_put_1y.json">eqopt_eur_asset_or_nothing_put_1y.json</a></td>
 <td class="npv">40.13</td>
 </tr>
+<tr>
+<td><div class="title">USD European call on an arbitrage-free SSVI smile</div><div class="desc">A European SPX-like call struck at 6100 expiring 2027-07-21 (between the 6M and 1Y slices) on a five-slice eSSVI surface (shape SsviParams, slices from 1M to 2Y with the market forward on every slice), spot 6000, 4% risk-free. The reference rebuilds the surface in Python (total variance, linear theta/psi/rho psi in time, the implied dividend curve from the slice forwards) and prices the analytic European option at the Black variance of (T, K). The synthetic slices are placeholders, not market data.</div></td>
+<td><code>European</code> <code>call</code> <code>SsviParams vol surface</code> <code>slice forwards</code> <code>expiry between slices</code> <code>analytic BSM engine</code></td>
+<td><a href="../../examples/data/equity_vol/price_equity_option_ssvi_params.json">price_equity_option_ssvi_params.json</a></td>
+<td class="npv">393.49</td>
+</tr>
 </tbody>
 </table>
 <h2>Vol / Calibration</h2>
@@ -1232,6 +1238,12 @@
 <td><code>SABR calibrate</code> <code>vega-weighted fit</code> <code>parameter round-trip</code> <code>5 strike spreads</code></td>
 <td><a href="../../examples/data/vol/sabrcal_eur_2x2_5strike_vega_weighted.json">sabrcal_eur_2x2_5strike_vega_weighted.json</a></td>
 <td class="npv">overall_rmse=1.68127e-09, 4-point grids x7</td>
+</tr>
+<tr>
+<td><div class="title">Equity SSVI calibration round trip, 5 expiries</div><div class="desc">An SPX-like SsviCalibrate surface fitted to 80 call and put premiums (five expiries from 1M to 2Y, eleven strikes each, bid/ask weighting) that were generated from a known eSSVI surface whose forwards differ from the dividend curve&#x27;s. Put-call parity recovers each expiry&#x27;s forward and the fit recovers theta, rho and psi of every slice, so the compared response fields are the generating parameters (the reference first checks that the premiums are that surface&#x27;s). The quotes are synthetic placeholders, not market data.</div></td>
+<td><code>SSVI calibrate</code> <code>parameter round-trip</code> <code>put-call parity forwards</code> <code>bid/ask weighting</code> <code>calls and puts</code> <code>5 expiries</code></td>
+<td><a href="../../examples/data/equity_vol/calibrate_equity_vol_spx_like.json">calibrate_equity_vol_spx_like.json</a></td>
+<td class="npv">theta=0.00223767, rho=-0.75, psi=0.045, forward=6013.58, theta=0.00771918, rho=-0.72, psi=0.095, forward=6040.21, theta=0.0165166, rho=-0.7, psi=0.14, forward=6078.29, theta=0.035344, rho=-0.68, psi=0.2, forward=6154.97, theta=0.073728, rho=-0.65, psi=0.28, forward=6307.63</td>
 </tr>
 </tbody>
 </table>
@@ -1403,6 +1415,6 @@
 </tr>
 </tbody>
 </table>
-<footer>214 cases across 15 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<footer>216 cases across 15 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

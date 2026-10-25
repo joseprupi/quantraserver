@@ -1181,9 +1181,16 @@ shared between notes):
 | `correlation_id` | A `CorrelationMatrixSpec` whose labels are exactly the basket's ids. Required with two or more underlyings; must be absent with one (a 1 x 1 unit matrix is used). |
 | `monte_carlo` | `paths` (presence-required, even with `antithetic`), `seed` (default 42; `> 0` with Sobol), `sequence` (`Sobol` default, or `PseudoRandom`), `antithetic` (default true), `brownian_bridge` (default true; must be false with `PseudoRandom`), `steps_per_year` (required with a surface vol or a `DailyClose` barrier, must be absent otherwise). |
 
-Top-level: `greeks` (schema-ready, a `501` in this version) and `diagnostics`
-(`market`, `decomposition`, `checks`, `distribution`, `timing`, each false
-by default, and `sample_paths`, at most 100, only with `distribution`).
+Top-level: `greeks` (opt-in; an alive note only, a called or matured note is
+a `400`) and `diagnostics` (`market`, `decomposition`, `checks`,
+`distribution`, `timing`, each false by default, and `sample_paths`, at most
+100, only with `distribution`). `greeks` reprices by bump-and-reprice on the
+price's own random numbers and returns, per underlying, `delta` and `gamma`
+(per 1 % spot move), `vega` (per vol point) and their standard errors, plus
+`correlation_sensitivity` (two or more underlyings), `funding_dv01` and `rho`
+(per basis point), the bump sizes used (`spot_bump`, `vol_bump`,
+`correlation_bump`, `funding_bump_bp`, `rate_bump_bp`, each settable on the
+request) and, with `timing`, one stage per bumped run.
 
 ### The two factsheets in short
 
@@ -1420,9 +1427,15 @@ surface vol without `steps_per_year`, `steps_per_year` with constant / term
 vols and a European barrier, or 0; `knocked_in` missing when required or
 present otherwise; odd `paths` with `antithetic`; Sobol `seed` 0;
 `brownian_bridge` with `PseudoRandom`; `upside.strike` / `participation`
-missing or `cap <= 0`; a surface whose local vol cannot be evaluated along
-the paths (names the vol ids and the remedy); `diagnostics.sample_paths`
-above 100, without `distribution`, or above `paths`. Missing required
+missing or `cap <= 0`; an SSVI vol (`SsviParams` or `SsviCalibrate`; they
+arrive with the LocalVol kernel in 0.15.0); an underlying that declares
+`discrete_dividends` (a note takes dividends only through the dividend-yield
+curve, so the cash dividends have to be folded into that curve; before 0.14.0
+they were ignored without notice); a strike x expiry surface whose Dupire
+local variance is not defined (calendar or butterfly arbitrage) anywhere on
+the grid times `F e^(+-5 sigma sqrt(t))` (names the vol id, the time and the
+strike); `diagnostics.sample_paths` above 100, without `distribution`, or
+above `paths`. Missing required
 strings and tables (`trade_id`, `currency`, `volatility_id`,
 `discounting_curve`, `coupon_rule`, `capital`, `maturity_payment_date`,
 `monte_carlo`, ...) are rejected by the JSON parser. A `greeks` bump that
@@ -1484,6 +1497,201 @@ the calibrate response and as `used_hw_a_flatness` /
 `a_poorly_identified` is true, `hw_a` is the point where the optimizer
 stopped inside the box, not a market mean reversion: fix `a` and refit
 `sigma`.
+
+## Equity SSVI volatility surfaces
+
+Two `BlackVolSpec` shapes describe an arbitrage-free equity smile with the
+eSSVI parametrisation (Corbetta, Cohort, Laachir and Martini 2019,
+arXiv:1804.04924; Hendriks and Martini 2019). `SsviParams` takes the slice
+parameters as given; `SsviCalibrate` fits them to option quotes, and
+`POST /calibrate-equity-vol` returns the fit as slices that can be pasted
+back as `SsviParams`. Either shape prices equity options
+(`/price-equity-option`) and is sampled by `/sample-vol-surfaces`
+(`surface_type: "EquityBlack"`). On a structured note they are rejected
+(see "Structured notes").
+
+### The `BlackVolSpec` fields
+
+| Field | Used by | Meaning |
+| --- | --- | --- |
+| `base.shape` | both | `SsviParams` or `SsviCalibrate`. `reference_date`, `calendar`, `business_day_convention` and `day_counter` are the surface's own; slice times are `T = day_counter.yearFraction(reference_date, expiry_date)`. |
+| `spot` or `spot_quote_id` | both | The spot `S0` that defines the reference forward. A snapshot: a later bump of the underlying's spot does not move the surface (it is sticky-strike). |
+| `discount_curve_id` or `use_flat_discount_rate` + `flat_discount_rate` | both | Risk-free curve `Dr`. Required. |
+| `dividend_curve_id` or `use_flat_dividend_rate` + `flat_dividend_rate` | both | Dividend curve `Dq`. Optional for `SsviCalibrate`: without it every expiry needs a call and a put at two or more common strikes, so that put-call parity gives the forward. For `SsviParams` required only when the slices carry no `forward`. |
+| `ssvi_slices` | `SsviParams` | Slices with strictly increasing `expiry_date` after `reference_date`: `theta`, `rho`, `psi` (all presence-required) and an optional `forward`. |
+| `option_quotes` | `SsviCalibrate` | The quotes to fit, see below. At least one. |
+| `ssvi_fit` | `SsviCalibrate` | Optional. `weighting`: `Uniform`, `Vega` (default) or `BidAsk`; `max_abs_log_moneyness` (default `1.0`). |
+
+`SsviParams` forbids `option_quotes` and `ssvi_fit`; `SsviCalibrate` requires
+`option_quotes` and forbids `ssvi_slices`; both forbid the grid, matrix and
+price-surface fields (`expiries`, `strikes`, `term_vols`, `surface_vols`,
+`price_*`, `surface_prices`).
+
+A slice has the ATM total implied variance `theta > 0`, the correlation
+`rho` in `(-1, 1)` and `psi = theta * phi > 0`. With `a = rho * psi` and the
+log-forward moneyness `k = ln(K / F_ref(T))` the total variance is
+
+```
+w(k) = 1/2 * ( theta + a k + sqrt( psi^2 k^2 + 2 a theta k + theta^2 ) )
+```
+
+and the Black vol at `(T, K)` is `sqrt(w / T)`. Between slices `theta`, `psi`
+and `a = rho * psi` are linear in `t` (not `rho`). Before the first slice
+`theta`, `psi` and `a` scale by `t / T1`, so `w(k, t) = (t / T1) w1(k)`. After
+the last slice `psi` and `rho` stay constant and `theta` continues the last
+slope (`theta_1 / T_1` for a single slice). The time is floored at `1e-8`.
+The surface extrapolates analytically in time and strike.
+
+**The reference forward `F_ref(t)`.**
+
+- When every slice carries `forward`, `F_ref` is built from them: the
+  implied dividend discount curve is `Dq(T_i) = F_i * Dr(T_i) / S0`, with
+  `Dq(0) = 1`, log-linear in the discount factor between the slices and
+  extrapolated beyond the last one; then `F_ref(t) = S0 * Dq(t) / Dr(t)`.
+  The surface forward at each slice expiry is exactly `F_i`.
+  `dividend_curve_id` is not needed.
+- When no slice carries one, `F_ref(t) = S0 * Dq(t) / Dr(t)` from the spec's
+  own dividend and discount curves.
+- A mix (some slices with `forward`, some without) is a `400`.
+
+For `SsviCalibrate`, `F_ref` comes from the calibrated forwards in the same
+way.
+
+**Arbitrage checks.** A `SsviParams` surface is rejected with a `400` that
+lists every violated condition with its slice and the amount
+(`butterfly_psi at slice 0 (violated by 1.2)`). Per slice, the sufficient
+butterfly conditions `butterfly_psi` (`psi (1 + |rho|) <= 4`) and
+`butterfly_psi2` (`psi^2 (1 + |rho|) <= 4 theta`). Between consecutive
+slices, the necessary and sufficient calendar conditions `calendar_theta`
+(`theta` non-decreasing), `calendar_psi` (`psi` non-decreasing) and
+`calendar_a` (`|a_i - a_(i-1)| <= psi_i - psi_(i-1)`), plus
+`calendar_sufficient`, which fails only when neither `phi = psi / theta` is
+non-increasing nor the quadratic condition of Hendriks and Martini
+(Prop. 3.5) holds. Finally a numeric scan of the Durrleman function
+`g(k, k)` and of `dw/dt` on the slice times, their midpoints, `0.5 T_1` and
+`1.5 T_N` over `k` in `[-1.5, 1.0]` must find no negative value. A calibrated
+surface passes the same checks by construction and is verified again.
+
+**Vol bump.** A parallel vol shift `delta` (the structured-note vega bump)
+moves the ATM vol of each slice: `theta' = (sqrt(theta / T) + delta)^2 * T`,
+keeping `rho` and `psi`. The bumped surface is checked again; a bump that
+makes it arbitrageable or an ATM vol non-positive is a `400`.
+
+### `POST /calibrate-equity-vol`
+
+Fits the `SsviCalibrate` surface `vol_id` of the request's pricing.
+Request: `{ "pricing": {...}, "vol_id": "..." }`. Spot, discount and
+dividend are those of the referenced `BlackVolSpec`.
+
+```json
+{
+  "vol_id": "spx_ssvi",
+  "pricing": {
+    "as_of_date": "2026-10-21",
+    "quotes": [ { "id": "SPX_SPOT", "kind": "Price", "value": 6000.0, "quote_type": "Curve" } ],
+    "rates": { "...": "curves usd_risk_free, spx_dividend_yield" },
+    "volatility": { "vol_surfaces": [ {
+      "id": "spx_ssvi", "payload_type": "BlackVolSpec",
+      "payload": {
+        "base": { "reference_date": "2026-10-21", "calendar": "TARGET",
+                  "business_day_convention": "ModifiedFollowing",
+                  "day_counter": "Actual365Fixed", "shape": "SsviCalibrate" },
+        "spot_quote_id": "SPX_SPOT", "discount_curve_id": "usd_risk_free",
+        "dividend_curve_id": "spx_dividend_yield",
+        "option_quotes": [
+          { "expiry_date": "2027-04-21", "strike": 5700.0, "option_type": "Put",
+            "price": 61.37, "bid": 60.9, "ask": 61.8 }
+        ],
+        "ssvi_fit": { "weighting": "BidAsk", "max_abs_log_moneyness": 0.5 } } } ] }
+  }
+}
+```
+
+An `EquityOptionQuote` has `expiry_date` (after `reference_date`), `strike`
+(`> 0`), `option_type` (`Call` or `Put`) and the value, in one of three
+forms: `price` (premium per unit of underlying), `implied_vol` (decimal), or
+neither with both `bid` and `ask`, in which case they are premiums and the
+price is their mid. `price` together with `implied_vol` is a `400`. `bid`
+and `ask` come together, in the unit of the value given, and are required on
+every quote when `weighting` is `BidAsk`. `weight` (default `1`, `> 0`)
+multiplies the weighting-mode weight.
+
+**What the fit does.** Per expiry:
+
+1. The forward is estimated by put-call parity when calls and puts are quoted
+   at two or more common strikes (premiums only), otherwise it is the curve
+   forward `S0 Dq(T) / Dr(T)`. Both are reported. Without a dividend curve
+   there is no curve forward, so an expiry without such a pair is a `400`
+   naming that expiry. The parity estimate is robust: with three or more
+   pairs, the median of the per-pair forwards is taken and every pair further
+   than `max(5 * 1.4826 * MAD, 1e-4 * F_med)` from it is rejected (both of its
+   quotes are excluded as `parity_outlier`); the forward is the mean of the
+   kept pairs. With fewer than three pairs nothing is rejected.
+2. Each quote becomes an implied total variance (a premium is inverted with
+   Black). A single bad quote does not fail the request: a premium outside
+   the no-arbitrage bounds (`price_outside_bounds`), an implied vol that
+   cannot be solved (`implied_vol_not_solved`), a zero implied vol
+   (`implied_vol_not_positive`) and a bid and ask that are not ordered
+   (`ask_not_above_bid`) are excluded with that reason and the fit goes on.
+   Where a call and a put exist at one strike the out-of-the-money one is
+   used and the other is reported as `in_the_money_side`. Quotes with
+   `|ln(K / F)|` above `max_abs_log_moneyness` are excluded. The checks run
+   in this order: the robust forward, the bounds, the solved vol, then
+   pairing and moneyness. A call priced below its intrinsic value is
+   therefore `price_outside_bounds` and its partner put `parity_outlier`.
+   A slice needs at least three used quotes, otherwise the request is a `400`
+   naming the expiry, the used count and the exclusions by reason.
+3. Slices are fitted from the shortest expiry. An anchor quote (the used
+   quote closest to the money) fixes `theta`: it is solved exactly, so the
+   model reproduces the total variance of that quote; `rho` is searched on a grid and
+   refined, and `psi` is minimised within the arbitrage bounds against the
+   previous slice. The objective is the weighted squared error in vol: weight
+   1 (`Uniform`), the Black vega (`Vega`) or `1 / spread^2` in vol units
+   (`BidAsk`; a premium spread is divided by the vega, and a quote without
+   bid and ask takes the slice's median spread).
+4. If the data admit no arbitrage-free slice at the money, the anchor
+   variance is raised to the previous slice's (`anchor_clamped`).
+
+Response:
+
+| Field | Meaning |
+| --- | --- |
+| `vol_id` | Echo of the request. |
+| `slices[]` | One per expiry, increasing: `expiry_date`, `theta`, `rho`, `psi` and `forward`, always present. Pasting them as `ssvi_slices` of a `SsviParams` spec on the same market reproduces the surface: its forwards are the fitted ones. |
+| `diagnostics` | See below. |
+
+Diagnostics (vols and errors are decimals, `0.01` is one vol point):
+
+| Field | Meaning |
+| --- | --- |
+| `slices[]` | Per expiry: `time`, `pcp_forward`, `parity_pairs_used`, `parity_pairs_rejected`, `curve_forward` (absent without a dividend curve), `implied_dividend_yield` (always reported) (`-ln(pcp_forward Dr / S0) / T`), `anchor_k`, `anchor_theta`, `anchor_clamped`, `used_quotes`, `excluded_quotes`, `rmse`, `max_abs_error`, and the constraint margins (`rhs - lhs`, `>= 0` when satisfied) `margin_butterfly_psi`, `margin_butterfly_psi2` and, from the second slice on, `margin_calendar_theta`, `margin_calendar_psi`, `margin_calendar_a`. |
+| `quotes[]` | One per input quote, in order: `expiry_date`, `strike`, `option_type`, `market_vol` and `residual` (absent when the vol could not be solved on an unused quote), `model_vol`, `weight`, `used`, `exclusion_reason` (`parity_outlier`, `price_outside_bounds`, `implied_vol_not_solved`, `implied_vol_not_positive`, `ask_not_above_bid`, `in_the_money_side` or `max_abs_log_moneyness`; empty when used). |
+| `excluded_by_moneyness` | Quotes dropped for `|k| > max_abs_log_moneyness`. |
+| `overall_rmse`, `overall_max_abs_error` | Over the used quotes. |
+| `violations[]` | Arbitrage conditions found after the fit; empty on success (a violation is an error, not a result). |
+| `scan_min_g`, `scan_min_g_t`, `scan_min_g_k`, `scan_min_w_t`, `scan_min_w_t_t`, `scan_min_w_t_k` | Minimum of the Durrleman function and of `dw/dt` over the scan grid, with the `(t, k)` where each occurs. Both minima are `>= 0` on a returned fit. |
+
+The calibration is cached by content when `QUANTRA_SSVI_CACHE_ENABLED=1`
+(see `configuration.md`).
+
+**Rejected requests.** A `400`: `vol_id` missing; a `vol_id` that is not a
+`BlackVolSpec` with `shape=SsviCalibrate` (`Endpoint /calibrate-equity-vol
+only operates on SsviCalibrate surfaces`); no `option_quotes`; a quote with
+both `price` and `implied_vol`, with only one of `bid` and `ask`, with none
+of the three value forms, with a non-positive `weight`; `BidAsk` weighting
+without bid and ask on every quote; an expiry not after `reference_date`; an
+expiry with fewer than three used quotes (the message reads "has N used
+quotes, at least 3 are required" and names the expiry and the exclusion
+counts by reason); an expiry with no arbitrage-free slice; no forward at an
+expiry (no parity pair and no dividend curve, the message names the expiry).
+A bid and ask that are not ordered, or a price outside the no-arbitrage
+bounds, is not an error: the quote is excluded. An unknown `vol_id` is a
+`404`.
+
+Worked examples, checked in the gate, are in `examples/data/equity_vol/`:
+a calibration request on synthetic SPX-like quotes and an equity option
+priced on the matching `SsviParams` surface. The quotes are synthetic
+placeholders, not market data.
 
 ## Swaption greeks: units and definitions
 

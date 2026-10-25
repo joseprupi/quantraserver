@@ -147,6 +147,54 @@ table SwaptionVolSpec {
     payload:SwaptionVolPayload;
 }
 
+/// One equity option quote used to calibrate an eSSVI surface (shape=SsviCalibrate).
+table EquityOptionQuote {
+    /// Option expiry date (YYYY-MM-DD).
+    expiry_date:string (required);
+    /// Strike. Presence-required, > 0.
+    strike:double = null;
+    /// Call or put. Presence-required.
+    option_type:enums.EquityOptionType = null;
+    /// Option premium (per unit of underlying). Exactly one of price / implied_vol must be
+    /// given, unless bid and ask are both given and price / implied_vol are both absent.
+    price:double = null;
+    /// Black implied volatility (decimal, 0.2 = 20%). See price for the one-of rule.
+    implied_vol:double = null;
+    /// Bid, in the unit of the value given (price or implied_vol). When price and implied_vol
+    /// are both absent, bid and ask are premiums and the quote price is their mid.
+    /// Both-or-neither with ask; required on the quotes when weighting=BidAsk.
+    bid:double = null;
+    /// Ask, same unit as bid. Both-or-neither with bid.
+    ask:double = null;
+    /// User weight multiplying the weighting-mode weight. Must be > 0.
+    weight:double = 1.0;
+}
+
+/// One eSSVI slice (Corbetta-Cohort-Laachir-Martini 2019 parametrisation): total variance
+/// w(k) = 0.5 (theta + rho psi k + sqrt(psi^2 k^2 + 2 rho psi theta k + theta^2)) in the
+/// log-forward moneyness k = ln(K / F_ref(T)).
+table SsviSlice {
+    /// Slice expiry (YYYY-MM-DD), strictly after base.reference_date.
+    expiry_date:string (required);
+    /// ATM total implied variance, > 0. Presence-required for shape=SsviParams.
+    theta:double = null;
+    /// Correlation, in (-1, 1). Presence-required for shape=SsviParams.
+    rho:double = null;
+    /// psi = theta * phi, > 0. Presence-required for shape=SsviParams.
+    psi:double = null;
+    /// Forward F_ref(T) the slice is expressed against. Optional input for shape=SsviParams
+    /// (all slices or none); always filled in /calibrate-equity-vol responses.
+    forward:double = null;
+}
+
+/// Calibration settings for shape=SsviCalibrate.
+table SsviFitSpec {
+    /// Quote weighting.
+    weighting:enums.SsviQuoteWeighting = Vega;
+    /// Quotes with |ln(K / F)| above this are excluded from the fit and reported as excluded.
+    max_abs_log_moneyness:double = 1.0;
+}
+
 /// Black volatility for equity/FX/commodity options.
 table BlackVolSpec {
     base:BlackVolBaseSpec;
@@ -168,16 +216,20 @@ table BlackVolSpec {
     /// Option type used for implied-vol inversion from prices. Used only when base.shape=SurfaceFromPrices.
     price_option_type:enums.EquityOptionType = Call;
     /// Spot level for implied-vol inversion. Optional if spot_quote_id is provided.
+    /// For the SSVI shapes it is the snapshot spot S0 that defines the reference forward F_ref
+    /// (see ssvi_slices).
     spot:double;
-    /// Optional: resolve spot from pricing.quotes.
+    /// Optional: resolve spot from pricing.quotes. Also defines F_ref for the SSVI shapes.
     spot_quote_id:string;
-    /// Discount curve id in pricing.curves used for implied-vol inversion.
+    /// Discount curve id in pricing.curves used for implied-vol inversion. For the SSVI shapes
+    /// it also discounts the option prices and defines F_ref.
     discount_curve_id:string;
     /// If true and discount_curve_id is empty, use flat_discount_rate.
     use_flat_discount_rate:bool = false;
     /// Continuously-compounded flat risk-free rate used when use_flat_discount_rate=true.
     flat_discount_rate:double = 0.0;
-    /// Dividend yield curve id in pricing.curves used for implied-vol inversion.
+    /// Dividend yield curve id in pricing.curves used for implied-vol inversion. For the SSVI
+    /// shapes it also defines F_ref (see ssvi_slices).
     dividend_curve_id:string;
     /// If true and dividend_curve_id is empty, use flat_dividend_rate.
     use_flat_dividend_rate:bool = false;
@@ -193,6 +245,19 @@ table BlackVolSpec {
     /// Deprecated for BlackVolSpec surfaces; retained for backward compatibility.
     /// Mapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic.
     strike_interpolator:enums.Interpolator = Linear;
+    /// eSSVI slices, strictly increasing expiry. Used only when base.shape=SsviParams.
+    /// Reference forward F_ref(T): if every slice carries `forward`, F_ref is built from them
+    /// (implied dividend discount curve Dq(T_i) = F_i Dr(T_i) / S0, log-linear in discount, flat
+    /// forward beyond the last slice); if none does, F_ref = S0 Dq(T) / Dr(T) from the spec spot,
+    /// dividend and discount curves; a mix is rejected. For shape=SsviCalibrate F_ref comes from
+    /// the calibrated forwards in the same way; there the dividend curve is optional: with none,
+    /// every expiry needs call and put quotes at >= 2 common strikes (put-call-parity forward),
+    /// else the request is rejected.
+    ssvi_slices:[SsviSlice];
+    /// Option quotes to fit. Used only when base.shape=SsviCalibrate.
+    option_quotes:[EquityOptionQuote];
+    /// Calibration settings. Used only when base.shape=SsviCalibrate (defaults apply if absent).
+    ssvi_fit:SsviFitSpec;
 }
 
 /// Constant year-on-year inflation optionlet volatility, referenced by id from

@@ -57,7 +57,8 @@ examples/data/curves/, calendar utilities in examples/data/calendar/,
 inflation swaps in examples/data/inflation/, equity options in
 examples/data/equity/, FX forwards in examples/data/fx_forward/, cross-currency
 swaps in examples/data/cross_currency_swap/, structured notes in
-examples/data/structured_note/, vol sampling and calibration in
+examples/data/structured_note/, equity SSVI vol surfaces in
+examples/data/equity_vol/, vol sampling and calibration in
 examples/data/vol/),
 append a dict here, regenerate the catalog
 (python3 tests/functional/generate_catalog.py inside the test image) and run
@@ -3405,6 +3406,30 @@ CASES = [
         "exercises": ["European", "asset-or-nothing digital", "put",
                       "analytic European engine"],
     },
+    {
+        "id": "eqopt_ssvi_params_spx_call_jul27",
+        "product": "equity_option",
+        "family": "Equity",
+        "title": "USD European call on an arbitrage-free SSVI smile",
+        "description": (
+            "A European SPX-like call struck at 6100 expiring 2027-07-21 "
+            "(between the 6M and 1Y slices) on a five-slice eSSVI surface "
+            "(shape SsviParams, slices from 1M to 2Y with the market "
+            "forward on every slice), spot 6000, 4% risk-free. The reference "
+            "rebuilds the surface in Python (total variance, linear "
+            "theta/psi/rho psi in time, the implied dividend curve from the "
+            "slice forwards) and prices the analytic European option at the "
+            "Black variance of (T, K). The synthetic slices are placeholders, "
+            "not market data."
+        ),
+        "request": "equity_vol/price_equity_option_ssvi_params.json",
+        "list_key": "options",
+        "ql_pricer": "price_equity_option_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "exercises": ["European", "call", "SsviParams vol surface",
+                      "slice forwards", "expiry between slices",
+                      "analytic BSM engine"],
+    },
 
     # ------------------------------------------------------------------
     # Vol / Calibration — vol-surface sampling (compare="series": every
@@ -3652,6 +3677,30 @@ CASES = [
         "compare": "fields",
         "exercises": ["SABR calibrate", "vega-weighted fit",
                       "parameter round-trip", "5 strike spreads"],
+    },
+    {
+        "id": "ssvi_calibrate_spx_like_roundtrip",
+        "product": "calibrate_equity_vol",
+        "family": "Vol / Calibration",
+        "title": "Equity SSVI calibration round trip, 5 expiries",
+        "description": (
+            "An SPX-like SsviCalibrate surface fitted to 80 call and put "
+            "premiums (five expiries from 1M to 2Y, eleven strikes each, "
+            "bid/ask weighting) that were generated from a known eSSVI "
+            "surface whose forwards differ from the dividend curve's. Put-"
+            "call parity recovers each expiry's forward and the fit "
+            "recovers theta, rho and psi of every slice, so the compared "
+            "response fields are the generating parameters (the reference "
+            "first checks that the premiums are that surface's). The "
+            "quotes are synthetic placeholders, not market data."
+        ),
+        "request": "equity_vol/calibrate_equity_vol_spx_like.json",
+        "ql_pricer": "calibrate_equity_vol_ql",
+        "tolerance": CALIBRATION_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["SSVI calibrate", "parameter round-trip",
+                      "put-call parity forwards", "bid/ask weighting",
+                      "calls and puts", "5 expiries"],
     },
 
     # ------------------------------------------------------------------

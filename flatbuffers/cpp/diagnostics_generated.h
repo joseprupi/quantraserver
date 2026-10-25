@@ -26,6 +26,18 @@ struct SwaptionVolDiagnostics;
 struct SwaptionVolDiagnosticsBuilder;
 struct SwaptionVolDiagnosticsT;
 
+struct EquityVolSliceDiagnostics;
+struct EquityVolSliceDiagnosticsBuilder;
+struct EquityVolSliceDiagnosticsT;
+
+struct EquityVolQuoteDiagnostics;
+struct EquityVolQuoteDiagnosticsBuilder;
+struct EquityVolQuoteDiagnosticsT;
+
+struct EquityVolDiagnostics;
+struct EquityVolDiagnosticsBuilder;
+struct EquityVolDiagnosticsT;
+
 struct SabrCalibrationDiagnosticsT : public ::flatbuffers::NativeTable {
   typedef SabrCalibrationDiagnostics TableType;
   std::vector<double> per_node_rmse{};
@@ -480,6 +492,724 @@ inline ::flatbuffers::Offset<SwaptionVolDiagnostics> CreateSwaptionVolDiagnostic
 
 ::flatbuffers::Offset<SwaptionVolDiagnostics> CreateSwaptionVolDiagnostics(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionVolDiagnosticsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct EquityVolSliceDiagnosticsT : public ::flatbuffers::NativeTable {
+  typedef EquityVolSliceDiagnostics TableType;
+  std::string expiry_date{};
+  double time = 0.0;
+  double pcp_forward = 0.0;
+  ::flatbuffers::Optional<double> curve_forward = ::flatbuffers::nullopt;
+  double implied_dividend_yield = 0.0;
+  double anchor_k = 0.0;
+  double anchor_theta = 0.0;
+  bool anchor_clamped = false;
+  int32_t used_quotes = 0;
+  int32_t excluded_quotes = 0;
+  double rmse = 0.0;
+  double max_abs_error = 0.0;
+  double margin_butterfly_psi = 0.0;
+  double margin_butterfly_psi2 = 0.0;
+  ::flatbuffers::Optional<double> margin_calendar_theta = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> margin_calendar_psi = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> margin_calendar_a = ::flatbuffers::nullopt;
+  uint32_t parity_pairs_used = 0;
+  uint32_t parity_pairs_rejected = 0;
+};
+
+/// One calibrated eSSVI slice of /calibrate-equity-vol. Vols and errors are decimals
+/// (0.01 = one vol point).
+struct EquityVolSliceDiagnostics FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef EquityVolSliceDiagnosticsT NativeTableType;
+  typedef EquityVolSliceDiagnosticsBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_EXPIRY_DATE = 4,
+    VT_TIME = 6,
+    VT_PCP_FORWARD = 8,
+    VT_CURVE_FORWARD = 10,
+    VT_IMPLIED_DIVIDEND_YIELD = 12,
+    VT_ANCHOR_K = 14,
+    VT_ANCHOR_THETA = 16,
+    VT_ANCHOR_CLAMPED = 18,
+    VT_USED_QUOTES = 20,
+    VT_EXCLUDED_QUOTES = 22,
+    VT_RMSE = 24,
+    VT_MAX_ABS_ERROR = 26,
+    VT_MARGIN_BUTTERFLY_PSI = 28,
+    VT_MARGIN_BUTTERFLY_PSI2 = 30,
+    VT_MARGIN_CALENDAR_THETA = 32,
+    VT_MARGIN_CALENDAR_PSI = 34,
+    VT_MARGIN_CALENDAR_A = 36,
+    VT_PARITY_PAIRS_USED = 38,
+    VT_PARITY_PAIRS_REJECTED = 40
+  };
+  const ::flatbuffers::String *expiry_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_EXPIRY_DATE);
+  }
+  /// Year fraction from the reference date (surface day counter).
+  double time() const {
+    return GetField<double>(VT_TIME, 0.0);
+  }
+  /// Forward used for the fit: put-call parity when calls and puts exist at >= 2 common
+  /// strikes, else the curve forward (an expiry without parity pairs needs a dividend curve).
+  double pcp_forward() const {
+    return GetField<double>(VT_PCP_FORWARD, 0.0);
+  }
+  /// Forward from the spot, dividend and discount curves. Null when the surface has no
+  /// dividend curve.
+  ::flatbuffers::Optional<double> curve_forward() const {
+    return GetOptional<double, double>(VT_CURVE_FORWARD);
+  }
+  /// -ln(pcp_forward Dr(T) / S0) / T.
+  double implied_dividend_yield() const {
+    return GetField<double>(VT_IMPLIED_DIVIDEND_YIELD, 0.0);
+  }
+  /// Anchor quote (closest to the money) log-moneyness and total variance, after clamping.
+  double anchor_k() const {
+    return GetField<double>(VT_ANCHOR_K, 0.0);
+  }
+  double anchor_theta() const {
+    return GetField<double>(VT_ANCHOR_THETA, 0.0);
+  }
+  /// True when the anchor total variance was raised to keep the calendar condition feasible.
+  bool anchor_clamped() const {
+    return GetField<uint8_t>(VT_ANCHOR_CLAMPED, 0) != 0;
+  }
+  int32_t used_quotes() const {
+    return GetField<int32_t>(VT_USED_QUOTES, 0);
+  }
+  int32_t excluded_quotes() const {
+    return GetField<int32_t>(VT_EXCLUDED_QUOTES, 0);
+  }
+  /// Root-mean-square and max absolute error of the used quotes, decimal vol.
+  double rmse() const {
+    return GetField<double>(VT_RMSE, 0.0);
+  }
+  double max_abs_error() const {
+    return GetField<double>(VT_MAX_ABS_ERROR, 0.0);
+  }
+  /// Constraint margins, rhs - lhs, >= 0 when satisfied (see ssvi_calibrator.h).
+  double margin_butterfly_psi() const {
+    return GetField<double>(VT_MARGIN_BUTTERFLY_PSI, 0.0);
+  }
+  double margin_butterfly_psi2() const {
+    return GetField<double>(VT_MARGIN_BUTTERFLY_PSI2, 0.0);
+  }
+  /// Calendar margins versus the previous slice; absent on the first slice.
+  ::flatbuffers::Optional<double> margin_calendar_theta() const {
+    return GetOptional<double, double>(VT_MARGIN_CALENDAR_THETA);
+  }
+  ::flatbuffers::Optional<double> margin_calendar_psi() const {
+    return GetOptional<double, double>(VT_MARGIN_CALENDAR_PSI);
+  }
+  ::flatbuffers::Optional<double> margin_calendar_a() const {
+    return GetOptional<double, double>(VT_MARGIN_CALENDAR_A);
+  }
+  /// Put-call pairs (common strikes) behind pcp_forward, after outlier rejection; 0 when the
+  /// forward is the curve forward.
+  uint32_t parity_pairs_used() const {
+    return GetField<uint32_t>(VT_PARITY_PAIRS_USED, 0);
+  }
+  /// Pairs dropped as outliers: further than max(5 * 1.4826 MAD, 1e-4 pcp_forward) from the
+  /// median pair forward (only with >= 3 pairs). Both quotes are excluded as "parity_outlier".
+  uint32_t parity_pairs_rejected() const {
+    return GetField<uint32_t>(VT_PARITY_PAIRS_REJECTED, 0);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffsetRequired(verifier, VT_EXPIRY_DATE) &&
+           verifier.VerifyString(expiry_date()) &&
+           VerifyField<double>(verifier, VT_TIME, 8) &&
+           VerifyField<double>(verifier, VT_PCP_FORWARD, 8) &&
+           VerifyField<double>(verifier, VT_CURVE_FORWARD, 8) &&
+           VerifyField<double>(verifier, VT_IMPLIED_DIVIDEND_YIELD, 8) &&
+           VerifyField<double>(verifier, VT_ANCHOR_K, 8) &&
+           VerifyField<double>(verifier, VT_ANCHOR_THETA, 8) &&
+           VerifyField<uint8_t>(verifier, VT_ANCHOR_CLAMPED, 1) &&
+           VerifyField<int32_t>(verifier, VT_USED_QUOTES, 4) &&
+           VerifyField<int32_t>(verifier, VT_EXCLUDED_QUOTES, 4) &&
+           VerifyField<double>(verifier, VT_RMSE, 8) &&
+           VerifyField<double>(verifier, VT_MAX_ABS_ERROR, 8) &&
+           VerifyField<double>(verifier, VT_MARGIN_BUTTERFLY_PSI, 8) &&
+           VerifyField<double>(verifier, VT_MARGIN_BUTTERFLY_PSI2, 8) &&
+           VerifyField<double>(verifier, VT_MARGIN_CALENDAR_THETA, 8) &&
+           VerifyField<double>(verifier, VT_MARGIN_CALENDAR_PSI, 8) &&
+           VerifyField<double>(verifier, VT_MARGIN_CALENDAR_A, 8) &&
+           VerifyField<uint32_t>(verifier, VT_PARITY_PAIRS_USED, 4) &&
+           VerifyField<uint32_t>(verifier, VT_PARITY_PAIRS_REJECTED, 4) &&
+           verifier.EndTable();
+  }
+  EquityVolSliceDiagnosticsT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(EquityVolSliceDiagnosticsT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<EquityVolSliceDiagnostics> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const EquityVolSliceDiagnosticsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct EquityVolSliceDiagnosticsBuilder {
+  typedef EquityVolSliceDiagnostics Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_expiry_date(::flatbuffers::Offset<::flatbuffers::String> expiry_date) {
+    fbb_.AddOffset(EquityVolSliceDiagnostics::VT_EXPIRY_DATE, expiry_date);
+  }
+  void add_time(double time) {
+    fbb_.AddElement<double>(EquityVolSliceDiagnostics::VT_TIME, time, 0.0);
+  }
+  void add_pcp_forward(double pcp_forward) {
+    fbb_.AddElement<double>(EquityVolSliceDiagnostics::VT_PCP_FORWARD, pcp_forward, 0.0);
+  }
+  void add_curve_forward(double curve_forward) {
+    fbb_.AddElement<double>(EquityVolSliceDiagnostics::VT_CURVE_FORWARD, curve_forward);
+  }
+  void add_implied_dividend_yield(double implied_dividend_yield) {
+    fbb_.AddElement<double>(EquityVolSliceDiagnostics::VT_IMPLIED_DIVIDEND_YIELD, implied_dividend_yield, 0.0);
+  }
+  void add_anchor_k(double anchor_k) {
+    fbb_.AddElement<double>(EquityVolSliceDiagnostics::VT_ANCHOR_K, anchor_k, 0.0);
+  }
+  void add_anchor_theta(double anchor_theta) {
+    fbb_.AddElement<double>(EquityVolSliceDiagnostics::VT_ANCHOR_THETA, anchor_theta, 0.0);
+  }
+  void add_anchor_clamped(bool anchor_clamped) {
+    fbb_.AddElement<uint8_t>(EquityVolSliceDiagnostics::VT_ANCHOR_CLAMPED, static_cast<uint8_t>(anchor_clamped), 0);
+  }
+  void add_used_quotes(int32_t used_quotes) {
+    fbb_.AddElement<int32_t>(EquityVolSliceDiagnostics::VT_USED_QUOTES, used_quotes, 0);
+  }
+  void add_excluded_quotes(int32_t excluded_quotes) {
+    fbb_.AddElement<int32_t>(EquityVolSliceDiagnostics::VT_EXCLUDED_QUOTES, excluded_quotes, 0);
+  }
+  void add_rmse(double rmse) {
+    fbb_.AddElement<double>(EquityVolSliceDiagnostics::VT_RMSE, rmse, 0.0);
+  }
+  void add_max_abs_error(double max_abs_error) {
+    fbb_.AddElement<double>(EquityVolSliceDiagnostics::VT_MAX_ABS_ERROR, max_abs_error, 0.0);
+  }
+  void add_margin_butterfly_psi(double margin_butterfly_psi) {
+    fbb_.AddElement<double>(EquityVolSliceDiagnostics::VT_MARGIN_BUTTERFLY_PSI, margin_butterfly_psi, 0.0);
+  }
+  void add_margin_butterfly_psi2(double margin_butterfly_psi2) {
+    fbb_.AddElement<double>(EquityVolSliceDiagnostics::VT_MARGIN_BUTTERFLY_PSI2, margin_butterfly_psi2, 0.0);
+  }
+  void add_margin_calendar_theta(double margin_calendar_theta) {
+    fbb_.AddElement<double>(EquityVolSliceDiagnostics::VT_MARGIN_CALENDAR_THETA, margin_calendar_theta);
+  }
+  void add_margin_calendar_psi(double margin_calendar_psi) {
+    fbb_.AddElement<double>(EquityVolSliceDiagnostics::VT_MARGIN_CALENDAR_PSI, margin_calendar_psi);
+  }
+  void add_margin_calendar_a(double margin_calendar_a) {
+    fbb_.AddElement<double>(EquityVolSliceDiagnostics::VT_MARGIN_CALENDAR_A, margin_calendar_a);
+  }
+  void add_parity_pairs_used(uint32_t parity_pairs_used) {
+    fbb_.AddElement<uint32_t>(EquityVolSliceDiagnostics::VT_PARITY_PAIRS_USED, parity_pairs_used, 0);
+  }
+  void add_parity_pairs_rejected(uint32_t parity_pairs_rejected) {
+    fbb_.AddElement<uint32_t>(EquityVolSliceDiagnostics::VT_PARITY_PAIRS_REJECTED, parity_pairs_rejected, 0);
+  }
+  explicit EquityVolSliceDiagnosticsBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<EquityVolSliceDiagnostics> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<EquityVolSliceDiagnostics>(end);
+    fbb_.Required(o, EquityVolSliceDiagnostics::VT_EXPIRY_DATE);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<EquityVolSliceDiagnostics> CreateEquityVolSliceDiagnostics(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> expiry_date = 0,
+    double time = 0.0,
+    double pcp_forward = 0.0,
+    ::flatbuffers::Optional<double> curve_forward = ::flatbuffers::nullopt,
+    double implied_dividend_yield = 0.0,
+    double anchor_k = 0.0,
+    double anchor_theta = 0.0,
+    bool anchor_clamped = false,
+    int32_t used_quotes = 0,
+    int32_t excluded_quotes = 0,
+    double rmse = 0.0,
+    double max_abs_error = 0.0,
+    double margin_butterfly_psi = 0.0,
+    double margin_butterfly_psi2 = 0.0,
+    ::flatbuffers::Optional<double> margin_calendar_theta = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> margin_calendar_psi = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> margin_calendar_a = ::flatbuffers::nullopt,
+    uint32_t parity_pairs_used = 0,
+    uint32_t parity_pairs_rejected = 0) {
+  EquityVolSliceDiagnosticsBuilder builder_(_fbb);
+  if(margin_calendar_a) { builder_.add_margin_calendar_a(*margin_calendar_a); }
+  if(margin_calendar_psi) { builder_.add_margin_calendar_psi(*margin_calendar_psi); }
+  if(margin_calendar_theta) { builder_.add_margin_calendar_theta(*margin_calendar_theta); }
+  builder_.add_margin_butterfly_psi2(margin_butterfly_psi2);
+  builder_.add_margin_butterfly_psi(margin_butterfly_psi);
+  builder_.add_max_abs_error(max_abs_error);
+  builder_.add_rmse(rmse);
+  builder_.add_anchor_theta(anchor_theta);
+  builder_.add_anchor_k(anchor_k);
+  builder_.add_implied_dividend_yield(implied_dividend_yield);
+  if(curve_forward) { builder_.add_curve_forward(*curve_forward); }
+  builder_.add_pcp_forward(pcp_forward);
+  builder_.add_time(time);
+  builder_.add_parity_pairs_rejected(parity_pairs_rejected);
+  builder_.add_parity_pairs_used(parity_pairs_used);
+  builder_.add_excluded_quotes(excluded_quotes);
+  builder_.add_used_quotes(used_quotes);
+  builder_.add_expiry_date(expiry_date);
+  builder_.add_anchor_clamped(anchor_clamped);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<EquityVolSliceDiagnostics> CreateEquityVolSliceDiagnosticsDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *expiry_date = nullptr,
+    double time = 0.0,
+    double pcp_forward = 0.0,
+    ::flatbuffers::Optional<double> curve_forward = ::flatbuffers::nullopt,
+    double implied_dividend_yield = 0.0,
+    double anchor_k = 0.0,
+    double anchor_theta = 0.0,
+    bool anchor_clamped = false,
+    int32_t used_quotes = 0,
+    int32_t excluded_quotes = 0,
+    double rmse = 0.0,
+    double max_abs_error = 0.0,
+    double margin_butterfly_psi = 0.0,
+    double margin_butterfly_psi2 = 0.0,
+    ::flatbuffers::Optional<double> margin_calendar_theta = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> margin_calendar_psi = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> margin_calendar_a = ::flatbuffers::nullopt,
+    uint32_t parity_pairs_used = 0,
+    uint32_t parity_pairs_rejected = 0) {
+  auto expiry_date__ = expiry_date ? _fbb.CreateString(expiry_date) : 0;
+  return quantra::CreateEquityVolSliceDiagnostics(
+      _fbb,
+      expiry_date__,
+      time,
+      pcp_forward,
+      curve_forward,
+      implied_dividend_yield,
+      anchor_k,
+      anchor_theta,
+      anchor_clamped,
+      used_quotes,
+      excluded_quotes,
+      rmse,
+      max_abs_error,
+      margin_butterfly_psi,
+      margin_butterfly_psi2,
+      margin_calendar_theta,
+      margin_calendar_psi,
+      margin_calendar_a,
+      parity_pairs_used,
+      parity_pairs_rejected);
+}
+
+::flatbuffers::Offset<EquityVolSliceDiagnostics> CreateEquityVolSliceDiagnostics(::flatbuffers::FlatBufferBuilder &_fbb, const EquityVolSliceDiagnosticsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct EquityVolQuoteDiagnosticsT : public ::flatbuffers::NativeTable {
+  typedef EquityVolQuoteDiagnostics TableType;
+  std::string expiry_date{};
+  double strike = 0.0;
+  quantra::enums::EquityOptionType option_type = quantra::enums::EquityOptionType_Call;
+  ::flatbuffers::Optional<double> market_vol = ::flatbuffers::nullopt;
+  double model_vol = 0.0;
+  ::flatbuffers::Optional<double> residual = ::flatbuffers::nullopt;
+  double weight = 0.0;
+  bool used = false;
+  std::string exclusion_reason{};
+};
+
+/// One input quote of /calibrate-equity-vol with its fit residual.
+struct EquityVolQuoteDiagnostics FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef EquityVolQuoteDiagnosticsT NativeTableType;
+  typedef EquityVolQuoteDiagnosticsBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_EXPIRY_DATE = 4,
+    VT_STRIKE = 6,
+    VT_OPTION_TYPE = 8,
+    VT_MARKET_VOL = 10,
+    VT_MODEL_VOL = 12,
+    VT_RESIDUAL = 14,
+    VT_WEIGHT = 16,
+    VT_USED = 18,
+    VT_EXCLUSION_REASON = 20
+  };
+  const ::flatbuffers::String *expiry_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_EXPIRY_DATE);
+  }
+  double strike() const {
+    return GetField<double>(VT_STRIKE, 0.0);
+  }
+  quantra::enums::EquityOptionType option_type() const {
+    return static_cast<quantra::enums::EquityOptionType>(GetField<int8_t>(VT_OPTION_TYPE, 0));
+  }
+  /// Implied vol of the quote (decimal); absent when it could not be solved (unused quotes).
+  ::flatbuffers::Optional<double> market_vol() const {
+    return GetOptional<double, double>(VT_MARKET_VOL);
+  }
+  double model_vol() const {
+    return GetField<double>(VT_MODEL_VOL, 0.0);
+  }
+  /// model_vol - market_vol, decimal vol; absent with market_vol.
+  ::flatbuffers::Optional<double> residual() const {
+    return GetOptional<double, double>(VT_RESIDUAL);
+  }
+  /// The user weight of the quote.
+  double weight() const {
+    return GetField<double>(VT_WEIGHT, 0.0);
+  }
+  bool used() const {
+    return GetField<uint8_t>(VT_USED, 0) != 0;
+  }
+  /// Empty for used quotes. Otherwise the first that applies:
+  ///   price_outside_bounds      price outside (intrinsic, D F) for a call or (intrinsic, D K)
+  ///                             for a put at the slice forward F;
+  ///   parity_outlier            one of a put-call pair rejected from the parity forward;
+  ///   implied_vol_not_solved    the implied-vol solve failed;
+  ///   in_the_money_side         the out-of-the-money quote of the same strike is used instead;
+  ///   max_abs_log_moneyness     |ln(K / F)| beyond SsviFitSpec.max_abs_log_moneyness;
+  ///   implied_vol_not_positive  implied total variance is not > 0;
+  ///   ask_not_above_bid         BidAsk weighting and ask <= bid.
+  /// A slice needs at least 3 used quotes, otherwise the request is rejected.
+  const ::flatbuffers::String *exclusion_reason() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_EXCLUSION_REASON);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffsetRequired(verifier, VT_EXPIRY_DATE) &&
+           verifier.VerifyString(expiry_date()) &&
+           VerifyField<double>(verifier, VT_STRIKE, 8) &&
+           VerifyField<int8_t>(verifier, VT_OPTION_TYPE, 1) &&
+           VerifyField<double>(verifier, VT_MARKET_VOL, 8) &&
+           VerifyField<double>(verifier, VT_MODEL_VOL, 8) &&
+           VerifyField<double>(verifier, VT_RESIDUAL, 8) &&
+           VerifyField<double>(verifier, VT_WEIGHT, 8) &&
+           VerifyField<uint8_t>(verifier, VT_USED, 1) &&
+           VerifyOffset(verifier, VT_EXCLUSION_REASON) &&
+           verifier.VerifyString(exclusion_reason()) &&
+           verifier.EndTable();
+  }
+  EquityVolQuoteDiagnosticsT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(EquityVolQuoteDiagnosticsT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<EquityVolQuoteDiagnostics> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const EquityVolQuoteDiagnosticsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct EquityVolQuoteDiagnosticsBuilder {
+  typedef EquityVolQuoteDiagnostics Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_expiry_date(::flatbuffers::Offset<::flatbuffers::String> expiry_date) {
+    fbb_.AddOffset(EquityVolQuoteDiagnostics::VT_EXPIRY_DATE, expiry_date);
+  }
+  void add_strike(double strike) {
+    fbb_.AddElement<double>(EquityVolQuoteDiagnostics::VT_STRIKE, strike, 0.0);
+  }
+  void add_option_type(quantra::enums::EquityOptionType option_type) {
+    fbb_.AddElement<int8_t>(EquityVolQuoteDiagnostics::VT_OPTION_TYPE, static_cast<int8_t>(option_type), 0);
+  }
+  void add_market_vol(double market_vol) {
+    fbb_.AddElement<double>(EquityVolQuoteDiagnostics::VT_MARKET_VOL, market_vol);
+  }
+  void add_model_vol(double model_vol) {
+    fbb_.AddElement<double>(EquityVolQuoteDiagnostics::VT_MODEL_VOL, model_vol, 0.0);
+  }
+  void add_residual(double residual) {
+    fbb_.AddElement<double>(EquityVolQuoteDiagnostics::VT_RESIDUAL, residual);
+  }
+  void add_weight(double weight) {
+    fbb_.AddElement<double>(EquityVolQuoteDiagnostics::VT_WEIGHT, weight, 0.0);
+  }
+  void add_used(bool used) {
+    fbb_.AddElement<uint8_t>(EquityVolQuoteDiagnostics::VT_USED, static_cast<uint8_t>(used), 0);
+  }
+  void add_exclusion_reason(::flatbuffers::Offset<::flatbuffers::String> exclusion_reason) {
+    fbb_.AddOffset(EquityVolQuoteDiagnostics::VT_EXCLUSION_REASON, exclusion_reason);
+  }
+  explicit EquityVolQuoteDiagnosticsBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<EquityVolQuoteDiagnostics> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<EquityVolQuoteDiagnostics>(end);
+    fbb_.Required(o, EquityVolQuoteDiagnostics::VT_EXPIRY_DATE);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<EquityVolQuoteDiagnostics> CreateEquityVolQuoteDiagnostics(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> expiry_date = 0,
+    double strike = 0.0,
+    quantra::enums::EquityOptionType option_type = quantra::enums::EquityOptionType_Call,
+    ::flatbuffers::Optional<double> market_vol = ::flatbuffers::nullopt,
+    double model_vol = 0.0,
+    ::flatbuffers::Optional<double> residual = ::flatbuffers::nullopt,
+    double weight = 0.0,
+    bool used = false,
+    ::flatbuffers::Offset<::flatbuffers::String> exclusion_reason = 0) {
+  EquityVolQuoteDiagnosticsBuilder builder_(_fbb);
+  builder_.add_weight(weight);
+  if(residual) { builder_.add_residual(*residual); }
+  builder_.add_model_vol(model_vol);
+  if(market_vol) { builder_.add_market_vol(*market_vol); }
+  builder_.add_strike(strike);
+  builder_.add_exclusion_reason(exclusion_reason);
+  builder_.add_expiry_date(expiry_date);
+  builder_.add_used(used);
+  builder_.add_option_type(option_type);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<EquityVolQuoteDiagnostics> CreateEquityVolQuoteDiagnosticsDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *expiry_date = nullptr,
+    double strike = 0.0,
+    quantra::enums::EquityOptionType option_type = quantra::enums::EquityOptionType_Call,
+    ::flatbuffers::Optional<double> market_vol = ::flatbuffers::nullopt,
+    double model_vol = 0.0,
+    ::flatbuffers::Optional<double> residual = ::flatbuffers::nullopt,
+    double weight = 0.0,
+    bool used = false,
+    const char *exclusion_reason = nullptr) {
+  auto expiry_date__ = expiry_date ? _fbb.CreateString(expiry_date) : 0;
+  auto exclusion_reason__ = exclusion_reason ? _fbb.CreateString(exclusion_reason) : 0;
+  return quantra::CreateEquityVolQuoteDiagnostics(
+      _fbb,
+      expiry_date__,
+      strike,
+      option_type,
+      market_vol,
+      model_vol,
+      residual,
+      weight,
+      used,
+      exclusion_reason__);
+}
+
+::flatbuffers::Offset<EquityVolQuoteDiagnostics> CreateEquityVolQuoteDiagnostics(::flatbuffers::FlatBufferBuilder &_fbb, const EquityVolQuoteDiagnosticsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct EquityVolDiagnosticsT : public ::flatbuffers::NativeTable {
+  typedef EquityVolDiagnostics TableType;
+  std::vector<std::unique_ptr<quantra::EquityVolSliceDiagnosticsT>> slices{};
+  std::vector<std::unique_ptr<quantra::EquityVolQuoteDiagnosticsT>> quotes{};
+  int32_t excluded_by_moneyness = 0;
+  double overall_rmse = 0.0;
+  double overall_max_abs_error = 0.0;
+  std::vector<std::string> violations{};
+  double scan_min_g = 0.0;
+  double scan_min_g_t = 0.0;
+  double scan_min_g_k = 0.0;
+  double scan_min_w_t = 0.0;
+  double scan_min_w_t_t = 0.0;
+  double scan_min_w_t_k = 0.0;
+  EquityVolDiagnosticsT() = default;
+  EquityVolDiagnosticsT(const EquityVolDiagnosticsT &o);
+  EquityVolDiagnosticsT(EquityVolDiagnosticsT&&) FLATBUFFERS_NOEXCEPT = default;
+  EquityVolDiagnosticsT &operator=(EquityVolDiagnosticsT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// Diagnostics block of /calibrate-equity-vol.
+struct EquityVolDiagnostics FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef EquityVolDiagnosticsT NativeTableType;
+  typedef EquityVolDiagnosticsBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_SLICES = 4,
+    VT_QUOTES = 6,
+    VT_EXCLUDED_BY_MONEYNESS = 8,
+    VT_OVERALL_RMSE = 10,
+    VT_OVERALL_MAX_ABS_ERROR = 12,
+    VT_VIOLATIONS = 14,
+    VT_SCAN_MIN_G = 16,
+    VT_SCAN_MIN_G_T = 18,
+    VT_SCAN_MIN_G_K = 20,
+    VT_SCAN_MIN_W_T = 22,
+    VT_SCAN_MIN_W_T_T = 24,
+    VT_SCAN_MIN_W_T_K = 26
+  };
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityVolSliceDiagnostics>> *slices() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityVolSliceDiagnostics>> *>(VT_SLICES);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityVolQuoteDiagnostics>> *quotes() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityVolQuoteDiagnostics>> *>(VT_QUOTES);
+  }
+  /// Quotes dropped for |k| > max_abs_log_moneyness.
+  int32_t excluded_by_moneyness() const {
+    return GetField<int32_t>(VT_EXCLUDED_BY_MONEYNESS, 0);
+  }
+  double overall_rmse() const {
+    return GetField<double>(VT_OVERALL_RMSE, 0.0);
+  }
+  double overall_max_abs_error() const {
+    return GetField<double>(VT_OVERALL_MAX_ABS_ERROR, 0.0);
+  }
+  /// Arbitrage violations found after the fit (empty on success).
+  const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *violations() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *>(VT_VIOLATIONS);
+  }
+  /// Minimum of the Durrleman function g(k, k) and of dw/dt over the scan grid, with the
+  /// (t, k) where they occur.
+  double scan_min_g() const {
+    return GetField<double>(VT_SCAN_MIN_G, 0.0);
+  }
+  double scan_min_g_t() const {
+    return GetField<double>(VT_SCAN_MIN_G_T, 0.0);
+  }
+  double scan_min_g_k() const {
+    return GetField<double>(VT_SCAN_MIN_G_K, 0.0);
+  }
+  double scan_min_w_t() const {
+    return GetField<double>(VT_SCAN_MIN_W_T, 0.0);
+  }
+  double scan_min_w_t_t() const {
+    return GetField<double>(VT_SCAN_MIN_W_T_T, 0.0);
+  }
+  double scan_min_w_t_k() const {
+    return GetField<double>(VT_SCAN_MIN_W_T_K, 0.0);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_SLICES) &&
+           verifier.VerifyVector(slices()) &&
+           verifier.VerifyVectorOfTables(slices()) &&
+           VerifyOffset(verifier, VT_QUOTES) &&
+           verifier.VerifyVector(quotes()) &&
+           verifier.VerifyVectorOfTables(quotes()) &&
+           VerifyField<int32_t>(verifier, VT_EXCLUDED_BY_MONEYNESS, 4) &&
+           VerifyField<double>(verifier, VT_OVERALL_RMSE, 8) &&
+           VerifyField<double>(verifier, VT_OVERALL_MAX_ABS_ERROR, 8) &&
+           VerifyOffset(verifier, VT_VIOLATIONS) &&
+           verifier.VerifyVector(violations()) &&
+           verifier.VerifyVectorOfStrings(violations()) &&
+           VerifyField<double>(verifier, VT_SCAN_MIN_G, 8) &&
+           VerifyField<double>(verifier, VT_SCAN_MIN_G_T, 8) &&
+           VerifyField<double>(verifier, VT_SCAN_MIN_G_K, 8) &&
+           VerifyField<double>(verifier, VT_SCAN_MIN_W_T, 8) &&
+           VerifyField<double>(verifier, VT_SCAN_MIN_W_T_T, 8) &&
+           VerifyField<double>(verifier, VT_SCAN_MIN_W_T_K, 8) &&
+           verifier.EndTable();
+  }
+  EquityVolDiagnosticsT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(EquityVolDiagnosticsT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<EquityVolDiagnostics> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const EquityVolDiagnosticsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct EquityVolDiagnosticsBuilder {
+  typedef EquityVolDiagnostics Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_slices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityVolSliceDiagnostics>>> slices) {
+    fbb_.AddOffset(EquityVolDiagnostics::VT_SLICES, slices);
+  }
+  void add_quotes(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityVolQuoteDiagnostics>>> quotes) {
+    fbb_.AddOffset(EquityVolDiagnostics::VT_QUOTES, quotes);
+  }
+  void add_excluded_by_moneyness(int32_t excluded_by_moneyness) {
+    fbb_.AddElement<int32_t>(EquityVolDiagnostics::VT_EXCLUDED_BY_MONEYNESS, excluded_by_moneyness, 0);
+  }
+  void add_overall_rmse(double overall_rmse) {
+    fbb_.AddElement<double>(EquityVolDiagnostics::VT_OVERALL_RMSE, overall_rmse, 0.0);
+  }
+  void add_overall_max_abs_error(double overall_max_abs_error) {
+    fbb_.AddElement<double>(EquityVolDiagnostics::VT_OVERALL_MAX_ABS_ERROR, overall_max_abs_error, 0.0);
+  }
+  void add_violations(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> violations) {
+    fbb_.AddOffset(EquityVolDiagnostics::VT_VIOLATIONS, violations);
+  }
+  void add_scan_min_g(double scan_min_g) {
+    fbb_.AddElement<double>(EquityVolDiagnostics::VT_SCAN_MIN_G, scan_min_g, 0.0);
+  }
+  void add_scan_min_g_t(double scan_min_g_t) {
+    fbb_.AddElement<double>(EquityVolDiagnostics::VT_SCAN_MIN_G_T, scan_min_g_t, 0.0);
+  }
+  void add_scan_min_g_k(double scan_min_g_k) {
+    fbb_.AddElement<double>(EquityVolDiagnostics::VT_SCAN_MIN_G_K, scan_min_g_k, 0.0);
+  }
+  void add_scan_min_w_t(double scan_min_w_t) {
+    fbb_.AddElement<double>(EquityVolDiagnostics::VT_SCAN_MIN_W_T, scan_min_w_t, 0.0);
+  }
+  void add_scan_min_w_t_t(double scan_min_w_t_t) {
+    fbb_.AddElement<double>(EquityVolDiagnostics::VT_SCAN_MIN_W_T_T, scan_min_w_t_t, 0.0);
+  }
+  void add_scan_min_w_t_k(double scan_min_w_t_k) {
+    fbb_.AddElement<double>(EquityVolDiagnostics::VT_SCAN_MIN_W_T_K, scan_min_w_t_k, 0.0);
+  }
+  explicit EquityVolDiagnosticsBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<EquityVolDiagnostics> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<EquityVolDiagnostics>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<EquityVolDiagnostics> CreateEquityVolDiagnostics(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityVolSliceDiagnostics>>> slices = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityVolQuoteDiagnostics>>> quotes = 0,
+    int32_t excluded_by_moneyness = 0,
+    double overall_rmse = 0.0,
+    double overall_max_abs_error = 0.0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> violations = 0,
+    double scan_min_g = 0.0,
+    double scan_min_g_t = 0.0,
+    double scan_min_g_k = 0.0,
+    double scan_min_w_t = 0.0,
+    double scan_min_w_t_t = 0.0,
+    double scan_min_w_t_k = 0.0) {
+  EquityVolDiagnosticsBuilder builder_(_fbb);
+  builder_.add_scan_min_w_t_k(scan_min_w_t_k);
+  builder_.add_scan_min_w_t_t(scan_min_w_t_t);
+  builder_.add_scan_min_w_t(scan_min_w_t);
+  builder_.add_scan_min_g_k(scan_min_g_k);
+  builder_.add_scan_min_g_t(scan_min_g_t);
+  builder_.add_scan_min_g(scan_min_g);
+  builder_.add_overall_max_abs_error(overall_max_abs_error);
+  builder_.add_overall_rmse(overall_rmse);
+  builder_.add_violations(violations);
+  builder_.add_excluded_by_moneyness(excluded_by_moneyness);
+  builder_.add_quotes(quotes);
+  builder_.add_slices(slices);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<EquityVolDiagnostics> CreateEquityVolDiagnosticsDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const std::vector<::flatbuffers::Offset<quantra::EquityVolSliceDiagnostics>> *slices = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::EquityVolQuoteDiagnostics>> *quotes = nullptr,
+    int32_t excluded_by_moneyness = 0,
+    double overall_rmse = 0.0,
+    double overall_max_abs_error = 0.0,
+    const std::vector<::flatbuffers::Offset<::flatbuffers::String>> *violations = nullptr,
+    double scan_min_g = 0.0,
+    double scan_min_g_t = 0.0,
+    double scan_min_g_k = 0.0,
+    double scan_min_w_t = 0.0,
+    double scan_min_w_t_t = 0.0,
+    double scan_min_w_t_k = 0.0) {
+  auto slices__ = slices ? _fbb.CreateVector<::flatbuffers::Offset<quantra::EquityVolSliceDiagnostics>>(*slices) : 0;
+  auto quotes__ = quotes ? _fbb.CreateVector<::flatbuffers::Offset<quantra::EquityVolQuoteDiagnostics>>(*quotes) : 0;
+  auto violations__ = violations ? _fbb.CreateVector<::flatbuffers::Offset<::flatbuffers::String>>(*violations) : 0;
+  return quantra::CreateEquityVolDiagnostics(
+      _fbb,
+      slices__,
+      quotes__,
+      excluded_by_moneyness,
+      overall_rmse,
+      overall_max_abs_error,
+      violations__,
+      scan_min_g,
+      scan_min_g_t,
+      scan_min_g_k,
+      scan_min_w_t,
+      scan_min_w_t_t,
+      scan_min_w_t_k);
+}
+
+::flatbuffers::Offset<EquityVolDiagnostics> CreateEquityVolDiagnostics(::flatbuffers::FlatBufferBuilder &_fbb, const EquityVolDiagnosticsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 inline SabrCalibrationDiagnosticsT *SabrCalibrationDiagnostics::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<SabrCalibrationDiagnosticsT>(new SabrCalibrationDiagnosticsT());
   UnPackTo(_o.get(), _resolver);
@@ -629,6 +1359,228 @@ inline ::flatbuffers::Offset<SwaptionVolDiagnostics> CreateSwaptionVolDiagnostic
       _nu_per_node,
       _calibration,
       _warnings);
+}
+
+inline EquityVolSliceDiagnosticsT *EquityVolSliceDiagnostics::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<EquityVolSliceDiagnosticsT>(new EquityVolSliceDiagnosticsT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void EquityVolSliceDiagnostics::UnPackTo(EquityVolSliceDiagnosticsT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = expiry_date(); if (_e) _o->expiry_date = _e->str(); }
+  { auto _e = time(); _o->time = _e; }
+  { auto _e = pcp_forward(); _o->pcp_forward = _e; }
+  { auto _e = curve_forward(); _o->curve_forward = _e; }
+  { auto _e = implied_dividend_yield(); _o->implied_dividend_yield = _e; }
+  { auto _e = anchor_k(); _o->anchor_k = _e; }
+  { auto _e = anchor_theta(); _o->anchor_theta = _e; }
+  { auto _e = anchor_clamped(); _o->anchor_clamped = _e; }
+  { auto _e = used_quotes(); _o->used_quotes = _e; }
+  { auto _e = excluded_quotes(); _o->excluded_quotes = _e; }
+  { auto _e = rmse(); _o->rmse = _e; }
+  { auto _e = max_abs_error(); _o->max_abs_error = _e; }
+  { auto _e = margin_butterfly_psi(); _o->margin_butterfly_psi = _e; }
+  { auto _e = margin_butterfly_psi2(); _o->margin_butterfly_psi2 = _e; }
+  { auto _e = margin_calendar_theta(); _o->margin_calendar_theta = _e; }
+  { auto _e = margin_calendar_psi(); _o->margin_calendar_psi = _e; }
+  { auto _e = margin_calendar_a(); _o->margin_calendar_a = _e; }
+  { auto _e = parity_pairs_used(); _o->parity_pairs_used = _e; }
+  { auto _e = parity_pairs_rejected(); _o->parity_pairs_rejected = _e; }
+}
+
+inline ::flatbuffers::Offset<EquityVolSliceDiagnostics> EquityVolSliceDiagnostics::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const EquityVolSliceDiagnosticsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateEquityVolSliceDiagnostics(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<EquityVolSliceDiagnostics> CreateEquityVolSliceDiagnostics(::flatbuffers::FlatBufferBuilder &_fbb, const EquityVolSliceDiagnosticsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const EquityVolSliceDiagnosticsT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _expiry_date = _fbb.CreateString(_o->expiry_date);
+  auto _time = _o->time;
+  auto _pcp_forward = _o->pcp_forward;
+  auto _curve_forward = _o->curve_forward;
+  auto _implied_dividend_yield = _o->implied_dividend_yield;
+  auto _anchor_k = _o->anchor_k;
+  auto _anchor_theta = _o->anchor_theta;
+  auto _anchor_clamped = _o->anchor_clamped;
+  auto _used_quotes = _o->used_quotes;
+  auto _excluded_quotes = _o->excluded_quotes;
+  auto _rmse = _o->rmse;
+  auto _max_abs_error = _o->max_abs_error;
+  auto _margin_butterfly_psi = _o->margin_butterfly_psi;
+  auto _margin_butterfly_psi2 = _o->margin_butterfly_psi2;
+  auto _margin_calendar_theta = _o->margin_calendar_theta;
+  auto _margin_calendar_psi = _o->margin_calendar_psi;
+  auto _margin_calendar_a = _o->margin_calendar_a;
+  auto _parity_pairs_used = _o->parity_pairs_used;
+  auto _parity_pairs_rejected = _o->parity_pairs_rejected;
+  return quantra::CreateEquityVolSliceDiagnostics(
+      _fbb,
+      _expiry_date,
+      _time,
+      _pcp_forward,
+      _curve_forward,
+      _implied_dividend_yield,
+      _anchor_k,
+      _anchor_theta,
+      _anchor_clamped,
+      _used_quotes,
+      _excluded_quotes,
+      _rmse,
+      _max_abs_error,
+      _margin_butterfly_psi,
+      _margin_butterfly_psi2,
+      _margin_calendar_theta,
+      _margin_calendar_psi,
+      _margin_calendar_a,
+      _parity_pairs_used,
+      _parity_pairs_rejected);
+}
+
+inline EquityVolQuoteDiagnosticsT *EquityVolQuoteDiagnostics::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<EquityVolQuoteDiagnosticsT>(new EquityVolQuoteDiagnosticsT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void EquityVolQuoteDiagnostics::UnPackTo(EquityVolQuoteDiagnosticsT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = expiry_date(); if (_e) _o->expiry_date = _e->str(); }
+  { auto _e = strike(); _o->strike = _e; }
+  { auto _e = option_type(); _o->option_type = _e; }
+  { auto _e = market_vol(); _o->market_vol = _e; }
+  { auto _e = model_vol(); _o->model_vol = _e; }
+  { auto _e = residual(); _o->residual = _e; }
+  { auto _e = weight(); _o->weight = _e; }
+  { auto _e = used(); _o->used = _e; }
+  { auto _e = exclusion_reason(); if (_e) _o->exclusion_reason = _e->str(); }
+}
+
+inline ::flatbuffers::Offset<EquityVolQuoteDiagnostics> EquityVolQuoteDiagnostics::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const EquityVolQuoteDiagnosticsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateEquityVolQuoteDiagnostics(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<EquityVolQuoteDiagnostics> CreateEquityVolQuoteDiagnostics(::flatbuffers::FlatBufferBuilder &_fbb, const EquityVolQuoteDiagnosticsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const EquityVolQuoteDiagnosticsT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _expiry_date = _fbb.CreateString(_o->expiry_date);
+  auto _strike = _o->strike;
+  auto _option_type = _o->option_type;
+  auto _market_vol = _o->market_vol;
+  auto _model_vol = _o->model_vol;
+  auto _residual = _o->residual;
+  auto _weight = _o->weight;
+  auto _used = _o->used;
+  auto _exclusion_reason = _o->exclusion_reason.empty() ? 0 : _fbb.CreateString(_o->exclusion_reason);
+  return quantra::CreateEquityVolQuoteDiagnostics(
+      _fbb,
+      _expiry_date,
+      _strike,
+      _option_type,
+      _market_vol,
+      _model_vol,
+      _residual,
+      _weight,
+      _used,
+      _exclusion_reason);
+}
+
+inline EquityVolDiagnosticsT::EquityVolDiagnosticsT(const EquityVolDiagnosticsT &o)
+      : excluded_by_moneyness(o.excluded_by_moneyness),
+        overall_rmse(o.overall_rmse),
+        overall_max_abs_error(o.overall_max_abs_error),
+        violations(o.violations),
+        scan_min_g(o.scan_min_g),
+        scan_min_g_t(o.scan_min_g_t),
+        scan_min_g_k(o.scan_min_g_k),
+        scan_min_w_t(o.scan_min_w_t),
+        scan_min_w_t_t(o.scan_min_w_t_t),
+        scan_min_w_t_k(o.scan_min_w_t_k) {
+  slices.reserve(o.slices.size());
+  for (const auto &slices_ : o.slices) { slices.emplace_back((slices_) ? new quantra::EquityVolSliceDiagnosticsT(*slices_) : nullptr); }
+  quotes.reserve(o.quotes.size());
+  for (const auto &quotes_ : o.quotes) { quotes.emplace_back((quotes_) ? new quantra::EquityVolQuoteDiagnosticsT(*quotes_) : nullptr); }
+}
+
+inline EquityVolDiagnosticsT &EquityVolDiagnosticsT::operator=(EquityVolDiagnosticsT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(slices, o.slices);
+  std::swap(quotes, o.quotes);
+  std::swap(excluded_by_moneyness, o.excluded_by_moneyness);
+  std::swap(overall_rmse, o.overall_rmse);
+  std::swap(overall_max_abs_error, o.overall_max_abs_error);
+  std::swap(violations, o.violations);
+  std::swap(scan_min_g, o.scan_min_g);
+  std::swap(scan_min_g_t, o.scan_min_g_t);
+  std::swap(scan_min_g_k, o.scan_min_g_k);
+  std::swap(scan_min_w_t, o.scan_min_w_t);
+  std::swap(scan_min_w_t_t, o.scan_min_w_t_t);
+  std::swap(scan_min_w_t_k, o.scan_min_w_t_k);
+  return *this;
+}
+
+inline EquityVolDiagnosticsT *EquityVolDiagnostics::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<EquityVolDiagnosticsT>(new EquityVolDiagnosticsT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void EquityVolDiagnostics::UnPackTo(EquityVolDiagnosticsT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = slices(); if (_e) { _o->slices.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->slices[_i]) { _e->Get(_i)->UnPackTo(_o->slices[_i].get(), _resolver); } else { _o->slices[_i] = std::unique_ptr<quantra::EquityVolSliceDiagnosticsT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->slices.resize(0); } }
+  { auto _e = quotes(); if (_e) { _o->quotes.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->quotes[_i]) { _e->Get(_i)->UnPackTo(_o->quotes[_i].get(), _resolver); } else { _o->quotes[_i] = std::unique_ptr<quantra::EquityVolQuoteDiagnosticsT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->quotes.resize(0); } }
+  { auto _e = excluded_by_moneyness(); _o->excluded_by_moneyness = _e; }
+  { auto _e = overall_rmse(); _o->overall_rmse = _e; }
+  { auto _e = overall_max_abs_error(); _o->overall_max_abs_error = _e; }
+  { auto _e = violations(); if (_e) { _o->violations.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->violations[_i] = _e->Get(_i)->str(); } } else { _o->violations.resize(0); } }
+  { auto _e = scan_min_g(); _o->scan_min_g = _e; }
+  { auto _e = scan_min_g_t(); _o->scan_min_g_t = _e; }
+  { auto _e = scan_min_g_k(); _o->scan_min_g_k = _e; }
+  { auto _e = scan_min_w_t(); _o->scan_min_w_t = _e; }
+  { auto _e = scan_min_w_t_t(); _o->scan_min_w_t_t = _e; }
+  { auto _e = scan_min_w_t_k(); _o->scan_min_w_t_k = _e; }
+}
+
+inline ::flatbuffers::Offset<EquityVolDiagnostics> EquityVolDiagnostics::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const EquityVolDiagnosticsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateEquityVolDiagnostics(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<EquityVolDiagnostics> CreateEquityVolDiagnostics(::flatbuffers::FlatBufferBuilder &_fbb, const EquityVolDiagnosticsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const EquityVolDiagnosticsT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _slices = _o->slices.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::EquityVolSliceDiagnostics>> (_o->slices.size(), [](size_t i, _VectorArgs *__va) { return CreateEquityVolSliceDiagnostics(*__va->__fbb, __va->__o->slices[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _quotes = _o->quotes.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::EquityVolQuoteDiagnostics>> (_o->quotes.size(), [](size_t i, _VectorArgs *__va) { return CreateEquityVolQuoteDiagnostics(*__va->__fbb, __va->__o->quotes[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _excluded_by_moneyness = _o->excluded_by_moneyness;
+  auto _overall_rmse = _o->overall_rmse;
+  auto _overall_max_abs_error = _o->overall_max_abs_error;
+  auto _violations = _o->violations.size() ? _fbb.CreateVectorOfStrings(_o->violations) : 0;
+  auto _scan_min_g = _o->scan_min_g;
+  auto _scan_min_g_t = _o->scan_min_g_t;
+  auto _scan_min_g_k = _o->scan_min_g_k;
+  auto _scan_min_w_t = _o->scan_min_w_t;
+  auto _scan_min_w_t_t = _o->scan_min_w_t_t;
+  auto _scan_min_w_t_k = _o->scan_min_w_t_k;
+  return quantra::CreateEquityVolDiagnostics(
+      _fbb,
+      _slices,
+      _quotes,
+      _excluded_by_moneyness,
+      _overall_rmse,
+      _overall_max_abs_error,
+      _violations,
+      _scan_min_g,
+      _scan_min_g_t,
+      _scan_min_g_k,
+      _scan_min_w_t,
+      _scan_min_w_t_t,
+      _scan_min_w_t_k);
 }
 
 }  // namespace quantra

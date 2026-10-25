@@ -111,7 +111,11 @@
     },
     "quantra_enums_VolSurfaceShape" : {
       "type" : "string",
-      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate"]
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate", "SsviParams", "SsviCalibrate"]
+    },
+    "quantra_enums_SsviQuoteWeighting" : {
+      "type" : "string",
+      "enum": ["Uniform", "Vega", "BidAsk"]
     },
     "quantra_enums_YoYInflationCapFloorEngineType" : {
       "type" : "string",
@@ -675,6 +679,167 @@
               }
       },
       "required" : ["vol_id"],
+      "additionalProperties" : false
+    },
+    "quantra_EquityVolSliceDiagnostics" : {
+      "type" : "object",
+      "description" : "One calibrated eSSVI slice of /calibrate-equity-vol. Vols and errors are decimals\n(0.01 = one vol point).",
+      "properties" : {
+        "expiry_date" : {
+                "type" : "string"
+              },
+        "time" : {
+                "type" : "number",
+                "description" : "Year fraction from the reference date (surface day counter)."
+              },
+        "pcp_forward" : {
+                "type" : "number",
+                "description" : "Forward used for the fit: put-call parity when calls and puts exist at >= 2 common\nstrikes, else the curve forward (an expiry without parity pairs needs a dividend curve)."
+              },
+        "curve_forward" : {
+                "type" : "number",
+                "description" : "Forward from the spot, dividend and discount curves. Null when the surface has no\ndividend curve."
+              },
+        "implied_dividend_yield" : {
+                "type" : "number",
+                "description" : "-ln(pcp_forward Dr(T) / S0) / T."
+              },
+        "anchor_k" : {
+                "type" : "number",
+                "description" : "Anchor quote (closest to the money) log-moneyness and total variance, after clamping."
+              },
+        "anchor_theta" : {
+                "type" : "number"
+              },
+        "anchor_clamped" : {
+                "type" : "boolean",
+                "description" : "True when the anchor total variance was raised to keep the calendar condition feasible."
+              },
+        "used_quotes" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "excluded_quotes" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "rmse" : {
+                "type" : "number",
+                "description" : "Root-mean-square and max absolute error of the used quotes, decimal vol."
+              },
+        "max_abs_error" : {
+                "type" : "number"
+              },
+        "margin_butterfly_psi" : {
+                "type" : "number",
+                "description" : "Constraint margins, rhs - lhs, >= 0 when satisfied (see ssvi_calibrator.h)."
+              },
+        "margin_butterfly_psi2" : {
+                "type" : "number"
+              },
+        "margin_calendar_theta" : {
+                "type" : "number",
+                "description" : "Calendar margins versus the previous slice; absent on the first slice."
+              },
+        "margin_calendar_psi" : {
+                "type" : "number"
+              },
+        "margin_calendar_a" : {
+                "type" : "number"
+              },
+        "parity_pairs_used" : {
+                "type" : "integer", "minimum" : 0, "maximum" : 4294967295,
+                "description" : "Put-call pairs (common strikes) behind pcp_forward, after outlier rejection; 0 when the\nforward is the curve forward."
+              },
+        "parity_pairs_rejected" : {
+                "type" : "integer", "minimum" : 0, "maximum" : 4294967295,
+                "description" : "Pairs dropped as outliers: further than max(5 * 1.4826 MAD, 1e-4 pcp_forward) from the\nmedian pair forward (only with >= 3 pairs). Both quotes are excluded as \"parity_outlier\"."
+              }
+      },
+      "required" : ["expiry_date"],
+      "additionalProperties" : false
+    },
+    "quantra_EquityVolQuoteDiagnostics" : {
+      "type" : "object",
+      "description" : "One input quote of /calibrate-equity-vol with its fit residual.",
+      "properties" : {
+        "expiry_date" : {
+                "type" : "string"
+              },
+        "strike" : {
+                "type" : "number"
+              },
+        "option_type" : {
+                "$ref" : "#/definitions/quantra_enums_EquityOptionType"
+              },
+        "market_vol" : {
+                "type" : "number",
+                "description" : "Implied vol of the quote (decimal); absent when it could not be solved (unused quotes)."
+              },
+        "model_vol" : {
+                "type" : "number"
+              },
+        "residual" : {
+                "type" : "number",
+                "description" : "model_vol - market_vol, decimal vol; absent with market_vol."
+              },
+        "weight" : {
+                "type" : "number",
+                "description" : "The user weight of the quote."
+              },
+        "used" : {
+                "type" : "boolean"
+              },
+        "exclusion_reason" : {
+                "type" : "string",
+                "description" : "Empty for used quotes. Otherwise the first that applies:\nprice_outside_bounds      price outside (intrinsic, D F) for a call or (intrinsic, D K)\nfor a put at the slice forward F;\nparity_outlier            one of a put-call pair rejected from the parity forward;\nimplied_vol_not_solved    the implied-vol solve failed;\nin_the_money_side         the out-of-the-money quote of the same strike is used instead;\nmax_abs_log_moneyness     |ln(K / F)| beyond SsviFitSpec.max_abs_log_moneyness;\nimplied_vol_not_positive  implied total variance is not > 0;\nask_not_above_bid         BidAsk weighting and ask <= bid.\nA slice needs at least 3 used quotes, otherwise the request is rejected."
+              }
+      },
+      "required" : ["expiry_date"],
+      "additionalProperties" : false
+    },
+    "quantra_EquityVolDiagnostics" : {
+      "type" : "object",
+      "description" : "Diagnostics block of /calibrate-equity-vol.",
+      "properties" : {
+        "slices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_EquityVolSliceDiagnostics"}
+              },
+        "quotes" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_EquityVolQuoteDiagnostics"}
+              },
+        "excluded_by_moneyness" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Quotes dropped for |k| > max_abs_log_moneyness."
+              },
+        "overall_rmse" : {
+                "type" : "number"
+              },
+        "overall_max_abs_error" : {
+                "type" : "number"
+              },
+        "violations" : {
+                "type" : "array", "items" : {"type" : "string"},
+                "description" : "Arbitrage violations found after the fit (empty on success)."
+              },
+        "scan_min_g" : {
+                "type" : "number",
+                "description" : "Minimum of the Durrleman function g(k, k) and of dw/dt over the scan grid, with the\n(t, k) where they occur."
+              },
+        "scan_min_g_t" : {
+                "type" : "number"
+              },
+        "scan_min_g_k" : {
+                "type" : "number"
+              },
+        "scan_min_w_t" : {
+                "type" : "number"
+              },
+        "scan_min_w_t_t" : {
+                "type" : "number"
+              },
+        "scan_min_w_t_k" : {
+                "type" : "number"
+              }
+      },
       "additionalProperties" : false
     },
     "quantra_SampleVolSurfacesResponse" : {

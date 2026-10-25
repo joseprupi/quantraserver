@@ -423,6 +423,13 @@ JsonResponse QuantraClient::CalibrateSwaptionModelJSON(
         request_id);
 }
 
+JsonResponse QuantraClient::CalibrateEquityVolJSON(
+    const std::string& json, const std::string& request_id) {
+    return impl_->CallJSON<CalibrateEquityVolRequest, CalibrateEquityVolResponse>(
+        ProductType::CalibrateEquityVol, json, &QuantraServer::Stub::CalibrateEquityVol,
+        request_id);
+}
+
 JsonResponse QuantraClient::CalibrateSwaptionVolJSON(
     const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<CalibrateSwaptionVolRequest, CalibrateSwaptionVolResponse>(
@@ -622,6 +629,14 @@ grpc::Status QuantraClient::CalibrateSwaptionModel(
     grpc::ClientContext context;
     SetDefaultDeadline(context);
     return impl_->GetStub()->CalibrateSwaptionModel(&context, request, response);
+}
+
+grpc::Status QuantraClient::CalibrateEquityVol(
+    const Message<CalibrateEquityVolRequest>& request,
+    Message<CalibrateEquityVolResponse>* response) {
+    grpc::ClientContext context;
+    SetDefaultDeadline(context);
+    return impl_->GetStub()->CalibrateEquityVol(&context, request, response);
 }
 
 grpc::Status QuantraClient::CalibrateSwaptionVol(

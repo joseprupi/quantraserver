@@ -68,3 +68,88 @@ table SwaptionVolDiagnostics {
     /// Validation warnings. Empty when fit is healthy.
     warnings:[string];
 }
+
+/// One calibrated eSSVI slice of /calibrate-equity-vol. Vols and errors are decimals
+/// (0.01 = one vol point).
+table EquityVolSliceDiagnostics {
+    expiry_date:string (required);
+    /// Year fraction from the reference date (surface day counter).
+    time:double;
+    /// Forward used for the fit: put-call parity when calls and puts exist at >= 2 common
+    /// strikes, else the curve forward (an expiry without parity pairs needs a dividend curve).
+    pcp_forward:double;
+    /// Forward from the spot, dividend and discount curves. Null when the surface has no
+    /// dividend curve.
+    curve_forward:double = null;
+    /// -ln(pcp_forward Dr(T) / S0) / T.
+    implied_dividend_yield:double;
+    /// Anchor quote (closest to the money) log-moneyness and total variance, after clamping.
+    anchor_k:double;
+    anchor_theta:double;
+    /// True when the anchor total variance was raised to keep the calendar condition feasible.
+    anchor_clamped:bool;
+    used_quotes:int;
+    excluded_quotes:int;
+    /// Root-mean-square and max absolute error of the used quotes, decimal vol.
+    rmse:double;
+    max_abs_error:double;
+    /// Constraint margins, rhs - lhs, >= 0 when satisfied (see ssvi_calibrator.h).
+    margin_butterfly_psi:double;
+    margin_butterfly_psi2:double;
+    /// Calendar margins versus the previous slice; absent on the first slice.
+    margin_calendar_theta:double = null;
+    margin_calendar_psi:double = null;
+    margin_calendar_a:double = null;
+    /// Put-call pairs (common strikes) behind pcp_forward, after outlier rejection; 0 when the
+    /// forward is the curve forward.
+    parity_pairs_used:uint;
+    /// Pairs dropped as outliers: further than max(5 * 1.4826 MAD, 1e-4 pcp_forward) from the
+    /// median pair forward (only with >= 3 pairs). Both quotes are excluded as "parity_outlier".
+    parity_pairs_rejected:uint;
+}
+
+/// One input quote of /calibrate-equity-vol with its fit residual.
+table EquityVolQuoteDiagnostics {
+    expiry_date:string (required);
+    strike:double;
+    option_type:enums.EquityOptionType;
+    /// Implied vol of the quote (decimal); absent when it could not be solved (unused quotes).
+    market_vol:double = null;
+    model_vol:double;
+    /// model_vol - market_vol, decimal vol; absent with market_vol.
+    residual:double = null;
+    /// The user weight of the quote.
+    weight:double;
+    used:bool;
+    /// Empty for used quotes. Otherwise the first that applies:
+    ///   price_outside_bounds      price outside (intrinsic, D F) for a call or (intrinsic, D K)
+    ///                             for a put at the slice forward F;
+    ///   parity_outlier            one of a put-call pair rejected from the parity forward;
+    ///   implied_vol_not_solved    the implied-vol solve failed;
+    ///   in_the_money_side         the out-of-the-money quote of the same strike is used instead;
+    ///   max_abs_log_moneyness     |ln(K / F)| beyond SsviFitSpec.max_abs_log_moneyness;
+    ///   implied_vol_not_positive  implied total variance is not > 0;
+    ///   ask_not_above_bid         BidAsk weighting and ask <= bid.
+    /// A slice needs at least 3 used quotes, otherwise the request is rejected.
+    exclusion_reason:string;
+}
+
+/// Diagnostics block of /calibrate-equity-vol.
+table EquityVolDiagnostics {
+    slices:[EquityVolSliceDiagnostics];
+    quotes:[EquityVolQuoteDiagnostics];
+    /// Quotes dropped for |k| > max_abs_log_moneyness.
+    excluded_by_moneyness:int;
+    overall_rmse:double;
+    overall_max_abs_error:double;
+    /// Arbitrage violations found after the fit (empty on success).
+    violations:[string];
+    /// Minimum of the Durrleman function g(k, k) and of dw/dt over the scan grid, with the
+    /// (t, k) where they occur.
+    scan_min_g:double;
+    scan_min_g_t:double;
+    scan_min_g_k:double;
+    scan_min_w_t:double;
+    scan_min_w_t_t:double;
+    scan_min_w_t_k:double;
+}

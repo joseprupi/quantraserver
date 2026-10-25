@@ -61,6 +61,7 @@
 #include <ql/quotes/simplequote.hpp>
 #include <ql/settings.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
+#include <ql/termstructures/volatility/equityfx/blackvariancesurface.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
@@ -628,6 +629,110 @@ TEST_F(StructuredNoteCollapseTest, MarketDependentRulesAre400s) {
     t.maturityPaymentDate = pay1y;
     t.underlyings[0].historicalLevels.push_back({pay1y, 100.0});
     expect400(t, "historical_levels[0].date: 2027-10-28 is after the valuation date");
+}
+
+// Input guards: vol-shape allow-list, discrete dividends, local-variance scan.
+class StructuredNoteGuardsTest : public ::testing::Test {
+protected:
+    const Date valuation{21, QuantLib::October, 2026};
+    const Date obs6m{21, QuantLib::April, 2027};
+    const Date pay6m{28, QuantLib::April, 2027};
+    const Date obs1y{21, QuantLib::October, 2027};
+    const Date pay1y{28, QuantLib::October, 2027};
+
+    /// One SPX underlying whose vol is a strike x expiry surface (flat in
+    /// strike, `vol6m` to 6M and `vol1y` to 1Y): the shape is SmileCube3D, so
+    /// the note is simulated with Dupire local vol.
+    static void useSurface(NoteMarket& m, double vol6m, double vol1y) {
+        const Date& asOf = m.asOf;
+        const std::vector<Date> expiries = {
+            Date(21, QuantLib::April, 2027), Date(21, QuantLib::October, 2027)};
+        const std::vector<double> strikes = {60.0, 100.0, 160.0};
+        QuantLib::Matrix vols(strikes.size(), expiries.size());
+        for (std::size_t i = 0; i < strikes.size(); ++i) {
+            vols[i][0] = vol6m;
+            vols[i][1] = vol1y;
+        }
+        auto surface = std::make_shared<QuantLib::BlackVarianceSurface>(
+            asOf, QuantLib::NullCalendar(), expiries, strikes, vols, m.dc);
+        surface->enableExtrapolation();
+        BlackVolEntry& v = m.reg.volatility.blackVols.at("SPX_VOL");
+        v.handle = Handle<QuantLib::BlackVolTermStructure>(surface);
+        v.shapeFb = quantra::enums::VolSurfaceShape_SmileCube3D;
+    }
+
+    StructuredNoteTrade surfaceNote() const {
+        auto t = baseTrade({"SPX"}, "");
+        t.events.push_back(event(obs6m, pay6m, std::nullopt, 0.0, 0.02));
+        t.events.push_back(event(obs1y, pay1y, 1.0, std::nullopt, 0.05));
+        t.maturityPaymentDate = pay1y;
+        t.monteCarlo.paths = 1 << 10;
+        t.monteCarlo.stepsPerYear = 12;
+        return t;
+    }
+
+    static void expect400Containing(
+        const NoteMarket& m,
+        const StructuredNoteTrade& t,
+        const std::vector<std::string>& needles) {
+        try {
+            price(m, t);
+            FAIL() << "expected a 400";
+        } catch (const QuantraInvalidArgument& e) {
+            const std::string what = e.what();
+            for (const auto& n : needles)
+                EXPECT_NE(what.find(n), std::string::npos) << "'" << n << "' not in: " << what;
+        }
+    }
+};
+
+TEST_F(StructuredNoteGuardsTest, VolShapeOutsideTheAllowListIs400) {
+    NoteMarket m(valuation);
+    m.addUnderlying("SPX", kSpot, 0.01, 0.25);
+    // A shape no note can simulate (stands for the SSVI shapes of 0.14.0).
+    m.reg.volatility.blackVols.at("SPX_VOL").shapeFb =
+        static_cast<quantra::enums::VolSurfaceShape>(99);
+    auto t = baseTrade({"SPX"}, "");
+    t.events.push_back(event(obs1y, pay1y, 1.0, std::nullopt, 0.05));
+    t.maturityPaymentDate = pay1y;
+    expect400Containing(
+        m, t,
+        {"notes[0].underlyings[0].volatility_id 'SPX_VOL' (underlying 'SPX')", "vol shape 99",
+         "arrive with the LocalVol kernel in 0.15.0"});
+}
+
+TEST_F(StructuredNoteGuardsTest, DiscreteDividendsAre400) {
+    NoteMarket m(valuation);
+    m.addUnderlying("SPX", kSpot, 0.01, 0.25);
+    auto& eq = m.reg.equity.equityUnderlyings.at("SPX");
+    eq.discreteDividendDates.push_back(Date(15, QuantLib::April, 2027));
+    eq.discreteDividendAmounts.push_back(2.5);
+    auto t = baseTrade({"SPX"}, "");
+    t.events.push_back(event(obs1y, pay1y, 1.0, std::nullopt, 0.05));
+    t.maturityPaymentDate = pay1y;
+    expect400Containing(
+        m, t,
+        {"notes[0].underlyings[0].underlying_id 'SPX'", "1 discrete dividend(s)",
+         "only through the dividend-yield curve", "fold the cash dividends"});
+}
+
+TEST_F(StructuredNoteGuardsTest, ScanRejectsACalendarArbitragedSurfaceNamingTimeAndStrike) {
+    NoteMarket m(valuation);
+    m.addUnderlying("SPX", kSpot, 0.01, 0.25);
+    useSurface(m, 0.40, 0.15); // total variance 0.08 at 6M, 0.0225 at 1Y
+    expect400Containing(
+        m, surfaceNote(),
+        {"notes[0].underlyings[0].volatility_id 'SPX_VOL' (underlying 'SPX')", "at t = 0.4986",
+         "(2027-04-21), K = ", "decreasing variance", "calendar or butterfly arbitrage"});
+}
+
+TEST_F(StructuredNoteGuardsTest, ScanAcceptsAnArbitrageFreeSurface) {
+    NoteMarket m(valuation);
+    m.addUnderlying("SPX", kSpot, 0.01, 0.25);
+    useSurface(m, 0.20, 0.25);
+    const NoteResultRow r = price(m, surfaceNote());
+    EXPECT_TRUE(std::isfinite(r.npv));
+    EXPECT_GT(r.npv, 0.0);
 }
 
 class StructuredNoteDiagnosticsTest : public ::testing::Test {

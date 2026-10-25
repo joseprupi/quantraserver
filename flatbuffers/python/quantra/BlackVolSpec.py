@@ -183,6 +183,8 @@ class BlackVolSpec(object):
         return 0
 
     # Spot level for implied-vol inversion. Optional if spot_quote_id is provided.
+    # For the SSVI shapes it is the snapshot spot S0 that defines the reference forward F_ref
+    # (see ssvi_slices).
     # BlackVolSpec
     def Spot(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
@@ -190,7 +192,7 @@ class BlackVolSpec(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Optional: resolve spot from pricing.quotes.
+    # Optional: resolve spot from pricing.quotes. Also defines F_ref for the SSVI shapes.
     # BlackVolSpec
     def SpotQuoteId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
@@ -198,7 +200,8 @@ class BlackVolSpec(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Discount curve id in pricing.curves used for implied-vol inversion.
+    # Discount curve id in pricing.curves used for implied-vol inversion. For the SSVI shapes
+    # it also discounts the option prices and defines F_ref.
     # BlackVolSpec
     def DiscountCurveId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
@@ -222,7 +225,8 @@ class BlackVolSpec(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Dividend yield curve id in pricing.curves used for implied-vol inversion.
+    # Dividend yield curve id in pricing.curves used for implied-vol inversion. For the SSVI
+    # shapes it also defines F_ref (see ssvi_slices).
     # BlackVolSpec
     def DividendCurveId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(32))
@@ -280,8 +284,79 @@ class BlackVolSpec(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 2
 
+    # eSSVI slices, strictly increasing expiry. Used only when base.shape=SsviParams.
+    # Reference forward F_ref(T): if every slice carries `forward`, F_ref is built from them
+    # (implied dividend discount curve Dq(T_i) = F_i Dr(T_i) / S0, log-linear in discount, flat
+    # forward beyond the last slice); if none does, F_ref = S0 Dq(T) / Dr(T) from the spec spot,
+    # dividend and discount curves; a mix is rejected. For shape=SsviCalibrate F_ref comes from
+    # the calibrated forwards in the same way; there the dividend curve is optional: with none,
+    # every expiry needs call and put quotes at >= 2 common strikes (put-call-parity forward),
+    # else the request is rejected.
+    # BlackVolSpec
+    def SsviSlices(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(46))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra.SsviSlice import SsviSlice
+            obj = SsviSlice()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # BlackVolSpec
+    def SsviSlicesLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(46))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # BlackVolSpec
+    def SsviSlicesIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(46))
+        return o == 0
+
+    # Option quotes to fit. Used only when base.shape=SsviCalibrate.
+    # BlackVolSpec
+    def OptionQuotes(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(48))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra.EquityOptionQuote import EquityOptionQuote
+            obj = EquityOptionQuote()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # BlackVolSpec
+    def OptionQuotesLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(48))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # BlackVolSpec
+    def OptionQuotesIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(48))
+        return o == 0
+
+    # Calibration settings. Used only when base.shape=SsviCalibrate (defaults apply if absent).
+    # BlackVolSpec
+    def SsviFit(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(50))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.SsviFitSpec import SsviFitSpec
+            obj = SsviFitSpec()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
 def BlackVolSpecStart(builder):
-    builder.StartObject(21)
+    builder.StartObject(24)
 
 def Start(builder):
     BlackVolSpecStart(builder)
@@ -436,6 +511,36 @@ def BlackVolSpecAddStrikeInterpolator(builder, strikeInterpolator):
 def AddStrikeInterpolator(builder, strikeInterpolator):
     BlackVolSpecAddStrikeInterpolator(builder, strikeInterpolator)
 
+def BlackVolSpecAddSsviSlices(builder, ssviSlices):
+    builder.PrependUOffsetTRelativeSlot(21, flatbuffers.number_types.UOffsetTFlags.py_type(ssviSlices), 0)
+
+def AddSsviSlices(builder, ssviSlices):
+    BlackVolSpecAddSsviSlices(builder, ssviSlices)
+
+def BlackVolSpecStartSsviSlicesVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartSsviSlicesVector(builder, numElems):
+    return BlackVolSpecStartSsviSlicesVector(builder, numElems)
+
+def BlackVolSpecAddOptionQuotes(builder, optionQuotes):
+    builder.PrependUOffsetTRelativeSlot(22, flatbuffers.number_types.UOffsetTFlags.py_type(optionQuotes), 0)
+
+def AddOptionQuotes(builder, optionQuotes):
+    BlackVolSpecAddOptionQuotes(builder, optionQuotes)
+
+def BlackVolSpecStartOptionQuotesVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartOptionQuotesVector(builder, numElems):
+    return BlackVolSpecStartOptionQuotesVector(builder, numElems)
+
+def BlackVolSpecAddSsviFit(builder, ssviFit):
+    builder.PrependUOffsetTRelativeSlot(23, flatbuffers.number_types.UOffsetTFlags.py_type(ssviFit), 0)
+
+def AddSsviFit(builder, ssviFit):
+    BlackVolSpecAddSsviFit(builder, ssviFit)
+
 def BlackVolSpecEnd(builder):
     return builder.EndObject()
 
@@ -472,6 +577,9 @@ class BlackVolSpecT(object):
         self.surfaceInterpolator = 0  # type: int
         self.expiryInterpolator = 2  # type: int
         self.strikeInterpolator = 2  # type: int
+        self.ssviSlices = None  # type: List[SsviSliceT]
+        self.optionQuotes = None  # type: List[EquityOptionQuoteT]
+        self.ssviFit = None  # type: Optional[SsviFitSpecT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -541,6 +649,24 @@ class BlackVolSpecT(object):
         self.surfaceInterpolator = blackVolSpec.SurfaceInterpolator()
         self.expiryInterpolator = blackVolSpec.ExpiryInterpolator()
         self.strikeInterpolator = blackVolSpec.StrikeInterpolator()
+        if not blackVolSpec.SsviSlicesIsNone():
+            self.ssviSlices = []
+            for i in range(blackVolSpec.SsviSlicesLength()):
+                if blackVolSpec.SsviSlices(i) is None:
+                    self.ssviSlices.append(None)
+                else:
+                    ssviSlice_ = SsviSliceT.InitFromObj(blackVolSpec.SsviSlices(i))
+                    self.ssviSlices.append(ssviSlice_)
+        if not blackVolSpec.OptionQuotesIsNone():
+            self.optionQuotes = []
+            for i in range(blackVolSpec.OptionQuotesLength()):
+                if blackVolSpec.OptionQuotes(i) is None:
+                    self.optionQuotes.append(None)
+                else:
+                    equityOptionQuote_ = EquityOptionQuoteT.InitFromObj(blackVolSpec.OptionQuotes(i))
+                    self.optionQuotes.append(equityOptionQuote_)
+        if blackVolSpec.SsviFit() is not None:
+            self.ssviFit = SsviFitSpecT.InitFromObj(blackVolSpec.SsviFit())
 
     # BlackVolSpecT
     def Pack(self, builder):
@@ -590,6 +716,24 @@ class BlackVolSpecT(object):
             discountCurveId = builder.CreateString(self.discountCurveId)
         if self.dividendCurveId is not None:
             dividendCurveId = builder.CreateString(self.dividendCurveId)
+        if self.ssviSlices is not None:
+            ssviSliceslist = []
+            for i in range(len(self.ssviSlices)):
+                ssviSliceslist.append(self.ssviSlices[i].Pack(builder))
+            BlackVolSpecStartSsviSlicesVector(builder, len(self.ssviSlices))
+            for i in reversed(range(len(self.ssviSlices))):
+                builder.PrependUOffsetTRelative(ssviSliceslist[i])
+            ssviSlices = builder.EndVector()
+        if self.optionQuotes is not None:
+            optionQuoteslist = []
+            for i in range(len(self.optionQuotes)):
+                optionQuoteslist.append(self.optionQuotes[i].Pack(builder))
+            BlackVolSpecStartOptionQuotesVector(builder, len(self.optionQuotes))
+            for i in reversed(range(len(self.optionQuotes))):
+                builder.PrependUOffsetTRelative(optionQuoteslist[i])
+            optionQuotes = builder.EndVector()
+        if self.ssviFit is not None:
+            ssviFit = self.ssviFit.Pack(builder)
         BlackVolSpecStart(builder)
         if self.base is not None:
             BlackVolSpecAddBase(builder, base)
@@ -623,5 +767,11 @@ class BlackVolSpecT(object):
         BlackVolSpecAddSurfaceInterpolator(builder, self.surfaceInterpolator)
         BlackVolSpecAddExpiryInterpolator(builder, self.expiryInterpolator)
         BlackVolSpecAddStrikeInterpolator(builder, self.strikeInterpolator)
+        if self.ssviSlices is not None:
+            BlackVolSpecAddSsviSlices(builder, ssviSlices)
+        if self.optionQuotes is not None:
+            BlackVolSpecAddOptionQuotes(builder, optionQuotes)
+        if self.ssviFit is not None:
+            BlackVolSpecAddSsviFit(builder, ssviFit)
         blackVolSpec = BlackVolSpecEnd(builder)
         return blackVolSpec

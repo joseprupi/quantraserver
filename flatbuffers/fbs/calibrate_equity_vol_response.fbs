@@ -1,0 +1,20 @@
+include "diagnostics.fbs";
+include "volatility.fbs";
+
+namespace quantra;
+
+/// Response from /calibrate-equity-vol.
+///
+/// `slices` carry theta, rho, psi and the fitted forward on every slice, so
+/// pasting them into a BlackVolSpec with shape=SsviParams reproduces the
+/// calibrated surface exactly.
+table CalibrateEquityVolResponse {
+    /// Vol id requested for calibration, echoed for client correlation.
+    vol_id:string (required);
+    /// Calibrated eSSVI slices, increasing expiry.
+    slices:[SsviSlice];
+    /// Fit diagnostics: forwards, anchors, per-quote residuals, constraint margins, scan minima.
+    diagnostics:EquityVolDiagnostics (required);
+}
+
+root_type CalibrateEquityVolResponse;

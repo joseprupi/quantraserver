@@ -1,0 +1,176 @@
+{
+  "pricing": {
+    "as_of_date": "2026-10-21",
+    "quotes": [
+      {
+        "id": "SPX_SPOT",
+        "kind": "Price",
+        "value": 6000.0,
+        "quote_type": "Curve"
+      }
+    ],
+    "rates": {
+      "curves": [
+        {
+          "id": "usd_risk_free",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2026-10-21",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.04,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-10-21"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.04,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2036-10-21"
+              }
+            }
+          ]
+        },
+        {
+          "id": "spx_dividend_yield",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2026-10-21",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.013,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-10-21"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.013,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2036-10-21"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "volatility": {
+      "vol_surfaces": [
+        {
+          "id": "spx_ssvi",
+          "payload_type": "BlackVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-10-21",
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "shape": "SsviParams"
+            },
+            "spot_quote_id": "SPX_SPOT",
+            "discount_curve_id": "usd_risk_free",
+            "ssvi_slices": [
+              {
+                "expiry_date": "2026-11-20",
+                "theta": 0.002237671233,
+                "rho": -0.75,
+                "psi": 0.045,
+                "forward": 6013.58
+              },
+              {
+                "expiry_date": "2027-01-21",
+                "theta": 0.007719178082,
+                "rho": -0.72,
+                "psi": 0.095,
+                "forward": 6040.21
+              },
+              {
+                "expiry_date": "2027-04-21",
+                "theta": 0.016516624658,
+                "rho": -0.7,
+                "psi": 0.14,
+                "forward": 6078.29
+              },
+              {
+                "expiry_date": "2027-10-21",
+                "theta": 0.035344,
+                "rho": -0.68,
+                "psi": 0.2,
+                "forward": 6154.97
+              },
+              {
+                "expiry_date": "2028-10-20",
+                "theta": 0.073728,
+                "rho": -0.65,
+                "psi": 0.28,
+                "forward": 6307.63
+              }
+            ]
+          }
+        }
+      ],
+      "models": [
+        {
+          "id": "bs_analytic",
+          "payload_type": "EquityVanillaModelSpec",
+          "payload": {
+            "model_type": "BlackScholesAnalytic"
+          }
+        }
+      ]
+    },
+    "equity": {
+      "equity_underlyings": [
+        {
+          "id": "SPX",
+          "currency": "USD",
+          "spot_quote_id": "SPX_SPOT",
+          "dividend_yield_curve_id": "spx_dividend_yield"
+        }
+      ]
+    }
+  },
+  "options": [
+    {
+      "option": {
+        "trade_id": "SPX_CALL_6100_JUL27",
+        "underlying_id": "SPX",
+        "quantity": 1.0,
+        "settlement": "Physical",
+        "payoff_type": "EquityPlainVanillaPayoff",
+        "payoff": {
+          "option_type": "Call",
+          "strike": 6100.0
+        },
+        "exercise_type": "EquityEuropeanExercise",
+        "exercise": {
+          "expiry_date": "2027-07-21"
+        }
+      },
+      "discounting_curve": "usd_risk_free",
+      "volatility": "spx_ssvi",
+      "model": "bs_analytic"
+    }
+  ]
+}
