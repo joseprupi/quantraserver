@@ -271,7 +271,21 @@ enum VolSurfaceShape : byte {
     SmileCube3D = 2,
     SurfaceFromPrices = 3,
     SabrParams = 4,
-    SabrCalibrate = 5
+    SabrCalibrate = 5,
+    /// Equity eSSVI surface from user-supplied slice parameters (BlackVolSpec.ssvi_slices).
+    SsviParams = 6,
+    /// Equity eSSVI surface calibrated from option quotes (BlackVolSpec.option_quotes).
+    SsviCalibrate = 7
+}
+
+/// Quote weighting used by the eSSVI calibrator.
+enum SsviQuoteWeighting : byte {
+    /// Every quote counts equally (times its own weight).
+    Uniform = 0,
+    /// Weight by Black vega at the market vol.
+    Vega = 1,
+    /// Weight by 1 / (bid-ask spread in vol units)^2. Needs bid and ask on the quotes.
+    BidAsk = 2
 }
 
 /// Pricing formula (engine) for year-on-year inflation caps/floors. Selects the

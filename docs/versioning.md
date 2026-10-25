@@ -26,6 +26,125 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.14.0 (October 2026) — Arbitrage-free SSVI equity vol surfaces
+
+`v0.14.0` is a MINOR release: one new endpoint, two new `VolSurfaceShape`
+values and the tables behind them, and two input checks on structured notes
+that turn a silent mis-pricing into a `400`. Apart from those two checks
+(see "Compatibility") nothing that existed in 0.13.1 changes shape, value or
+status code. QuantLib stays at 1.44.
+
+**New vol surface shapes** (`BlackVolSpec.base.shape`):
+
+- `SsviParams` (`VolSurfaceShape` 6): an eSSVI surface from slice parameters
+  `theta`, `rho`, `psi` per expiry (`BlackVolSpec.ssvi_slices`), optionally
+  with the forward each slice is expressed against.
+- `SsviCalibrate` (`VolSurfaceShape` 7): the slices fitted from option quotes
+  (`BlackVolSpec.option_quotes`, settings in `ssvi_fit`) following Corbetta,
+  Cohort, Laachir and Martini 2019 (arXiv:1804.04924): the forward from
+  put-call parity, an at-the-money anchor, a grid over `rho` and a Brent
+  minimisation over `psi` inside the arbitrage bounds.
+
+Total variance is `w(k) = 1/2 (theta + rho psi k + sqrt((psi k + rho theta)^2
++ theta^2 (1 - rho^2)))` in `k = ln(K / F_ref(T))`; `theta`, `psi` and
+`rho psi` are linear in time between slices. `F_ref` is built from the slice
+forwards when every slice has one (an implied dividend curve) and from the
+spec's spot, dividend and discount curves otherwise; a mix is a `400`. A
+surface that admits butterfly or calendar arbitrage is a `400` naming each
+violated condition (`butterfly_psi`, `butterfly_psi2`, `calendar_theta`,
+`calendar_psi`, `calendar_a`, `calendar_sufficient`) or the numeric scan
+that failed. The equity option endpoint prices on either shape, and
+`/sample-vol-surfaces` samples them (`EquityBlack`). `docs/http-api.md`,
+"Equity SSVI volatility surfaces", has the fields, the interpolation, the
+forward rule and the checks.
+
+**New endpoint: `POST /calibrate-equity-vol`** (gRPC `CalibrateEquityVol`,
+request `CalibrateEquityVolRequest`, response `CalibrateEquityVolResponse`).
+It fits the `SsviCalibrate` surface `vol_id` and returns the slices with
+their fitted `forward` on every slice, so pasting them as `ssvi_slices` of a
+`SsviParams` spec on the same market reproduces the surface, and an
+`EquityVolDiagnostics` block: per-slice forwards (parity and curve), implied
+dividend yield, anchor, used and excluded quotes, RMSE, the constraint
+margins, per-quote residuals, the arbitrage violations (empty on success) and
+the minima of the Durrleman function and of `dw/dt` over a scan grid.
+The dividend curve of a `SsviCalibrate` surface is optional: without it
+every expiry needs a call and a put at two or more common strikes (put-call
+parity gives the forward), otherwise the request is a `400` naming the
+expiry, and `curve_forward` is absent from the diagnostics. A single bad
+quote does not fail the request: a premium outside the no-arbitrage bounds,
+an implied vol that cannot be solved or is not positive, and a bid and ask
+that are not ordered are excluded with a reason (`price_outside_bounds`,
+`implied_vol_not_solved`, `implied_vol_not_positive`, `ask_not_above_bid`).
+The put-call parity forward is robust: the median of the per-pair forwards,
+with outlying pairs rejected as `parity_outlier` (reported in the slice
+diagnostics `parity_pairs_used` and `parity_pairs_rejected`). A slice needs
+at least three used quotes, otherwise the request is a `400`.
+Calibrations can be cached (`QUANTRA_SSVI_CACHE_ENABLED=1`; off by default,
+on in the container image).
+Clients: C++ `CalibrateEquityVol` / `CalibrateEquityVolJSON`, Python
+`calibrate_equity_vol`.
+
+**Compatibility.** The schema changes are append-only: `SsviParams = 6` and
+`SsviCalibrate = 7` after the existing `VolSurfaceShape` values; the new
+enum `SsviQuoteWeighting`; the new tables `EquityOptionQuote`, `SsviSlice`,
+`SsviFitSpec`, `EquityVolSliceDiagnostics`, `EquityVolQuoteDiagnostics` and
+`EquityVolDiagnostics`; `ssvi_slices`, `option_quotes` and `ssvi_fit` at the
+end of `BlackVolSpec`; and the two new request / response tables. A 0.13.1
+request is a valid 0.14.0 request with the same response, with two
+exceptions on `/price-structured-note`, both of which used to price
+something other than what the request described:
+
+- An underlying that declares `discrete_dividends` is now a `400` (it was
+  priced with the dividends silently ignored: a note takes dividends only
+  through the dividend-yield curve).
+- A strike x expiry surface (`SmileCube3D`, `SurfaceFromPrices`) whose Dupire
+  local variance is not defined anywhere on the grid times
+  `F e^(+-5 sigma sqrt(t))` is now a `400` up front that names the vol id,
+  the time and the strike.
+
+An SSVI shape on a structured note is also a `400` (the note's local-vol
+kernel for it arrives with 0.15.0); it could not be sent before 0.14.0.
+No shipped example or probe is affected by the two behaviour changes.
+
+**Verification.** (1) C++ parity tests: the eSSVI total variance against the
+Gatheral-Jacquier form, the analytic derivatives against finite differences,
+the time interpolation, the arbitrage conditions and the scan, the analytic
+Dupire local vol against QuantLib's `LocalVolSurface`, the calibrator on
+prices, on vols, with noise, with calendar arbitrage in the data and with
+each weighting, and the endpoint through the wire. (2) Python reference
+(`tests/contract/ql_reference.py`, `SsviReferenceSurface`): an independent
+rebuild of the surface and of the reference forward, against which an equity
+option on `SsviParams` (NPV and delta, gamma, vega, theta, rho; pillar,
+between-slice, before-first and after-last expiries, with and without slice
+forwards) and `/sample-vol-surfaces` agree with the server to the 12 decimals
+the gateway prints. (3) Calibration recovery: quotes generated in Python from
+a known surface, as premiums and as implied vols, come back as the
+generating `theta`, `rho`, `psi` and forwards to 1e-10 or better, with no
+violation; the response slices pasted back as `SsviParams` price like the
+`SsviCalibrate` surface. (4) Two functional-catalog cases (family "Equity"
+and "Vol / Calibration") and the error-contract scenarios for every
+rejection above.
+
+**Examples.** `examples/data/equity_vol/`: a calibration request on synthetic
+SPX-like quotes (five expiries, calls and puts with bid and ask) and an equity
+option priced on the matching `SsviParams` surface. The quotes are synthetic
+placeholders, not market data.
+
+**Known limits.** The calibrator pins the variance of the quote closest to
+the money (its anchor) exactly, so quotes generated from a known surface are
+recovered to about 1e-10 whether or not a strike sits at the forward. On market
+quotes the fit residuals are
+the diagnostics' `rmse` and `max_abs_error`. SSVI surfaces on structured
+notes wait for 0.15.0. The Python reference prices plain European options on
+`SsviParams` only, and has no calibrator: the recovery tests and the
+catalog case generate their quotes from a known surface.
+
+**Migration.** None unless a note request declared discrete dividends or
+used a strike x expiry surface with local-variance arbitrage: fold the cash
+dividends into the underlying's dividend-yield curve and repair the surface
+(the error names the vol id, time and strike). The OpenAPI document gains
+the endpoint and its components; `/meta` reports `0.14.0`.
+
 ## Version 0.13.1 (October 2026) — Non-finite responses, holiday valuation with deposit helpers, bounded Hull-White calibration
 
 `v0.13.1` is a PATCH release: three fixes, no request shape changes. Every

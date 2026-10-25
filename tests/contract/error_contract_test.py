@@ -1059,6 +1059,151 @@ def _ec_sn_drop_equity_currency(underlying_id):
     return f
 
 
+def _ec_sn_discrete_dividend(underlying_id):
+    """Declare a discrete cash dividend on the equity underlying `underlying_id`."""
+    def f(req):
+        for u in req["pricing"]["equity"]["equity_underlyings"]:
+            if u["id"] == underlying_id:
+                u["discrete_dividends"] = [{"ex_date": "2027-03-15", "amount": 50.0}]
+        return req
+    return f
+
+
+def _ec_sn_arbitraged_surface(vol_id):
+    """Replace the BlackVolSpec `vol_id` by a SmileCube3D whose total variance
+    falls from 1Y (vol 0.40) to 2Y (vol 0.15): a calendar arbitrage. A surface
+    needs `steps_per_year` on the note."""
+    def f(req):
+        for v in req["pricing"]["volatility"]["vol_surfaces"]:
+            if v["id"] == vol_id:
+                base = v["payload"]["base"]
+                base["shape"] = "SmileCube3D"
+                base.pop("constant_vol", None)
+                v["payload"] = {
+                    "base": base,
+                    "expiries": [{"n": 1, "unit": "Years"}, {"n": 2, "unit": "Years"}],
+                    "strikes": [3000.0, 6000.0, 12000.0],
+                    "surface_vols": {"n_rows": 2, "n_cols": 3,
+                                     "values": [0.40, 0.40, 0.40, 0.15, 0.15, 0.15]},
+                    "surface_interpolator": "Bilinear",
+                    "allow_extrapolation": True,
+                }
+        req["notes"][0]["monte_carlo"]["steps_per_year"] = 12
+        return req
+    return f
+
+
+_EC_EQV_OPTION = "equity_vol/price_equity_option_ssvi_params.json"
+_EC_EQV_CALIBRATE = "equity_vol/calibrate_equity_vol_spx_like.json"
+
+
+def _ec_eqv_payload(req, vol_id="spx_ssvi"):
+    """The BlackVolSpec payload `vol_id` of an equity_vol example request."""
+    for v in req["pricing"]["volatility"]["vol_surfaces"]:
+        if v["id"] == vol_id:
+            return v["payload"]
+    raise AssertionError(f"no vol {vol_id} in request")
+
+
+def _ec_eqv_slice(index, field, value=None, drop=False):
+    """Set (or drop) a field of ssvi_slices[index] of the SsviParams example."""
+    def f(req):
+        s = _ec_eqv_payload(req)["ssvi_slices"][index]
+        if drop:
+            s.pop(field, None)
+        else:
+            s[field] = value
+        return req
+    return f
+
+
+def _ec_eqv_slice_copy(index, field, from_index, factor=1.0):
+    """ssvi_slices[index][field] = factor * ssvi_slices[from_index][field]."""
+    def f(req):
+        slices = _ec_eqv_payload(req)["ssvi_slices"]
+        slices[index][field] = slices[from_index][field] * factor
+        return req
+    return f
+
+
+def _ec_eqv_expiry_copy(index, from_index):
+    def f(req):
+        slices = _ec_eqv_payload(req)["ssvi_slices"]
+        slices[index]["expiry_date"] = slices[from_index]["expiry_date"]
+        return req
+    return f
+
+
+def _ec_eqv_no_quote_within_moneyness():
+    """max_abs_log_moneyness 1e-6: no strike is that close to its forward, so
+    no quote of any expiry is usable."""
+    def f(req):
+        payload = _ec_eqv_payload(req)
+        payload["ssvi_fit"] = {"weighting": "Vega", "max_abs_log_moneyness": 1e-6}
+        return req
+    return f
+
+
+def _ec_eqv_no_dividend_no_parity_pair():
+    """Drop the dividend curve and every call of the first expiry: that
+    expiry has neither a parity pair nor a curve forward."""
+    def f(req):
+        payload = _ec_eqv_payload(req)
+        payload.pop("dividend_curve_id", None)
+        first = payload["option_quotes"][0]["expiry_date"]
+        payload["option_quotes"] = [
+            q for q in payload["option_quotes"]
+            if not (q["expiry_date"] == first and q["option_type"] == "Call")]
+        return req
+    return f
+
+
+def _ec_eqv_vol_id(vol_id):
+    def f(req):
+        req["vol_id"] = vol_id
+        return req
+    return f
+
+
+def _ec_eqv_drop_vol_id():
+    def f(req):
+        req.pop("vol_id", None)
+        return req
+    return f
+
+
+def _ec_eqv_constant_vol_target():
+    """Point vol_id at a Constant BlackVolSpec added to the pricing."""
+    def f(req):
+        base = dict(_ec_eqv_payload(req)["base"], shape="Constant", constant_vol=0.2)
+        req["pricing"]["volatility"]["vol_surfaces"].append(
+            {"id": "flat_vol", "payload_type": "BlackVolSpec", "payload": {"base": base}})
+        req["vol_id"] = "flat_vol"
+        return req
+    return f
+
+
+def _ec_sn_ssvi_vol(vol_id):
+    """Replace the BlackVolSpec `vol_id` of the structured-note request by a
+    valid shape=SsviParams surface (two arbitrage-free slices)."""
+    def f(req):
+        for v in req["pricing"]["volatility"]["vol_surfaces"]:
+            if v["id"] == vol_id:
+                base = dict(v["payload"]["base"], shape="SsviParams")
+                base.pop("constant_vol", None)
+                v["payload"] = {
+                    "base": base, "spot_quote_id": "SPX_SPOT",
+                    "discount_curve_id": "USD_SOFR_OIS",
+                    "dividend_curve_id": "SPX_DIV",
+                    "ssvi_slices": [
+                        {"expiry_date": "2027-04-21", "theta": 0.0198, "rho": -0.7,
+                         "psi": 0.12},
+                        {"expiry_date": "2028-10-20", "theta": 0.0792, "rho": -0.65,
+                         "psi": 0.26}]}
+        return req
+    return f
+
+
 def _ec_sn_greeks_on_called():
     """Every historical close above its initial level: the past observation
     calls the note; then ask for Greeks."""
@@ -2330,6 +2475,16 @@ SCENARIOS = [
      _ec_sn_drop_equity_currency("SPX"),
      _ec_body_contains("notes[0].underlyings[1].underlying_id 'SPX': "
                        "pricing.equity.equity_underlyings[].currency is required")),
+    ("ec:400 structured note underlying with discrete dividends", "structured_note", _EC_SN, 400,
+     _ec_sn_discrete_dividend("SPX"),
+     _ec_body_contains_all("notes[0].underlyings[1].underlying_id 'SPX'",
+                           "1 discrete dividend(s)",
+                           "only through the dividend-yield curve")),
+    ("ec:400 structured note vol surface with calendar arbitrage", "structured_note", _EC_SN, 400,
+     _ec_sn_arbitraged_surface("SPX_VOL"),
+     _ec_body_contains_all("notes[0].underlyings[1].volatility_id 'SPX_VOL' (underlying 'SPX')",
+                           "the local volatility cannot be evaluated at t = ", "K = ",
+                           "calendar or butterfly arbitrage")),
     # diagnostics
     ("ec:400 structured note sample_paths above the cap", "structured_note", _EC_SN, 400,
      _ec_sn_top("diagnostics", {"distribution": True, "sample_paths": 101}),
@@ -2394,6 +2549,37 @@ SCENARIOS = [
      _ec_bootstrap_overflowing_zero_curve(),
      _ec_body_is_error_json(
          "non-finite value in response at results[0].series[0].values[1]")),
+    # SSVI equity vol surfaces
+    ("ec:400 SsviParams butterfly violation names the condition", "equity_option", _EC_EQV_OPTION, 400,
+     _ec_eqv_slice(0, "psi", 5.0),
+     _ec_body_contains_all("SSVI surface admits arbitrage", "butterfly_psi at slice 0")),
+    ("ec:400 SsviParams calendar violation names the condition", "equity_option", _EC_EQV_OPTION, 400,
+     _ec_eqv_slice_copy(2, "theta", 1, 0.9),
+     _ec_body_contains_all("SSVI surface admits arbitrage", "calendar_theta at slice 2 vs slice 1")),
+    ("ec:400 SsviParams forward on some slices only", "equity_option", _EC_EQV_OPTION, 400,
+     _ec_eqv_slice(1, "forward", drop=True),
+     _ec_body_contains("forward must be given on every slice or on none")),
+    ("ec:400 SsviParams non-increasing expiries", "equity_option", _EC_EQV_OPTION, 400,
+     _ec_eqv_expiry_copy(1, 0),
+     _ec_body_contains("expiry_date must be strictly increasing")),
+    ("ec:400 SsviCalibrate without a usable quote", "calibrate_equity_vol", _EC_EQV_CALIBRATE, 400,
+     _ec_eqv_no_quote_within_moneyness(),
+     _ec_body_contains("at least 3 are required")),
+    ("ec:400 SsviCalibrate without dividend curve or parity pair", "calibrate_equity_vol", _EC_EQV_CALIBRATE, 400,
+     _ec_eqv_no_dividend_no_parity_pair(),
+     _ec_body_contains("no forward at expiry")),
+    ("ec:400 calibrate-equity-vol on a Constant vol", "calibrate_equity_vol", _EC_EQV_CALIBRATE, 400,
+     _ec_eqv_constant_vol_target(),
+     _ec_body_contains("only operates on SsviCalibrate surfaces; vol_id 'flat_vol'")),
+    ("ec:400 calibrate-equity-vol without vol_id", "calibrate_equity_vol", _EC_EQV_CALIBRATE, 400,
+     _ec_eqv_drop_vol_id()),
+    ("ec:404 calibrate-equity-vol with an unknown vol_id", "calibrate_equity_vol", _EC_EQV_CALIBRATE, 404,
+     _ec_eqv_vol_id("no_such_vol"),
+     _ec_body_contains("Black vol surface not found: no_such_vol")),
+    ("ec:400 SSVI vol on a structured note", "structured_note", _EC_SN, 400,
+     _ec_sn_ssvi_vol("SPX_VOL"),
+     _ec_body_contains_all("volatility_id 'SPX_VOL' (underlying 'SPX')",
+                           "SSVI shapes on structured notes arrive with the LocalVol kernel in 0.15.0")),
 ]
 
 

@@ -64,7 +64,7 @@ Utility:
 - bootstrap curves, bootstrap inflation curves
 - sample vol surfaces
 - calendar business days, calendar holidays, calendar advance
-- calibrate swaption model (Hull-White), calibrate swaption vol (SABR)
+- calibrate swaption model (Hull-White), calibrate swaption vol (SABR), calibrate equity vol (SSVI; C++ `CalibrateEquityVol` / `CalibrateEquityVolJSON`, Python `calibrate_equity_vol`)
 
 This mirrors the served endpoints in `src/common/product_catalog.h`; when that
 catalog gains an entry, the client header gains the matching pair (see

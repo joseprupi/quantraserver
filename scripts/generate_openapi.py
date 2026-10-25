@@ -201,6 +201,11 @@ ENDPOINT_METADATA = {
         "description": "Run SABR calibration on a SwaptionSabrCalibrateSpec surface and return diagnostics: per-node forwards, ATM vols, calibrated (alpha, beta, rho, nu) grids, per-node fit errors, convergence flag, and per-strike fit errors.",
         "tags": ["Volatility"]
     },
+    "calibrate_equity_vol": {
+        "summary": "Calibrate Equity eSSVI Volatility Surface",
+        "description": "Fit an arbitrage-free eSSVI surface (SsviCalibrate BlackVolSpec) to equity option prices or implied vols and return the calibrated slices (theta, rho, psi, forward) plus diagnostics: put-call-parity forwards, implied dividend yields, per-quote residuals, constraint margins and arbitrage-scan minima.",
+        "tags": ["Volatility"]
+    },
     "equity_option": {
         "summary": "Price Equity Option",
         "description": "Price vanilla or barrier equity options with configured equity underlyings, curves, vols, and model.",

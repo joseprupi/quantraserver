@@ -111,7 +111,11 @@
     },
     "quantra_enums_VolSurfaceShape" : {
       "type" : "string",
-      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate"]
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate", "SsviParams", "SsviCalibrate"]
+    },
+    "quantra_enums_SsviQuoteWeighting" : {
+      "type" : "string",
+      "enum": ["Uniform", "Vega", "BidAsk"]
     },
     "quantra_enums_YoYInflationCapFloorEngineType" : {
       "type" : "string",
@@ -1379,6 +1383,89 @@
       },
       "additionalProperties" : false
     },
+    "quantra_EquityOptionQuote" : {
+      "type" : "object",
+      "description" : "One equity option quote used to calibrate an eSSVI surface (shape=SsviCalibrate).",
+      "properties" : {
+        "expiry_date" : {
+                "type" : "string",
+                "description" : "Option expiry date (YYYY-MM-DD)."
+              },
+        "strike" : {
+                "type" : "number",
+                "description" : "Strike. Presence-required, > 0."
+              },
+        "option_type" : {
+                "$ref" : "#/definitions/quantra_enums_EquityOptionType",
+                "description" : "Call or put. Presence-required."
+              },
+        "price" : {
+                "type" : "number",
+                "description" : "Option premium (per unit of underlying). Exactly one of price / implied_vol must be\ngiven, unless bid and ask are both given and price / implied_vol are both absent."
+              },
+        "implied_vol" : {
+                "type" : "number",
+                "description" : "Black implied volatility (decimal, 0.2 = 20%). See price for the one-of rule."
+              },
+        "bid" : {
+                "type" : "number",
+                "description" : "Bid, in the unit of the value given (price or implied_vol). When price and implied_vol\nare both absent, bid and ask are premiums and the quote price is their mid.\nBoth-or-neither with ask; required on the quotes when weighting=BidAsk."
+              },
+        "ask" : {
+                "type" : "number",
+                "description" : "Ask, same unit as bid. Both-or-neither with bid."
+              },
+        "weight" : {
+                "type" : "number",
+                "description" : "User weight multiplying the weighting-mode weight. Must be > 0."
+              }
+      },
+      "required" : ["expiry_date"],
+      "additionalProperties" : false
+    },
+    "quantra_SsviSlice" : {
+      "type" : "object",
+      "description" : "One eSSVI slice (Corbetta-Cohort-Laachir-Martini 2019 parametrisation): total variance\nw(k) = 0.5 (theta + rho psi k + sqrt(psi^2 k^2 + 2 rho psi theta k + theta^2)) in the\nlog-forward moneyness k = ln(K / F_ref(T)).",
+      "properties" : {
+        "expiry_date" : {
+                "type" : "string",
+                "description" : "Slice expiry (YYYY-MM-DD), strictly after base.reference_date."
+              },
+        "theta" : {
+                "type" : "number",
+                "description" : "ATM total implied variance, > 0. Presence-required for shape=SsviParams."
+              },
+        "rho" : {
+                "type" : "number",
+                "description" : "Correlation, in (-1, 1). Presence-required for shape=SsviParams."
+              },
+        "psi" : {
+                "type" : "number",
+                "description" : "psi = theta * phi, > 0. Presence-required for shape=SsviParams."
+              },
+        "forward" : {
+                "type" : "number",
+                "description" : "Forward F_ref(T) the slice is expressed against. Optional input for shape=SsviParams\n(all slices or none); always filled in /calibrate-equity-vol responses."
+              }
+      },
+      "required" : ["expiry_date"],
+      "additionalProperties" : false
+    },
+    "quantra_SsviFitSpec" : {
+      "type" : "object",
+      "description" : "Calibration settings for shape=SsviCalibrate.",
+      "properties" : {
+        "weighting" : {
+                "$ref" : "#/definitions/quantra_enums_SsviQuoteWeighting",
+                "description" : "Quote weighting."
+              },
+        "max_abs_log_moneyness" : {
+                "type" : "number",
+                "description" : "Quotes with |ln(K / F)| above this are excluded from the fit and reported as excluded."
+              }
+      },
+      "additionalProperties" : false
+    },
     "quantra_BlackVolSpec" : {
       "type" : "object",
       "description" : "Black volatility for equity/FX/commodity options.",
@@ -1420,15 +1507,15 @@
               },
         "spot" : {
                 "type" : "number",
-                "description" : "Spot level for implied-vol inversion. Optional if spot_quote_id is provided."
+                "description" : "Spot level for implied-vol inversion. Optional if spot_quote_id is provided.\nFor the SSVI shapes it is the snapshot spot S0 that defines the reference forward F_ref\n(see ssvi_slices)."
               },
         "spot_quote_id" : {
                 "type" : "string",
-                "description" : "Optional: resolve spot from pricing.quotes."
+                "description" : "Optional: resolve spot from pricing.quotes. Also defines F_ref for the SSVI shapes."
               },
         "discount_curve_id" : {
                 "type" : "string",
-                "description" : "Discount curve id in pricing.curves used for implied-vol inversion."
+                "description" : "Discount curve id in pricing.curves used for implied-vol inversion. For the SSVI shapes\nit also discounts the option prices and defines F_ref."
               },
         "use_flat_discount_rate" : {
                 "type" : "boolean",
@@ -1440,7 +1527,7 @@
               },
         "dividend_curve_id" : {
                 "type" : "string",
-                "description" : "Dividend yield curve id in pricing.curves used for implied-vol inversion."
+                "description" : "Dividend yield curve id in pricing.curves used for implied-vol inversion. For the SSVI\nshapes it also defines F_ref (see ssvi_slices)."
               },
         "use_flat_dividend_rate" : {
                 "type" : "boolean",
@@ -1465,6 +1552,18 @@
         "strike_interpolator" : {
                 "$ref" : "#/definitions/quantra_enums_Interpolator",
                 "description" : "Deprecated for BlackVolSpec surfaces; retained for backward compatibility.\nMapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic."
+              },
+        "ssvi_slices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SsviSlice"},
+                "description" : "eSSVI slices, strictly increasing expiry. Used only when base.shape=SsviParams.\nReference forward F_ref(T): if every slice carries `forward`, F_ref is built from them\n(implied dividend discount curve Dq(T_i) = F_i Dr(T_i) / S0, log-linear in discount, flat\nforward beyond the last slice); if none does, F_ref = S0 Dq(T) / Dr(T) from the spec spot,\ndividend and discount curves; a mix is rejected. For shape=SsviCalibrate F_ref comes from\nthe calibrated forwards in the same way; there the dividend curve is optional: with none,\nevery expiry needs call and put quotes at >= 2 common strikes (put-call-parity forward),\nelse the request is rejected."
+              },
+        "option_quotes" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_EquityOptionQuote"},
+                "description" : "Option quotes to fit. Used only when base.shape=SsviCalibrate."
+              },
+        "ssvi_fit" : {
+                "$ref" : "#/definitions/quantra_SsviFitSpec",
+                "description" : "Calibration settings. Used only when base.shape=SsviCalibrate (defaults apply if absent)."
               }
       },
       "additionalProperties" : false

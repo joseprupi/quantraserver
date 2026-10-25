@@ -9,6 +9,7 @@
 
 #include <ql/math/matrixutilities/symmetricschurdecomposition.hpp>
 #include <ql/quotes/simplequote.hpp>
+#include <ql/termstructures/volatility/equityfx/localvolsurface.hpp>
 #include <ql/termstructures/yield/zerospreadedtermstructure.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
 
@@ -19,6 +20,7 @@
 #include <limits>
 #include <memory>
 #include <set>
+#include <sstream>
 
 namespace quantra {
 
@@ -260,6 +262,42 @@ Handle<QuantLib::YieldTermStructure> findCurve(
     return Handle<QuantLib::YieldTermStructure>(it->second->currentLink());
 }
 
+/// 400 unless the underlying's vol is one of the shapes a note can simulate
+/// today (the SSVI shapes arrive with the LocalVol kernel).
+void requireSupportedVolShape(
+    const std::string& path, const BasketUnderlyingData& u, const BlackVolEntry& vol) {
+    switch (vol.shapeFb) {
+        case quantra::enums::VolSurfaceShape_Constant:
+        case quantra::enums::VolSurfaceShape_AtmMatrix2D:
+        case quantra::enums::VolSurfaceShape_SmileCube3D:
+        case quantra::enums::VolSurfaceShape_SurfaceFromPrices: return;
+        default: break;
+    }
+    const char* name = quantra::enums::EnumNameVolSurfaceShape(vol.shapeFb);
+    const std::string shape =
+        (name && *name) ? std::string(name) : std::to_string(static_cast<int>(vol.shapeFb));
+    QUANTRA_INVALID_ARGUMENT(
+        path + ".volatility_id '" + u.volatilityId + "' (underlying '" + u.underlyingId +
+        "'): vol shape " + shape +
+        " is not supported on a structured note (Constant, AtmMatrix2D, SmileCube3D and "
+        "SurfaceFromPrices are); SSVI shapes on structured notes arrive with the LocalVol "
+        "kernel in 0.15.0");
+}
+
+/// 400 when the underlying carries discrete cash dividends: a note models
+/// dividends only through the dividend-yield curve.
+void requireNoDiscreteDividends(
+    const std::string& path, const std::string& underlyingId, const EquityUnderlyingRuntime& eq) {
+    if (eq.discreteDividendDates.empty() && eq.discreteDividendAmounts.empty()) return;
+    QUANTRA_INVALID_ARGUMENT(
+        path + ".underlying_id '" + underlyingId + "': the underlying declares " +
+        std::to_string(eq.discreteDividendDates.size()) +
+        " discrete dividend(s), which a structured note does not model: notes take dividends "
+        "only through the dividend-yield curve; fold the cash dividends into the "
+        "dividend_yield_curve_id curve and drop "
+        "pricing.equity.equity_underlyings[].discrete_dividends");
+}
+
 std::vector<ResolvedUnderlying> resolveUnderlyings(
     const StructuredNoteTrade& trade,
     const PricingRegistry& reg,
@@ -277,6 +315,8 @@ std::vector<ResolvedUnderlying> resolveUnderlyings(
         if (volIt == reg.volatility.blackVols.end()) {
             QUANTRA_NOT_FOUND("Black vol not found: " + u.volatilityId);
         }
+        requireSupportedVolShape(path, u, volIt->second);
+        requireNoDiscreteDividends(path, u.underlyingId, eqIt->second);
         ResolvedUnderlying r;
         r.currency = eqIt->second.currency;
         if (r.currency.empty()) {
@@ -537,6 +577,84 @@ struct Discounting {
     double knownNpv = 0.0, knownBond = 0.0, knownCoupon = 0.0, knownLoss = 0.0;
 };
 
+// ---------------------------------------------------------------------------
+// Pre-simulation local-variance scan
+// ---------------------------------------------------------------------------
+
+constexpr std::size_t kScanMaxTimes = 256;
+constexpr int kScanStrikes = 41;
+constexpr double kScanZMax = 5.0;
+
+/// The positive grid times, subsampled evenly to at most kScanMaxTimes
+/// distinct values (first and last always kept).
+std::vector<double> scanTimes(const QuantLib::TimeGrid& grid) {
+    std::vector<double> all;
+    for (Size j = 1; j < grid.size(); ++j)
+        all.push_back(grid[j]);
+    if (all.size() <= kScanMaxTimes) return all;
+    std::vector<double> out;
+    out.reserve(kScanMaxTimes);
+    const double span = static_cast<double>(all.size() - 1);
+    for (std::size_t i = 0; i < kScanMaxTimes; ++i) {
+        const double pos = span * static_cast<double>(i) / static_cast<double>(kScanMaxTimes - 1);
+        out.push_back(all[static_cast<std::size_t>(std::llround(pos))]);
+    }
+    return out;
+}
+
+/// Empty when the local volatility at (t, K) is finite and positive, else why not.
+std::string localVolProblem(const QuantLib::LocalVolSurface& local, double t, double strike) {
+    try {
+        const double v = local.localVol(t, strike, true);
+        if (std::isfinite(v) && v > 0.0) return std::string();
+        std::ostringstream msg;
+        msg << "local volatility is " << v;
+        return msg.str();
+    } catch (const std::exception& e) {
+        return e.what();
+    }
+}
+
+/// Evaluates the Dupire local vol the basket model will simulate (same spot,
+/// dividend, risk-free and vol handles) on a strike fan around the forward at
+/// the simulation times; the first failure is a 400 naming (t, K), so a
+/// surface with calendar or butterfly arbitrage is refused before simulating.
+void scanLocalVariance(
+    const std::string& path,
+    const BasketUnderlyingData& u,
+    const ResolvedUnderlying& r,
+    const Handle<QuantLib::YieldTermStructure>& riskFree,
+    const QuantLib::TimeGrid& grid,
+    const Date& asOf) {
+    const QuantLib::LocalVolSurface local(r.vol, riskFree, r.dividend, r.spot);
+    for (double t : scanTimes(grid)) {
+        double forward = r.spot->value();
+        double sigma = 0.0;
+        std::string problem;
+        try {
+            forward = r.spot->value() * r.dividend->discount(t, true) / riskFree->discount(t, true);
+            sigma = r.vol->blackVol(t, forward, true);
+        } catch (const std::exception& e) {
+            problem = e.what();
+        }
+        double strike = forward;
+        for (int i = 0; problem.empty() && i < kScanStrikes; ++i) {
+            const double z = -kScanZMax + 2.0 * kScanZMax * i / (kScanStrikes - 1);
+            strike = forward * std::exp(z * sigma * std::sqrt(t));
+            problem = localVolProblem(local, t, strike);
+        }
+        if (problem.empty()) continue;
+        std::ostringstream msg;
+        msg << path << ".volatility_id '" << u.volatilityId << "' (underlying '" << u.underlyingId
+            << "'): the local volatility cannot be evaluated at t = " << t << " ("
+            << DateToIso(asOf + static_cast<QuantLib::Integer>(std::llround(t * 365.0)))
+            << "), K = " << strike << ": " << problem
+            << "; the surface admits calendar or butterfly arbitrage there (total variance must "
+               "not decrease with expiry, and each smile must be convex enough)";
+        QUANTRA_INVALID_ARGUMENT(msg.str());
+    }
+}
+
 NoteResultRow priceNote(
     const StructuredNoteTrade& trade,
     const PricingRegistry& reg,
@@ -781,6 +899,13 @@ NoteResultRow priceNote(
                 und[k].vol));
     }
     auto processes = mc::BasketModel::build(assets, correlation);
+    for (std::size_t k = 0; k < nU; ++k) {
+        if (!und[k].exactStep) {
+            scanLocalVariance(
+                trade.path + ".underlyings[" + std::to_string(k) + "]", trade.underlyings[k],
+                und[k], noteCurve, grid.grid, asOf);
+        }
+    }
 
     // Model echo: quanto drift at the first simulated observation date.
     const Date firstObs = mandatory.front();

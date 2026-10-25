@@ -1157,39 +1157,84 @@ enum VolSurfaceShape : int8_t {
   VolSurfaceShape_SurfaceFromPrices = 3,
   VolSurfaceShape_SabrParams = 4,
   VolSurfaceShape_SabrCalibrate = 5,
+  /// Equity eSSVI surface from user-supplied slice parameters (BlackVolSpec.ssvi_slices).
+  VolSurfaceShape_SsviParams = 6,
+  /// Equity eSSVI surface calibrated from option quotes (BlackVolSpec.option_quotes).
+  VolSurfaceShape_SsviCalibrate = 7,
   VolSurfaceShape_MIN = VolSurfaceShape_Constant,
-  VolSurfaceShape_MAX = VolSurfaceShape_SabrCalibrate
+  VolSurfaceShape_MAX = VolSurfaceShape_SsviCalibrate
 };
 
-inline const VolSurfaceShape (&EnumValuesVolSurfaceShape())[6] {
+inline const VolSurfaceShape (&EnumValuesVolSurfaceShape())[8] {
   static const VolSurfaceShape values[] = {
     VolSurfaceShape_Constant,
     VolSurfaceShape_AtmMatrix2D,
     VolSurfaceShape_SmileCube3D,
     VolSurfaceShape_SurfaceFromPrices,
     VolSurfaceShape_SabrParams,
-    VolSurfaceShape_SabrCalibrate
+    VolSurfaceShape_SabrCalibrate,
+    VolSurfaceShape_SsviParams,
+    VolSurfaceShape_SsviCalibrate
   };
   return values;
 }
 
 inline const char * const *EnumNamesVolSurfaceShape() {
-  static const char * const names[7] = {
+  static const char * const names[9] = {
     "Constant",
     "AtmMatrix2D",
     "SmileCube3D",
     "SurfaceFromPrices",
     "SabrParams",
     "SabrCalibrate",
+    "SsviParams",
+    "SsviCalibrate",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameVolSurfaceShape(VolSurfaceShape e) {
-  if (::flatbuffers::IsOutRange(e, VolSurfaceShape_Constant, VolSurfaceShape_SabrCalibrate)) return "";
+  if (::flatbuffers::IsOutRange(e, VolSurfaceShape_Constant, VolSurfaceShape_SsviCalibrate)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesVolSurfaceShape()[index];
+}
+
+/// Quote weighting used by the eSSVI calibrator.
+enum SsviQuoteWeighting : int8_t {
+  /// Every quote counts equally (times its own weight).
+  SsviQuoteWeighting_Uniform = 0,
+  /// Weight by Black vega at the market vol.
+  SsviQuoteWeighting_Vega = 1,
+  /// Weight by 1 / (bid-ask spread in vol units)^2. Needs bid and ask on the quotes.
+  SsviQuoteWeighting_BidAsk = 2,
+  SsviQuoteWeighting_MIN = SsviQuoteWeighting_Uniform,
+  SsviQuoteWeighting_MAX = SsviQuoteWeighting_BidAsk
+};
+
+inline const SsviQuoteWeighting (&EnumValuesSsviQuoteWeighting())[3] {
+  static const SsviQuoteWeighting values[] = {
+    SsviQuoteWeighting_Uniform,
+    SsviQuoteWeighting_Vega,
+    SsviQuoteWeighting_BidAsk
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesSsviQuoteWeighting() {
+  static const char * const names[4] = {
+    "Uniform",
+    "Vega",
+    "BidAsk",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameSsviQuoteWeighting(SsviQuoteWeighting e) {
+  if (::flatbuffers::IsOutRange(e, SsviQuoteWeighting_Uniform, SsviQuoteWeighting_BidAsk)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesSsviQuoteWeighting()[index];
 }
 
 /// Pricing formula (engine) for year-on-year inflation caps/floors. Selects the

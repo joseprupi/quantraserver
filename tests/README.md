@@ -151,7 +151,8 @@ be invisible: turning them on may not change any result. The suite POSTs each
 representative example payload to two servers — the default cache-OFF server on
 `:8080` and a cache-ON server on `:8081`, started by `run_all_tests.sh`'s
 `start_cache_servers` with `QUANTRA_CURVE_CACHE_ENABLED=1`,
-`QUANTRA_SABR_CACHE_ENABLED=1` and `QUANTRA_HW_CACHE_ENABLED=1` (plus the
+`QUANTRA_SABR_CACHE_ENABLED=1`, `QUANTRA_SSVI_CACHE_ENABLED=1` and
+`QUANTRA_HW_CACHE_ENABLED=1` (plus the
 matching `_LOG` flags) — and asserts the responses are bit-for-bit identical,
 then POSTs to the cache-ON server twice (warm → hit) and asserts the hit
 response is identical too. This is **not** a QuantLib parity check (that is

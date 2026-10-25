@@ -286,6 +286,7 @@ ENV QUANTRA_FBS_INCLUDE_DIR=/app/flatbuffers/fbs
 # its own cache-OFF/cache-ON server pairs explicitly.
 ENV QUANTRA_CURVE_CACHE_ENABLED=1
 ENV QUANTRA_SABR_CACHE_ENABLED=1
+ENV QUANTRA_SSVI_CACHE_ENABLED=1
 ENV QUANTRA_HW_CACHE_ENABLED=1
 # Per-request server-side compute budget. Set slightly above the Envoy route
 # timeout (30s) so a worker frees itself even if Envoy has already returned 504

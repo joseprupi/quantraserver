@@ -42,6 +42,7 @@
 #include "calendar_advance_response_generated.h"
 #include "calendar_business_days_response_generated.h"
 #include "calendar_holidays_response_generated.h"
+#include "calibrate_equity_vol_response_generated.h"
 #include "calibrate_swaption_model_response_generated.h"
 #include "calibrate_swaption_vol_response_generated.h"
 #include "callable_fixed_rate_bond_response_generated.h"
@@ -167,6 +168,8 @@ public:
         const std::string& json, const std::string& request_id = "");
     JsonResponse CalibrateSwaptionVolJSON(
         const std::string& json, const std::string& request_id = "");
+    JsonResponse CalibrateEquityVolJSON(
+        const std::string& json, const std::string& request_id = "");
     JsonResponse PriceEquityOptionJSON(const std::string& json, const std::string& request_id = "");
     JsonResponse PriceZeroCouponBondJSON(
         const std::string& json, const std::string& request_id = "");
@@ -261,6 +264,10 @@ public:
     grpc::Status CalibrateSwaptionVol(
         const Message<CalibrateSwaptionVolRequest>& request,
         Message<CalibrateSwaptionVolResponse>* response);
+
+    grpc::Status CalibrateEquityVol(
+        const Message<CalibrateEquityVolRequest>& request,
+        Message<CalibrateEquityVolResponse>* response);
 
     grpc::Status PriceEquityOption(
         const Message<PriceEquityOptionRequest>& request,

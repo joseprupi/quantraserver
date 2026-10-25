@@ -62,6 +62,18 @@ struct SwaptionVolSpec;
 struct SwaptionVolSpecBuilder;
 struct SwaptionVolSpecT;
 
+struct EquityOptionQuote;
+struct EquityOptionQuoteBuilder;
+struct EquityOptionQuoteT;
+
+struct SsviSlice;
+struct SsviSliceBuilder;
+struct SsviSliceT;
+
+struct SsviFitSpec;
+struct SsviFitSpecBuilder;
+struct SsviFitSpecT;
+
 struct BlackVolSpec;
 struct BlackVolSpecBuilder;
 struct BlackVolSpecT;
@@ -1870,6 +1882,362 @@ inline ::flatbuffers::Offset<SwaptionVolSpec> CreateSwaptionVolSpecDirect(
 
 ::flatbuffers::Offset<SwaptionVolSpec> CreateSwaptionVolSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionVolSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct EquityOptionQuoteT : public ::flatbuffers::NativeTable {
+  typedef EquityOptionQuote TableType;
+  std::string expiry_date{};
+  ::flatbuffers::Optional<double> strike = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::EquityOptionType> option_type = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> price = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> implied_vol = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> bid = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> ask = ::flatbuffers::nullopt;
+  double weight = 1.0;
+};
+
+/// One equity option quote used to calibrate an eSSVI surface (shape=SsviCalibrate).
+struct EquityOptionQuote FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef EquityOptionQuoteT NativeTableType;
+  typedef EquityOptionQuoteBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_EXPIRY_DATE = 4,
+    VT_STRIKE = 6,
+    VT_OPTION_TYPE = 8,
+    VT_PRICE = 10,
+    VT_IMPLIED_VOL = 12,
+    VT_BID = 14,
+    VT_ASK = 16,
+    VT_WEIGHT = 18
+  };
+  /// Option expiry date (YYYY-MM-DD).
+  const ::flatbuffers::String *expiry_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_EXPIRY_DATE);
+  }
+  /// Strike. Presence-required, > 0.
+  ::flatbuffers::Optional<double> strike() const {
+    return GetOptional<double, double>(VT_STRIKE);
+  }
+  /// Call or put. Presence-required.
+  ::flatbuffers::Optional<quantra::enums::EquityOptionType> option_type() const {
+    return GetOptional<int8_t, quantra::enums::EquityOptionType>(VT_OPTION_TYPE);
+  }
+  /// Option premium (per unit of underlying). Exactly one of price / implied_vol must be
+  /// given, unless bid and ask are both given and price / implied_vol are both absent.
+  ::flatbuffers::Optional<double> price() const {
+    return GetOptional<double, double>(VT_PRICE);
+  }
+  /// Black implied volatility (decimal, 0.2 = 20%). See price for the one-of rule.
+  ::flatbuffers::Optional<double> implied_vol() const {
+    return GetOptional<double, double>(VT_IMPLIED_VOL);
+  }
+  /// Bid, in the unit of the value given (price or implied_vol). When price and implied_vol
+  /// are both absent, bid and ask are premiums and the quote price is their mid.
+  /// Both-or-neither with ask; required on the quotes when weighting=BidAsk.
+  ::flatbuffers::Optional<double> bid() const {
+    return GetOptional<double, double>(VT_BID);
+  }
+  /// Ask, same unit as bid. Both-or-neither with bid.
+  ::flatbuffers::Optional<double> ask() const {
+    return GetOptional<double, double>(VT_ASK);
+  }
+  /// User weight multiplying the weighting-mode weight. Must be > 0.
+  double weight() const {
+    return GetField<double>(VT_WEIGHT, 1.0);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffsetRequired(verifier, VT_EXPIRY_DATE) &&
+           verifier.VerifyString(expiry_date()) &&
+           VerifyField<double>(verifier, VT_STRIKE, 8) &&
+           VerifyField<int8_t>(verifier, VT_OPTION_TYPE, 1) &&
+           VerifyField<double>(verifier, VT_PRICE, 8) &&
+           VerifyField<double>(verifier, VT_IMPLIED_VOL, 8) &&
+           VerifyField<double>(verifier, VT_BID, 8) &&
+           VerifyField<double>(verifier, VT_ASK, 8) &&
+           VerifyField<double>(verifier, VT_WEIGHT, 8) &&
+           verifier.EndTable();
+  }
+  EquityOptionQuoteT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(EquityOptionQuoteT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<EquityOptionQuote> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const EquityOptionQuoteT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct EquityOptionQuoteBuilder {
+  typedef EquityOptionQuote Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_expiry_date(::flatbuffers::Offset<::flatbuffers::String> expiry_date) {
+    fbb_.AddOffset(EquityOptionQuote::VT_EXPIRY_DATE, expiry_date);
+  }
+  void add_strike(double strike) {
+    fbb_.AddElement<double>(EquityOptionQuote::VT_STRIKE, strike);
+  }
+  void add_option_type(quantra::enums::EquityOptionType option_type) {
+    fbb_.AddElement<int8_t>(EquityOptionQuote::VT_OPTION_TYPE, static_cast<int8_t>(option_type));
+  }
+  void add_price(double price) {
+    fbb_.AddElement<double>(EquityOptionQuote::VT_PRICE, price);
+  }
+  void add_implied_vol(double implied_vol) {
+    fbb_.AddElement<double>(EquityOptionQuote::VT_IMPLIED_VOL, implied_vol);
+  }
+  void add_bid(double bid) {
+    fbb_.AddElement<double>(EquityOptionQuote::VT_BID, bid);
+  }
+  void add_ask(double ask) {
+    fbb_.AddElement<double>(EquityOptionQuote::VT_ASK, ask);
+  }
+  void add_weight(double weight) {
+    fbb_.AddElement<double>(EquityOptionQuote::VT_WEIGHT, weight, 1.0);
+  }
+  explicit EquityOptionQuoteBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<EquityOptionQuote> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<EquityOptionQuote>(end);
+    fbb_.Required(o, EquityOptionQuote::VT_EXPIRY_DATE);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<EquityOptionQuote> CreateEquityOptionQuote(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> expiry_date = 0,
+    ::flatbuffers::Optional<double> strike = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::EquityOptionType> option_type = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> price = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> implied_vol = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> bid = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> ask = ::flatbuffers::nullopt,
+    double weight = 1.0) {
+  EquityOptionQuoteBuilder builder_(_fbb);
+  builder_.add_weight(weight);
+  if(ask) { builder_.add_ask(*ask); }
+  if(bid) { builder_.add_bid(*bid); }
+  if(implied_vol) { builder_.add_implied_vol(*implied_vol); }
+  if(price) { builder_.add_price(*price); }
+  if(strike) { builder_.add_strike(*strike); }
+  builder_.add_expiry_date(expiry_date);
+  if(option_type) { builder_.add_option_type(*option_type); }
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<EquityOptionQuote> CreateEquityOptionQuoteDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *expiry_date = nullptr,
+    ::flatbuffers::Optional<double> strike = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::EquityOptionType> option_type = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> price = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> implied_vol = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> bid = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> ask = ::flatbuffers::nullopt,
+    double weight = 1.0) {
+  auto expiry_date__ = expiry_date ? _fbb.CreateString(expiry_date) : 0;
+  return quantra::CreateEquityOptionQuote(
+      _fbb,
+      expiry_date__,
+      strike,
+      option_type,
+      price,
+      implied_vol,
+      bid,
+      ask,
+      weight);
+}
+
+::flatbuffers::Offset<EquityOptionQuote> CreateEquityOptionQuote(::flatbuffers::FlatBufferBuilder &_fbb, const EquityOptionQuoteT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct SsviSliceT : public ::flatbuffers::NativeTable {
+  typedef SsviSlice TableType;
+  std::string expiry_date{};
+  ::flatbuffers::Optional<double> theta = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> rho = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> psi = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> forward = ::flatbuffers::nullopt;
+};
+
+/// One eSSVI slice (Corbetta-Cohort-Laachir-Martini 2019 parametrisation): total variance
+/// w(k) = 0.5 (theta + rho psi k + sqrt(psi^2 k^2 + 2 rho psi theta k + theta^2)) in the
+/// log-forward moneyness k = ln(K / F_ref(T)).
+struct SsviSlice FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SsviSliceT NativeTableType;
+  typedef SsviSliceBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_EXPIRY_DATE = 4,
+    VT_THETA = 6,
+    VT_RHO = 8,
+    VT_PSI = 10,
+    VT_FORWARD = 12
+  };
+  /// Slice expiry (YYYY-MM-DD), strictly after base.reference_date.
+  const ::flatbuffers::String *expiry_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_EXPIRY_DATE);
+  }
+  /// ATM total implied variance, > 0. Presence-required for shape=SsviParams.
+  ::flatbuffers::Optional<double> theta() const {
+    return GetOptional<double, double>(VT_THETA);
+  }
+  /// Correlation, in (-1, 1). Presence-required for shape=SsviParams.
+  ::flatbuffers::Optional<double> rho() const {
+    return GetOptional<double, double>(VT_RHO);
+  }
+  /// psi = theta * phi, > 0. Presence-required for shape=SsviParams.
+  ::flatbuffers::Optional<double> psi() const {
+    return GetOptional<double, double>(VT_PSI);
+  }
+  /// Forward F_ref(T) the slice is expressed against. Optional input for shape=SsviParams
+  /// (all slices or none); always filled in /calibrate-equity-vol responses.
+  ::flatbuffers::Optional<double> forward() const {
+    return GetOptional<double, double>(VT_FORWARD);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffsetRequired(verifier, VT_EXPIRY_DATE) &&
+           verifier.VerifyString(expiry_date()) &&
+           VerifyField<double>(verifier, VT_THETA, 8) &&
+           VerifyField<double>(verifier, VT_RHO, 8) &&
+           VerifyField<double>(verifier, VT_PSI, 8) &&
+           VerifyField<double>(verifier, VT_FORWARD, 8) &&
+           verifier.EndTable();
+  }
+  SsviSliceT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SsviSliceT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<SsviSlice> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SsviSliceT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct SsviSliceBuilder {
+  typedef SsviSlice Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_expiry_date(::flatbuffers::Offset<::flatbuffers::String> expiry_date) {
+    fbb_.AddOffset(SsviSlice::VT_EXPIRY_DATE, expiry_date);
+  }
+  void add_theta(double theta) {
+    fbb_.AddElement<double>(SsviSlice::VT_THETA, theta);
+  }
+  void add_rho(double rho) {
+    fbb_.AddElement<double>(SsviSlice::VT_RHO, rho);
+  }
+  void add_psi(double psi) {
+    fbb_.AddElement<double>(SsviSlice::VT_PSI, psi);
+  }
+  void add_forward(double forward) {
+    fbb_.AddElement<double>(SsviSlice::VT_FORWARD, forward);
+  }
+  explicit SsviSliceBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<SsviSlice> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<SsviSlice>(end);
+    fbb_.Required(o, SsviSlice::VT_EXPIRY_DATE);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<SsviSlice> CreateSsviSlice(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> expiry_date = 0,
+    ::flatbuffers::Optional<double> theta = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> rho = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> psi = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> forward = ::flatbuffers::nullopt) {
+  SsviSliceBuilder builder_(_fbb);
+  if(forward) { builder_.add_forward(*forward); }
+  if(psi) { builder_.add_psi(*psi); }
+  if(rho) { builder_.add_rho(*rho); }
+  if(theta) { builder_.add_theta(*theta); }
+  builder_.add_expiry_date(expiry_date);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<SsviSlice> CreateSsviSliceDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *expiry_date = nullptr,
+    ::flatbuffers::Optional<double> theta = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> rho = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> psi = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> forward = ::flatbuffers::nullopt) {
+  auto expiry_date__ = expiry_date ? _fbb.CreateString(expiry_date) : 0;
+  return quantra::CreateSsviSlice(
+      _fbb,
+      expiry_date__,
+      theta,
+      rho,
+      psi,
+      forward);
+}
+
+::flatbuffers::Offset<SsviSlice> CreateSsviSlice(::flatbuffers::FlatBufferBuilder &_fbb, const SsviSliceT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct SsviFitSpecT : public ::flatbuffers::NativeTable {
+  typedef SsviFitSpec TableType;
+  quantra::enums::SsviQuoteWeighting weighting = quantra::enums::SsviQuoteWeighting_Vega;
+  double max_abs_log_moneyness = 1.0;
+};
+
+/// Calibration settings for shape=SsviCalibrate.
+struct SsviFitSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SsviFitSpecT NativeTableType;
+  typedef SsviFitSpecBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_WEIGHTING = 4,
+    VT_MAX_ABS_LOG_MONEYNESS = 6
+  };
+  /// Quote weighting.
+  quantra::enums::SsviQuoteWeighting weighting() const {
+    return static_cast<quantra::enums::SsviQuoteWeighting>(GetField<int8_t>(VT_WEIGHTING, 1));
+  }
+  /// Quotes with |ln(K / F)| above this are excluded from the fit and reported as excluded.
+  double max_abs_log_moneyness() const {
+    return GetField<double>(VT_MAX_ABS_LOG_MONEYNESS, 1.0);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<int8_t>(verifier, VT_WEIGHTING, 1) &&
+           VerifyField<double>(verifier, VT_MAX_ABS_LOG_MONEYNESS, 8) &&
+           verifier.EndTable();
+  }
+  SsviFitSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SsviFitSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<SsviFitSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SsviFitSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct SsviFitSpecBuilder {
+  typedef SsviFitSpec Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_weighting(quantra::enums::SsviQuoteWeighting weighting) {
+    fbb_.AddElement<int8_t>(SsviFitSpec::VT_WEIGHTING, static_cast<int8_t>(weighting), 1);
+  }
+  void add_max_abs_log_moneyness(double max_abs_log_moneyness) {
+    fbb_.AddElement<double>(SsviFitSpec::VT_MAX_ABS_LOG_MONEYNESS, max_abs_log_moneyness, 1.0);
+  }
+  explicit SsviFitSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<SsviFitSpec> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<SsviFitSpec>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<SsviFitSpec> CreateSsviFitSpec(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    quantra::enums::SsviQuoteWeighting weighting = quantra::enums::SsviQuoteWeighting_Vega,
+    double max_abs_log_moneyness = 1.0) {
+  SsviFitSpecBuilder builder_(_fbb);
+  builder_.add_max_abs_log_moneyness(max_abs_log_moneyness);
+  builder_.add_weighting(weighting);
+  return builder_.Finish();
+}
+
+::flatbuffers::Offset<SsviFitSpec> CreateSsviFitSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SsviFitSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct BlackVolSpecT : public ::flatbuffers::NativeTable {
   typedef BlackVolSpec TableType;
   std::unique_ptr<quantra::BlackVolBaseSpecT> base{};
@@ -1893,6 +2261,9 @@ struct BlackVolSpecT : public ::flatbuffers::NativeTable {
   quantra::enums::SurfaceInterpolator2D surface_interpolator = quantra::enums::SurfaceInterpolator2D_Bilinear;
   quantra::enums::Interpolator expiry_interpolator = quantra::enums::Interpolator_Linear;
   quantra::enums::Interpolator strike_interpolator = quantra::enums::Interpolator_Linear;
+  std::vector<std::unique_ptr<quantra::SsviSliceT>> ssvi_slices{};
+  std::vector<std::unique_ptr<quantra::EquityOptionQuoteT>> option_quotes{};
+  std::unique_ptr<quantra::SsviFitSpecT> ssvi_fit{};
   BlackVolSpecT() = default;
   BlackVolSpecT(const BlackVolSpecT &o);
   BlackVolSpecT(BlackVolSpecT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -1924,7 +2295,10 @@ struct BlackVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_ALLOW_EXTRAPOLATION = 38,
     VT_SURFACE_INTERPOLATOR = 40,
     VT_EXPIRY_INTERPOLATOR = 42,
-    VT_STRIKE_INTERPOLATOR = 44
+    VT_STRIKE_INTERPOLATOR = 44,
+    VT_SSVI_SLICES = 46,
+    VT_OPTION_QUOTES = 48,
+    VT_SSVI_FIT = 50
   };
   const quantra::BlackVolBaseSpec *base() const {
     return GetPointer<const quantra::BlackVolBaseSpec *>(VT_BASE);
@@ -1963,14 +2337,17 @@ struct BlackVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     return static_cast<quantra::enums::EquityOptionType>(GetField<int8_t>(VT_PRICE_OPTION_TYPE, 0));
   }
   /// Spot level for implied-vol inversion. Optional if spot_quote_id is provided.
+  /// For the SSVI shapes it is the snapshot spot S0 that defines the reference forward F_ref
+  /// (see ssvi_slices).
   double spot() const {
     return GetField<double>(VT_SPOT, 0.0);
   }
-  /// Optional: resolve spot from pricing.quotes.
+  /// Optional: resolve spot from pricing.quotes. Also defines F_ref for the SSVI shapes.
   const ::flatbuffers::String *spot_quote_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_SPOT_QUOTE_ID);
   }
-  /// Discount curve id in pricing.curves used for implied-vol inversion.
+  /// Discount curve id in pricing.curves used for implied-vol inversion. For the SSVI shapes
+  /// it also discounts the option prices and defines F_ref.
   const ::flatbuffers::String *discount_curve_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNT_CURVE_ID);
   }
@@ -1982,7 +2359,8 @@ struct BlackVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double flat_discount_rate() const {
     return GetField<double>(VT_FLAT_DISCOUNT_RATE, 0.0);
   }
-  /// Dividend yield curve id in pricing.curves used for implied-vol inversion.
+  /// Dividend yield curve id in pricing.curves used for implied-vol inversion. For the SSVI
+  /// shapes it also defines F_ref (see ssvi_slices).
   const ::flatbuffers::String *dividend_curve_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_DIVIDEND_CURVE_ID);
   }
@@ -2011,6 +2389,25 @@ struct BlackVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   /// Mapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic.
   quantra::enums::Interpolator strike_interpolator() const {
     return static_cast<quantra::enums::Interpolator>(GetField<int8_t>(VT_STRIKE_INTERPOLATOR, 2));
+  }
+  /// eSSVI slices, strictly increasing expiry. Used only when base.shape=SsviParams.
+  /// Reference forward F_ref(T): if every slice carries `forward`, F_ref is built from them
+  /// (implied dividend discount curve Dq(T_i) = F_i Dr(T_i) / S0, log-linear in discount, flat
+  /// forward beyond the last slice); if none does, F_ref = S0 Dq(T) / Dr(T) from the spec spot,
+  /// dividend and discount curves; a mix is rejected. For shape=SsviCalibrate F_ref comes from
+  /// the calibrated forwards in the same way; there the dividend curve is optional: with none,
+  /// every expiry needs call and put quotes at >= 2 common strikes (put-call-parity forward),
+  /// else the request is rejected.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SsviSlice>> *ssvi_slices() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SsviSlice>> *>(VT_SSVI_SLICES);
+  }
+  /// Option quotes to fit. Used only when base.shape=SsviCalibrate.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityOptionQuote>> *option_quotes() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityOptionQuote>> *>(VT_OPTION_QUOTES);
+  }
+  /// Calibration settings. Used only when base.shape=SsviCalibrate (defaults apply if absent).
+  const quantra::SsviFitSpec *ssvi_fit() const {
+    return GetPointer<const quantra::SsviFitSpec *>(VT_SSVI_FIT);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -2048,6 +2445,14 @@ struct BlackVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<int8_t>(verifier, VT_SURFACE_INTERPOLATOR, 1) &&
            VerifyField<int8_t>(verifier, VT_EXPIRY_INTERPOLATOR, 1) &&
            VerifyField<int8_t>(verifier, VT_STRIKE_INTERPOLATOR, 1) &&
+           VerifyOffset(verifier, VT_SSVI_SLICES) &&
+           verifier.VerifyVector(ssvi_slices()) &&
+           verifier.VerifyVectorOfTables(ssvi_slices()) &&
+           VerifyOffset(verifier, VT_OPTION_QUOTES) &&
+           verifier.VerifyVector(option_quotes()) &&
+           verifier.VerifyVectorOfTables(option_quotes()) &&
+           VerifyOffset(verifier, VT_SSVI_FIT) &&
+           verifier.VerifyTable(ssvi_fit()) &&
            verifier.EndTable();
   }
   BlackVolSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -2122,6 +2527,15 @@ struct BlackVolSpecBuilder {
   void add_strike_interpolator(quantra::enums::Interpolator strike_interpolator) {
     fbb_.AddElement<int8_t>(BlackVolSpec::VT_STRIKE_INTERPOLATOR, static_cast<int8_t>(strike_interpolator), 2);
   }
+  void add_ssvi_slices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SsviSlice>>> ssvi_slices) {
+    fbb_.AddOffset(BlackVolSpec::VT_SSVI_SLICES, ssvi_slices);
+  }
+  void add_option_quotes(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityOptionQuote>>> option_quotes) {
+    fbb_.AddOffset(BlackVolSpec::VT_OPTION_QUOTES, option_quotes);
+  }
+  void add_ssvi_fit(::flatbuffers::Offset<quantra::SsviFitSpec> ssvi_fit) {
+    fbb_.AddOffset(BlackVolSpec::VT_SSVI_FIT, ssvi_fit);
+  }
   explicit BlackVolSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -2155,11 +2569,17 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpec(
     bool allow_extrapolation = false,
     quantra::enums::SurfaceInterpolator2D surface_interpolator = quantra::enums::SurfaceInterpolator2D_Bilinear,
     quantra::enums::Interpolator expiry_interpolator = quantra::enums::Interpolator_Linear,
-    quantra::enums::Interpolator strike_interpolator = quantra::enums::Interpolator_Linear) {
+    quantra::enums::Interpolator strike_interpolator = quantra::enums::Interpolator_Linear,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SsviSlice>>> ssvi_slices = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityOptionQuote>>> option_quotes = 0,
+    ::flatbuffers::Offset<quantra::SsviFitSpec> ssvi_fit = 0) {
   BlackVolSpecBuilder builder_(_fbb);
   builder_.add_flat_dividend_rate(flat_dividend_rate);
   builder_.add_flat_discount_rate(flat_discount_rate);
   builder_.add_spot(spot);
+  builder_.add_ssvi_fit(ssvi_fit);
+  builder_.add_option_quotes(option_quotes);
+  builder_.add_ssvi_slices(ssvi_slices);
   builder_.add_dividend_curve_id(dividend_curve_id);
   builder_.add_discount_curve_id(discount_curve_id);
   builder_.add_spot_quote_id(spot_quote_id);
@@ -2203,7 +2623,10 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpecDirect(
     bool allow_extrapolation = false,
     quantra::enums::SurfaceInterpolator2D surface_interpolator = quantra::enums::SurfaceInterpolator2D_Bilinear,
     quantra::enums::Interpolator expiry_interpolator = quantra::enums::Interpolator_Linear,
-    quantra::enums::Interpolator strike_interpolator = quantra::enums::Interpolator_Linear) {
+    quantra::enums::Interpolator strike_interpolator = quantra::enums::Interpolator_Linear,
+    const std::vector<::flatbuffers::Offset<quantra::SsviSlice>> *ssvi_slices = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::EquityOptionQuote>> *option_quotes = nullptr,
+    ::flatbuffers::Offset<quantra::SsviFitSpec> ssvi_fit = 0) {
   auto expiries__ = expiries ? _fbb.CreateVector<::flatbuffers::Offset<quantra::Period>>(*expiries) : 0;
   auto strikes__ = strikes ? _fbb.CreateVector<double>(*strikes) : 0;
   auto price_expiries__ = price_expiries ? _fbb.CreateVector<::flatbuffers::Offset<::flatbuffers::String>>(*price_expiries) : 0;
@@ -2211,6 +2634,8 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpecDirect(
   auto spot_quote_id__ = spot_quote_id ? _fbb.CreateString(spot_quote_id) : 0;
   auto discount_curve_id__ = discount_curve_id ? _fbb.CreateString(discount_curve_id) : 0;
   auto dividend_curve_id__ = dividend_curve_id ? _fbb.CreateString(dividend_curve_id) : 0;
+  auto ssvi_slices__ = ssvi_slices ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SsviSlice>>(*ssvi_slices) : 0;
+  auto option_quotes__ = option_quotes ? _fbb.CreateVector<::flatbuffers::Offset<quantra::EquityOptionQuote>>(*option_quotes) : 0;
   return quantra::CreateBlackVolSpec(
       _fbb,
       base,
@@ -2233,7 +2658,10 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpecDirect(
       allow_extrapolation,
       surface_interpolator,
       expiry_interpolator,
-      strike_interpolator);
+      strike_interpolator,
+      ssvi_slices__,
+      option_quotes__,
+      ssvi_fit);
 }
 
 ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpec(::flatbuffers::FlatBufferBuilder &_fbb, const BlackVolSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -3049,6 +3477,120 @@ inline ::flatbuffers::Offset<SwaptionVolSpec> CreateSwaptionVolSpec(::flatbuffer
       _payload);
 }
 
+inline EquityOptionQuoteT *EquityOptionQuote::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<EquityOptionQuoteT>(new EquityOptionQuoteT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void EquityOptionQuote::UnPackTo(EquityOptionQuoteT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = expiry_date(); if (_e) _o->expiry_date = _e->str(); }
+  { auto _e = strike(); _o->strike = _e; }
+  { auto _e = option_type(); _o->option_type = _e; }
+  { auto _e = price(); _o->price = _e; }
+  { auto _e = implied_vol(); _o->implied_vol = _e; }
+  { auto _e = bid(); _o->bid = _e; }
+  { auto _e = ask(); _o->ask = _e; }
+  { auto _e = weight(); _o->weight = _e; }
+}
+
+inline ::flatbuffers::Offset<EquityOptionQuote> EquityOptionQuote::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const EquityOptionQuoteT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateEquityOptionQuote(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<EquityOptionQuote> CreateEquityOptionQuote(::flatbuffers::FlatBufferBuilder &_fbb, const EquityOptionQuoteT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const EquityOptionQuoteT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _expiry_date = _fbb.CreateString(_o->expiry_date);
+  auto _strike = _o->strike;
+  auto _option_type = _o->option_type;
+  auto _price = _o->price;
+  auto _implied_vol = _o->implied_vol;
+  auto _bid = _o->bid;
+  auto _ask = _o->ask;
+  auto _weight = _o->weight;
+  return quantra::CreateEquityOptionQuote(
+      _fbb,
+      _expiry_date,
+      _strike,
+      _option_type,
+      _price,
+      _implied_vol,
+      _bid,
+      _ask,
+      _weight);
+}
+
+inline SsviSliceT *SsviSlice::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<SsviSliceT>(new SsviSliceT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void SsviSlice::UnPackTo(SsviSliceT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = expiry_date(); if (_e) _o->expiry_date = _e->str(); }
+  { auto _e = theta(); _o->theta = _e; }
+  { auto _e = rho(); _o->rho = _e; }
+  { auto _e = psi(); _o->psi = _e; }
+  { auto _e = forward(); _o->forward = _e; }
+}
+
+inline ::flatbuffers::Offset<SsviSlice> SsviSlice::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SsviSliceT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateSsviSlice(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<SsviSlice> CreateSsviSlice(::flatbuffers::FlatBufferBuilder &_fbb, const SsviSliceT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SsviSliceT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _expiry_date = _fbb.CreateString(_o->expiry_date);
+  auto _theta = _o->theta;
+  auto _rho = _o->rho;
+  auto _psi = _o->psi;
+  auto _forward = _o->forward;
+  return quantra::CreateSsviSlice(
+      _fbb,
+      _expiry_date,
+      _theta,
+      _rho,
+      _psi,
+      _forward);
+}
+
+inline SsviFitSpecT *SsviFitSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<SsviFitSpecT>(new SsviFitSpecT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void SsviFitSpec::UnPackTo(SsviFitSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = weighting(); _o->weighting = _e; }
+  { auto _e = max_abs_log_moneyness(); _o->max_abs_log_moneyness = _e; }
+}
+
+inline ::flatbuffers::Offset<SsviFitSpec> SsviFitSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SsviFitSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateSsviFitSpec(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<SsviFitSpec> CreateSsviFitSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SsviFitSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SsviFitSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _weighting = _o->weighting;
+  auto _max_abs_log_moneyness = _o->max_abs_log_moneyness;
+  return quantra::CreateSsviFitSpec(
+      _fbb,
+      _weighting,
+      _max_abs_log_moneyness);
+}
+
 inline BlackVolSpecT::BlackVolSpecT(const BlackVolSpecT &o)
       : base((o.base) ? new quantra::BlackVolBaseSpecT(*o.base) : nullptr),
         strikes(o.strikes),
@@ -3069,9 +3611,14 @@ inline BlackVolSpecT::BlackVolSpecT(const BlackVolSpecT &o)
         allow_extrapolation(o.allow_extrapolation),
         surface_interpolator(o.surface_interpolator),
         expiry_interpolator(o.expiry_interpolator),
-        strike_interpolator(o.strike_interpolator) {
+        strike_interpolator(o.strike_interpolator),
+        ssvi_fit((o.ssvi_fit) ? new quantra::SsviFitSpecT(*o.ssvi_fit) : nullptr) {
   expiries.reserve(o.expiries.size());
   for (const auto &expiries_ : o.expiries) { expiries.emplace_back((expiries_) ? new quantra::PeriodT(*expiries_) : nullptr); }
+  ssvi_slices.reserve(o.ssvi_slices.size());
+  for (const auto &ssvi_slices_ : o.ssvi_slices) { ssvi_slices.emplace_back((ssvi_slices_) ? new quantra::SsviSliceT(*ssvi_slices_) : nullptr); }
+  option_quotes.reserve(o.option_quotes.size());
+  for (const auto &option_quotes_ : o.option_quotes) { option_quotes.emplace_back((option_quotes_) ? new quantra::EquityOptionQuoteT(*option_quotes_) : nullptr); }
 }
 
 inline BlackVolSpecT &BlackVolSpecT::operator=(BlackVolSpecT o) FLATBUFFERS_NOEXCEPT {
@@ -3096,6 +3643,9 @@ inline BlackVolSpecT &BlackVolSpecT::operator=(BlackVolSpecT o) FLATBUFFERS_NOEX
   std::swap(surface_interpolator, o.surface_interpolator);
   std::swap(expiry_interpolator, o.expiry_interpolator);
   std::swap(strike_interpolator, o.strike_interpolator);
+  std::swap(ssvi_slices, o.ssvi_slices);
+  std::swap(option_quotes, o.option_quotes);
+  std::swap(ssvi_fit, o.ssvi_fit);
   return *this;
 }
 
@@ -3129,6 +3679,9 @@ inline void BlackVolSpec::UnPackTo(BlackVolSpecT *_o, const ::flatbuffers::resol
   { auto _e = surface_interpolator(); _o->surface_interpolator = _e; }
   { auto _e = expiry_interpolator(); _o->expiry_interpolator = _e; }
   { auto _e = strike_interpolator(); _o->strike_interpolator = _e; }
+  { auto _e = ssvi_slices(); if (_e) { _o->ssvi_slices.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->ssvi_slices[_i]) { _e->Get(_i)->UnPackTo(_o->ssvi_slices[_i].get(), _resolver); } else { _o->ssvi_slices[_i] = std::unique_ptr<quantra::SsviSliceT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->ssvi_slices.resize(0); } }
+  { auto _e = option_quotes(); if (_e) { _o->option_quotes.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->option_quotes[_i]) { _e->Get(_i)->UnPackTo(_o->option_quotes[_i].get(), _resolver); } else { _o->option_quotes[_i] = std::unique_ptr<quantra::EquityOptionQuoteT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->option_quotes.resize(0); } }
+  { auto _e = ssvi_fit(); if (_e) { if(_o->ssvi_fit) { _e->UnPackTo(_o->ssvi_fit.get(), _resolver); } else { _o->ssvi_fit = std::unique_ptr<quantra::SsviFitSpecT>(_e->UnPack(_resolver)); } } else if (_o->ssvi_fit) { _o->ssvi_fit.reset(); } }
 }
 
 inline ::flatbuffers::Offset<BlackVolSpec> BlackVolSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const BlackVolSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -3160,6 +3713,9 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpec(::flatbuffers::Fla
   auto _surface_interpolator = _o->surface_interpolator;
   auto _expiry_interpolator = _o->expiry_interpolator;
   auto _strike_interpolator = _o->strike_interpolator;
+  auto _ssvi_slices = _o->ssvi_slices.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SsviSlice>> (_o->ssvi_slices.size(), [](size_t i, _VectorArgs *__va) { return CreateSsviSlice(*__va->__fbb, __va->__o->ssvi_slices[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _option_quotes = _o->option_quotes.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::EquityOptionQuote>> (_o->option_quotes.size(), [](size_t i, _VectorArgs *__va) { return CreateEquityOptionQuote(*__va->__fbb, __va->__o->option_quotes[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _ssvi_fit = _o->ssvi_fit ? CreateSsviFitSpec(_fbb, _o->ssvi_fit.get(), _rehasher) : 0;
   return quantra::CreateBlackVolSpec(
       _fbb,
       _base,
@@ -3182,7 +3738,10 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpec(::flatbuffers::Fla
       _allow_extrapolation,
       _surface_interpolator,
       _expiry_interpolator,
-      _strike_interpolator);
+      _strike_interpolator,
+      _ssvi_slices,
+      _option_quotes,
+      _ssvi_fit);
 }
 
 inline YoYOptionletVolSpecT::YoYOptionletVolSpecT(const YoYOptionletVolSpecT &o)

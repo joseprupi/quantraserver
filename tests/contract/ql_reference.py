@@ -4088,10 +4088,219 @@ def calendar_advance_ql(request: dict) -> str:
 
 
 # =============================================================================
+# eSSVI equity vol surface reference (BlackVolSpec shape=SsviParams)
+# =============================================================================
+
+_SSVI_TIME_FLOOR = 1e-8
+
+
+def _ssvi_w(theta: float, rho: float, psi: float, k: float) -> float:
+    """eSSVI total variance w(k) = 1/2 (theta + a k + sqrt(psi^2 k^2 + 2 a
+    theta k + theta^2)) with a = rho psi (src/market/ssvi.h)."""
+    a = rho * psi
+    return 0.5 * (theta + a * k
+                  + math.sqrt(psi * psi * k * k + 2.0 * a * theta * k + theta * theta))
+
+
+def _ssvi_node(slices: list, t: float) -> Tuple[float, float, float]:
+    """Interpolated (theta, psi, a) at time t from slices [(T, theta, rho,
+    psi)]: theta, psi and a = rho psi linear in t between slices; scaled by
+    t / T1 before the first one; psi, a constant and theta continuing the
+    last slope after the last one. t is floored at 1e-8."""
+    t = max(t, _SSVI_TIME_FLOOR)
+    if t < slices[0][0]:
+        t1, theta1, rho1, psi1 = slices[0]
+        lam = t / t1
+        return lam * theta1, lam * psi1, lam * rho1 * psi1
+    for (t_lo, th_lo, rho_lo, psi_lo), (t_hi, th_hi, rho_hi, psi_hi) in zip(slices, slices[1:]):
+        if t < t_hi:
+            lam = (t - t_lo) / (t_hi - t_lo)
+            a_lo, a_hi = rho_lo * psi_lo, rho_hi * psi_hi
+            return (th_lo + lam * (th_hi - th_lo), psi_lo + lam * (psi_hi - psi_lo),
+                    a_lo + lam * (a_hi - a_lo))
+    t_n, th_n, rho_n, psi_n = slices[-1]
+    if len(slices) >= 2:
+        slope = (th_n - slices[-2][1]) / (t_n - slices[-2][0])
+    else:
+        slope = th_n / t_n
+    return th_n + slope * (t - t_n), psi_n, rho_n * psi_n
+
+
+class SsviReferenceSurface:
+    """Python mirror of the server's SsviBlackVol (src/market/ssvi_vol_surface.cpp).
+
+    Total variance at (t, K) is w(node(t), ln(K / F_ref(t))). F_ref is
+    spot0 Dq(t) / Dr(t) of the surface's own dividend / discount curves; when
+    every slice carries a forward, the dividend curve is the implied one,
+    Dq(T_i) = F_i Dr(T_i) / S0 (log-linear discount curve, Dq(0) = 1,
+    extrapolated)."""
+
+    def __init__(self, ref: ql.Date, day_counter: ql.DayCounter, expiries: list,
+                 params: list, spot0: float, dividend, risk_free,
+                 forwards: Optional[list] = None):
+        self.ref = ref
+        self.day_counter = day_counter
+        self.spot0 = spot0
+        self.risk_free = risk_free
+        self.times = [day_counter.yearFraction(ref, d) for d in expiries]
+        self.slices = [(t, th, rho, psi)
+                       for t, (th, rho, psi) in zip(self.times, params)]
+        if forwards:
+            dfs = [f * risk_free.discount(t, True) / spot0
+                   for f, t in zip(forwards, self.times)]
+            curve = ql.DiscountCurve([ref] + list(expiries), [1.0] + dfs, day_counter)
+            curve.enableExtrapolation()
+            self.dividend = ql.YieldTermStructureHandle(curve)
+        else:
+            self.dividend = dividend
+
+    def forward(self, t: float) -> float:
+        return (self.spot0 * self.dividend.discount(t, True)
+                / self.risk_free.discount(t, True))
+
+    def variance(self, t: float, strike: float) -> float:
+        theta, psi, a = _ssvi_node(self.slices, t)
+        return _ssvi_w(theta, a / psi, psi, math.log(strike / self.forward(t)))
+
+
+def build_ssvi_surface(pricing: dict, vol_id: str, request: dict) -> SsviReferenceSurface:
+    """The referenced shape=SsviParams BlackVolSpec as the server builds it:
+    slices from ssvi_slices, spot / discount / dividend from the spec itself
+    (spot or spot_quote_id, discount_curve_id or the flat rate, likewise the
+    dividend), forwards used only when every slice has one (a mix is a 400
+    on the server and an error here)."""
+    spec = _find_vol_surface_spec(pricing, vol_id)
+    if spec.get("payload_type") != "BlackVolSpec":
+        raise ValueError(f"vol {vol_id}: a BlackVolSpec payload is required")
+    payload = spec["payload"]
+    base = payload["base"]
+    if base.get("shape") != "SsviParams":
+        raise ValueError(f"vol {vol_id}: the SSVI reference needs shape=SsviParams "
+                         "(it does not calibrate)")
+    ref = parse_date(base["reference_date"])
+    dc = get_day_counter(base["day_counter"])
+    eval_date = parse_date(pricing["as_of_date"])
+
+    if payload.get("spot_quote_id"):
+        spot0 = next((q["value"] for q in pricing.get("quotes", [])
+                      if q["id"] == payload["spot_quote_id"]), None)
+        if spot0 is None:
+            raise ValueError(f"Unknown quote id: {payload['spot_quote_id']}")
+    else:
+        spot0 = payload["spot"]
+
+    def market_curve(id_key, use_flat_key, flat_key):
+        if payload.get(id_key):
+            curve = next(c for c in pricing["curves"] if c["id"] == payload[id_key])
+            return build_curve_from_json(curve, eval_date, request)
+        if payload.get(use_flat_key):
+            return ql.YieldTermStructureHandle(
+                ql.FlatForward(ref, payload.get(flat_key, 0.0), dc))
+        return None
+
+    risk_free = market_curve("discount_curve_id", "use_flat_discount_rate",
+                             "flat_discount_rate")
+    dividend = market_curve("dividend_curve_id", "use_flat_dividend_rate",
+                            "flat_dividend_rate")
+    slices = payload["ssvi_slices"]
+    forwards = [s.get("forward") for s in slices]
+    with_forward = [f for f in forwards if f is not None]
+    if with_forward and len(with_forward) != len(forwards):
+        raise ValueError(f"vol {vol_id}: forward must be given on every slice or on none")
+    if not with_forward and dividend is None:
+        raise ValueError(f"vol {vol_id}: no slice forwards and no dividend curve")
+    return SsviReferenceSurface(
+        ref, dc, [parse_date(s["expiry_date"]) for s in slices],
+        [(s["theta"], s["rho"], s["psi"]) for s in slices],
+        spot0, dividend, risk_free, with_forward or None)
+
+
+def ssvi_black_variance_ql(request: dict, vol_id: str, expiry: str,
+                           strike: float) -> float:
+    """Black total variance of a shape=SsviParams surface at (expiry, strike),
+    time measured with the surface's own reference date and day counter."""
+    pricing = _reference_pricing_view(request)
+    surface = build_ssvi_surface(pricing, vol_id, request)
+    return surface.variance(
+        surface.day_counter.yearFraction(surface.ref, parse_date(expiry)), strike)
+
+
+# Generating parameters of the SPX-like calibration example
+# (examples/data/equity_vol/calibrate_equity_vol_spx_like.json): its option
+# premiums were computed from this eSSVI surface, so a correct calibration
+# returns it. Per expiry: ATM vol, rho, psi and the market forward the
+# premiums were generated with. The forwards are not the request's curve
+# forwards (6013.58, 6040.21, 6078.29, 6154.97, 6307.63 against dividend-curve forwards a few
+# points apart), so the forward found by put-call parity is what the case
+# pins. Strikes are multiples of 25, none at the forward.
+EQUITY_VOL_ROUNDTRIP_TRUTH = {
+    "spx_ssvi": [
+        ("2026-11-20", 0.165, -0.75, 0.045, 6013.58),
+        ("2027-01-21", 0.175, -0.72, 0.095, 6040.21),
+        ("2027-04-21", 0.182, -0.70, 0.140, 6078.29),
+        ("2027-10-21", 0.188, -0.68, 0.200, 6154.97),
+        ("2028-10-20", 0.192, -0.65, 0.280, 6307.63),
+    ],
+}
+
+
+def calibrate_equity_vol_ql(request: dict) -> dict:
+    """Expected /calibrate-equity-vol response fields for a round-trip request.
+
+    There is no Python calibrator: the request's quotes were generated from
+    the known surface in EQUITY_VOL_ROUNDTRIP_TRUTH. This function first
+    checks that claim, repricing every quote (Black-76 on the generating
+    forward and eSSVI variance, discounted on the vol's curve) to 1e-7, then
+    returns the generating theta, rho, psi and forward of every slice under
+    their response paths (slices.<i>.theta, ...), with theta = vol^2 T.
+    """
+    pricing = _reference_pricing_view(request)
+    vol_id = request["vol_id"]
+    truth = EQUITY_VOL_ROUNDTRIP_TRUTH.get(vol_id)
+    if truth is None:
+        raise ValueError(f"No generating parameters recorded for vol {vol_id}")
+    spec = _find_vol_surface_spec(pricing, vol_id)
+    payload = spec["payload"]
+    base = payload["base"]
+    ref = parse_date(base["reference_date"])
+    dc = get_day_counter(base["day_counter"])
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+    curve = next(c for c in pricing["curves"] if c["id"] == payload["discount_curve_id"])
+    risk_free = build_curve_from_json(curve, eval_date, request)
+
+    slices = {}
+    expected = {}
+    for i, (expiry, atm_vol, rho, psi, forward) in enumerate(truth):
+        t = dc.yearFraction(ref, parse_date(expiry))
+        discount = risk_free.discount(t, True)
+        theta = atm_vol * atm_vol * t
+        slices[expiry] = (t, theta, rho, psi, forward, discount)
+        expected[f"slices.{i}.theta"] = theta
+        expected[f"slices.{i}.rho"] = rho
+        expected[f"slices.{i}.psi"] = psi
+        expected[f"slices.{i}.forward"] = forward
+
+    worst = 0.0
+    for quote in payload["option_quotes"]:
+        t, theta, rho, psi, forward, discount = slices[quote["expiry_date"]]
+        strike = quote["strike"]
+        std_dev = math.sqrt(_ssvi_w(theta, rho, psi, math.log(strike / forward)))
+        kind = ql.Option.Put if quote["option_type"] == "Put" else ql.Option.Call
+        model = ql.blackFormula(kind, strike, forward, std_dev, discount)
+        worst = max(worst, abs(model - quote["price"]))
+    if worst > 1e-7:
+        raise ValueError(
+            f"vol {vol_id}: the quotes are not the generating surface's "
+            f"premiums (max gap {worst:.3g})")
+    return expected
+
+
+# =============================================================================
 # Equity Option Reference Pricer
 # =============================================================================
 
-def price_equity_option_ql(request: dict) -> float:
+def price_equity_option_ql(request: dict, greeks: bool = False):
     """Price an equity option using QuantLib, mirroring the server's engine
     selection across exercise styles and payoffs.
 
@@ -4101,9 +4310,10 @@ def price_equity_option_ql(request: dict) -> float:
         pricing.rates.curves, and the trade's discounting_curve is the
         risk-free leg — the three feed a BlackScholesMertonProcess together
         with the referenced Black vol,
-      * the volatility is the referenced BlackVolSpec (shape=Constant only,
-        like the server's equity path) rebuilt as a BlackConstantVol with the
-        spec's own reference date, calendar and day count,
+      * the volatility is the referenced BlackVolSpec rebuilt as a
+        BlackConstantVol with the spec's own reference date, calendar and day
+        count (shape=Constant), or, for shape=SsviParams on a plain European
+        option, as the flat vol with the eSSVI Black variance at (T, K),
       * the payoff is the wire-selected EquityPayoff (plain vanilla or a
         cash-/asset-or-nothing digital) and the exercise the wire-selected
         EquityExercise (European, American or Bermudan). The engine follows
@@ -4127,6 +4337,10 @@ def price_equity_option_ql(request: dict) -> float:
         BinomialVanillaEngine<CoxRossRubinstein> with the same step count),
       * the returned NPV is the per-option NPV scaled by the trade's
         quantity, matching the server's response field.
+
+    With greeks=True it returns {"npv", "delta", "gamma", "vega", "theta",
+    "rho"} instead of the bare NPV (the server's equity greeks come from the
+    same QuantLib option object).
 
     Deliberately refuses (raises) what it cannot faithfully reproduce:
     barrier features, and discrete dividends combined with the binomial
@@ -4183,15 +4397,35 @@ def price_equity_option_ql(request: dict) -> float:
     if vol_spec is None:
         raise ValueError(f"Black vol not found: {opt_data.get('volatility')}")
     vol_base = vol_spec.get("payload", {}).get("base", {})
-    if vol_base.get("shape", "Constant") != "Constant":
+    if vol_base.get("shape", "Constant") == "SsviParams":
+        # The analytic European engine reads one point of the surface, the
+        # Black variance at (T, K) with T from the surface's own reference
+        # date and day counter, so a flat vol with that variance reproduces
+        # the price and every greek exactly.
+        if (opt.get("payoff_type") != "EquityPlainVanillaPayoff"
+                or opt.get("exercise_type") != "EquityEuropeanExercise"
+                or div_dates):
+            raise ValueError(
+                "SsviParams is reference-priced for plain European options "
+                "without discrete dividends only")
+        surface = build_ssvi_surface(pricing, opt_data["volatility"], request)
+        expiry = parse_date(opt["exercise"]["expiry_date"])
+        t = surface.day_counter.yearFraction(surface.ref, expiry)
+        variance = surface.variance(t, opt["payoff"]["strike"])
+        black_vol = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(
+            surface.ref, get_calendar(vol_base.get("calendar", "TARGET")),
+            math.sqrt(variance / t), surface.day_counter))
+    elif vol_base.get("shape", "Constant") != "Constant":
         raise ValueError(
-            "Only shape=Constant BlackVolSpec is reference-priced for equity")
-    black_vol = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(
-        parse_date(vol_base.get("reference_date", pricing["as_of_date"])),
-        get_calendar(vol_base.get("calendar", "TARGET")),
-        vol_base["constant_vol"],
-        get_day_counter(vol_base.get("day_counter", "Actual365Fixed")),
-    ))
+            "Only shape=Constant and shape=SsviParams BlackVolSpec are "
+            "reference-priced for equity")
+    else:
+        black_vol = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(
+            parse_date(vol_base.get("reference_date", pricing["as_of_date"])),
+            get_calendar(vol_base.get("calendar", "TARGET")),
+            vol_base["constant_vol"],
+            get_day_counter(vol_base.get("day_counter", "Actual365Fixed")),
+        ))
 
     process = ql.BlackScholesMertonProcess(spot, dividend, risk_free, black_vol)
 
@@ -4295,7 +4529,16 @@ def price_equity_option_ql(request: dict) -> float:
 
     option.setPricingEngine(engine)
 
-    return option.NPV() * opt.get("quantity", 1.0)
+    quantity = opt.get("quantity", 1.0)
+    if greeks:
+        # The server's analytic greeks, each scaled by the trade quantity.
+        return {"npv": option.NPV() * quantity,
+                "delta": option.delta() * quantity,
+                "gamma": option.gamma() * quantity,
+                "vega": option.vega() * quantity,
+                "theta": option.theta() * quantity,
+                "rho": option.rho() * quantity}
+    return option.NPV() * quantity
 
 
 # =============================================================================
@@ -4422,6 +4665,9 @@ def sample_vol_surfaces_ql(request: dict) -> list:
         AtmMatrix2D term vols (BlackVarianceCurve, linear in variance,
         forceMonotoneVariance=true like the server's parser), sampled per
         (grid date, strike).
+      * EquityBlack surfaces of shape SsviParams (sqrt(w / T) of the eSSVI
+        reference surface), sampled per (grid date, strike). SsviCalibrate
+        is not calibrated here: sample its SsviParams twin.
 
     Not supported (deliberately): smile cubes / SABR sampling (needs the
     forward-aware cube the swaption family also defers), SpreadFromATM strike
@@ -4575,6 +4821,15 @@ def sample_vol_surfaces_ql(request: dict) -> list:
                             for p in payload["expiries"]]
             handle = ql.BlackVarianceCurve(
                 ref, pillar_dates, term_vols["values"], dc, True)
+        elif shape == "SsviParams":
+            # sqrt(w / T) of the eSSVI surface at each (grid date, strike).
+            surface = build_ssvi_surface(pricing, q["vol_id"], request)
+            out = []
+            for d in _tenor_grid_dates(q["expiry_grid"], ref, cal, bdc):
+                t = dc.yearFraction(ref, d)
+                out.extend(math.sqrt(surface.variance(t, strike) / t)
+                           for strike in strikes)
+            return out
         else:
             raise ValueError(
                 f"EquityBlack shape {shape} is not reference-supported")

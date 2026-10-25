@@ -36,6 +36,8 @@ include "../flatbuffers/fbs/calibrate_swaption_model_request.fbs";
 include "../flatbuffers/fbs/calibrate_swaption_model_response.fbs";
 include "../flatbuffers/fbs/calibrate_swaption_vol_request.fbs";
 include "../flatbuffers/fbs/calibrate_swaption_vol_response.fbs";
+include "../flatbuffers/fbs/calibrate_equity_vol_request.fbs";
+include "../flatbuffers/fbs/calibrate_equity_vol_response.fbs";
 include "../flatbuffers/fbs/price_equity_option_request.fbs";
 include "../flatbuffers/fbs/equity_option_response.fbs";
 include "../flatbuffers/fbs/price_zero_coupon_bond_request.fbs";
@@ -77,6 +79,7 @@ rpc_service QuantraServer {
   CalendarAdvance(CalendarAdvanceRequest):CalendarAdvanceResponse;
   CalibrateSwaptionModel(CalibrateSwaptionModelRequest):CalibrateSwaptionModelResponse;
   CalibrateSwaptionVol(CalibrateSwaptionVolRequest):CalibrateSwaptionVolResponse;
+  CalibrateEquityVol(CalibrateEquityVolRequest):CalibrateEquityVolResponse;
   PriceEquityOption(PriceEquityOptionRequest):PriceEquityOptionResponse;
   PriceZeroCouponBond(PriceZeroCouponBondRequest):PriceZeroCouponBondResponse;
   PriceZeroCouponSwap(PriceZeroCouponSwapRequest):PriceZeroCouponSwapResponse;

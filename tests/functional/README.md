@@ -46,6 +46,7 @@ committed catalog drifts from the manifest.
 | `../../examples/data/callable_bonds/` | The curated request JSONs for the Callable Bonds family. |
 | `../../examples/data/inflation_cap_floor/` | The curated request JSONs for the inflation cap/floor cases (Inflation family). |
 | `../../examples/data/structured_note/` | The curated request JSONs for the Structured Notes family (Monte Carlo on the engine's random stream). |
+| `../../examples/data/equity_vol/` | The curated request JSONs for the equity SSVI cases (the calibration round trip and an equity option on `SsviParams`). |
 
 ## Comparison modes
 

@@ -37,11 +37,12 @@ Priced instruments:
 - Equity options
 - FX forwards
 - Cross-currency swaps (two `SwapLeg` legs in two currencies: fixed, IBOR or overnight coupons, principal exchanges)
+- Equity options on arbitrage-free SSVI volatility surfaces, given as slice parameters or calibrated from option quotes (`POST /calibrate-equity-vol`)
 - Structured notes on equity-index baskets by Monte Carlo (worst-of / best-of / average autocallables, Phoenix and snowball coupons, low hurdles, step-downs, reverse convertibles, European or daily capital barriers, geared puts, upside participation; quanto underlyings; bump-and-reprice Greeks on common random numbers; opt-in diagnostics)
 
 Utility endpoints cover yield- and inflation-curve bootstrapping, volatility
-surface sampling, Hull-White and SABR calibration, and calendar date
-arithmetic.
+surface sampling, Hull-White, SABR and equity SSVI calibration, and calendar
+date arithmetic.
 
 Features that apply across products:
 
@@ -241,7 +242,9 @@ upgrade shipped in a release is documented in `docs/quantlib-upgrades/`
 - `flatbuffers/`: schema sources plus generated C++, Python, and JSON artifacts
 - `grpc/`: gRPC service definitions and generated service bindings
 - `examples/data/`: example JSON requests (`structured_note/` holds the two
-  factsheet transcriptions with placeholder market data and their README)
+  factsheet transcriptions with placeholder market data and their README;
+  `equity_vol/` holds the SSVI calibration and option examples, on synthetic
+  quotes that are not market data)
 - `tests/`: parity, integration, and client tests
 - `scripts/`: build, code generation, and runtime helpers
 - `tools/quantra-manager/`: packaged process-manager implementation

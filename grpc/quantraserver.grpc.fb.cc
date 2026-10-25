@@ -35,6 +35,7 @@ static const char* QuantraServer_method_names[] = {
   "/quantra.QuantraServer/CalendarAdvance",
   "/quantra.QuantraServer/CalibrateSwaptionModel",
   "/quantra.QuantraServer/CalibrateSwaptionVol",
+  "/quantra.QuantraServer/CalibrateEquityVol",
   "/quantra.QuantraServer/PriceEquityOption",
   "/quantra.QuantraServer/PriceZeroCouponBond",
   "/quantra.QuantraServer/PriceZeroCouponSwap",
@@ -71,15 +72,16 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   , rpcmethod_CalendarAdvance_(QuantraServer_method_names[16], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_CalibrateSwaptionModel_(QuantraServer_method_names[17], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_CalibrateSwaptionVol_(QuantraServer_method_names[18], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_PriceEquityOption_(QuantraServer_method_names[19], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_PriceZeroCouponBond_(QuantraServer_method_names[20], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_PriceZeroCouponSwap_(QuantraServer_method_names[21], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_PriceYearOnYearInflationCapFloor_(QuantraServer_method_names[22], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_PriceCallableFixedRateBond_(QuantraServer_method_names[23], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_PriceFxForward_(QuantraServer_method_names[24], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_PriceCrossCurrencySwap_(QuantraServer_method_names[25], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_PriceStructuredNote_(QuantraServer_method_names[26], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_Meta_(QuantraServer_method_names[27], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_CalibrateEquityVol_(QuantraServer_method_names[19], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceEquityOption_(QuantraServer_method_names[20], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceZeroCouponBond_(QuantraServer_method_names[21], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceZeroCouponSwap_(QuantraServer_method_names[22], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceYearOnYearInflationCapFloor_(QuantraServer_method_names[23], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceCallableFixedRateBond_(QuantraServer_method_names[24], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceFxForward_(QuantraServer_method_names[25], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceCrossCurrencySwap_(QuantraServer_method_names[26], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceStructuredNote_(QuantraServer_method_names[27], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_Meta_(QuantraServer_method_names[28], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
   
 ::grpc::Status QuantraServer::Stub::PriceFixedRateBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, flatbuffers::grpc::Message<PriceFixedRateBondResponse>* response) {
@@ -310,6 +312,18 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<CalibrateSwaptionVolResponse>>::Create(channel_.get(), cq, rpcmethod_CalibrateSwaptionVol_, context, request, false);
 }
 
+::grpc::Status QuantraServer::Stub::CalibrateEquityVol(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalibrateEquityVolRequest>& request, flatbuffers::grpc::Message<CalibrateEquityVolResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_CalibrateEquityVol_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalibrateEquityVolResponse>>* QuantraServer::Stub::AsyncCalibrateEquityVolRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalibrateEquityVolRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<CalibrateEquityVolResponse>>::Create(channel_.get(), cq, rpcmethod_CalibrateEquityVol_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalibrateEquityVolResponse>>* QuantraServer::Stub::PrepareAsyncCalibrateEquityVolRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalibrateEquityVolRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<CalibrateEquityVolResponse>>::Create(channel_.get(), cq, rpcmethod_CalibrateEquityVol_, context, request, false);
+}
+
 ::grpc::Status QuantraServer::Stub::PriceEquityOption(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceEquityOptionRequest>& request, flatbuffers::grpc::Message<PriceEquityOptionResponse>* response) {
   return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_PriceEquityOption_, context, request, response);
 }
@@ -517,45 +531,50 @@ QuantraServer::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       QuantraServer_method_names[19],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<CalibrateEquityVolRequest>, flatbuffers::grpc::Message<CalibrateEquityVolResponse>>(
+          std::mem_fn(&QuantraServer::Service::CalibrateEquityVol), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[20],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceEquityOptionRequest>, flatbuffers::grpc::Message<PriceEquityOptionResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceEquityOption), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[20],
+      QuantraServer_method_names[21],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceZeroCouponBondRequest>, flatbuffers::grpc::Message<PriceZeroCouponBondResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceZeroCouponBond), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[21],
+      QuantraServer_method_names[22],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceZeroCouponSwapRequest>, flatbuffers::grpc::Message<PriceZeroCouponSwapResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceZeroCouponSwap), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[22],
+      QuantraServer_method_names[23],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorRequest>, flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceYearOnYearInflationCapFloor), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[23],
+      QuantraServer_method_names[24],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceCallableFixedRateBondRequest>, flatbuffers::grpc::Message<PriceCallableFixedRateBondResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceCallableFixedRateBond), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[24],
+      QuantraServer_method_names[25],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceFxForwardRequest>, flatbuffers::grpc::Message<PriceFxForwardResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceFxForward), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[25],
+      QuantraServer_method_names[26],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceCrossCurrencySwapRequest>, flatbuffers::grpc::Message<PriceCrossCurrencySwapResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceCrossCurrencySwap), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[26],
+      QuantraServer_method_names[27],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceStructuredNoteRequest>, flatbuffers::grpc::Message<PriceStructuredNoteResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceStructuredNote), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[27],
+      QuantraServer_method_names[28],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<MetaRequest>, flatbuffers::grpc::Message<MetaResponse>>(
           std::mem_fn(&QuantraServer::Service::Meta), this)));
@@ -637,6 +656,10 @@ QuantraServer::Service::~Service() {
 }
 
 ::grpc::Status QuantraServer::Service::CalibrateSwaptionVol(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<CalibrateSwaptionVolRequest>* /*request*/, flatbuffers::grpc::Message<CalibrateSwaptionVolResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::CalibrateEquityVol(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<CalibrateEquityVolRequest>* /*request*/, flatbuffers::grpc::Message<CalibrateEquityVolResponse>* /*response*/) {
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 

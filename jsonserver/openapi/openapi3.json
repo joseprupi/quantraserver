@@ -3,7 +3,7 @@
   "info": {
     "title": "Quantra Pricing API",
     "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Zero Coupon Bond | `/price-zero-coupon-bond` | Price zero-coupon (single redemption) bonds |\n| Zero Coupon Swap | `/price-zero-coupon-swap` | Price zero-coupon fixed-vs-compounded-floating swaps |\n| Year-on-Year Inflation Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation caps, floors, and collars |\n| Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |\n| FX Forward | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount curves |\n| Cross-Currency Swap | `/price-cross-currency-swap` | Price cross-currency swaps (two SwapLeg entries in two currencies, fixed / IBOR / overnight coupons, principal exchanges) |\n| Structured Note | `/price-structured-note` | Price structured notes on equity-index baskets (autocallables, Phoenix / Athena coupons, capital barriers) by Monte Carlo |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n",
-    "version": "0.13.1",
+    "version": "0.14.0",
     "contact": {
       "name": "Quantra API Support",
       "url": "https://github.com/joseprupi/quantraserver"
@@ -1759,6 +1759,69 @@
         }
       }
     },
+    "/calibrate-equity-vol": {
+      "post": {
+        "summary": "Calibrate Equity eSSVI Volatility Surface",
+        "description": "Fit an arbitrage-free eSSVI surface (SsviCalibrate BlackVolSpec) to equity option prices or implied vols and return the calibrated slices (theta, rho, psi, forward) plus diagnostics: put-call-parity forwards, implied dividend yields, per-quote residuals, constraint margins and arbitrage-scan minima.",
+        "tags": [
+          "Volatility"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/quantra_CalibrateEquityVolRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful pricing response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/quantra_CalibrateEquityVolResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health Check",
@@ -2127,7 +2190,17 @@
           "SmileCube3D",
           "SurfaceFromPrices",
           "SabrParams",
-          "SabrCalibrate"
+          "SabrCalibrate",
+          "SsviParams",
+          "SsviCalibrate"
+        ]
+      },
+      "quantra_enums_SsviQuoteWeighting": {
+        "type": "string",
+        "enum": [
+          "Uniform",
+          "Vega",
+          "BidAsk"
         ]
       },
       "quantra_enums_YoYInflationCapFloorEngineType": {
@@ -4105,6 +4178,91 @@
         },
         "additionalProperties": false
       },
+      "quantra_EquityOptionQuote": {
+        "type": "object",
+        "description": "One equity option quote used to calibrate an eSSVI surface (shape=SsviCalibrate).",
+        "properties": {
+          "expiry_date": {
+            "type": "string",
+            "description": "Option expiry date (YYYY-MM-DD)."
+          },
+          "strike": {
+            "type": "number",
+            "description": "Strike. Presence-required, > 0."
+          },
+          "option_type": {
+            "$ref": "#/components/schemas/quantra_enums_EquityOptionType"
+          },
+          "price": {
+            "type": "number",
+            "description": "Option premium (per unit of underlying). Exactly one of price / implied_vol must be\ngiven, unless bid and ask are both given and price / implied_vol are both absent."
+          },
+          "implied_vol": {
+            "type": "number",
+            "description": "Black implied volatility (decimal, 0.2 = 20%). See price for the one-of rule."
+          },
+          "bid": {
+            "type": "number",
+            "description": "Bid, in the unit of the value given (price or implied_vol). When price and implied_vol\nare both absent, bid and ask are premiums and the quote price is their mid.\nBoth-or-neither with ask; required on the quotes when weighting=BidAsk."
+          },
+          "ask": {
+            "type": "number",
+            "description": "Ask, same unit as bid. Both-or-neither with bid."
+          },
+          "weight": {
+            "type": "number",
+            "description": "User weight multiplying the weighting-mode weight. Must be > 0."
+          }
+        },
+        "required": [
+          "expiry_date"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_SsviSlice": {
+        "type": "object",
+        "description": "One eSSVI slice (Corbetta-Cohort-Laachir-Martini 2019 parametrisation): total variance\nw(k) = 0.5 (theta + rho psi k + sqrt(psi^2 k^2 + 2 rho psi theta k + theta^2)) in the\nlog-forward moneyness k = ln(K / F_ref(T)).",
+        "properties": {
+          "expiry_date": {
+            "type": "string",
+            "description": "Slice expiry (YYYY-MM-DD), strictly after base.reference_date."
+          },
+          "theta": {
+            "type": "number",
+            "description": "ATM total implied variance, > 0. Presence-required for shape=SsviParams."
+          },
+          "rho": {
+            "type": "number",
+            "description": "Correlation, in (-1, 1). Presence-required for shape=SsviParams."
+          },
+          "psi": {
+            "type": "number",
+            "description": "psi = theta * phi, > 0. Presence-required for shape=SsviParams."
+          },
+          "forward": {
+            "type": "number",
+            "description": "Forward F_ref(T) the slice is expressed against. Optional input for shape=SsviParams\n(all slices or none); always filled in /calibrate-equity-vol responses."
+          }
+        },
+        "required": [
+          "expiry_date"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_SsviFitSpec": {
+        "type": "object",
+        "description": "Calibration settings for shape=SsviCalibrate.",
+        "properties": {
+          "weighting": {
+            "$ref": "#/components/schemas/quantra_enums_SsviQuoteWeighting"
+          },
+          "max_abs_log_moneyness": {
+            "type": "number",
+            "description": "Quotes with |ln(K / F)| above this are excluded from the fit and reported as excluded."
+          }
+        },
+        "additionalProperties": false
+      },
       "quantra_BlackVolSpec": {
         "type": "object",
         "description": "Black volatility for equity/FX/commodity options.",
@@ -4154,15 +4312,15 @@
           },
           "spot": {
             "type": "number",
-            "description": "Spot level for implied-vol inversion. Optional if spot_quote_id is provided."
+            "description": "Spot level for implied-vol inversion. Optional if spot_quote_id is provided.\nFor the SSVI shapes it is the snapshot spot S0 that defines the reference forward F_ref\n(see ssvi_slices)."
           },
           "spot_quote_id": {
             "type": "string",
-            "description": "Optional: resolve spot from pricing.quotes."
+            "description": "Optional: resolve spot from pricing.quotes. Also defines F_ref for the SSVI shapes."
           },
           "discount_curve_id": {
             "type": "string",
-            "description": "Discount curve id in pricing.curves used for implied-vol inversion."
+            "description": "Discount curve id in pricing.curves used for implied-vol inversion. For the SSVI shapes\nit also discounts the option prices and defines F_ref."
           },
           "use_flat_discount_rate": {
             "type": "boolean",
@@ -4174,7 +4332,7 @@
           },
           "dividend_curve_id": {
             "type": "string",
-            "description": "Dividend yield curve id in pricing.curves used for implied-vol inversion."
+            "description": "Dividend yield curve id in pricing.curves used for implied-vol inversion. For the SSVI\nshapes it also defines F_ref (see ssvi_slices)."
           },
           "use_flat_dividend_rate": {
             "type": "boolean",
@@ -4196,6 +4354,23 @@
           },
           "strike_interpolator": {
             "$ref": "#/components/schemas/quantra_enums_Interpolator"
+          },
+          "ssvi_slices": {
+            "type": "array",
+            "description": "eSSVI slices, strictly increasing expiry. Used only when base.shape=SsviParams.\nReference forward F_ref(T): if every slice carries `forward`, F_ref is built from them\n(implied dividend discount curve Dq(T_i) = F_i Dr(T_i) / S0, log-linear in discount, flat\nforward beyond the last slice); if none does, F_ref = S0 Dq(T) / Dr(T) from the spec spot,\ndividend and discount curves; a mix is rejected. For shape=SsviCalibrate F_ref comes from\nthe calibrated forwards in the same way; there the dividend curve is optional: with none,\nevery expiry needs call and put quotes at >= 2 common strikes (put-call-parity forward),\nelse the request is rejected.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_SsviSlice"
+            }
+          },
+          "option_quotes": {
+            "type": "array",
+            "description": "Option quotes to fit. Used only when base.shape=SsviCalibrate.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_EquityOptionQuote"
+            }
+          },
+          "ssvi_fit": {
+            "$ref": "#/components/schemas/quantra_SsviFitSpec"
           }
         },
         "additionalProperties": false
@@ -6050,110 +6225,21 @@
         ],
         "additionalProperties": false
       },
-      "quantra_CalibrateSwaptionModelRequest": {
+      "quantra_CalibrateEquityVolRequest": {
         "type": "object",
-        "description": "Request to calibrate a Hull-White swaption model.",
-        "properties": {
-          "pricing": {
-            "$ref": "#/components/schemas/quantra_Pricing"
-          },
-          "model_id": {
-            "type": "string",
-            "description": "Model id inside pricing.models to calibrate. Must refer to a SwaptionModelSpec with model_type=HullWhiteLattice."
-          },
-          "calibration": {
-            "$ref": "#/components/schemas/quantra_SwaptionHwCalibrationSpec"
-          }
-        },
-        "required": [
-          "pricing",
-          "model_id"
-        ],
-        "additionalProperties": false
-      },
-      "quantra_CalibrateSwaptionModelResponse": {
-        "type": "object",
-        "description": "Response from Hull-White swaption model calibration.",
-        "properties": {
-          "model_id": {
-            "type": "string",
-            "description": "Model id requested for calibration."
-          },
-          "hw_a": {
-            "type": "number",
-            "description": "Calibrated Hull-White mean reversion parameter \"a\"."
-          },
-          "hw_sigma": {
-            "type": "number",
-            "description": "Calibrated Hull-White volatility parameter \"sigma\"."
-          },
-          "rmse": {
-            "type": "number",
-            "description": "Root-mean-square error computed from calibration helper errors."
-          },
-          "num_helpers": {
-            "type": "integer",
-            "description": "Number of calibration helpers used (typically rows * cols).",
-            "minimum": -2147483648,
-            "maximum": 2147483647
-          },
-          "grid_rows": {
-            "type": "integer",
-            "description": "Number of expiry rows in the calibration grid.",
-            "minimum": -2147483648,
-            "maximum": 2147483647
-          },
-          "grid_cols": {
-            "type": "integer",
-            "description": "Number of tenor columns in the calibration grid.",
-            "minimum": -2147483648,
-            "maximum": 2147483647
-          },
-          "grid_points": {
-            "type": "integer",
-            "description": "Total number of grid points in the calibration grid.",
-            "minimum": -2147483648,
-            "maximum": 2147483647
-          },
-          "a_flatness": {
-            "type": "number",
-            "description": "How well the surface pins \"a\" (present iff calibrate_a): the relative\nrmse increase when \"a\" is doubled or halved at the calibrated sigma,\n1 - rmse / max(rmse(2a), rmse(a/2)). 0 = the objective is flat in \"a\";\nvalues near 1 = \"a\" is sharply identified. Absent for a sigma-only fit."
-          },
-          "a_poorly_identified": {
-            "type": "boolean",
-            "description": "True when a_flatness < 0.01: the fitted \"a\" is not supported by the\nsurface and should not be read as a market value. Present iff calibrate_a."
-          }
-        },
-        "required": [
-          "model_id"
-        ],
-        "additionalProperties": false
-      },
-      "quantra_CalibrateSwaptionVolRequest": {
-        "type": "object",
-        "description": "Request to calibrate a SABR swaption volatility surface.\n\nMirrors `/calibrate-swaption-model` (Hull-White) in shape: caller supplies\na full pricing context plus a `vol_id` referencing the surface to calibrate.\nDiscount/forwarding curve ids are explicit on the request (rather than\ninferred from a model spec, since SABR has no model) and follow the same\nconvention as `VolQuerySpec` on `/sample-vol-surfaces`.",
+        "description": "Request to calibrate an equity eSSVI volatility surface from option quotes.\n\nMirrors `/calibrate-swaption-vol`: the caller supplies a full pricing\ncontext plus a `vol_id` referencing the surface to calibrate. Spot, discount\nand dividend curves are those of the referenced BlackVolSpec.",
         "properties": {
           "pricing": {
             "$ref": "#/components/schemas/quantra_Pricing"
           },
           "vol_id": {
             "type": "string",
-            "description": "Vol surface id inside `pricing.volatility.vol_surfaces`. Must reference a\nSwaptionVolSpec whose payload is SwaptionSabrCalibrateSpec; all other\nkinds (Constant, AtmMatrix2D, SmileCube3D, SabrParams) are rejected."
-          },
-          "discounting_curve_id": {
-            "type": "string",
-            "description": "Discount curve id used to compute per-node ATM forwards F(expiry, tenor).\nRequired: SABR calibrate is forward-aware and the request stands alone\n(no trade-side curve fallback like /price-swaption has)."
-          },
-          "forwarding_curve_id": {
-            "type": "string",
-            "description": "Forwarding curve id used to project the floating leg in F computation."
+            "description": "Vol surface id inside `pricing.volatility.vol_surfaces`. Must reference a\nBlackVolSpec with base.shape=SsviCalibrate; every other shape is rejected."
           }
         },
         "required": [
           "pricing",
-          "vol_id",
-          "discounting_curve_id",
-          "forwarding_curve_id"
+          "vol_id"
         ],
         "additionalProperties": false
       },
@@ -6302,6 +6388,322 @@
         },
         "required": [
           "vol_id"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_EquityVolSliceDiagnostics": {
+        "type": "object",
+        "description": "One calibrated eSSVI slice of /calibrate-equity-vol. Vols and errors are decimals\n(0.01 = one vol point).",
+        "properties": {
+          "expiry_date": {
+            "type": "string"
+          },
+          "time": {
+            "type": "number",
+            "description": "Year fraction from the reference date (surface day counter)."
+          },
+          "pcp_forward": {
+            "type": "number",
+            "description": "Forward used for the fit: put-call parity when calls and puts exist at >= 2 common\nstrikes, else the curve forward (an expiry without parity pairs needs a dividend curve)."
+          },
+          "curve_forward": {
+            "type": "number",
+            "description": "Forward from the spot, dividend and discount curves. Null when the surface has no\ndividend curve."
+          },
+          "implied_dividend_yield": {
+            "type": "number",
+            "description": "-ln(pcp_forward Dr(T) / S0) / T."
+          },
+          "anchor_k": {
+            "type": "number",
+            "description": "Anchor quote (closest to the money) log-moneyness and total variance, after clamping."
+          },
+          "anchor_theta": {
+            "type": "number"
+          },
+          "anchor_clamped": {
+            "type": "boolean",
+            "description": "True when the anchor total variance was raised to keep the calendar condition feasible."
+          },
+          "used_quotes": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "excluded_quotes": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "rmse": {
+            "type": "number",
+            "description": "Root-mean-square and max absolute error of the used quotes, decimal vol."
+          },
+          "max_abs_error": {
+            "type": "number"
+          },
+          "margin_butterfly_psi": {
+            "type": "number",
+            "description": "Constraint margins, rhs - lhs, >= 0 when satisfied (see ssvi_calibrator.h)."
+          },
+          "margin_butterfly_psi2": {
+            "type": "number"
+          },
+          "margin_calendar_theta": {
+            "type": "number",
+            "description": "Calendar margins versus the previous slice; absent on the first slice."
+          },
+          "margin_calendar_psi": {
+            "type": "number"
+          },
+          "margin_calendar_a": {
+            "type": "number"
+          },
+          "parity_pairs_used": {
+            "type": "integer",
+            "description": "Put-call pairs (common strikes) behind pcp_forward, after outlier rejection; 0 when the\nforward is the curve forward.",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "parity_pairs_rejected": {
+            "type": "integer",
+            "description": "Pairs dropped as outliers: further than max(5 * 1.4826 MAD, 1e-4 pcp_forward) from the\nmedian pair forward (only with >= 3 pairs). Both quotes are excluded as \"parity_outlier\".",
+            "minimum": 0,
+            "maximum": 4294967295
+          }
+        },
+        "required": [
+          "expiry_date"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_EquityVolQuoteDiagnostics": {
+        "type": "object",
+        "description": "One input quote of /calibrate-equity-vol with its fit residual.",
+        "properties": {
+          "expiry_date": {
+            "type": "string"
+          },
+          "strike": {
+            "type": "number"
+          },
+          "option_type": {
+            "$ref": "#/components/schemas/quantra_enums_EquityOptionType"
+          },
+          "market_vol": {
+            "type": "number",
+            "description": "Implied vol of the quote (decimal); absent when it could not be solved (unused quotes)."
+          },
+          "model_vol": {
+            "type": "number"
+          },
+          "residual": {
+            "type": "number",
+            "description": "model_vol - market_vol, decimal vol; absent with market_vol."
+          },
+          "weight": {
+            "type": "number",
+            "description": "The user weight of the quote."
+          },
+          "used": {
+            "type": "boolean"
+          },
+          "exclusion_reason": {
+            "type": "string",
+            "description": "Empty for used quotes. Otherwise the first that applies:\nprice_outside_bounds      price outside (intrinsic, D F) for a call or (intrinsic, D K)\nfor a put at the slice forward F;\nparity_outlier            one of a put-call pair rejected from the parity forward;\nimplied_vol_not_solved    the implied-vol solve failed;\nin_the_money_side         the out-of-the-money quote of the same strike is used instead;\nmax_abs_log_moneyness     |ln(K / F)| beyond SsviFitSpec.max_abs_log_moneyness;\nimplied_vol_not_positive  implied total variance is not > 0;\nask_not_above_bid         BidAsk weighting and ask <= bid.\nA slice needs at least 3 used quotes, otherwise the request is rejected."
+          }
+        },
+        "required": [
+          "expiry_date"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_EquityVolDiagnostics": {
+        "type": "object",
+        "description": "Diagnostics block of /calibrate-equity-vol.",
+        "properties": {
+          "slices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_EquityVolSliceDiagnostics"
+            }
+          },
+          "quotes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_EquityVolQuoteDiagnostics"
+            }
+          },
+          "excluded_by_moneyness": {
+            "type": "integer",
+            "description": "Quotes dropped for |k| > max_abs_log_moneyness.",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "overall_rmse": {
+            "type": "number"
+          },
+          "overall_max_abs_error": {
+            "type": "number"
+          },
+          "violations": {
+            "type": "array",
+            "description": "Arbitrage violations found after the fit (empty on success).",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scan_min_g": {
+            "type": "number",
+            "description": "Minimum of the Durrleman function g(k, k) and of dw/dt over the scan grid, with the\n(t, k) where they occur."
+          },
+          "scan_min_g_t": {
+            "type": "number"
+          },
+          "scan_min_g_k": {
+            "type": "number"
+          },
+          "scan_min_w_t": {
+            "type": "number"
+          },
+          "scan_min_w_t_t": {
+            "type": "number"
+          },
+          "scan_min_w_t_k": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_CalibrateEquityVolResponse": {
+        "type": "object",
+        "description": "Response from /calibrate-equity-vol.\n\n`slices` carry theta, rho, psi and the fitted forward on every slice, so\npasting them into a BlackVolSpec with shape=SsviParams reproduces the\ncalibrated surface exactly.",
+        "properties": {
+          "vol_id": {
+            "type": "string",
+            "description": "Vol id requested for calibration, echoed for client correlation."
+          },
+          "slices": {
+            "type": "array",
+            "description": "Calibrated eSSVI slices, increasing expiry.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_SsviSlice"
+            }
+          },
+          "diagnostics": {
+            "$ref": "#/components/schemas/quantra_EquityVolDiagnostics"
+          }
+        },
+        "required": [
+          "vol_id",
+          "diagnostics"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_CalibrateSwaptionModelRequest": {
+        "type": "object",
+        "description": "Request to calibrate a Hull-White swaption model.",
+        "properties": {
+          "pricing": {
+            "$ref": "#/components/schemas/quantra_Pricing"
+          },
+          "model_id": {
+            "type": "string",
+            "description": "Model id inside pricing.models to calibrate. Must refer to a SwaptionModelSpec with model_type=HullWhiteLattice."
+          },
+          "calibration": {
+            "$ref": "#/components/schemas/quantra_SwaptionHwCalibrationSpec"
+          }
+        },
+        "required": [
+          "pricing",
+          "model_id"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_CalibrateSwaptionModelResponse": {
+        "type": "object",
+        "description": "Response from Hull-White swaption model calibration.",
+        "properties": {
+          "model_id": {
+            "type": "string",
+            "description": "Model id requested for calibration."
+          },
+          "hw_a": {
+            "type": "number",
+            "description": "Calibrated Hull-White mean reversion parameter \"a\"."
+          },
+          "hw_sigma": {
+            "type": "number",
+            "description": "Calibrated Hull-White volatility parameter \"sigma\"."
+          },
+          "rmse": {
+            "type": "number",
+            "description": "Root-mean-square error computed from calibration helper errors."
+          },
+          "num_helpers": {
+            "type": "integer",
+            "description": "Number of calibration helpers used (typically rows * cols).",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "grid_rows": {
+            "type": "integer",
+            "description": "Number of expiry rows in the calibration grid.",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "grid_cols": {
+            "type": "integer",
+            "description": "Number of tenor columns in the calibration grid.",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "grid_points": {
+            "type": "integer",
+            "description": "Total number of grid points in the calibration grid.",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "a_flatness": {
+            "type": "number",
+            "description": "How well the surface pins \"a\" (present iff calibrate_a): the relative\nrmse increase when \"a\" is doubled or halved at the calibrated sigma,\n1 - rmse / max(rmse(2a), rmse(a/2)). 0 = the objective is flat in \"a\";\nvalues near 1 = \"a\" is sharply identified. Absent for a sigma-only fit."
+          },
+          "a_poorly_identified": {
+            "type": "boolean",
+            "description": "True when a_flatness < 0.01: the fitted \"a\" is not supported by the\nsurface and should not be read as a market value. Present iff calibrate_a."
+          }
+        },
+        "required": [
+          "model_id"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_CalibrateSwaptionVolRequest": {
+        "type": "object",
+        "description": "Request to calibrate a SABR swaption volatility surface.\n\nMirrors `/calibrate-swaption-model` (Hull-White) in shape: caller supplies\na full pricing context plus a `vol_id` referencing the surface to calibrate.\nDiscount/forwarding curve ids are explicit on the request (rather than\ninferred from a model spec, since SABR has no model) and follow the same\nconvention as `VolQuerySpec` on `/sample-vol-surfaces`.",
+        "properties": {
+          "pricing": {
+            "$ref": "#/components/schemas/quantra_Pricing"
+          },
+          "vol_id": {
+            "type": "string",
+            "description": "Vol surface id inside `pricing.volatility.vol_surfaces`. Must reference a\nSwaptionVolSpec whose payload is SwaptionSabrCalibrateSpec; all other\nkinds (Constant, AtmMatrix2D, SmileCube3D, SabrParams) are rejected."
+          },
+          "discounting_curve_id": {
+            "type": "string",
+            "description": "Discount curve id used to compute per-node ATM forwards F(expiry, tenor).\nRequired: SABR calibrate is forward-aware and the request stands alone\n(no trade-side curve fallback like /price-swaption has)."
+          },
+          "forwarding_curve_id": {
+            "type": "string",
+            "description": "Forwarding curve id used to project the floating leg in F computation."
+          }
+        },
+        "required": [
+          "pricing",
+          "vol_id",
+          "discounting_curve_id",
+          "forwarding_curve_id"
         ],
         "additionalProperties": false
       },

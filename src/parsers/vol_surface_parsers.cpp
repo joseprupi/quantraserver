@@ -10,6 +10,7 @@
 #include "request_validation.h"
 #include "roll_offset.h"
 #include "sabr_calibrate_cache.h"
+#include "ssvi_vol_parser.h"
 
 #include <ql/exercise.hpp>
 #include <ql/instruments/vanillaoption.hpp>
@@ -147,10 +148,13 @@ void validateBlackVolBase(const quantra::BlackVolBaseSpec* b, const std::string&
         case quantra::enums::VolSurfaceShape_Constant:
         case quantra::enums::VolSurfaceShape_AtmMatrix2D:
         case quantra::enums::VolSurfaceShape_SmileCube3D:
-        case quantra::enums::VolSurfaceShape_SurfaceFromPrices: break;
+        case quantra::enums::VolSurfaceShape_SurfaceFromPrices:
+        case quantra::enums::VolSurfaceShape_SsviParams:
+        case quantra::enums::VolSurfaceShape_SsviCalibrate: break;
         default:
             QUANTRA_INVALID_ARGUMENT(
-                "BlackVolSpec supports shape=Constant, AtmMatrix2D, SmileCube3D, SurfaceFromPrices for vol id: " +
+                "BlackVolSpec supports shape=Constant, AtmMatrix2D, SmileCube3D, SurfaceFromPrices, "
+                "SsviParams, SsviCalibrate for vol id: " +
                 id);
     }
 }
@@ -1509,6 +1513,72 @@ SwaptionVolEntry parseSwaptionVol(
 // Black Vol Parser (for Equity/FX)
 // =============================================================================
 
+BlackVolMarket resolveBlackVolMarket(
+    const quantra::BlackVolSpec* payload,
+    const QuantLib::Date& ref,
+    const QuantLib::DayCounter& dc,
+    const QuoteRegistry* quotes,
+    const std::map<
+        std::string,
+        std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>>* curves,
+    const std::string& id,
+    const std::string& shapeName,
+    bool requireDividend) {
+    BlackVolMarket m;
+    if (payload->spot_quote_id() && !payload->spot_quote_id()->str().empty()) {
+        if (!quotes) {
+            QUANTRA_ERROR("spot_quote_id requires QuoteRegistry for vol id: " + id);
+        }
+        m.spot = quotes->getHandle(payload->spot_quote_id()->str());
+    } else {
+        const double spotLevel = payload->spot();
+        if (!(spotLevel > 0.0)) {
+            QUANTRA_INVALID_ARGUMENT(
+                "BlackVolSpec.spot must be > 0 when spot_quote_id is not provided for vol id: " +
+                id);
+        }
+        m.spot =
+            QuantLib::Handle<QuantLib::Quote>(std::make_shared<QuantLib::SimpleQuote>(spotLevel));
+    }
+
+    if (payload->discount_curve_id() && !payload->discount_curve_id()->str().empty()) {
+        if (!curves) {
+            QUANTRA_ERROR("discount_curve_id requires PricingRegistry curves for vol id: " + id);
+        }
+        auto it = curves->find(payload->discount_curve_id()->str());
+        if (it == curves->end()) {
+            QUANTRA_NOT_FOUND("Discount curve not found for vol id: " + id);
+        }
+        m.discount = QuantLib::Handle<QuantLib::YieldTermStructure>(it->second->currentLink());
+    } else if (payload->use_flat_discount_rate()) {
+        m.discount = QuantLib::Handle<QuantLib::YieldTermStructure>(
+            std::make_shared<QuantLib::FlatForward>(ref, payload->flat_discount_rate(), dc));
+    } else {
+        QUANTRA_INVALID_ARGUMENT(
+            shapeName +
+            " requires discount_curve_id or use_flat_discount_rate=true for vol id: " + id);
+    }
+
+    if (payload->dividend_curve_id() && !payload->dividend_curve_id()->str().empty()) {
+        if (!curves) {
+            QUANTRA_ERROR("dividend_curve_id requires PricingRegistry curves for vol id: " + id);
+        }
+        auto it = curves->find(payload->dividend_curve_id()->str());
+        if (it == curves->end()) {
+            QUANTRA_NOT_FOUND("Dividend curve not found for vol id: " + id);
+        }
+        m.dividend = QuantLib::Handle<QuantLib::YieldTermStructure>(it->second->currentLink());
+    } else if (payload->use_flat_dividend_rate()) {
+        m.dividend = QuantLib::Handle<QuantLib::YieldTermStructure>(
+            std::make_shared<QuantLib::FlatForward>(ref, payload->flat_dividend_rate(), dc));
+    } else if (requireDividend) {
+        QUANTRA_INVALID_ARGUMENT(
+            shapeName +
+            " requires dividend_curve_id or use_flat_dividend_rate=true for vol id: " + id);
+    }
+    return m;
+}
+
 BlackVolEntry parseBlackVol(
     const quantra::VolSurfaceSpec* spec,
     const QuoteRegistry* quotes,
@@ -1547,7 +1617,19 @@ BlackVolEntry parseBlackVol(
     const bool hasDividend =
         hasNonEmptyString(payload->dividend_curve_id()) || payload->use_flat_dividend_rate();
 
+    const bool isSsvi = isSsviShape(shape);
+    if (!isSsvi && (hasSsviFields(payload))) {
+        QUANTRA_INVALID_ARGUMENT(
+            "ssvi_slices/option_quotes/ssvi_fit are only valid for shape=SsviParams or "
+            "SsviCalibrate, vol id: " +
+            id);
+    }
+
     switch (shape) {
+        case quantra::enums::VolSurfaceShape_SsviParams:
+        case quantra::enums::VolSurfaceShape_SsviCalibrate:
+            validateSsviFields(payload, shape, id);
+            break;
         case quantra::enums::VolSurfaceShape_Constant:
             if (hasExpiries || hasStrikes || hasTermVols || hasSurfaceVols || hasPriceExpiries ||
                 hasPriceStrikes || hasSurfacePrices || hasSpot || hasDiscount || hasDividend) {
@@ -1777,69 +1859,11 @@ BlackVolEntry parseBlackVol(
                     }
                 }
 
-                QuantLib::Handle<QuantLib::Quote> spot;
-                if (payload->spot_quote_id() && !payload->spot_quote_id()->str().empty()) {
-                    if (!quotes) {
-                        QUANTRA_ERROR("spot_quote_id requires QuoteRegistry for vol id: " + id);
-                    }
-                    spot = quotes->getHandle(payload->spot_quote_id()->str());
-                } else {
-                    const double spotLevel = payload->spot();
-                    if (!(spotLevel > 0.0)) {
-                        QUANTRA_INVALID_ARGUMENT(
-                            "BlackVolSpec.spot must be > 0 when spot_quote_id is not provided for vol id: " +
-                            id);
-                    }
-                    spot = QuantLib::Handle<QuantLib::Quote>(
-                        std::make_shared<QuantLib::SimpleQuote>(spotLevel));
-                }
-
-                std::shared_ptr<QuantLib::YieldTermStructure> flatDiscount;
-                std::shared_ptr<QuantLib::YieldTermStructure> flatDividend;
-                QuantLib::Handle<QuantLib::YieldTermStructure> discount;
-                QuantLib::Handle<QuantLib::YieldTermStructure> dividend;
-
-                if (payload->discount_curve_id() && !payload->discount_curve_id()->str().empty()) {
-                    if (!curves) {
-                        QUANTRA_ERROR(
-                            "discount_curve_id requires PricingRegistry curves for vol id: " + id);
-                    }
-                    auto it = curves->find(payload->discount_curve_id()->str());
-                    if (it == curves->end()) {
-                        QUANTRA_NOT_FOUND("Discount curve not found for vol id: " + id);
-                    }
-                    discount =
-                        QuantLib::Handle<QuantLib::YieldTermStructure>(it->second->currentLink());
-                } else if (payload->use_flat_discount_rate()) {
-                    flatDiscount = std::make_shared<QuantLib::FlatForward>(
-                        ref, payload->flat_discount_rate(), dc);
-                    discount = QuantLib::Handle<QuantLib::YieldTermStructure>(flatDiscount);
-                } else {
-                    QUANTRA_INVALID_ARGUMENT(
-                        "SurfaceFromPrices requires discount_curve_id or use_flat_discount_rate=true for vol id: " +
-                        id);
-                }
-
-                if (payload->dividend_curve_id() && !payload->dividend_curve_id()->str().empty()) {
-                    if (!curves) {
-                        QUANTRA_ERROR(
-                            "dividend_curve_id requires PricingRegistry curves for vol id: " + id);
-                    }
-                    auto it = curves->find(payload->dividend_curve_id()->str());
-                    if (it == curves->end()) {
-                        QUANTRA_NOT_FOUND("Dividend curve not found for vol id: " + id);
-                    }
-                    dividend =
-                        QuantLib::Handle<QuantLib::YieldTermStructure>(it->second->currentLink());
-                } else if (payload->use_flat_dividend_rate()) {
-                    flatDividend = std::make_shared<QuantLib::FlatForward>(
-                        ref, payload->flat_dividend_rate(), dc);
-                    dividend = QuantLib::Handle<QuantLib::YieldTermStructure>(flatDividend);
-                } else {
-                    QUANTRA_INVALID_ARGUMENT(
-                        "SurfaceFromPrices requires dividend_curve_id or use_flat_dividend_rate=true for vol id: " +
-                        id);
-                }
+                const BlackVolMarket market = resolveBlackVolMarket(
+                    payload, ref, dc, quotes, curves, id, "SurfaceFromPrices", true);
+                const auto& spot = market.spot;
+                const auto& discount = market.discount;
+                const auto& dividend = market.dividend;
 
                 auto volQuote = QuantLib::Handle<QuantLib::Quote>(
                     std::make_shared<QuantLib::SimpleQuote>(0.20));
@@ -1932,8 +1956,20 @@ BlackVolEntry parseBlackVol(
         return {};
     };
 
-    auto built = build_equity_black_vol_surface();
+    std::shared_ptr<const SsviVolData> ssviData;
+    std::pair<QuantLib::Handle<QuantLib::BlackVolTermStructure>, double> built;
+    if (isSsvi) {
+        const SsviParseResult r =
+            parseSsviVol(payload, shape, id, ref, cal, bdc, dc, quotes, curves);
+        ssviData = r.data;
+        built = {
+            QuantLib::Handle<QuantLib::BlackVolTermStructure>(r.vol),
+            std::numeric_limits<double>::quiet_NaN()};
+    } else {
+        built = build_equity_black_vol_surface();
+    }
     BlackVolEntry entry = retained;
+    entry.ssvi = ssviData;
     entry.handle = built.first;
     entry.constantVol = built.second;
     entry.shapeFb = shape;
@@ -1966,6 +2002,10 @@ QuantLib::Handle<QuantLib::BlackVolTermStructure> shiftedBlackVol(
     };
     std::shared_ptr<QuantLib::BlackVolTermStructure> ts;
     switch (entry.shapeFb) {
+        case quantra::enums::VolSurfaceShape_SsviParams:
+        case quantra::enums::VolSurfaceShape_SsviCalibrate:
+            ts = shiftedSsviVol(entry, shift);
+            break;
         case quantra::enums::VolSurfaceShape_Constant: {
             if (!std::isfinite(entry.constantVol)) {
                 QUANTRA_ERROR("Black vol entry has no constant vol to shift");

@@ -67,6 +67,10 @@ CASES = [
     # calls the shared calibration helper).
     Case("swaption_bermudan_hw_calibrated", "swaption",
          "swaption_bermudan_hw_calibrated.json", "swaptions"),
+    # Equity SSVI calibration cache: the calibrate endpoint returns fitted
+    # slices and diagnostics, which a hit must reproduce bit-for-bit.
+    Case("calibrate_equity_vol_ssvi", "calibrate_equity_vol",
+         "equity_vol/calibrate_equity_vol_spx_like.json", None),
     Case("cds", "cds",
          "cds_request.json", "cds_list"),
     Case("bootstrap_curves_forward", "bootstrap_curves",
@@ -569,6 +573,7 @@ _HIT_MARKERS = {
     "curve": ("[CurveCache]", "event=L1_HIT"),
     "sabr": ("[SabrCalibrateCache]", "event=HIT"),
     "hw": ("[HwCalibCache]", "event=hit"),
+    "ssvi": ("[SsviCalibrateCache]", "event=HIT"),
 }
 
 
@@ -934,3 +939,93 @@ def test_xccy_spot_change_changes_npv_but_not_the_pure_rates_curves(
             f"the pure-rates curve {curve} changed key on an FX spot move")
     # The original entries still answer the original request.
     assert _canonical(cache_client.price(XCCY_SWAP_CASE.product, plain)) == _canonical(off_plain)
+
+
+# ---------------------------------------------------------------------------
+# Equity SSVI calibration cache
+
+SSVI_CASE = next(c for c in CASES if c.id == "calibrate_equity_vol_ssvi")
+
+
+def _ssvi_events(log_path: Path, start: int = 0) -> dict:
+    """Count SsviCalibrateCache HIT / MISS events logged after line `start`."""
+    counts = {"HIT": 0, "MISS": 0}
+    if not log_path.exists():
+        return counts
+    for line in log_path.read_text(errors="replace").splitlines()[start:]:
+        if "[SsviCalibrateCache]" not in line:
+            continue
+        for event in counts:
+            if f"event={event} " in line:
+                counts[event] += 1
+    return counts
+
+
+def _ssvi_fresh_request(data_dir) -> dict:
+    """The SPX-like request with a quote nudged by a per-run amount, so the
+    first call is a guaranteed miss whatever earlier tests left in the cache."""
+    request = load_json(data_dir / SSVI_CASE.filename)
+    quote = _ssvi_surface(request)["option_quotes"][0]
+    quote["price"] += (time.time_ns() % 100000) * 1e-9
+    return request
+
+
+def _ssvi_surface(request: dict) -> dict:
+    return request["pricing"]["volatility"]["vol_surfaces"][0]["payload"]
+
+
+def _ssvi_call(client, request: dict, log_path: Path):
+    """POST and return (canonical response, HIT delta, MISS delta)."""
+    mark = _log_lines(log_path)
+    response = _canonical(client.price(SSVI_CASE.product, request))
+    events = {}
+    for _ in range(20):  # the log line is written just before the reply
+        events = _ssvi_events(log_path, mark)
+        if events["HIT"] + events["MISS"]:
+            break
+        time.sleep(0.1)
+    return response, events["HIT"], events["MISS"]
+
+
+def _ssvi_spot_up(request: dict) -> None:
+    request["pricing"]["quotes"][0]["value"] += 1.0
+
+
+def _ssvi_quote_up(request: dict) -> None:
+    _ssvi_surface(request)["option_quotes"][3]["price"] += 0.01
+
+
+def _ssvi_curve_up(request: dict) -> None:
+    point = request["pricing"]["rates"]["curves"][0]["points"][0]["point"]
+    point["zero_rate"] += 1e-4
+
+
+@pytest.mark.parametrize("mutate", [_ssvi_spot_up, _ssvi_quote_up, _ssvi_curve_up],
+                         ids=["spot", "option_quote", "discount_curve"])
+def test_ssvi_calibration_cache_hit_and_miss(mutate, nocache_client, cache_client,
+                                             data_dir, cache_log_path):
+    """The same SsviCalibrate request twice is one miss then one hit with
+    identical responses (also equal to the cache-OFF server's); changing the
+    spot, an option quote or the discount curve misses and changes the fit."""
+    request = _ssvi_fresh_request(data_dir)
+
+    first, hits, misses = _ssvi_call(cache_client, request, cache_log_path)
+    assert (hits, misses) == (0, 1), (
+        f"first call should be one SsviCalibrateCache miss, got hits={hits} "
+        f"misses={misses}. Is QUANTRA_SSVI_CACHE_ENABLED=1 / "
+        f"QUANTRA_SSVI_CACHE_LOG=1 set on the cache-ON gRPC server?")
+    second, hits, misses = _ssvi_call(cache_client, request, cache_log_path)
+    assert (hits, misses) == (1, 0), f"repeat should hit: hits={hits} misses={misses}"
+    assert second == first
+    assert _canonical(nocache_client.price(SSVI_CASE.product, request)) == first
+
+    changed = copy.deepcopy(request)
+    mutate(changed)
+    third, hits, misses = _ssvi_call(cache_client, changed, cache_log_path)
+    assert (hits, misses) == (0, 1), (
+        f"{mutate.__name__}: a changed input must miss, got hits={hits} "
+        f"misses={misses}")
+    assert third != first, f"{mutate.__name__}: the changed input left the fit unchanged"
+    # The original entry still answers the original request.
+    again, hits, misses = _ssvi_call(cache_client, request, cache_log_path)
+    assert (hits, misses) == (1, 0) and again == first

@@ -15,6 +15,8 @@
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "quote_registry.h"
+#include "ssvi_calibrator.h"
+#include "ssvi_vol_surface.h"
 
 #include "volatility_generated.h"
 
@@ -100,6 +102,27 @@ struct SwaptionVolEntry {
     int nStrikes = 0;
 };
 
+/// What an eSSVI Black vol (shape SsviParams / SsviCalibrate) was built from. The handle of
+/// the entry is an SsviBlackVol over these; `shiftedBlackVol` and /calibrate-equity-vol read
+/// the rest.
+struct SsviVolData {
+    std::vector<QuantLib::Date> expiries;
+    std::vector<SsviSliceParams> params;
+    /// F_ref(T_i) at the slice expiries: the forwards of the slices, the fitted (put-call
+    /// parity) forwards, or the curve forwards.
+    std::vector<double> forwards;
+    /// Snapshot spot S0 of F_ref (the surface is sticky-strike in it).
+    double spot0 = 0.0;
+    /// Dividend curve F_ref is built on: the spec's, or the one implied by `forwards`.
+    QuantLib::Handle<QuantLib::YieldTermStructure> dividend;
+    QuantLib::Handle<QuantLib::YieldTermStructure> riskFree;
+    /// SsviCalibrate only: the quotes sent, the settings and the fit (shared with the cache).
+    std::vector<ssvi::OptionQuote> quotes;
+    ssvi::QuoteWeighting weighting = ssvi::QuoteWeighting::Vega;
+    double maxAbsLogMoneyness = 1.0;
+    std::shared_ptr<const ssvi::CalibrationResult> fit;
+};
+
 struct BlackVolEntry {
     QuantLib::Handle<QuantLib::BlackVolTermStructure> handle;
     /// The vol of a Constant spec (quote resolved); NaN for the other shapes.
@@ -127,7 +150,31 @@ struct BlackVolEntry {
     QuantLib::Matrix surfaceVols;
     bool bicubic = false;
     bool allowExtrapolation = false;
+    /// SsviParams / SsviCalibrate only; null otherwise.
+    std::shared_ptr<const SsviVolData> ssvi;
 };
+
+/// Spot, risk-free and dividend handles resolved from a BlackVolSpec (spot / spot_quote_id,
+/// discount_curve_id or flat rate, dividend_curve_id or flat rate), shared by the
+/// price-inverting and the SSVI shapes. `shapeName` prefixes the 400 messages. A missing
+/// dividend input is a 400 only when `requireDividend`; otherwise `dividend` stays empty.
+struct BlackVolMarket {
+    QuantLib::Handle<QuantLib::Quote> spot;
+    QuantLib::Handle<QuantLib::YieldTermStructure> discount;
+    QuantLib::Handle<QuantLib::YieldTermStructure> dividend;
+};
+
+BlackVolMarket resolveBlackVolMarket(
+    const quantra::BlackVolSpec* payload,
+    const QuantLib::Date& ref,
+    const QuantLib::DayCounter& dc,
+    const QuoteRegistry* quotes,
+    const std::map<
+        std::string,
+        std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>>* curves,
+    const std::string& id,
+    const std::string& shapeName,
+    bool requireDividend);
 
 /**
  * Rebuild `entry`'s vol with every Black vol shifted by `shift` (absolute,
