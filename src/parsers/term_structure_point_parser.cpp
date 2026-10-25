@@ -9,6 +9,7 @@
 #include <ql/settings.hpp>
 #include <ql/termstructures/yield/oisratehelper.hpp>
 #include <ql/termstructures/yield/ratehelpers.hpp>
+#include <ql/utilities/dataformatters.hpp>
 
 #include <optional>
 #include <sstream>
@@ -64,7 +65,8 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     const CurveRegistry* curves,
     const IndexRegistry* indices,
     double bump,
-    const FxSpotRegistry* fxSpots) const {
+    const FxSpotRegistry* fxSpots,
+    const std::string& location) const {
 
     // A union whose type byte names a helper but whose value offset is absent
     // survives FlatBuffers verification; the static_casts in each branch below
@@ -99,10 +101,35 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         if (!point->day_counter().has_value())
             QUANTRA_INVALID_ARGUMENT("DepositHelper.day_counter is required");
 
+        const QuantLib::Period tenor = requirePeriod(point->tenor(), "DepositHelper.tenor");
+        const int fixingDays =
+            requireNonNegative(point->fixing_days(), "DepositHelper.fixing_days");
+        const QuantLib::Calendar calendar = CalendarToQL(point->calendar().value());
+
+        // Since QuantLib 1.44 the deposit helper counts its settlement days
+        // from the ACTUAL evaluation date even when that date is a holiday of
+        // the helper's calendar. With fixing_days > 0 the deposit's fixing
+        // date (spot minus fixing_days business days) then lands before the
+        // evaluation date and the bootstrap asks for a historical fixing of
+        // the helper's internal index — which no request field can supply, so
+        // the curve would fail deep inside the bootstrap with an opaque
+        // "Missing no-fix… fixing" 422. Name the condition and the remedies
+        // up front instead; the date is deliberately NOT rolled.
+        const QuantLib::Date asOf = QuantLib::Settings::instance().evaluationDate();
+        if (fixingDays > 0 && !calendar.isBusinessDay(asOf)) {
+            std::ostringstream os;
+            os << (location.empty() ? std::string("DepositHelper") : location + " (DepositHelper)")
+               << ": the evaluation date " << io::iso_date(asOf) << " is not a business day of "
+               << "the helper's calendar " << calendar.name() << " and fixing_days is "
+               << fixingDays << ", so the deposit's fixing date precedes the evaluation date "
+               << "and the bootstrap would need a historical fixing the request cannot supply. "
+               << "Value on a business day of " << calendar.name()
+               << ", or set fixing_days: 0 on the DepositHelper";
+            QUANTRA_INVALID_ARGUMENT(os.str());
+        }
+
         return std::make_shared<DepositRateHelper>(
-            q, requirePeriod(point->tenor(), "DepositHelper.tenor"),
-            requireNonNegative(point->fixing_days(), "DepositHelper.fixing_days"),
-            CalendarToQL(point->calendar().value()),
+            q, tenor, static_cast<Natural>(fixingDays), calendar,
             ConventionToQL(point->business_day_convention().value()), true,
             DayCounterToQL(point->day_counter().value()));
     }

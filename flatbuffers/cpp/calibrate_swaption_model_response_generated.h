@@ -29,6 +29,8 @@ struct CalibrateSwaptionModelResponseT : public ::flatbuffers::NativeTable {
   int32_t grid_rows = 0;
   int32_t grid_cols = 0;
   int32_t grid_points = 0;
+  ::flatbuffers::Optional<double> a_flatness = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<bool> a_poorly_identified = ::flatbuffers::nullopt;
 };
 
 /// Response from Hull-White swaption model calibration.
@@ -43,7 +45,9 @@ struct CalibrateSwaptionModelResponse FLATBUFFERS_FINAL_CLASS : private ::flatbu
     VT_NUM_HELPERS = 12,
     VT_GRID_ROWS = 14,
     VT_GRID_COLS = 16,
-    VT_GRID_POINTS = 18
+    VT_GRID_POINTS = 18,
+    VT_A_FLATNESS = 20,
+    VT_A_POORLY_IDENTIFIED = 22
   };
   /// Model id requested for calibration.
   const ::flatbuffers::String *model_id() const {
@@ -77,6 +81,18 @@ struct CalibrateSwaptionModelResponse FLATBUFFERS_FINAL_CLASS : private ::flatbu
   int32_t grid_points() const {
     return GetField<int32_t>(VT_GRID_POINTS, 0);
   }
+  /// How well the surface pins "a" (present iff calibrate_a): the relative
+  /// rmse increase when "a" is doubled or halved at the calibrated sigma,
+  /// 1 - rmse / max(rmse(2a), rmse(a/2)). 0 = the objective is flat in "a";
+  /// values near 1 = "a" is sharply identified. Absent for a sigma-only fit.
+  ::flatbuffers::Optional<double> a_flatness() const {
+    return GetOptional<double, double>(VT_A_FLATNESS);
+  }
+  /// True when a_flatness < 0.01: the fitted "a" is not supported by the
+  /// surface and should not be read as a market value. Present iff calibrate_a.
+  ::flatbuffers::Optional<bool> a_poorly_identified() const {
+    return GetOptional<uint8_t, bool>(VT_A_POORLY_IDENTIFIED);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_MODEL_ID) &&
@@ -88,6 +104,8 @@ struct CalibrateSwaptionModelResponse FLATBUFFERS_FINAL_CLASS : private ::flatbu
            VerifyField<int32_t>(verifier, VT_GRID_ROWS, 4) &&
            VerifyField<int32_t>(verifier, VT_GRID_COLS, 4) &&
            VerifyField<int32_t>(verifier, VT_GRID_POINTS, 4) &&
+           VerifyField<double>(verifier, VT_A_FLATNESS, 8) &&
+           VerifyField<uint8_t>(verifier, VT_A_POORLY_IDENTIFIED, 1) &&
            verifier.EndTable();
   }
   CalibrateSwaptionModelResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -123,6 +141,12 @@ struct CalibrateSwaptionModelResponseBuilder {
   void add_grid_points(int32_t grid_points) {
     fbb_.AddElement<int32_t>(CalibrateSwaptionModelResponse::VT_GRID_POINTS, grid_points, 0);
   }
+  void add_a_flatness(double a_flatness) {
+    fbb_.AddElement<double>(CalibrateSwaptionModelResponse::VT_A_FLATNESS, a_flatness);
+  }
+  void add_a_poorly_identified(bool a_poorly_identified) {
+    fbb_.AddElement<uint8_t>(CalibrateSwaptionModelResponse::VT_A_POORLY_IDENTIFIED, static_cast<uint8_t>(a_poorly_identified));
+  }
   explicit CalibrateSwaptionModelResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -144,8 +168,11 @@ inline ::flatbuffers::Offset<CalibrateSwaptionModelResponse> CreateCalibrateSwap
     int32_t num_helpers = 0,
     int32_t grid_rows = 0,
     int32_t grid_cols = 0,
-    int32_t grid_points = 0) {
+    int32_t grid_points = 0,
+    ::flatbuffers::Optional<double> a_flatness = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> a_poorly_identified = ::flatbuffers::nullopt) {
   CalibrateSwaptionModelResponseBuilder builder_(_fbb);
+  if(a_flatness) { builder_.add_a_flatness(*a_flatness); }
   builder_.add_rmse(rmse);
   builder_.add_hw_sigma(hw_sigma);
   builder_.add_hw_a(hw_a);
@@ -154,6 +181,7 @@ inline ::flatbuffers::Offset<CalibrateSwaptionModelResponse> CreateCalibrateSwap
   builder_.add_grid_rows(grid_rows);
   builder_.add_num_helpers(num_helpers);
   builder_.add_model_id(model_id);
+  if(a_poorly_identified) { builder_.add_a_poorly_identified(*a_poorly_identified); }
   return builder_.Finish();
 }
 
@@ -166,7 +194,9 @@ inline ::flatbuffers::Offset<CalibrateSwaptionModelResponse> CreateCalibrateSwap
     int32_t num_helpers = 0,
     int32_t grid_rows = 0,
     int32_t grid_cols = 0,
-    int32_t grid_points = 0) {
+    int32_t grid_points = 0,
+    ::flatbuffers::Optional<double> a_flatness = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> a_poorly_identified = ::flatbuffers::nullopt) {
   auto model_id__ = model_id ? _fbb.CreateString(model_id) : 0;
   return quantra::CreateCalibrateSwaptionModelResponse(
       _fbb,
@@ -177,7 +207,9 @@ inline ::flatbuffers::Offset<CalibrateSwaptionModelResponse> CreateCalibrateSwap
       num_helpers,
       grid_rows,
       grid_cols,
-      grid_points);
+      grid_points,
+      a_flatness,
+      a_poorly_identified);
 }
 
 ::flatbuffers::Offset<CalibrateSwaptionModelResponse> CreateCalibrateSwaptionModelResponse(::flatbuffers::FlatBufferBuilder &_fbb, const CalibrateSwaptionModelResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -199,6 +231,8 @@ inline void CalibrateSwaptionModelResponse::UnPackTo(CalibrateSwaptionModelRespo
   { auto _e = grid_rows(); _o->grid_rows = _e; }
   { auto _e = grid_cols(); _o->grid_cols = _e; }
   { auto _e = grid_points(); _o->grid_points = _e; }
+  { auto _e = a_flatness(); _o->a_flatness = _e; }
+  { auto _e = a_poorly_identified(); _o->a_poorly_identified = _e; }
 }
 
 inline ::flatbuffers::Offset<CalibrateSwaptionModelResponse> CalibrateSwaptionModelResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CalibrateSwaptionModelResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -217,6 +251,8 @@ inline ::flatbuffers::Offset<CalibrateSwaptionModelResponse> CreateCalibrateSwap
   auto _grid_rows = _o->grid_rows;
   auto _grid_cols = _o->grid_cols;
   auto _grid_points = _o->grid_points;
+  auto _a_flatness = _o->a_flatness;
+  auto _a_poorly_identified = _o->a_poorly_identified;
   return quantra::CreateCalibrateSwaptionModelResponse(
       _fbb,
       _model_id,
@@ -226,7 +262,9 @@ inline ::flatbuffers::Offset<CalibrateSwaptionModelResponse> CreateCalibrateSwap
       _num_helpers,
       _grid_rows,
       _grid_cols,
-      _grid_points);
+      _grid_points,
+      _a_flatness,
+      _a_poorly_identified);
 }
 
 inline const quantra::CalibrateSwaptionModelResponse *GetCalibrateSwaptionModelResponse(const void *buf) {

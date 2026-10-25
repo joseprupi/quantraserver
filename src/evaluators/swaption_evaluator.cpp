@@ -548,6 +548,8 @@ SwaptionResult SwaptionEvaluator::evaluate(
                 row.usedHwGridRows = calibratedHw->gridRows;
                 row.usedHwGridCols = calibratedHw->gridCols;
                 row.usedHwGridPoints = calibratedHw->gridPoints;
+                row.usedHwAFlatness = calibratedHw->aFlatness;
+                row.usedHwAPoorlyIdentified = calibratedHw->aPoorlyIdentified;
             } else {
                 row.usedHwA = modelDomain->hw_a;
                 row.usedHwSigma = modelDomain->hw_sigma;

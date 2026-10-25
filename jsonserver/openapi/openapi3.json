@@ -3,7 +3,7 @@
   "info": {
     "title": "Quantra Pricing API",
     "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Zero Coupon Bond | `/price-zero-coupon-bond` | Price zero-coupon (single redemption) bonds |\n| Zero Coupon Swap | `/price-zero-coupon-swap` | Price zero-coupon fixed-vs-compounded-floating swaps |\n| Year-on-Year Inflation Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation caps, floors, and collars |\n| Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |\n| FX Forward | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount curves |\n| Cross-Currency Swap | `/price-cross-currency-swap` | Price cross-currency swaps (two SwapLeg entries in two currencies, fixed / IBOR / overnight coupons, principal exchanges) |\n| Structured Note | `/price-structured-note` | Price structured notes on equity-index baskets (autocallables, Phoenix / Athena coupons, capital barriers) by Monte Carlo |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n",
-    "version": "0.13.0",
+    "version": "0.13.1",
     "contact": {
       "name": "Quantra API Support",
       "url": "https://github.com/joseprupi/quantraserver"
@@ -4386,11 +4386,19 @@
           },
           "a_init": {
             "type": "number",
-            "description": "Initial guess for Hull-White \"a\"."
+            "description": "Initial guess for Hull-White \"a\". When calibrate_a is true the guess is\nclipped into [a_lower, a_upper] before the fit starts."
           },
           "sigma_init": {
             "type": "number",
             "description": "Initial guess for Hull-White \"sigma\"."
+          },
+          "a_lower": {
+            "type": "number",
+            "description": "Lower bound on \"a\" during a joint (calibrate_a = true) calibration.\nBelow about 1e-3 the Hull-White objective is numerically flat in \"a\"\nand the fitted value is noise; the optimizer is kept out of that region.\nMust be > 0 and < a_upper. Ignored when calibrate_a is false."
+          },
+          "a_upper": {
+            "type": "number",
+            "description": "Upper bound on \"a\" during a joint calibration. Must be > a_lower.\nIgnored when calibrate_a is false."
           },
           "max_iterations": {
             "type": "integer",
@@ -6106,6 +6114,14 @@
             "description": "Total number of grid points in the calibration grid.",
             "minimum": -2147483648,
             "maximum": 2147483647
+          },
+          "a_flatness": {
+            "type": "number",
+            "description": "How well the surface pins \"a\" (present iff calibrate_a): the relative\nrmse increase when \"a\" is doubled or halved at the calibrated sigma,\n1 - rmse / max(rmse(2a), rmse(a/2)). 0 = the objective is flat in \"a\";\nvalues near 1 = \"a\" is sharply identified. Absent for a sigma-only fit."
+          },
+          "a_poorly_identified": {
+            "type": "boolean",
+            "description": "True when a_flatness < 0.01: the fitted \"a\" is not supported by the\nsurface and should not be read as a market value. Present iff calibrate_a."
           }
         },
         "required": [
@@ -9951,6 +9967,14 @@
             "description": "Calibration grid points for inline-calibrated Hull-White. Absent when no inline calibration.",
             "minimum": -2147483648,
             "maximum": 2147483647
+          },
+          "used_hw_a_flatness": {
+            "type": "number",
+            "description": "Flatness of the calibration objective in \"a\" (see CalibrateSwaptionModelResponse.a_flatness).\nPresent only for an inline calibration with calibrate_a = true."
+          },
+          "used_hw_a_poorly_identified": {
+            "type": "boolean",
+            "description": "True when the inline-calibrated \"a\" is poorly identified (a_flatness < 0.01).\nPresent only for an inline calibration with calibrate_a = true."
           }
         },
         "additionalProperties": false

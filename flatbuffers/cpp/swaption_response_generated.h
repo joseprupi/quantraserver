@@ -54,6 +54,8 @@ struct SwaptionResponseT : public ::flatbuffers::NativeTable {
   ::flatbuffers::Optional<int32_t> used_hw_grid_rows = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<int32_t> used_hw_grid_cols = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<int32_t> used_hw_grid_points = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> used_hw_a_flatness = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<bool> used_hw_a_poorly_identified = ::flatbuffers::nullopt;
 };
 
 /// Swaption pricing response with NPV, Greeks, and diagnostics.
@@ -86,7 +88,9 @@ struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_USED_HW_NUM_HELPERS = 48,
     VT_USED_HW_GRID_ROWS = 50,
     VT_USED_HW_GRID_COLS = 52,
-    VT_USED_HW_GRID_POINTS = 54
+    VT_USED_HW_GRID_POINTS = 54,
+    VT_USED_HW_A_FLATNESS = 56,
+    VT_USED_HW_A_POORLY_IDENTIFIED = 58
   };
   /// Present value of the swaption under the selected model and market inputs.
   double npv() const {
@@ -218,6 +222,16 @@ struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   ::flatbuffers::Optional<int32_t> used_hw_grid_points() const {
     return GetOptional<int32_t, int32_t>(VT_USED_HW_GRID_POINTS);
   }
+  /// Flatness of the calibration objective in "a" (see CalibrateSwaptionModelResponse.a_flatness).
+  /// Present only for an inline calibration with calibrate_a = true.
+  ::flatbuffers::Optional<double> used_hw_a_flatness() const {
+    return GetOptional<double, double>(VT_USED_HW_A_FLATNESS);
+  }
+  /// True when the inline-calibrated "a" is poorly identified (a_flatness < 0.01).
+  /// Present only for an inline calibration with calibrate_a = true.
+  ::flatbuffers::Optional<bool> used_hw_a_poorly_identified() const {
+    return GetOptional<uint8_t, bool>(VT_USED_HW_A_POORLY_IDENTIFIED);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<double>(verifier, VT_NPV, 8) &&
@@ -248,6 +262,8 @@ struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<int32_t>(verifier, VT_USED_HW_GRID_ROWS, 4) &&
            VerifyField<int32_t>(verifier, VT_USED_HW_GRID_COLS, 4) &&
            VerifyField<int32_t>(verifier, VT_USED_HW_GRID_POINTS, 4) &&
+           VerifyField<double>(verifier, VT_USED_HW_A_FLATNESS, 8) &&
+           VerifyField<uint8_t>(verifier, VT_USED_HW_A_POORLY_IDENTIFIED, 1) &&
            verifier.EndTable();
   }
   SwaptionResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -337,6 +353,12 @@ struct SwaptionResponseBuilder {
   void add_used_hw_grid_points(int32_t used_hw_grid_points) {
     fbb_.AddElement<int32_t>(SwaptionResponse::VT_USED_HW_GRID_POINTS, used_hw_grid_points);
   }
+  void add_used_hw_a_flatness(double used_hw_a_flatness) {
+    fbb_.AddElement<double>(SwaptionResponse::VT_USED_HW_A_FLATNESS, used_hw_a_flatness);
+  }
+  void add_used_hw_a_poorly_identified(bool used_hw_a_poorly_identified) {
+    fbb_.AddElement<uint8_t>(SwaptionResponse::VT_USED_HW_A_POORLY_IDENTIFIED, static_cast<uint8_t>(used_hw_a_poorly_identified));
+  }
   explicit SwaptionResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -375,8 +397,11 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(
     ::flatbuffers::Optional<int32_t> used_hw_num_helpers = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<int32_t> used_hw_grid_rows = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<int32_t> used_hw_grid_cols = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<int32_t> used_hw_grid_points = ::flatbuffers::nullopt) {
+    ::flatbuffers::Optional<int32_t> used_hw_grid_points = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> used_hw_a_flatness = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> used_hw_a_poorly_identified = ::flatbuffers::nullopt) {
   SwaptionResponseBuilder builder_(_fbb);
+  if(used_hw_a_flatness) { builder_.add_used_hw_a_flatness(*used_hw_a_flatness); }
   if(used_hw_rmse) { builder_.add_used_hw_rmse(*used_hw_rmse); }
   if(used_hw_sigma) { builder_.add_used_hw_sigma(*used_hw_sigma); }
   if(used_hw_a) { builder_.add_used_hw_a(*used_hw_a); }
@@ -400,6 +425,7 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(
   if(used_hw_num_helpers) { builder_.add_used_hw_num_helpers(*used_hw_num_helpers); }
   builder_.add_used_swap_tenor(used_swap_tenor);
   builder_.add_used_option_expiry(used_option_expiry);
+  if(used_hw_a_poorly_identified) { builder_.add_used_hw_a_poorly_identified(*used_hw_a_poorly_identified); }
   builder_.add_used_model_param_mode(used_model_param_mode);
   builder_.add_vol_kind(vol_kind);
   builder_.add_used_strike_kind(used_strike_kind);
@@ -433,7 +459,9 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponseDirect(
     ::flatbuffers::Optional<int32_t> used_hw_num_helpers = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<int32_t> used_hw_grid_rows = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<int32_t> used_hw_grid_cols = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<int32_t> used_hw_grid_points = ::flatbuffers::nullopt) {
+    ::flatbuffers::Optional<int32_t> used_hw_grid_points = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> used_hw_a_flatness = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> used_hw_a_poorly_identified = ::flatbuffers::nullopt) {
   auto used_option_expiry__ = used_option_expiry ? _fbb.CreateString(used_option_expiry) : 0;
   auto used_swap_tenor__ = used_swap_tenor ? _fbb.CreateString(used_swap_tenor) : 0;
   return quantra::CreateSwaptionResponse(
@@ -463,7 +491,9 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponseDirect(
       used_hw_num_helpers,
       used_hw_grid_rows,
       used_hw_grid_cols,
-      used_hw_grid_points);
+      used_hw_grid_points,
+      used_hw_a_flatness,
+      used_hw_a_poorly_identified);
 }
 
 ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -591,6 +621,8 @@ inline void SwaptionResponse::UnPackTo(SwaptionResponseT *_o, const ::flatbuffer
   { auto _e = used_hw_grid_rows(); _o->used_hw_grid_rows = _e; }
   { auto _e = used_hw_grid_cols(); _o->used_hw_grid_cols = _e; }
   { auto _e = used_hw_grid_points(); _o->used_hw_grid_points = _e; }
+  { auto _e = used_hw_a_flatness(); _o->used_hw_a_flatness = _e; }
+  { auto _e = used_hw_a_poorly_identified(); _o->used_hw_a_poorly_identified = _e; }
 }
 
 inline ::flatbuffers::Offset<SwaptionResponse> SwaptionResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -627,6 +659,8 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(::flatbuff
   auto _used_hw_grid_rows = _o->used_hw_grid_rows;
   auto _used_hw_grid_cols = _o->used_hw_grid_cols;
   auto _used_hw_grid_points = _o->used_hw_grid_points;
+  auto _used_hw_a_flatness = _o->used_hw_a_flatness;
+  auto _used_hw_a_poorly_identified = _o->used_hw_a_poorly_identified;
   return quantra::CreateSwaptionResponse(
       _fbb,
       _npv,
@@ -654,7 +688,9 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(::flatbuff
       _used_hw_num_helpers,
       _used_hw_grid_rows,
       _used_hw_grid_cols,
-      _used_hw_grid_points);
+      _used_hw_grid_points,
+      _used_hw_a_flatness,
+      _used_hw_a_poorly_identified);
 }
 
 inline PriceSwaptionResponseT::PriceSwaptionResponseT(const PriceSwaptionResponseT &o) {

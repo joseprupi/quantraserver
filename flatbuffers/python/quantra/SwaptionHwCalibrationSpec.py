@@ -124,7 +124,8 @@ class SwaptionHwCalibrationSpec(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return True
 
-    # Initial guess for Hull-White "a".
+    # Initial guess for Hull-White "a". When calibrate_a is true the guess is
+    # clipped into [a_lower, a_upper] before the fit starts.
     # SwaptionHwCalibrationSpec
     def AInit(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
@@ -140,10 +141,30 @@ class SwaptionHwCalibrationSpec(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.01
 
+    # Lower bound on "a" during a joint (calibrate_a = true) calibration.
+    # Below about 1e-3 the Hull-White objective is numerically flat in "a"
+    # and the fitted value is noise; the optimizer is kept out of that region.
+    # Must be > 0 and < a_upper. Ignored when calibrate_a is false.
+    # SwaptionHwCalibrationSpec
+    def ALower(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.001
+
+    # Upper bound on "a" during a joint calibration. Must be > a_lower.
+    # Ignored when calibrate_a is false.
+    # SwaptionHwCalibrationSpec
+    def AUpper(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 1.0
+
     # EndCriteria max stationarity iterations.
     # SwaptionHwCalibrationSpec
     def MaxIterations(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 200
@@ -151,7 +172,7 @@ class SwaptionHwCalibrationSpec(object):
     # EndCriteria max function evaluations.
     # SwaptionHwCalibrationSpec
     def FunctionEvaluations(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 1000
@@ -159,13 +180,13 @@ class SwaptionHwCalibrationSpec(object):
     # EndCriteria eps for root/function/gradient checks.
     # SwaptionHwCalibrationSpec
     def EndCriteriaEps(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(32))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 1.0e-8
 
 def SwaptionHwCalibrationSpecStart(builder):
-    builder.StartObject(13)
+    builder.StartObject(15)
 
 def Start(builder):
     SwaptionHwCalibrationSpecStart(builder)
@@ -242,20 +263,32 @@ def SwaptionHwCalibrationSpecAddSigmaInit(builder, sigmaInit):
 def AddSigmaInit(builder, sigmaInit):
     SwaptionHwCalibrationSpecAddSigmaInit(builder, sigmaInit)
 
+def SwaptionHwCalibrationSpecAddALower(builder, aLower):
+    builder.PrependFloat64Slot(10, aLower, 0.001)
+
+def AddALower(builder, aLower):
+    SwaptionHwCalibrationSpecAddALower(builder, aLower)
+
+def SwaptionHwCalibrationSpecAddAUpper(builder, aUpper):
+    builder.PrependFloat64Slot(11, aUpper, 1.0)
+
+def AddAUpper(builder, aUpper):
+    SwaptionHwCalibrationSpecAddAUpper(builder, aUpper)
+
 def SwaptionHwCalibrationSpecAddMaxIterations(builder, maxIterations):
-    builder.PrependInt32Slot(10, maxIterations, 200)
+    builder.PrependInt32Slot(12, maxIterations, 200)
 
 def AddMaxIterations(builder, maxIterations):
     SwaptionHwCalibrationSpecAddMaxIterations(builder, maxIterations)
 
 def SwaptionHwCalibrationSpecAddFunctionEvaluations(builder, functionEvaluations):
-    builder.PrependInt32Slot(11, functionEvaluations, 1000)
+    builder.PrependInt32Slot(13, functionEvaluations, 1000)
 
 def AddFunctionEvaluations(builder, functionEvaluations):
     SwaptionHwCalibrationSpecAddFunctionEvaluations(builder, functionEvaluations)
 
 def SwaptionHwCalibrationSpecAddEndCriteriaEps(builder, endCriteriaEps):
-    builder.PrependFloat64Slot(12, endCriteriaEps, 1.0e-8)
+    builder.PrependFloat64Slot(14, endCriteriaEps, 1.0e-8)
 
 def AddEndCriteriaEps(builder, endCriteriaEps):
     SwaptionHwCalibrationSpecAddEndCriteriaEps(builder, endCriteriaEps)
@@ -285,6 +318,8 @@ class SwaptionHwCalibrationSpecT(object):
         self.calibrateSigma = True  # type: bool
         self.aInit = 0.03  # type: float
         self.sigmaInit = 0.01  # type: float
+        self.aLower = 0.001  # type: float
+        self.aUpper = 1.0  # type: float
         self.maxIterations = 200  # type: int
         self.functionEvaluations = 1000  # type: int
         self.endCriteriaEps = 1.0e-8  # type: float
@@ -334,6 +369,8 @@ class SwaptionHwCalibrationSpecT(object):
         self.calibrateSigma = swaptionHwCalibrationSpec.CalibrateSigma()
         self.aInit = swaptionHwCalibrationSpec.AInit()
         self.sigmaInit = swaptionHwCalibrationSpec.SigmaInit()
+        self.aLower = swaptionHwCalibrationSpec.ALower()
+        self.aUpper = swaptionHwCalibrationSpec.AUpper()
         self.maxIterations = swaptionHwCalibrationSpec.MaxIterations()
         self.functionEvaluations = swaptionHwCalibrationSpec.FunctionEvaluations()
         self.endCriteriaEps = swaptionHwCalibrationSpec.EndCriteriaEps()
@@ -381,6 +418,8 @@ class SwaptionHwCalibrationSpecT(object):
         SwaptionHwCalibrationSpecAddCalibrateSigma(builder, self.calibrateSigma)
         SwaptionHwCalibrationSpecAddAInit(builder, self.aInit)
         SwaptionHwCalibrationSpecAddSigmaInit(builder, self.sigmaInit)
+        SwaptionHwCalibrationSpecAddALower(builder, self.aLower)
+        SwaptionHwCalibrationSpecAddAUpper(builder, self.aUpper)
         SwaptionHwCalibrationSpecAddMaxIterations(builder, self.maxIterations)
         SwaptionHwCalibrationSpecAddFunctionEvaluations(builder, self.functionEvaluations)
         SwaptionHwCalibrationSpecAddEndCriteriaEps(builder, self.endCriteriaEps)

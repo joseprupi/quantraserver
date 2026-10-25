@@ -5,6 +5,7 @@
 
 #include "../parity/swap_leg_builders.h"
 #include "call_data_base.h"
+#include "non_finite_scan.h"
 #include "request_budget.h"
 
 #include "basis_swap_response_generated.h"
@@ -2038,4 +2039,66 @@ TEST(RequestBudget, NoCeilingNoClientDeadlineIsUnlimited) {
     auto b = quantra::RequestBudget::fromDeadlineAndCeiling(maxTp, now, 0);
     EXPECT_EQ(b.deadline, maxTp);
     EXPECT_NO_THROW(b.check());
+}
+
+// =============================================================================
+// Non-finite scan of generated response text (gateway guard, see
+// client/cpp/src/non_finite_scan.cpp). FlatBuffers prints a non-finite double
+// as a bare `inf` / `-inf` / `nan`; the gateway must turn that into a 500
+// naming the field, never ship it as a 200 body.
+// =============================================================================
+
+TEST(NonFiniteScan, FiniteBodyPasses) {
+    const std::string body =
+        R"({"swaps": [{"npv": 1.5, "fair_rate": -0.03, "legs": [{"npv": 1e-9, "flows": [{"amount": 0.0}]}]}], "ok": true, "n": null})";
+    EXPECT_FALSE(quantra::FindNonFiniteValue(body).has_value());
+}
+
+TEST(NonFiniteScan, BareInfAtTopLevelField) {
+    auto path = quantra::FindNonFiniteValue(R"({"model_id": "hw", "hw_a": inf, "rmse": 0.1})");
+    ASSERT_TRUE(path.has_value());
+    EXPECT_EQ(*path, "hw_a");
+}
+
+TEST(NonFiniteScan, NegativeInfAndNanInNestedArrays) {
+    const std::string body =
+        R"({"swaps": [{"npv": 1.0}, {"npv": 2.0, "legs": [{"npv": 3.0}, {"npv": 4.0, "flows": [{"amount": 1.0}, {"amount": -inf}]}]}]})";
+    auto path = quantra::FindNonFiniteValue(body);
+    ASSERT_TRUE(path.has_value());
+    EXPECT_EQ(*path, "swaps[1].legs[1].flows[1].amount");
+
+    auto nanPath = quantra::FindNonFiniteValue(R"({"swaps": [{"npv": nan}]})");
+    ASSERT_TRUE(nanPath.has_value());
+    EXPECT_EQ(*nanPath, "swaps[0].npv");
+
+    auto negNan = quantra::FindNonFiniteValue(R"({"a": {"b": [1.0, -nan]}})");
+    ASSERT_TRUE(negNan.has_value());
+    EXPECT_EQ(*negNan, "a.b[1]");
+}
+
+TEST(NonFiniteScan, InfinityAndNaNSpellings) {
+    auto p1 = quantra::FindNonFiniteValue(R"({"x": Infinity})");
+    ASSERT_TRUE(p1.has_value());
+    EXPECT_EQ(*p1, "x");
+    auto p2 = quantra::FindNonFiniteValue(R"({"x": -Infinity})");
+    ASSERT_TRUE(p2.has_value());
+    EXPECT_EQ(*p2, "x");
+    auto p3 = quantra::FindNonFiniteValue(R"({"x": NaN})");
+    ASSERT_TRUE(p3.has_value());
+    EXPECT_EQ(*p3, "x");
+}
+
+TEST(NonFiniteScan, StringsContainingInfOrNanAreNotFlagged) {
+    const std::string body =
+        R"({"id": "inf", "name": "nan curve", "note": "value: -inf, nan, Infinity", "esc": "quote \" inf", "inf": 1.0, "nan": [2.0], "v": 1e-5, "w": 2E+3})";
+    EXPECT_FALSE(quantra::FindNonFiniteValue(body).has_value());
+}
+
+TEST(NonFiniteScan, FirstOffenderWinsAndRootScalar) {
+    auto path = quantra::FindNonFiniteValue(R"({"a": 1.0, "b": nan, "c": inf})");
+    ASSERT_TRUE(path.has_value());
+    EXPECT_EQ(*path, "b");
+    auto root = quantra::FindNonFiniteValue("inf");
+    ASSERT_TRUE(root.has_value());
+    EXPECT_EQ(*root, "<root>");
 }

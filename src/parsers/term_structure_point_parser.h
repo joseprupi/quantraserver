@@ -44,6 +44,9 @@ public:
      * @param bump        Parallel shift added to every inline curve quote
      * @param fxSpots     FX spot registry for fx_spot resolution (REQUIRED for
      *                    FxSwapHelper)
+     * @param location    Request path of the point (e.g.
+     *                    "rates.curves['discount'].points[2]") used to name
+     *                    the pillar in error messages; may be empty
      * @return Built QuantLib RateHelper
      */
     std::shared_ptr<QuantLib::RateHelper> parse(
@@ -53,7 +56,8 @@ public:
         const CurveRegistry* curves = nullptr,
         const IndexRegistry* indices = nullptr,
         double bump = 0.0,
-        const FxSpotRegistry* fxSpots = nullptr) const;
+        const FxSpotRegistry* fxSpots = nullptr,
+        const std::string& location = std::string()) const;
 
 private:
     /// Resolve a pillar's quote: the registry handle when quoteId names a

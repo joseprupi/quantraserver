@@ -89,8 +89,28 @@ class CalibrateSwaptionModelResponse(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
+    # How well the surface pins "a" (present iff calibrate_a): the relative
+    # rmse increase when "a" is doubled or halved at the calibrated sigma,
+    # 1 - rmse / max(rmse(2a), rmse(a/2)). 0 = the objective is flat in "a";
+    # values near 1 = "a" is sharply identified. Absent for a sigma-only fit.
+    # CalibrateSwaptionModelResponse
+    def AFlatness(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
+    # True when a_flatness < 0.01: the fitted "a" is not supported by the
+    # surface and should not be read as a market value. Present iff calibrate_a.
+    # CalibrateSwaptionModelResponse
+    def APoorlyIdentified(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return None
+
 def CalibrateSwaptionModelResponseStart(builder):
-    builder.StartObject(8)
+    builder.StartObject(10)
 
 def Start(builder):
     CalibrateSwaptionModelResponseStart(builder)
@@ -143,6 +163,18 @@ def CalibrateSwaptionModelResponseAddGridPoints(builder, gridPoints):
 def AddGridPoints(builder, gridPoints):
     CalibrateSwaptionModelResponseAddGridPoints(builder, gridPoints)
 
+def CalibrateSwaptionModelResponseAddAFlatness(builder, aFlatness):
+    builder.PrependFloat64Slot(8, aFlatness, None)
+
+def AddAFlatness(builder, aFlatness):
+    CalibrateSwaptionModelResponseAddAFlatness(builder, aFlatness)
+
+def CalibrateSwaptionModelResponseAddAPoorlyIdentified(builder, aPoorlyIdentified):
+    builder.PrependBoolSlot(9, aPoorlyIdentified, None)
+
+def AddAPoorlyIdentified(builder, aPoorlyIdentified):
+    CalibrateSwaptionModelResponseAddAPoorlyIdentified(builder, aPoorlyIdentified)
+
 def CalibrateSwaptionModelResponseEnd(builder):
     return builder.EndObject()
 
@@ -162,6 +194,8 @@ class CalibrateSwaptionModelResponseT(object):
         self.gridRows = 0  # type: int
         self.gridCols = 0  # type: int
         self.gridPoints = 0  # type: int
+        self.aFlatness = None  # type: Optional[float]
+        self.aPoorlyIdentified = None  # type: Optional[bool]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -192,6 +226,8 @@ class CalibrateSwaptionModelResponseT(object):
         self.gridRows = calibrateSwaptionModelResponse.GridRows()
         self.gridCols = calibrateSwaptionModelResponse.GridCols()
         self.gridPoints = calibrateSwaptionModelResponse.GridPoints()
+        self.aFlatness = calibrateSwaptionModelResponse.AFlatness()
+        self.aPoorlyIdentified = calibrateSwaptionModelResponse.APoorlyIdentified()
 
     # CalibrateSwaptionModelResponseT
     def Pack(self, builder):
@@ -207,5 +243,7 @@ class CalibrateSwaptionModelResponseT(object):
         CalibrateSwaptionModelResponseAddGridRows(builder, self.gridRows)
         CalibrateSwaptionModelResponseAddGridCols(builder, self.gridCols)
         CalibrateSwaptionModelResponseAddGridPoints(builder, self.gridPoints)
+        CalibrateSwaptionModelResponseAddAFlatness(builder, self.aFlatness)
+        CalibrateSwaptionModelResponseAddAPoorlyIdentified(builder, self.aPoorlyIdentified)
         calibrateSwaptionModelResponse = CalibrateSwaptionModelResponseEnd(builder)
         return calibrateSwaptionModelResponse

@@ -64,6 +64,14 @@ Every non-2xx response is a JSON object:
 `code_name` are the underlying gRPC status, kept for compatibility;
 `message` repeats `error`.
 
+A response is never shipped with a non-finite number in it: if a priced value
+comes out as infinity or NaN (for example a discount factor that overflows on
+a degenerate curve), the gateway answers `500` with
+`{"error": "non-finite value in response at <path>"}` where `<path>` names the
+field (`bonds[0].npv`, `results[0].series[0].values[1]`), and logs the same
+line, instead of a `200` whose body carries a bare `inf` / `nan` token that
+strict JSON parsers reject.
+
 ## Headers
 
 | Header | Direction | Meaning |
@@ -202,6 +210,32 @@ report per-item errors inside a `200` response.
 
 To check the effect, call `/calendar-holidays`, `/calendar-advance` or
 `/calendar-business-days` with the same overrides.
+
+## Curve helpers and the valuation date
+
+`DepositHelper`, `SwapHelper` and the other bootstrap pillars count their
+settlement days from the request's `as_of_date` itself. Since QuantLib 1.44
+that holds even when the as-of date is a holiday of the helper's calendar
+(it used to be rolled to the next business day first, which gave the wrong
+spot date). A deposit pillar with `fixing_days > 0` valued on such a holiday
+then needs a fixing dated before the valuation date, and it needs it for the
+helper's own internal index, which no request field can supply. The engine
+rejects that pillar up front with a `400` that names it, the date, the
+calendar and the two remedies, for example:
+
+```
+rates.curves['discount'].points[0] (DepositHelper): the evaluation date
+2025-05-01 is not a business day of the helper's calendar TARGET and
+fixing_days is 2, so the deposit's fixing date precedes the evaluation date
+and the bootstrap would need a historical fixing the request cannot supply.
+Value on a business day of TARGET, or set fixing_days: 0 on the DepositHelper
+```
+
+The date is not rolled silently. Either value on a business day of the
+helper's calendar, or set `fixing_days: 0` on the deposit pillars (the fixing
+then coincides with the spot date and nothing historical is needed). Deposit
+pillars with `fixing_days: 0`, and every request valued on a business day,
+are unaffected.
 
 ## FX spot market data
 
@@ -1410,6 +1444,46 @@ underlying (no cross-gammas, no vol-of-vol). The correlation matrix of the
 price is validated (symmetric, unit diagonal, positive semi-definite) and
 never repaired; only the bumped matrix of the Greeks is repaired, and the
 response says so.
+
+## Hull-White calibration
+
+`POST /calibrate-swaption-model`, and a swaption or callable bond whose model
+has `param_mode: Calibrate`, fit Hull-White `(a, sigma)` to an ATM swaption
+matrix with Levenberg-Marquardt (`SwaptionHwCalibrationSpec`).
+
+**Recommendation for production use: `calibrate_a: false` with a market
+mean reversion in `a_init`, calibrating `sigma` only.** On a market ATM
+matrix the objective is almost flat in `a`: the sigma-only fit is
+one-dimensional and well conditioned, while a joint fit lets the optimizer
+wander along a plateau where the stopping point is decided by numerical
+noise (the same request gave `a` = 1.2e-4 and 2.8e-4 on two QuantLib builds,
+with a fit quality that differed by 0.08 %).
+
+**Bounds on `a` (joint fit only).** When `calibrate_a` is true the fit is kept
+inside `[a_lower, a_upper]`, default `[0.001, 1.0]`, and `a_init` is clipped
+into that interval before the fit starts. Below about 1e-3 the model is
+numerically flat in `a` and the fitted value is noise, so the optimizer is not
+allowed there; above 1.0 mean reversion has no market meaning. Both fields are
+optional on `SwaptionHwCalibrationSpec`; `a_lower` must be finite and > 0,
+`a_upper` finite and > `a_lower` (`400` naming the field otherwise). They are
+ignored for a sigma-only fit, where `a` stays exactly at `a_init` whatever
+its value.
+
+**Flatness diagnostic.** After a joint fit the engine re-evaluates the
+objective at `2a` and `a/2` with `sigma` held at its calibrated value and
+reports
+
+- `a_flatness` = `1 - rmse / max(rmse(2a), rmse(a/2))`, in `[0, 1]`: 0 means
+  the fit is no worse at a very different `a` (the surface does not pin it),
+  values near 1 mean `a` is sharply identified;
+- `a_poorly_identified` = `a_flatness < 0.01`.
+
+Both are present iff `calibrate_a` is true (absent for a sigma-only fit), on
+the calibrate response and as `used_hw_a_flatness` /
+`used_hw_a_poorly_identified` on an inline-calibrated swaption. When
+`a_poorly_identified` is true, `hw_a` is the point where the optimizer
+stopped inside the box, not a market mean reversion: fix `a` and refit
+`sigma`.
 
 ## Swaption greeks: units and definitions
 

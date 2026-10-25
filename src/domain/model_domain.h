@@ -44,6 +44,9 @@ struct SwaptionHwCalibrationDomain {
     bool calibrate_sigma = true;
     double a_init = 0.03;
     double sigma_init = 0.01;
+    /// Bounds on "a" during a joint calibration (ignored when calibrate_a is false).
+    double a_lower = 0.001;
+    double a_upper = 1.0;
     int max_iterations = 200;
     int function_evaluations = 1000;
     double end_criteria_eps = 1.0e-8;

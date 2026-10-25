@@ -3,6 +3,7 @@
  * @brief JSON Parser implementation - handles JSON <-> FlatBuffers conversion
  */
 
+#include "non_finite_scan.h"
 #include "quantra_client.h"
 
 #include <cstdlib>
@@ -86,6 +87,17 @@ public:
             throw JsonRuntimeException(
                 "Failed to generate JSON for " + std::string(ProductTypeToString(type)) + ": " +
                 error);
+        }
+
+        // FlatBuffers prints a non-finite double as a bare `inf` / `-inf` /
+        // `nan`, which strict JSON parsers reject. Refuse to ship such a body:
+        // report the field as an internal error (HTTP 500 via
+        // JsonResponse::ServerError) and log it, instead of returning a 200
+        // whose body is not JSON.
+        if (auto path = FindNonFiniteValue(json)) {
+            std::cerr << "[QuantraClient] non-finite value in response"
+                      << " product=" << ProductTypeToString(type) << " path=" << *path << std::endl;
+            throw JsonRuntimeException("non-finite value in response at " + *path);
         }
 
         return json;

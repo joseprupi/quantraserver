@@ -33,6 +33,8 @@ SwaptionHwCalibrationDomain toCalibrationDomain(const quantra::SwaptionHwCalibra
     hw.calibrate_sigma = c->calibrate_sigma();
     hw.a_init = c->a_init();
     hw.sigma_init = c->sigma_init();
+    hw.a_lower = c->a_lower();
+    hw.a_upper = c->a_upper();
     hw.max_iterations = c->max_iterations();
     hw.function_evaluations = c->function_evaluations();
     hw.end_criteria_eps = c->end_criteria_eps();
@@ -109,6 +111,9 @@ flatbuffers::Offset<quantra::CalibrateSwaptionModelResponse> CalibrateSwaptionMo
     rb.add_grid_rows(result.gridRows);
     rb.add_grid_cols(result.gridCols);
     rb.add_grid_points(result.gridPoints);
+    // Present iff "a" was calibrated; an unset optional leaves the field absent.
+    if (result.aFlatness) rb.add_a_flatness(*result.aFlatness);
+    if (result.aPoorlyIdentified) rb.add_a_poorly_identified(*result.aPoorlyIdentified);
     return rb.Finish();
 }
 
