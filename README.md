@@ -40,8 +40,11 @@ Priced instruments:
 - Structured notes on equity-index baskets by Monte Carlo (worst-of / best-of / average autocallables, Phoenix and snowball coupons, low hurdles, step-downs, reverse convertibles, European or daily capital barriers, geared puts, upside participation; quanto underlyings; bump-and-reprice Greeks on common random numbers; opt-in diagnostics)
 
 Utility endpoints cover yield- and inflation-curve bootstrapping, volatility
-surface sampling, Hull-White and SABR calibration, and calendar date
-arithmetic.
+surface sampling, Hull-White and SABR calibration, calendar date arithmetic,
+and the equity market-data chain from listed option quotes: implied forwards
+and dividends (`/calibrate-implied-forwards`) and an arbitrage-checked Black
+volatility surface (`/calibrate-vol-surface`, Andreasen-Huge or SVI per
+expiry) ready for the option and structured-note pricers.
 
 Features that apply across products:
 

@@ -982,7 +982,42 @@ inline const char *EnumNameCallabilityType(CallabilityType e) {
   return EnumNamesCallabilityType()[index];
 }
 
-/// Swaption exercise style: European (at expiry only), Bermudan (on specific dates), or American (any time).
+/// Fit method of `/calibrate-vol-surface`: Andreasen-Huge local-vol
+/// interpolation (arbitrage-free by construction, QuantLib
+/// AndreasenHugeVolatilityInterpl) or one SVI slice per expiry with
+/// butterfly and calendar checks.
+enum VolSurfaceFitMethod : int8_t {
+  VolSurfaceFitMethod_AndreasenHuge = 0,
+  VolSurfaceFitMethod_SviPerExpiry = 1,
+  VolSurfaceFitMethod_MIN = VolSurfaceFitMethod_AndreasenHuge,
+  VolSurfaceFitMethod_MAX = VolSurfaceFitMethod_SviPerExpiry
+};
+
+inline const VolSurfaceFitMethod (&EnumValuesVolSurfaceFitMethod())[2] {
+  static const VolSurfaceFitMethod values[] = {
+    VolSurfaceFitMethod_AndreasenHuge,
+    VolSurfaceFitMethod_SviPerExpiry
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesVolSurfaceFitMethod() {
+  static const char * const names[3] = {
+    "AndreasenHuge",
+    "SviPerExpiry",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameVolSurfaceFitMethod(VolSurfaceFitMethod e) {
+  if (::flatbuffers::IsOutRange(e, VolSurfaceFitMethod_AndreasenHuge, VolSurfaceFitMethod_SviPerExpiry)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesVolSurfaceFitMethod()[index];
+}
+
+/// Exercise style: European (at expiry only), Bermudan (on specific dates), or American (any time).
+/// Used by swaptions and by `OptionQuoteSheet.option_style`.
 enum ExerciseType : int8_t {
   ExerciseType_European = 0,
   ExerciseType_Bermudan = 1,

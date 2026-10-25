@@ -89,6 +89,10 @@
       "type" : "string",
       "enum": ["Call", "Put"]
     },
+    "quantra_enums_VolSurfaceFitMethod" : {
+      "type" : "string",
+      "enum": ["AndreasenHuge", "SviPerExpiry"]
+    },
     "quantra_enums_ExerciseType" : {
       "type" : "string",
       "enum": ["European", "Bermudan", "American"]

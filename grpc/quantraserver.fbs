@@ -52,6 +52,10 @@ include "../flatbuffers/fbs/price_cross_currency_swap_request.fbs";
 include "../flatbuffers/fbs/cross_currency_swap_response.fbs";
 include "../flatbuffers/fbs/price_structured_note_request.fbs";
 include "../flatbuffers/fbs/structured_note_response.fbs";
+include "../flatbuffers/fbs/calibrate_implied_forwards_request.fbs";
+include "../flatbuffers/fbs/calibrate_implied_forwards_response.fbs";
+include "../flatbuffers/fbs/calibrate_vol_surface_request.fbs";
+include "../flatbuffers/fbs/calibrate_vol_surface_response.fbs";
 include "../flatbuffers/fbs/meta_request.fbs";
 include "../flatbuffers/fbs/meta_response.fbs";
 
@@ -85,5 +89,7 @@ rpc_service QuantraServer {
   PriceFxForward(PriceFxForwardRequest):PriceFxForwardResponse;
   PriceCrossCurrencySwap(PriceCrossCurrencySwapRequest):PriceCrossCurrencySwapResponse;
   PriceStructuredNote(PriceStructuredNoteRequest):PriceStructuredNoteResponse;
+  CalibrateImpliedForwards(CalibrateImpliedForwardsRequest):CalibrateImpliedForwardsResponse;
+  CalibrateVolSurface(CalibrateVolSurfaceRequest):CalibrateVolSurfaceResponse;
   Meta(MetaRequest):MetaResponse;
 }

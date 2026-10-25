@@ -1,0 +1,75 @@
+include "pricing.fbs";
+include "option_quotes.fbs";
+include "calibrate_implied_forwards_response.fbs";
+
+namespace quantra;
+
+/// Where the calibrated surface is sampled. The Black surface that comes
+/// back is keyed by absolute strike (that is what `BlackVolSpec` and the
+/// pricers consume), so the moneyness axis is converted with the
+/// underlying's spot: `strike = moneyness * spot`.
+table VolSurfaceOutputGrid {
+    /// Strikes as multiples of the spot, strictly increasing, > 0.
+    /// Default when absent or empty: 0.500, 0.525, ..., 1.500 (41 points;
+    /// the surface is read bilinearly in total variance, and a coarser
+    /// 0.05 step misses a 1 % bid/ask between its nodes on a skewed smile).
+    strikes_as_moneyness:[double];
+    /// Expiries as calendar-day periods from `pricing.as_of_date`
+    /// (e.g. `{n: 16, unit: Days}`; months/years are added on a
+    /// NullCalendar, unadjusted). Default when absent or empty: every sheet
+    /// expiry that was fitted. With `SviPerExpiry` each entry must land on
+    /// a fitted sheet expiry (the SVI slices are not interpolated in time);
+    /// with `AndreasenHuge` any date up to the last fitted expiry.
+    expiries:[Period];
+}
+
+/// Arbitrage handling of the `SviPerExpiry` method (ignored by
+/// `AndreasenHuge`, which is arbitrage-free by construction and only
+/// reports).
+table SviFitOptions {
+    /// When the fitted slice has butterfly arbitrage (Durrleman's g(k) < 0
+    /// somewhere on the output strike range), refit the five parameters by
+    /// Levenberg-Marquardt with a penalty on negative g; the report says what
+    /// was found and what was done. Off: report only.
+    enforce_butterfly:bool = true;
+    /// When total variance decreases from one grid expiry to the next at a
+    /// grid strike, clip it to the previous expiry's total variance plus
+    /// 1e-8; the report counts the clipped points per expiry. Off: report
+    /// only.
+    enforce_calendar:bool = true;
+}
+
+/// Request for `/calibrate-vol-surface`: an arbitrage-checked Black implied
+/// volatility surface from a sheet of listed European option quotes, ready
+/// to paste into `pricing.volatility.vol_surfaces`.
+table CalibrateVolSurfaceRequest {
+    /// Full pricing context: `as_of_date` (the quote date), the discounting
+    /// curve in `rates.curves`, the underlying's spot in `quotes` and the
+    /// `EquityUnderlyingSpec` in `equity.equity_underlyings`.
+    pricing:Pricing (required);
+    /// The option quotes for one underlying on the as-of date.
+    sheet:OptionQuoteSheet (required);
+    /// Curve id in `pricing.rates.curves`: the risk-free discount factors
+    /// the implied-forward fit reads when `forwards` is absent.
+    discounting_curve:string (required);
+    /// Quote-quality filter (same rules as `/calibrate-implied-forwards`);
+    /// defaults apply when absent. `moneyness_window` concerns the forward
+    /// fit only: the vol fit uses every line that passes the per-line rules.
+    filter:QuoteFilter;
+    /// Optional: the `expiries` array of a `/calibrate-implied-forwards`
+    /// response, pasted as is. Only `expiry`, `usable`, `forward` and
+    /// `implied_discount_factor` are read. When absent the same fit is run
+    /// here with `filter` and the fitted values are reported.
+    forwards:[ImpliedForwardExpiry];
+    /// Fit method; default Andreasen-Huge.
+    method:enums.VolSurfaceFitMethod = AndreasenHuge;
+    /// Sampling grid of the returned surface; defaults documented on the
+    /// table.
+    output_grid:VolSurfaceOutputGrid;
+    /// Id given to the returned `vol_surface_spec`.
+    vol_surface_id:string (required);
+    /// SVI arbitrage handling; defaults (both on) apply when absent.
+    svi:SviFitOptions;
+}
+
+root_type CalibrateVolSurfaceRequest;

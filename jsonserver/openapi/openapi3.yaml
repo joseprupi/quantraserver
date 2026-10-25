@@ -36,13 +36,19 @@ info:
     \ swaps (two SwapLeg entries in two currencies, fixed / IBOR / overnight coupons,\
     \ principal exchanges) |\n| Structured Note | `/price-structured-note` | Price\
     \ structured notes on equity-index baskets (autocallables, Phoenix / Athena coupons,\
-    \ capital barriers) by Monte Carlo |\n| Status | `/status` | Runtime health and\
-    \ worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n\
-    | Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n\
-    # Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\n\
-    curl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type:\
-    \ application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n"
-  version: 0.13.1
+    \ capital barriers) by Monte Carlo |\n| Calibrate Implied Forwards | `/calibrate-implied-forwards`\
+    \ | Implied forwards, funding and dividend yields per expiry from listed-option\
+    \ quotes (put-call parity fit), with a ready-to-use dividend curve |\n| Calibrate\
+    \ Vol Surface | `/calibrate-vol-surface` | Arbitrage-checked Black implied-vol\
+    \ surface from listed-option quotes (Andreasen-Huge or SVI per expiry), with a\
+    \ ready-to-paste `BlackVolSpec` and a vanilla-repricing report |\n| Status | `/status`\
+    \ | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build\
+    \ metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick\
+    \ Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price\
+    \ a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond\
+    \ \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n\
+    ```\n"
+  version: 0.14.0
   contact:
     name: Quantra API Support
     url: https://github.com/joseprupi/quantraserver
@@ -1187,6 +1193,117 @@ paths:
                   error:
                     type: string
                     description: Error message
+  /calibrate-implied-forwards:
+    post:
+      summary: Calibrate Implied Forwards and Dividends from Option Quotes
+      description: 'Per expiry of a listed-option quote sheet (strike, call bid/ask,
+        put bid/ask, optional open interest) for one equity underlying: filter the
+        lines (both sides quoted, not crossed, relative spread within max_relative_spread
+        on each side, open interest at or above min_open_interest), fit put-call parity
+        C - P = DF * F - DF * K by weighted least squares over strikes (weights 1
+        / (call spread + put spread), equal weights when a spread is zero) in two
+        passes (all surviving strikes, then those inside the moneyness window around
+        the first-pass forward), and report the implied forward F = -intercept / slope,
+        the implied discount factor DF = -slope, the curve discount factor, the continuous
+        implied funding spread in bp, the continuous implied dividend yield q(T) =
+        r(T) - ln(F / S) / T with r(T) from the request''s discounting curve (Act/365F),
+        the fit RMSE and max residual, every dropped line with its reason and every
+        dropped expiry (fewer than min_quotes_per_expiry pairs). Returns the forwards
+        as a plain table and an InterpolatedZero TermStructure of continuous zero
+        points (the dividend curve spec, under the request''s dividend_curve_id) that,
+        together with the discounting curve, reproduces the fitted forwards exactly.
+        European exercise only (400 otherwise); 400 when no expiry survives.'
+      tags:
+      - Volatility
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/quantra_CalibrateImpliedForwardsRequest'
+      responses:
+        '200':
+          description: Successful pricing response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/quantra_CalibrateImpliedForwardsResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+  /calibrate-vol-surface:
+    post:
+      summary: Calibrate a Black Volatility Surface from Option Quotes
+      description: 'From a listed-option quote sheet (the same OptionQuoteSheet as
+        /calibrate-implied-forwards) and per-expiry forwards (pasted from that endpoint''s
+        response, or fitted here with the same filter): implied Black-76 vols of the
+        out-of-the-money mids on the fitted forward and implied discount factor (quotes
+        below intrinsic or outside the Black bounds are dropped with reasons), then
+        either Andreasen-Huge local-vol interpolation (QuantLib AndreasenHugeVolatilityInterpl,
+        cubic-spline, calls and puts, arbitrage-free by construction; sampled through
+        AndreasenHugeVolatilityAdapter) or one raw SVI slice per expiry (QuantLib
+        SviInterpolation, vega-weighted Levenberg-Marquardt) with Durrleman''s butterfly
+        check (penalized refit when violated) and a calendar check of total variance
+        across grid expiries (clipped when violated). Returns a complete VolSurfaceSpec
+        (BlackVolSpec, strike x expiry surface on a moneyness grid converted to absolute
+        strikes with the spot, bilinear, extrapolation allowed) ready for pricing.volatility.vol_surfaces,
+        the forwards used, a per-expiry report (quotes used and dropped, RMSE and
+        max error in vol units, SVI parameters, arbitrage findings and actions) and
+        the vanilla repricing of every used quote on the returned surface (model vs
+        mid, inside the bid/ask, largest price and vol excursions). European exercise
+        only.'
+      tags:
+      - Volatility
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/quantra_CalibrateVolSurfaceRequest'
+      responses:
+        '200':
+          description: Successful pricing response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/quantra_CalibrateVolSurfaceResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
   /health:
     get:
       summary: Health Check
@@ -1439,6 +1556,11 @@ components:
       enum:
       - Call
       - Put
+    quantra_enums_VolSurfaceFitMethod:
+      type: string
+      enum:
+      - AndreasenHuge
+      - SviPerExpiry
     quantra_enums_ExerciseType:
       type: string
       enum:
@@ -5017,6 +5139,314 @@ components:
       required:
       - dates
       additionalProperties: false
+    quantra_OptionQuote:
+      type: object
+      description: 'One listed-option quote line: a strike at an expiry with the call
+        and put
+
+        sides as quoted (bid/ask), plus optional liquidity fields. Shared by the
+
+        implied-forward calibration (`/calibrate-implied-forwards`) and the
+
+        vol-surface calibration that consumes its forwards. Prices are in the
+
+        underlying''s currency per unit of underlying (not per contract).
+
+
+        Every scalar is presence-required where it is needed: a strike or a price
+
+        that is absent is reported as a dropped quote with a reason, never read as
+
+        0.0. A line may carry only one side (call or put); it then cannot enter a
+
+        parity fit and is dropped with reason "missing call or put side".'
+      properties:
+        expiry:
+          type: string
+          description: Expiry date (YYYY-MM-DD).
+        strike:
+          type: number
+          description: Strike in underlying price units. Must be > 0.
+        call_bid:
+          type: number
+        call_ask:
+          type: number
+        put_bid:
+          type: number
+        put_ask:
+          type: number
+        call_volume:
+          type: number
+          description: 'Traded volume on the quote date (contracts). Informational;
+            echoed
+
+            nowhere, reserved for filters.'
+        put_volume:
+          type: number
+        call_open_interest:
+          type: number
+          description: Open interest (contracts). Used by `QuoteFilter.min_open_interest`.
+        put_open_interest:
+          type: number
+      required:
+      - expiry
+      additionalProperties: false
+    quantra_OptionQuoteSheet:
+      type: object
+      description: 'A sheet of listed-option quotes for one underlying on one date
+        (the
+
+        request''s `pricing.as_of_date`). The spot is NOT on the sheet: it is the
+
+        `spot_quote_id` of the referenced `EquityUnderlyingSpec` in
+
+        `pricing.equity.equity_underlyings`, so the same number prices the
+
+        options and seeds the forward fit.'
+      properties:
+        id:
+          type: string
+        underlying_id:
+          type: string
+          description: '`EquityUnderlyingSpec.id` in `pricing.equity.equity_underlyings`.
+
+            Only its spot quote is read here; its `dividend_yield_curve_id` must
+
+            resolve (the shared registry requires it) but is not used by the
+
+            implied-forward fit — a flat 0 % placeholder curve is the convention.'
+        quotes:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_OptionQuote'
+        option_style:
+          $ref: '#/components/schemas/quantra_enums_ExerciseType'
+      required:
+      - id
+      - underlying_id
+      - quotes
+      additionalProperties: false
+    quantra_QuoteFilter:
+      type: object
+      description: 'Quote-quality filter applied before the parity fit. Every threshold
+        is
+
+        echoed back on the response so the caller sees what was applied.'
+      properties:
+        max_relative_spread:
+          type: number
+          description: 'Maximum (ask - bid) / mid on EACH side (call and put) of a
+            line.
+
+            Must be > 0.'
+        min_quotes_per_expiry:
+          type: integer
+          description: 'Minimum number of call/put pairs an expiry needs AFTER both
+            filter
+
+            passes to be fitted; an expiry with fewer is reported as dropped
+
+            (not a 400, unless no expiry survives). Must be >= 2.'
+          minimum: 0
+          maximum: 4294967295
+        moneyness_window:
+          type: number
+          description: 'Second-pass window: after a first fit over every surviving
+            pair gives
+
+            a provisional forward F1, only strikes inside
+
+            [F1 * (1 - w), F1 * (1 + w)] enter the final fit. Must be > 0.'
+        min_open_interest:
+          type: number
+          description: 'Optional: drop a line whose call OR put open interest is below
+            this
+
+            (a line without open-interest fields is kept when the threshold is
+
+            absent and dropped when it is present).'
+      additionalProperties: false
+    quantra_CalibrateImpliedForwardsRequest:
+      type: object
+      description: 'Request for `/calibrate-implied-forwards`: implied forwards, implied
+
+        funding and implied continuous dividend yields per expiry from a sheet of
+
+        listed-option quotes, by a weighted least-squares put-call-parity fit per
+
+        expiry. Same shape as the other calibrate endpoints: market data in, a
+
+        report plus a ready-to-use spec out (here the dividend curve that makes
+
+        the pricing forwards equal the market forwards).'
+      properties:
+        pricing:
+          $ref: '#/components/schemas/quantra_Pricing'
+        sheet:
+          $ref: '#/components/schemas/quantra_OptionQuoteSheet'
+        discounting_curve:
+          type: string
+          description: 'Curve id in `pricing.rates.curves` giving the risk-free discount
+
+            factors DF(T) used for the implied funding spread and for r(T) in
+
+            q(T) = r(T) - ln(F/S) / T.'
+        filter:
+          $ref: '#/components/schemas/quantra_QuoteFilter'
+        dividend_curve_id:
+          type: string
+          description: 'Id given to the returned `dividend_curve_spec` (a `TermStructure`
+
+            ready to paste into `pricing.rates.curves` and to reference from
+
+            `EquityUnderlyingSpec.dividend_yield_curve_id`).'
+      required:
+      - pricing
+      - sheet
+      - discounting_curve
+      - dividend_curve_id
+      additionalProperties: false
+    quantra_DroppedQuote:
+      type: object
+      description: 'One quote line (or one whole expiry, when `strike` is absent)
+        excluded
+
+        from the fit, with the rule that excluded it.'
+      properties:
+        expiry:
+          type: string
+        strike:
+          type: number
+          description: Absent when the whole expiry was dropped.
+        reason:
+          type: string
+      required:
+      - expiry
+      - reason
+      additionalProperties: false
+    quantra_ImpliedForwardExpiry:
+      type: object
+      description: 'Per-expiry fit report. Every expiry present on the sheet appears
+        once,
+
+        in date order. Fit outputs (`forward` onwards) are present iff `usable`
+
+        is true; a dropped expiry carries `dropped_reason` and its `dropped`
+
+        lines instead.'
+      properties:
+        expiry:
+          type: string
+          description: Expiry date (YYYY-MM-DD).
+        time:
+          type: number
+          description: Act/365F year fraction from `pricing.as_of_date` to the expiry.
+        quotes_used:
+          type: integer
+          description: Call/put pairs that entered the final fit.
+          minimum: 0
+          maximum: 4294967295
+        quotes_dropped:
+          type: integer
+          description: Lines of this expiry excluded by a filter rule (count of `dropped`).
+          minimum: 0
+          maximum: 4294967295
+        dropped:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_DroppedQuote'
+        usable:
+          type: boolean
+          description: True iff the expiry was fitted.
+        dropped_reason:
+          type: string
+          description: Why the expiry was not fitted (absent when `usable`).
+        forward:
+          type: number
+          description: 'Implied forward F: the strike at which C - P = 0 on the fitted
+            line.'
+        implied_discount_factor:
+          type: number
+          description: 'Implied discount factor DF = -slope of C - P against K: the
+            market''s
+
+            funding of the index to this expiry.'
+        curve_discount_factor:
+          type: number
+          description: Discount factor of the request's discounting curve at the expiry.
+        implied_funding_bp:
+          type: number
+          description: 'Continuous spread between the two discount factors, in basis
+            points:
+
+            -ln(DF_implied / DF_curve) / T * 1e4. Positive = the options imply a
+
+            higher funding rate than the curve.'
+        implied_dividend_yield:
+          type: number
+          description: 'Continuous dividend (equity repo + dividend) yield q(T) from
+
+            F = S * exp((r(T) - q(T)) * T), r(T) = -ln(DF_curve) / T.'
+        fit_residual_rmse:
+          type: number
+          description: Root-mean-square of the fit residuals C - P - (a + b K), price
+            units.
+        max_abs_residual:
+          type: number
+          description: Largest absolute residual, price units.
+      required:
+      - expiry
+      additionalProperties: false
+    quantra_ImpliedForwardPoint:
+      type: object
+      description: 'Plain forward table: one row per fitted expiry, in date order.'
+      properties:
+        expiry:
+          type: string
+        time:
+          type: number
+        forward:
+          type: number
+        implied_dividend_yield:
+          type: number
+      required:
+      - expiry
+      additionalProperties: false
+    quantra_CalibrateImpliedForwardsResponse:
+      type: object
+      description: Response of `/calibrate-implied-forwards`.
+      properties:
+        sheet_id:
+          type: string
+          description: Echo of `sheet.id`.
+        underlying_id:
+          type: string
+          description: Echo of `sheet.underlying_id`.
+        spot:
+          type: number
+          description: Spot read from the underlying's spot quote.
+        filter:
+          $ref: '#/components/schemas/quantra_QuoteFilter'
+        expiries:
+          type: array
+          description: Per-expiry report, every sheet expiry, date order.
+          items:
+            $ref: '#/components/schemas/quantra_ImpliedForwardExpiry'
+        forwards:
+          type: array
+          description: Fitted expiries only, date order.
+          items:
+            $ref: '#/components/schemas/quantra_ImpliedForwardPoint'
+        dividend_curve_spec:
+          $ref: '#/components/schemas/quantra_TermStructure'
+      required:
+      - sheet_id
+      - underlying_id
+      - filter
+      - expiries
+      - forwards
+      - dividend_curve_spec
+      additionalProperties: false
     quantra_CalibrateSwaptionModelRequest:
       type: object
       description: Request to calibrate a Hull-White swaption model.
@@ -5296,6 +5726,385 @@ components:
       required:
       - vol_id
       - diagnostics
+      additionalProperties: false
+    quantra_VolSurfaceOutputGrid:
+      type: object
+      description: 'Where the calibrated surface is sampled. The Black surface that
+        comes
+
+        back is keyed by absolute strike (that is what `BlackVolSpec` and the
+
+        pricers consume), so the moneyness axis is converted with the
+
+        underlying''s spot: `strike = moneyness * spot`.'
+      properties:
+        strikes_as_moneyness:
+          type: array
+          description: 'Strikes as multiples of the spot, strictly increasing, > 0.
+
+            Default when absent or empty: 0.500, 0.525, ..., 1.500 (41 points;
+
+            the surface is read bilinearly in total variance, and a coarser
+
+            0.05 step misses a 1 % bid/ask between its nodes on a skewed smile).'
+          items:
+            type: number
+        expiries:
+          type: array
+          description: 'Expiries as calendar-day periods from `pricing.as_of_date`
+
+            (e.g. `{n: 16, unit: Days}`; months/years are added on a
+
+            NullCalendar, unadjusted). Default when absent or empty: every sheet
+
+            expiry that was fitted. With `SviPerExpiry` each entry must land on
+
+            a fitted sheet expiry (the SVI slices are not interpolated in time);
+
+            with `AndreasenHuge` any date up to the last fitted expiry.'
+          items:
+            $ref: '#/components/schemas/quantra_Period'
+      additionalProperties: false
+    quantra_SviFitOptions:
+      type: object
+      description: 'Arbitrage handling of the `SviPerExpiry` method (ignored by
+
+        `AndreasenHuge`, which is arbitrage-free by construction and only
+
+        reports).'
+      properties:
+        enforce_butterfly:
+          type: boolean
+          description: 'When the fitted slice has butterfly arbitrage (Durrleman''s
+            g(k) < 0
+
+            somewhere on the output strike range), refit the five parameters by
+
+            Levenberg-Marquardt with a penalty on negative g; the report says what
+
+            was found and what was done. Off: report only.'
+        enforce_calendar:
+          type: boolean
+          description: 'When total variance decreases from one grid expiry to the
+            next at a
+
+            grid strike, clip it to the previous expiry''s total variance plus
+
+            1e-8; the report counts the clipped points per expiry. Off: report
+
+            only.'
+      additionalProperties: false
+    quantra_CalibrateVolSurfaceRequest:
+      type: object
+      description: 'Request for `/calibrate-vol-surface`: an arbitrage-checked Black
+        implied
+
+        volatility surface from a sheet of listed European option quotes, ready
+
+        to paste into `pricing.volatility.vol_surfaces`.'
+      properties:
+        pricing:
+          $ref: '#/components/schemas/quantra_Pricing'
+        sheet:
+          $ref: '#/components/schemas/quantra_OptionQuoteSheet'
+        discounting_curve:
+          type: string
+          description: 'Curve id in `pricing.rates.curves`: the risk-free discount
+            factors
+
+            the implied-forward fit reads when `forwards` is absent.'
+        filter:
+          $ref: '#/components/schemas/quantra_QuoteFilter'
+        forwards:
+          type: array
+          description: 'Optional: the `expiries` array of a `/calibrate-implied-forwards`
+
+            response, pasted as is. Only `expiry`, `usable`, `forward` and
+
+            `implied_discount_factor` are read. When absent the same fit is run
+
+            here with `filter` and the fitted values are reported.'
+          items:
+            $ref: '#/components/schemas/quantra_ImpliedForwardExpiry'
+        method:
+          $ref: '#/components/schemas/quantra_enums_VolSurfaceFitMethod'
+        output_grid:
+          $ref: '#/components/schemas/quantra_VolSurfaceOutputGrid'
+        vol_surface_id:
+          type: string
+          description: Id given to the returned `vol_surface_spec`.
+        svi:
+          $ref: '#/components/schemas/quantra_SviFitOptions'
+      required:
+      - pricing
+      - sheet
+      - discounting_curve
+      - vol_surface_id
+      additionalProperties: false
+    quantra_VolSurfaceForward:
+      type: object
+      description: 'Forward and implied discount factor used at one fitted expiry
+        (from the
+
+        request''s `forwards` or from the internal implied-forward fit).'
+      properties:
+        expiry:
+          type: string
+        time:
+          type: number
+          description: Act/365F year fraction from the as-of date.
+        forward:
+          type: number
+        implied_discount_factor:
+          type: number
+      required:
+      - expiry
+      additionalProperties: false
+    quantra_SviParameters:
+      type: object
+      description: 'Raw SVI parameters of one slice: total variance
+
+        w(k) = a + b (rho (k - m) + sqrt((k - m)^2 + sigma^2)), k = ln(K / F).'
+      properties:
+        a:
+          type: number
+        b:
+          type: number
+        sigma:
+          type: number
+        rho:
+          type: number
+        m:
+          type: number
+      additionalProperties: false
+    quantra_AndreasenHugeCalibrationError:
+      type: object
+      description: 'Andreasen-Huge calibration error over the whole calibration set,
+        in
+
+        volatility units (QuantLib `calibrationError()`).'
+      properties:
+        min_vol:
+          type: number
+        max_vol:
+          type: number
+        avg_vol:
+          type: number
+      additionalProperties: false
+    quantra_VolSurfaceExpiryReport:
+      type: object
+      description: Per-expiry report. Every sheet expiry appears once, in date order.
+      properties:
+        expiry:
+          type: string
+        time:
+          type: number
+        usable:
+          type: boolean
+          description: True iff the expiry entered the fit.
+        dropped_reason:
+          type: string
+          description: Why not (absent when `usable`).
+        forward:
+          type: number
+        implied_discount_factor:
+          type: number
+        quotes_used:
+          type: integer
+          description: Quotes whose out-of-the-money mid gave an implied vol and entered
+            the fit.
+          minimum: 0
+          maximum: 4294967295
+        quotes_dropped:
+          type: integer
+          minimum: 0
+          maximum: 4294967295
+        dropped:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_DroppedQuote'
+        rmse_vol:
+          type: number
+          description: 'Fit error of the calibrated object (the SVI slice, the Andreasen-Huge
+
+            surface) against the market implied vols of the used quotes, in vol
+
+            units (0.01 = one vol point), unweighted.'
+        max_abs_error_vol:
+          type: number
+        svi:
+          $ref: '#/components/schemas/quantra_SviParameters'
+        butterfly_min_g:
+          type: number
+          description: '`SviPerExpiry` only: minimum of Durrleman''s g(k) over the
+            output
+
+            strike range (negative = butterfly arbitrage) after whatever was done.'
+        butterfly_violation:
+          type: boolean
+        butterfly_action:
+          type: string
+          description: 'What was found and done ("none", "refit with penalty: min
+            g ... -> ...").'
+        calendar_violations:
+          type: integer
+          description: 'Grid strikes at which total variance was below the previous
+            grid
+
+            expiry''s.'
+          minimum: 0
+          maximum: 4294967295
+        calendar_max_clip_vol:
+          type: number
+          description: Largest change in vol applied by the calendar clip (vol units).
+        calendar_action:
+          type: string
+        grid_points_filled:
+          type: integer
+          description: '`AndreasenHuge` only: grid strikes where the model''s out-of-the-money
+
+            price is below 1e-4 of the spot (finite-difference noise would move
+
+            the vol by more than a tenth of a point) or its inversion failed,
+
+            filled flat from the nearest inverted strike of the expiry.'
+          minimum: 0
+          maximum: 4294967295
+      required:
+      - expiry
+      additionalProperties: false
+    quantra_VanillaRepricePoint:
+      type: object
+      description: One used quote repriced on the returned surface.
+      properties:
+        expiry:
+          type: string
+        strike:
+          type: number
+        option_type:
+          $ref: '#/components/schemas/quantra_enums_EquityOptionType'
+        bid:
+          type: number
+        ask:
+          type: number
+        mid:
+          type: number
+        market_vol:
+          type: number
+          description: 'Implied vol of the mid (Black-76 on the fitted forward and
+            implied
+
+            discount factor).'
+        model_vol:
+          type: number
+          description: 'Black vol read off the returned surface (bilinear in total
+            variance
+
+            on the grid, as the pricers read it) at this expiry and strike.'
+        model_price:
+          type: number
+          description: Black price at `model_vol` on the same forward and discount
+            factor.
+        inside_bid_ask:
+          type: boolean
+        price_error:
+          type: number
+          description: model_price - mid.
+        vol_error:
+          type: number
+          description: model_vol - market_vol.
+      required:
+      - expiry
+      additionalProperties: false
+    quantra_VanillaRepricing:
+      type: object
+      description: 'Vanilla repricing of every used quote on the returned surface:
+        the
+
+        acceptance check of the surface.'
+      properties:
+        count:
+          type: integer
+          minimum: 0
+          maximum: 4294967295
+        inside_bid_ask:
+          type: integer
+          minimum: 0
+          maximum: 4294967295
+        max_abs_price_error:
+          type: number
+          description: Largest |model_price - mid| over the used quotes (price units).
+        max_abs_vol_error:
+          type: number
+          description: Largest |model_vol - market_vol| (vol units).
+        quotes:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_VanillaRepricePoint'
+      required:
+      - quotes
+      additionalProperties: false
+    quantra_CalibrateVolSurfaceResponse:
+      type: object
+      description: Response of `/calibrate-vol-surface`.
+      properties:
+        sheet_id:
+          type: string
+        underlying_id:
+          type: string
+        spot:
+          type: number
+        method:
+          $ref: '#/components/schemas/quantra_enums_VolSurfaceFitMethod'
+        forwards_source:
+          type: string
+          description: '"request" when `forwards` was given, "fitted" when the implied-forward
+
+            fit was run here.'
+        filter:
+          $ref: '#/components/schemas/quantra_QuoteFilter'
+        forwards:
+          type: array
+          description: Forwards used, fitted expiries only, date order.
+          items:
+            $ref: '#/components/schemas/quantra_VolSurfaceForward'
+        expiries:
+          type: array
+          description: Per-expiry report, every sheet expiry, date order.
+          items:
+            $ref: '#/components/schemas/quantra_VolSurfaceExpiryReport'
+        strikes_as_moneyness:
+          type: array
+          description: The moneyness axis applied and the absolute strikes it became.
+          items:
+            type: number
+        grid_strikes:
+          type: array
+          items:
+            type: number
+        grid_expiries:
+          type: array
+          description: Grid expiry dates (YYYY-MM-DD).
+          items:
+            type: string
+        andreasen_huge_error:
+          $ref: '#/components/schemas/quantra_AndreasenHugeCalibrationError'
+        vol_surface_spec:
+          $ref: '#/components/schemas/quantra_VolSurfaceSpec'
+        vanilla_repricing:
+          $ref: '#/components/schemas/quantra_VanillaRepricing'
+      required:
+      - sheet_id
+      - underlying_id
+      - forwards_source
+      - filter
+      - forwards
+      - expiries
+      - strikes_as_moneyness
+      - grid_strikes
+      - grid_expiries
+      - vol_surface_spec
+      - vanilla_repricing
       additionalProperties: false
     quantra_CallabilityEntry:
       type: object

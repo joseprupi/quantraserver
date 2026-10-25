@@ -230,7 +230,17 @@ enum CallabilityType : byte {
     Put = 1
 }
 
-/// Swaption exercise style: European (at expiry only), Bermudan (on specific dates), or American (any time).
+/// Fit method of `/calibrate-vol-surface`: Andreasen-Huge local-vol
+/// interpolation (arbitrage-free by construction, QuantLib
+/// AndreasenHugeVolatilityInterpl) or one SVI slice per expiry with
+/// butterfly and calendar checks.
+enum VolSurfaceFitMethod : byte {
+    AndreasenHuge = 0,
+    SviPerExpiry = 1
+}
+
+/// Exercise style: European (at expiry only), Bermudan (on specific dates), or American (any time).
+/// Used by swaptions and by `OptionQuoteSheet.option_style`.
 enum ExerciseType : byte {
     European = 0,
     Bermudan = 1,

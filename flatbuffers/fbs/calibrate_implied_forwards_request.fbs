@@ -1,0 +1,31 @@
+include "pricing.fbs";
+include "option_quotes.fbs";
+
+namespace quantra;
+
+/// Request for `/calibrate-implied-forwards`: implied forwards, implied
+/// funding and implied continuous dividend yields per expiry from a sheet of
+/// listed-option quotes, by a weighted least-squares put-call-parity fit per
+/// expiry. Same shape as the other calibrate endpoints: market data in, a
+/// report plus a ready-to-use spec out (here the dividend curve that makes
+/// the pricing forwards equal the market forwards).
+table CalibrateImpliedForwardsRequest {
+    /// Full pricing context: `as_of_date` (the quote date), the discounting
+    /// curve in `rates.curves`, the underlying's spot in `quotes` and the
+    /// `EquityUnderlyingSpec` in `equity.equity_underlyings`.
+    pricing:Pricing (required);
+    /// The option quotes for one underlying on the as-of date.
+    sheet:OptionQuoteSheet (required);
+    /// Curve id in `pricing.rates.curves` giving the risk-free discount
+    /// factors DF(T) used for the implied funding spread and for r(T) in
+    /// q(T) = r(T) - ln(F/S) / T.
+    discounting_curve:string (required);
+    /// Quote-quality filter; defaults apply when absent.
+    filter:QuoteFilter;
+    /// Id given to the returned `dividend_curve_spec` (a `TermStructure`
+    /// ready to paste into `pricing.rates.curves` and to reference from
+    /// `EquityUnderlyingSpec.dividend_yield_curve_id`).
+    dividend_curve_id:string (required);
+}
+
+root_type CalibrateImpliedForwardsRequest;

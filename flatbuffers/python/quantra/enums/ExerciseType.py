@@ -2,7 +2,8 @@
 
 # namespace: enums
 
-# Swaption exercise style: European (at expiry only), Bermudan (on specific dates), or American (any time).
+# Exercise style: European (at expiry only), Bermudan (on specific dates), or American (any time).
+# Used by swaptions and by `OptionQuoteSheet.option_style`.
 class ExerciseType(object):
     European = 0
     Bermudan = 1

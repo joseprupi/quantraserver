@@ -26,6 +26,64 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.14.0 (October 2026) — Option quotes to implied forwards and a volatility surface
+
+`v0.14.0` is a MINOR, additive release: two calibration endpoints, one
+market-data payload, a converter tool and examples. No existing request or
+response changes; every 0.13.1 request is a valid 0.14.0 request with the
+same answer. QuantLib stays at 1.44.
+
+**`POST /calibrate-implied-forwards`.** From a sheet of listed European
+option quotes (`OptionQuoteSheet`: per line expiry, strike, call bid/ask,
+put bid/ask, optional volume and open interest; `QuoteFilter` with
+`max_relative_spread`, `min_quotes_per_expiry`, `moneyness_window`,
+`min_open_interest`) the per-expiry weighted least-squares put-call-parity
+fit gives the implied forward, the implied discount factor (the index's
+funding), the funding spread against the request's discounting curve in bp,
+the continuous dividend yield and the fit residuals, every dropped line
+with its reason, and a ready-to-paste `InterpolatedZero` dividend curve
+that reproduces the forwards exactly. `docs/http-api.md`, "Implied forwards
+and dividends from option quotes".
+
+**`POST /calibrate-vol-surface`.** The same sheet (plus, optionally, the
+pasted forwards of the first endpoint) to a Black implied-vol surface on a
+moneyness x expiry grid converted to absolute strikes with the spot,
+returned as a complete `VolSurfaceSpec` (`BlackVolSpec`, `SmileCube3D`,
+NullCalendar / Unadjusted / Act/365F, calendar-day expiries, bilinear,
+extrapolation allowed) for `pricing.volatility.vol_surfaces`. Two methods
+(`VolSurfaceFitMethod`): `AndreasenHuge` (QuantLib
+`AndreasenHugeVolatilityInterpl`, arbitrage-free by construction) and
+`SviPerExpiry` (QuantLib `SviInterpolation` per expiry, Durrleman butterfly
+check with a penalized refit, calendar check with a clip). The response
+carries the forwards used, a per-expiry report (quotes used and dropped
+with reasons, RMSE and max error in vol units, SVI parameters, arbitrage
+findings and actions) and the vanilla repricing of every used quote on the
+returned surface (inside the bid/ask or not, largest price and vol
+excursions). `docs/http-api.md`, "Volatility surface from option quotes".
+
+**Tools and examples.** `tools/option_quotes/cboe_eod_to_quote_sheet.py`
+converts a Cboe DataShop end-of-day file into a quote sheet (vendor data is
+never committed); `tests/tools/make_synthetic_quote_sheet.py` generates the
+committed synthetic sheets (polynomial smile, SSVI surface, flat) from
+stated inputs. Examples: `examples/data/implied_forwards/`,
+`examples/data/vol_surface/` (one request per method) and
+`examples/data/structured_note/scotia_…_with_synthetic_surface.json` (the
+Scotia note on synthetic surfaces under Dupire local vol). Functional
+catalog rows: `impfwd_synthetic_ndx_like_2026_09_30`,
+`volsurf_synthetic_svi_sheet_andreasen_huge`,
+`volsurf_synthetic_svi_sheet_svi_per_expiry`,
+`structured_note_scotia_…_synthetic_surface`.
+
+**Schema additions (all new tables; `enums.fbs` gains
+`VolSurfaceFitMethod`; the `ExerciseType` comment widens).**
+`option_quotes.fbs` (`OptionQuote`, `OptionQuoteSheet`, `QuoteFilter`),
+`calibrate_implied_forwards_request.fbs` / `_response.fbs`
+(`DroppedQuote`, `ImpliedForwardExpiry`, `ImpliedForwardPoint`),
+`calibrate_vol_surface_request.fbs` (`VolSurfaceOutputGrid`,
+`SviFitOptions`) / `_response.fbs` (`VolSurfaceForward`, `SviParameters`,
+`AndreasenHugeCalibrationError`, `VolSurfaceExpiryReport`,
+`VanillaRepricePoint`, `VanillaRepricing`). OpenAPI regenerated.
+
 ## Version 0.13.1 (October 2026) — Non-finite responses, holiday valuation with deposit helpers, bounded Hull-White calibration
 
 `v0.13.1` is a PATCH release: three fixes, no request shape changes. Every

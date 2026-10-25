@@ -809,6 +809,24 @@ int main(int argc, char** argv) {
                     });
             });
 
+        CROW_ROUTE(app, "/calibrate-implied-forwards")
+            .methods("POST"_method)([&](const crow::request& req) {
+                return respond(
+                    "/calibrate-implied-forwards", req,
+                    [&](const std::string& body, const std::string& request_id) {
+                        return client.CalibrateImpliedForwardsJSON(body, request_id);
+                    });
+            });
+
+        CROW_ROUTE(app, "/calibrate-vol-surface")
+            .methods("POST"_method)([&](const crow::request& req) {
+                return respond(
+                    "/calibrate-vol-surface", req,
+                    [&](const std::string& body, const std::string& request_id) {
+                        return client.CalibrateVolSurfaceJSON(body, request_id);
+                    });
+            });
+
         // Print endpoints
         std::cout << "Endpoints:\n"
                   << "  POST /price-fixed-rate-bond\n"
@@ -830,6 +848,8 @@ int main(int argc, char** argv) {
                   << "  POST /calendar-advance\n"
                   << "  POST /calibrate-swaption-model\n"
                   << "  POST /calibrate-swaption-vol\n"
+                  << "  POST /calibrate-implied-forwards\n"
+                  << "  POST /calibrate-vol-surface\n"
                   << "  POST /price-equity-option\n"
                   << "  POST /price-zero-coupon-bond\n"
                   << "  POST /price-zero-coupon-swap\n"

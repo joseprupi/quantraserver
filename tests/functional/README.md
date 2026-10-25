@@ -46,6 +46,8 @@ committed catalog drifts from the manifest.
 | `../../examples/data/callable_bonds/` | The curated request JSONs for the Callable Bonds family. |
 | `../../examples/data/inflation_cap_floor/` | The curated request JSONs for the inflation cap/floor cases (Inflation family). |
 | `../../examples/data/structured_note/` | The curated request JSONs for the Structured Notes family (Monte Carlo on the engine's random stream). |
+| `../../examples/data/implied_forwards/` | The synthetic option quote sheet for the implied-forward calibration (Vol / Calibration family). |
+| `../../examples/data/vol_surface/` | The synthetic SVI quote sheet for the vol-surface calibration, one request per method (Vol / Calibration family). |
 
 ## Comparison modes
 
