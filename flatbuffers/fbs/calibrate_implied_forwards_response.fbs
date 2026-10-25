@@ -1,0 +1,84 @@
+include "term_structure.fbs";
+include "option_quotes.fbs";
+
+namespace quantra;
+
+/// One quote line (or one whole expiry, when `strike` is absent) excluded
+/// from the fit, with the rule that excluded it.
+table DroppedQuote {
+    expiry:string (required);
+    /// Absent when the whole expiry was dropped.
+    strike:double = null;
+    reason:string (required);
+}
+
+/// Per-expiry fit report. Every expiry present on the sheet appears once,
+/// in date order. Fit outputs (`forward` onwards) are present iff `usable`
+/// is true; a dropped expiry carries `dropped_reason` and its `dropped`
+/// lines instead.
+table ImpliedForwardExpiry {
+    /// Expiry date (YYYY-MM-DD).
+    expiry:string (required);
+    /// Act/365F year fraction from `pricing.as_of_date` to the expiry.
+    time:double;
+    /// Call/put pairs that entered the final fit.
+    quotes_used:uint;
+    /// Lines of this expiry excluded by a filter rule (count of `dropped`).
+    quotes_dropped:uint;
+    dropped:[DroppedQuote];
+    /// True iff the expiry was fitted.
+    usable:bool;
+    /// Why the expiry was not fitted (absent when `usable`).
+    dropped_reason:string;
+    /// Implied forward F: the strike at which C - P = 0 on the fitted line.
+    forward:double = null;
+    /// Implied discount factor DF = -slope of C - P against K: the market's
+    /// funding of the index to this expiry.
+    implied_discount_factor:double = null;
+    /// Discount factor of the request's discounting curve at the expiry.
+    curve_discount_factor:double = null;
+    /// Continuous spread between the two discount factors, in basis points:
+    /// -ln(DF_implied / DF_curve) / T * 1e4. Positive = the options imply a
+    /// higher funding rate than the curve.
+    implied_funding_bp:double = null;
+    /// Continuous dividend (equity repo + dividend) yield q(T) from
+    /// F = S * exp((r(T) - q(T)) * T), r(T) = -ln(DF_curve) / T.
+    implied_dividend_yield:double = null;
+    /// Root-mean-square of the fit residuals C - P - (a + b K), price units.
+    fit_residual_rmse:double = null;
+    /// Largest absolute residual, price units.
+    max_abs_residual:double = null;
+}
+
+/// Plain forward table: one row per fitted expiry, in date order.
+table ImpliedForwardPoint {
+    expiry:string (required);
+    time:double;
+    forward:double;
+    implied_dividend_yield:double;
+}
+
+/// Response of `/calibrate-implied-forwards`.
+table CalibrateImpliedForwardsResponse {
+    /// Echo of `sheet.id`.
+    sheet_id:string (required);
+    /// Echo of `sheet.underlying_id`.
+    underlying_id:string (required);
+    /// Spot read from the underlying's spot quote.
+    spot:double;
+    /// The filter actually applied (request values or the defaults).
+    filter:QuoteFilter (required);
+    /// Per-expiry report, every sheet expiry, date order.
+    expiries:[ImpliedForwardExpiry] (required);
+    /// Fitted expiries only, date order.
+    forwards:[ImpliedForwardPoint] (required);
+    /// Ready-to-paste `InterpolatedZero` curve (Act/365F, linear, continuous
+    /// zero points) with id `dividend_curve_id`: a point at the as-of date
+    /// carrying the first fitted expiry's yield (flat short end; the curve's
+    /// first node is its reference date) and one point per fitted expiry
+    /// with q(T). Discounting on the request curve and dividends on this
+    /// curve reproduces every fitted forward exactly.
+    dividend_curve_spec:TermStructure (required);
+}
+
+root_type CalibrateImpliedForwardsResponse;

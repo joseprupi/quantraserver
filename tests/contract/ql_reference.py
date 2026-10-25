@@ -191,6 +191,10 @@ def get_calendar(name: str):
         "UnitedStatesNYSE": ql.UnitedStates(ql.UnitedStates.NYSE),
         "UnitedStatesGovernmentBond": ql.UnitedStates(ql.UnitedStates.GovernmentBond),
         "Japan": ql.Japan(),
+        # Mirrors the server's CalendarToQL: every day is a business day, so
+        # a `Days` period advances calendar days (the vol surfaces returned by
+        # /calibrate-vol-surface are keyed this way).
+        "NullCalendar": ql.NullCalendar(),
     }
     return mapping.get(name, ql.TARGET())
 
@@ -5908,6 +5912,507 @@ def price_structured_note_ql(request: dict) -> dict:
 # =============================================================================
 # Response NPV extraction (API side of the parity comparison)
 # =============================================================================
+
+
+# =============================================================================
+# Implied forwards and dividends from option quotes (/calibrate-implied-forwards)
+# =============================================================================
+
+def _implied_forwards_weighted_line(pairs):
+    """Weighted least squares of y on K, same algebra and the same summation
+    order as the engine's weightedLine (header of
+    src/evaluators/implied_forwards_evaluator.h): returns (a, b) or None when
+    the strikes do not span."""
+    W = sK = sY = 0.0
+    for k, y, w in pairs:
+        W += w
+        sK += w * k
+        sY += w * y
+    k_bar = sK / W
+    y_bar = sY / W
+    sxy = sxx = 0.0
+    for k, y, w in pairs:
+        dk = k - k_bar
+        sxy += w * dk * (y - y_bar)
+        sxx += w * dk * dk
+    if not sxx > 0.0:
+        return None
+    b = sxy / sxx
+    return y_bar - b * k_bar, b
+
+
+def _quote_filter_pass(lines, flt):
+    """The per-line rules of filterExpiryLines (implied_forwards_evaluator.cpp)
+    in the same order; returns the survivors as dicts with both sides' mids
+    and spreads (the dropped lines are not needed by the references)."""
+    max_rel = float(flt.get("max_relative_spread", 0.05))
+    min_oi = flt.get("min_open_interest")
+    out = []
+    seen = set()
+    for q in lines:
+        k = q.get("strike")
+        if k is None or not k > 0.0 or not math.isfinite(k):
+            continue
+        sides = [q.get("call_bid"), q.get("call_ask"), q.get("put_bid"), q.get("put_ask")]
+        if any(v is None for v in sides):
+            continue
+        cb, ca, pb, pa = sides
+        if any(not math.isfinite(v) for v in sides):
+            continue
+        if cb < 0.0 or pb < 0.0 or not ca > 0.0 or not pa > 0.0:
+            continue
+        if cb > ca or pb > pa:
+            continue
+        if min_oi is not None:
+            coi, poi = q.get("call_open_interest"), q.get("put_open_interest")
+            if coi is None or poi is None or coi < min_oi or poi < min_oi:
+                continue
+        c_mid, p_mid = 0.5 * (cb + ca), 0.5 * (pb + pa)
+        c_spr, p_spr = ca - cb, pa - pb
+        if c_spr / c_mid > max_rel or p_spr / p_mid > max_rel:
+            continue
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append({"strike": k, "call_bid": cb, "call_ask": ca, "put_bid": pb, "put_ask": pa,
+                    "call_mid": c_mid, "put_mid": p_mid, "call_spread": c_spr,
+                    "put_spread": p_spr})
+    return out
+
+
+def _implied_forwards_fit(sheet, spot, curve, flt, eval_date):
+    """The per-expiry fit of calibrate_implied_forwards_ql: returns
+    [(expiry, usable, values)] over the sheet's expiries in date order."""
+    dc = ql.Actual365Fixed()
+    min_quotes = int(flt.get("min_quotes_per_expiry", 4))
+    window = float(flt.get("moneyness_window", 0.25))
+    by_expiry = {}
+    for q in sheet["quotes"]:
+        by_expiry.setdefault(q["expiry"], []).append(q)
+    expiries = []   # (expiry, usable, values)
+    for expiry in sorted(by_expiry, key=parse_date):
+        lines = by_expiry[expiry]
+        exp_date = parse_date(expiry)
+        t = dc.yearFraction(eval_date, exp_date)
+        if exp_date <= eval_date:
+            expiries.append((expiry, False, None))
+            continue
+        pairs = []
+        zero_spread = False
+        for q in _quote_filter_pass(lines, flt):
+            total = q["call_spread"] + q["put_spread"]
+            if not total > 0.0:
+                zero_spread = True
+            pairs.append([q["strike"], q["call_mid"] - q["put_mid"],
+                          1.0 / total if total > 0.0 else 1.0])
+        if zero_spread:
+            for p_ in pairs:
+                p_[2] = 1.0
+        if len(pairs) < min_quotes:
+            expiries.append((expiry, False, None))
+            continue
+        fit1 = _implied_forwards_weighted_line(pairs)
+        if fit1 is None or not fit1[1] < 0.0:
+            expiries.append((expiry, False, None))
+            continue
+        f1 = -fit1[0] / fit1[1]
+        if not f1 > 0.0 or not math.isfinite(f1):
+            expiries.append((expiry, False, None))
+            continue
+        lo, hi = f1 * (1.0 - window), f1 * (1.0 + window)
+        inside = [p_ for p_ in pairs if not (p_[0] < lo or p_[0] > hi)]
+        if len(inside) < min_quotes:
+            expiries.append((expiry, False, None))
+            continue
+        fit2 = _implied_forwards_weighted_line(inside)
+        if fit2 is None or not fit2[1] < 0.0:
+            expiries.append((expiry, False, None))
+            continue
+        a, b = fit2
+        df_implied = -b
+        forward = a / df_implied
+        if not forward > 0.0 or not math.isfinite(forward):
+            expiries.append((expiry, False, None))
+            continue
+        ss = 0.0
+        max_abs = 0.0
+        for k, y, _w in inside:
+            r_ = y - (a + b * k)
+            ss += r_ * r_
+            max_abs = max(max_abs, abs(r_))
+        df_curve = curve.discount(exp_date)
+        r = -math.log(df_curve) / t
+        q_ = r - math.log(forward / spot) / t
+        expiries.append((expiry, True, {
+            "time": t,
+            "quotes_used": float(len(inside)),
+            "forward": forward,
+            "implied_discount_factor": df_implied,
+            "curve_discount_factor": df_curve,
+            "implied_funding_bp": -math.log(df_implied / df_curve) / t * 1e4,
+            "implied_dividend_yield": q_,
+            "fit_residual_rmse": math.sqrt(ss / len(inside)),
+            "max_abs_residual": max_abs,
+        }))
+    return expiries
+
+
+def calibrate_implied_forwards_ql(request: dict) -> dict:
+    """Independent re-run of the engine's per-expiry put-call-parity fit.
+
+    Mirrors src/evaluators/implied_forwards_evaluator.cpp rule for rule, in
+    plain Python (no numpy): the spot from the underlying's spot quote, the
+    discount factors from the request's discounting curve rebuilt in
+    QuantLib, the per-line filters in the same order (strike > 0, both sides
+    present, finite, non-negative bid / positive ask, not crossed, open
+    interest, relative spread on each side, duplicate strike), weights
+    1 / (call spread + put spread) with the equal-weights fallback when any
+    pair of the expiry has a zero total spread, the first pass over every
+    surviving pair, the moneyness window around the first-pass forward, the
+    second pass, and the curve-relative quantities with T = Act/365F:
+
+        DF_implied = -b, F = -a / b, r = -ln(DF_curve) / T,
+        q = r - ln(F / S) / T, funding_bp = -ln(DF_implied / DF_curve) / T * 1e4.
+
+    Returns {dotted.response.path: value} for every fitted expiry (the
+    per-expiry report, the plain forward table and the zero points of the
+    returned dividend curve) so the functional catalog's "fields" compare and
+    the contract test check the whole response. Non-European sheets and
+    sheets with no surviving expiry raise, like the engine's 400.
+    """
+    pricing = _reference_pricing_view(request)
+    as_of = pricing["as_of_date"]
+    eval_date = parse_date(as_of)
+    ql.Settings.instance().evaluationDate = eval_date
+
+    sheet = request["sheet"]
+    if sheet.get("option_style", "European") != "European":
+        raise ValueError("option_style must be European")
+    underlying = next(u for u in pricing["equity_underlyings"]
+                      if u["id"] == sheet["underlying_id"])
+    spot = next(q["value"] for q in pricing["quotes"] if q["id"] == underlying["spot_quote_id"])
+    disc_json = next(c for c in pricing["curves"] if c["id"] == request["discounting_curve"])
+    curve = build_curve_from_json(disc_json, eval_date, request)
+    dc = ql.Actual365Fixed()
+
+    flt = dict(request.get("filter") or {})
+    max_rel = float(flt.get("max_relative_spread", 0.05))
+    min_quotes = int(flt.get("min_quotes_per_expiry", 4))
+    window = float(flt.get("moneyness_window", 0.25))
+    min_oi = flt.get("min_open_interest")
+
+    expiries = _implied_forwards_fit(sheet, spot, curve, flt, eval_date)
+    fields = {}
+    usable = [(e, v) for e, ok, v in expiries if ok]
+    if not usable:
+        raise ValueError("no expiry survived the implied-forward fit")
+    for i, (_e, ok, v) in enumerate(expiries):
+        if not ok:
+            continue
+        for name, value in v.items():
+            fields[f"expiries.{i}.{name}"] = value
+    for j, (_e, v) in enumerate(usable):
+        fields[f"forwards.{j}.time"] = v["time"]
+        fields[f"forwards.{j}.forward"] = v["forward"]
+        fields[f"forwards.{j}.implied_dividend_yield"] = v["implied_dividend_yield"]
+    # Dividend curve: as-of node with the first fitted yield, then one per expiry.
+    yields = [usable[0][1]["implied_dividend_yield"]] + \
+        [v["implied_dividend_yield"] for _e, v in usable]
+    for k_, y_ in enumerate(yields):
+        fields[f"dividend_curve_spec.points.{k_}.point.zero_rate"] = y_
+    return fields
+
+
+# ---------------------------------------------------------------------------
+# Black vol surface from option quotes (/calibrate-vol-surface)
+# ---------------------------------------------------------------------------
+
+def _svi_total_variance(p, k):
+    d = k - p["m"]
+    return p["a"] + p["b"] * (p["rho"] * d + math.sqrt(d * d + p["sigma"] ** 2))
+
+
+def _svi_durrleman_g(p, k):
+    d = k - p["m"]
+    big_r = math.sqrt(d * d + p["sigma"] ** 2)
+    w = _svi_total_variance(p, k)
+    if not w > 0.0:
+        return -math.inf
+    w1 = p["b"] * (p["rho"] + d / big_r)
+    w2 = p["b"] * p["sigma"] ** 2 / big_r ** 3
+    t1 = 1.0 - k * w1 / (2.0 * w)
+    return t1 * t1 - (w1 * w1 / 4.0) * (1.0 / w + 0.25) + w2 / 2.0
+
+
+def calibrate_vol_surface_ql(request: dict) -> dict:
+    """Independent re-run of src/evaluators/vol_surface_calibration_evaluator.cpp
+    with the Python bindings of the same QuantLib classes.
+
+    Forwards: the request's `forwards` (usable entries) or the implied-forward
+    fit above (same filter). Per expiry: the per-line filter, the
+    out-of-the-money mid (call for K >= F, put below), its Black-76 implied
+    vol via blackFormulaImpliedStdDev on the fitted forward and implied
+    discount factor (dropped when not above intrinsic, below the quote
+    resolution 1e-5 * spot, or not solvable), strikes sorted. Then
+
+      * AndreasenHuge: AndreasenHugeVolatilityInterpl on CalibrationPairs
+        (out-of-the-money VanillaOption, SimpleQuote(vol)), spot handle,
+        DiscountCurve of the implied DFs (log-linear, Act/365F) and a
+        dividend DiscountCurve with F DF / S, CubicSpline, CallPut, 500 grid
+        points; AndreasenHugeVolatilityAdapter.blackVol at every grid point
+        whose model price (interpl.optionPrice) is at least 1e-4 * spot, the
+        others filled from the nearest inverted strike (lowest index on a
+        tie), as the engine does;
+      * SviPerExpiry: SviInterpolatedSmileSection per expiry (all five
+        parameters free, vega-weighted, EndCriteria(500, 100, 1e-12, 1e-10,
+        1e-10), LevenbergMarquardt(1e-10, 1e-10, 1e-10)) — the same
+        XABRInterpolationImpl the engine's SviInterpolation runs — then the
+        butterfly check and the calendar clip. The engine's penalized
+        butterfly refit is not reproduced here (no CostFunction subclassing
+        in the bindings): a violation with enforce_butterfly on raises, so
+        the catalog only carries arbitrage-free sheets for this method.
+
+    The grid: strikes = moneyness * spot (default 0.50 .. 1.50 step 0.025),
+    expiries = the fitted sheet expiries (or the request's calendar-day
+    periods). The returned surface is rebuilt as the pricers read it
+    (BlackVarianceSurface, NullCalendar, Act/365F, bilinear, extrapolation)
+    and every used quote repriced on it.
+
+    Returns {dotted.response.path: value}: the forwards used, per-expiry
+    quotes_used / rmse_vol / max_abs_error_vol (and the SVI parameters), the
+    grid strikes, every surface vol of vol_surface_spec, the repricing
+    summary and the per-quote model vol and price.
+    """
+    pricing = _reference_pricing_view(request)
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+    dc = ql.Actual365Fixed()
+
+    sheet = request["sheet"]
+    if sheet.get("option_style", "European") != "European":
+        raise ValueError("option_style must be European")
+    underlying = next(u for u in pricing["equity_underlyings"]
+                      if u["id"] == sheet["underlying_id"])
+    spot = next(q["value"] for q in pricing["quotes"] if q["id"] == underlying["spot_quote_id"])
+    disc_json = next(c for c in pricing["curves"] if c["id"] == request["discounting_curve"])
+    curve = build_curve_from_json(disc_json, eval_date, request)
+    flt = dict(request.get("filter") or {})
+    method = request.get("method", "AndreasenHuge")
+    svi_opts = dict(request.get("svi") or {})
+    enforce_butterfly = bool(svi_opts.get("enforce_butterfly", True))
+    enforce_calendar = bool(svi_opts.get("enforce_calendar", True))
+
+    # 1. Forwards.
+    forwards = {}
+    if request.get("forwards") is not None:
+        for f in request["forwards"]:
+            if not f.get("usable"):
+                continue
+            forwards[f["expiry"]] = (float(f["forward"]), float(f["implied_discount_factor"]))
+    else:
+        for expiry, ok, v in _implied_forwards_fit(sheet, spot, curve, flt, eval_date):
+            if ok:
+                forwards[expiry] = (v["forward"], v["implied_discount_factor"])
+
+    # 2. Per expiry: filter, out-of-the-money mids, implied vols.
+    min_used = max(int(flt.get("min_quotes_per_expiry", 4)),
+                   5 if method == "SviPerExpiry" else 1)
+    by_expiry = {}
+    for q in sheet["quotes"]:
+        by_expiry.setdefault(q["expiry"], []).append(q)
+    work = []        # usable expiries: dicts
+    report_idx = {}  # expiry -> index in the response's expiries array
+    for i, expiry in enumerate(sorted(by_expiry, key=parse_date)):
+        report_idx[expiry] = i
+        exp_date = parse_date(expiry)
+        if exp_date <= eval_date or expiry not in forwards:
+            continue
+        fwd, df = forwards[expiry]
+        t = dc.yearFraction(eval_date, exp_date)
+        used = []
+        for q in _quote_filter_pass(by_expiry[expiry], flt):
+            k_abs = q["strike"]
+            is_call = k_abs >= fwd
+            bid = q["call_bid"] if is_call else q["put_bid"]
+            ask = q["call_ask"] if is_call else q["put_ask"]
+            mid = q["call_mid"] if is_call else q["put_mid"]
+            intrinsic = df * max(fwd - k_abs if is_call else k_abs - fwd, 0.0)
+            if not mid > intrinsic or mid < 1e-5 * spot:
+                continue
+            try:
+                sd = ql.blackFormulaImpliedStdDev(
+                    ql.Option.Call if is_call else ql.Option.Put, k_abs, fwd, mid, df, 0.0,
+                    ql.nullDouble(), 1e-12, 1000)
+            except RuntimeError:
+                continue
+            vol = sd / math.sqrt(t)
+            if not math.isfinite(vol) or not vol > 0.0:
+                continue
+            used.append({"strike": k_abs, "is_call": is_call, "bid": bid, "ask": ask,
+                         "mid": mid, "vol": vol})
+        used.sort(key=lambda u: u["strike"])
+        if len(used) < min_used:
+            continue
+        work.append({"expiry": expiry, "date": exp_date, "t": t, "fwd": fwd, "df": df,
+                     "used": used})
+    if not work:
+        raise ValueError("no usable expiry")
+
+    # Grid.
+    grid = dict(request.get("output_grid") or {})
+    moneyness = list(grid.get("strikes_as_moneyness") or []) or \
+        [round(0.50 + 0.025 * i, 6) for i in range(41)]
+    strikes = [m * spot for m in moneyness]
+    if grid.get("expiries"):
+        cal = ql.NullCalendar()
+        grid_dates = [cal.advance(eval_date, _wire_period_to_ql(p), ql.Unadjusted)
+                      for p in grid["expiries"]]
+    else:
+        grid_dates = [w["date"] for w in work]
+    n_exp, n_str = len(grid_dates), len(strikes)
+    vols = [[math.nan] * n_str for _ in range(n_exp)]
+    fields = {}
+
+    if method == "AndreasenHuge":
+        dates = [eval_date] + [w["date"] for w in work]
+        r_dfs = [1.0] + [w["df"] for w in work]
+        q_dfs = [1.0] + [w["fwd"] * w["df"] / spot for w in work]
+        r_ts = ql.YieldTermStructureHandle(ql.DiscountCurve(dates, r_dfs, dc))
+        q_ts = ql.YieldTermStructureHandle(ql.DiscountCurve(dates, q_dfs, dc))
+        cal_set = ql.CalibrationSet()
+        for w in work:
+            exercise = ql.EuropeanExercise(w["date"])
+            for u in w["used"]:
+                payoff = ql.PlainVanillaPayoff(ql.Option.Call if u["is_call"] else ql.Option.Put,
+                                               u["strike"])
+                cal_set.push_back(ql.CalibrationPair(ql.VanillaOption(payoff, exercise),
+                                                     ql.SimpleQuote(u["vol"])))
+        interpl = ql.AndreasenHugeVolatilityInterpl(
+            cal_set, ql.QuoteHandle(ql.SimpleQuote(spot)), r_ts, q_ts,
+            ql.AndreasenHugeVolatilityInterpl.CubicSpline,
+            ql.AndreasenHugeVolatilityInterpl.CallPut, 500)
+        adapter = ql.AndreasenHugeVolatilityAdapter(interpl)
+        for w in work:
+            errs = []
+            for u in w["used"]:
+                try:
+                    errs.append(adapter.blackVol(w["date"], u["strike"], True) - u["vol"])
+                except RuntimeError:
+                    pass
+            if errs:
+                i = report_idx[w["expiry"]]
+                fields[f"expiries.{i}.rmse_vol"] = math.sqrt(sum(e * e for e in errs) / len(errs))
+                fields[f"expiries.{i}.max_abs_error_vol"] = max(abs(e) for e in errs)
+        for i, d in enumerate(grid_dates):
+            t = dc.yearFraction(eval_date, d)
+            fwd_t = interpl.fwd(t)
+            row = []
+            for k_abs in strikes:
+                try:
+                    price = interpl.optionPrice(
+                        t, k_abs, ql.Option.Call if k_abs >= fwd_t else ql.Option.Put)
+                    if not price >= 1e-4 * spot:
+                        row.append(math.nan)
+                        continue
+                    v = adapter.blackVol(d, k_abs, True)
+                    row.append(v if math.isfinite(v) and v > 0.0 else math.nan)
+                except RuntimeError:
+                    row.append(math.nan)
+            solved = [j for j in range(n_str) if not math.isnan(row[j])]
+            if not solved:
+                raise ValueError("Andreasen-Huge inversion failed on a whole row")
+            for j in range(n_str):
+                if math.isnan(row[j]):
+                    best = min(solved, key=lambda l: (abs(l - j), l))
+                    vols[i][j] = row[best]
+                else:
+                    vols[i][j] = row[j]
+    elif method == "SviPerExpiry":
+        for w in work:
+            strikes_w = [u["strike"] for u in w["used"]]
+            vols_w = [u["vol"] for u in w["used"]]
+            nd = ql.nullDouble()
+            sec = ql.SviInterpolatedSmileSection(
+                w["date"], w["fwd"], strikes_w, False, vols_w[0], vols_w,
+                nd, nd, nd, nd, nd, False, False, False, False, False, True,
+                ql.EndCriteria(500, 100, 1e-12, 1e-10, 1e-10),
+                ql.LevenbergMarquardt(1e-10, 1e-10, 1e-10), dc)
+            p = {"a": sec.a(), "b": sec.b(), "sigma": sec.sigma(), "rho": sec.rho(), "m": sec.m()}
+            k_lo, k_hi = math.log(strikes[0] / w["fwd"]), math.log(strikes[-1] / w["fwd"])
+            ks = [k_lo + (k_hi - k_lo) * j / 200 for j in range(201)]
+            min_g = min(_svi_durrleman_g(p, k) for k in ks)
+            if min_g < 0.0 and enforce_butterfly:
+                raise NotImplementedError(
+                    f"{w['expiry']}: butterfly violation (min g {min_g}); the penalized refit "
+                    "is engine-only")
+            w["svi"] = p
+            i = report_idx[w["expiry"]]
+            errs = [math.sqrt(max(0.0, _svi_total_variance(p, math.log(u["strike"] / w["fwd"])))
+                              / w["t"]) - u["vol"] for u in w["used"]]
+            fields[f"expiries.{i}.rmse_vol"] = math.sqrt(sum(e * e for e in errs) / len(errs))
+            fields[f"expiries.{i}.max_abs_error_vol"] = max(abs(e) for e in errs)
+            fields[f"expiries.{i}.butterfly_min_g"] = min_g
+            for name in ("a", "b", "sigma", "rho", "m"):
+                fields[f"expiries.{i}.svi.{name}"] = p[name]
+        for i, d in enumerate(grid_dates):
+            w = next(w for w in work if w["date"] == d)
+            for j, k_abs in enumerate(strikes):
+                tv = max(0.0, _svi_total_variance(w["svi"], math.log(k_abs / w["fwd"])))
+                vols[i][j] = math.sqrt(tv / w["t"])
+    else:
+        raise ValueError(f"unknown method {method}")
+
+    # Calendar check (clip for SVI when enforced).
+    clip = enforce_calendar if method == "SviPerExpiry" else False
+    times = [dc.yearFraction(eval_date, d) for d in grid_dates]
+    for j in range(n_str):
+        prev = -1.0
+        for i in range(n_exp):
+            tv = vols[i][j] ** 2 * times[i]
+            if i > 0 and tv < prev + 1e-8:
+                if clip:
+                    vols[i][j] = math.sqrt((prev + 1e-8) / times[i])
+                    tv = prev + 1e-8
+            prev = tv
+
+    # Fields: forwards used, quotes used, grid, surface.
+    for j, w in enumerate(work):
+        fields[f"forwards.{j}.time"] = w["t"]
+        fields[f"forwards.{j}.forward"] = w["fwd"]
+        fields[f"forwards.{j}.implied_discount_factor"] = w["df"]
+        fields[f"expiries.{report_idx[w['expiry']]}.quotes_used"] = float(len(w["used"]))
+    fields["grid_strikes"] = strikes
+    fields["vol_surface_spec.payload.surface_vols.values"] = \
+        [vols[i][j] for i in range(n_exp) for j in range(n_str)]
+
+    # Vanilla repricing on the returned surface, as the pricers read it.
+    matrix = ql.Matrix(n_str, n_exp)
+    for i in range(n_exp):
+        for j in range(n_str):
+            matrix[j][i] = vols[i][j]
+    surface = ql.BlackVarianceSurface(eval_date, ql.NullCalendar(), grid_dates, strikes, matrix, dc)
+    surface.setInterpolation("bilinear")
+    surface.enableExtrapolation()
+    n = inside = 0
+    max_p = max_v = 0.0
+    for w in work:
+        for u in w["used"]:
+            mv = surface.blackVol(w["date"], u["strike"], True)
+            mp = ql.blackFormula(ql.Option.Call if u["is_call"] else ql.Option.Put, u["strike"],
+                                 w["fwd"], mv * math.sqrt(w["t"]), w["df"])
+            fields[f"vanilla_repricing.quotes.{n}.model_vol"] = mv
+            fields[f"vanilla_repricing.quotes.{n}.model_price"] = mp
+            if u["bid"] <= mp <= u["ask"]:
+                inside += 1
+            max_p = max(max_p, abs(mp - u["mid"]))
+            max_v = max(max_v, abs(mv - u["vol"]))
+            n += 1
+    fields["vanilla_repricing.count"] = float(n)
+    fields["vanilla_repricing.inside_bid_ask"] = float(inside)
+    fields["vanilla_repricing.max_abs_price_error"] = max_p
+    fields["vanilla_repricing.max_abs_vol_error"] = max_v
+    return fields
+
 
 def api_npv(response: dict, list_key: str) -> float:
     """Pull the single-instrument NPV out of a pricing response.

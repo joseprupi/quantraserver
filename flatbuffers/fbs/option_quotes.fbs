@@ -1,0 +1,73 @@
+include "enums.fbs";
+
+namespace quantra;
+
+/// One listed-option quote line: a strike at an expiry with the call and put
+/// sides as quoted (bid/ask), plus optional liquidity fields. Shared by the
+/// implied-forward calibration (`/calibrate-implied-forwards`) and the
+/// vol-surface calibration that consumes its forwards. Prices are in the
+/// underlying's currency per unit of underlying (not per contract).
+///
+/// Every scalar is presence-required where it is needed: a strike or a price
+/// that is absent is reported as a dropped quote with a reason, never read as
+/// 0.0. A line may carry only one side (call or put); it then cannot enter a
+/// parity fit and is dropped with reason "missing call or put side".
+table OptionQuote {
+    /// Expiry date (YYYY-MM-DD).
+    expiry:string (required);
+    /// Strike in underlying price units. Must be > 0.
+    strike:double = null;
+    call_bid:double = null;
+    call_ask:double = null;
+    put_bid:double = null;
+    put_ask:double = null;
+    /// Traded volume on the quote date (contracts). Informational; echoed
+    /// nowhere, reserved for filters.
+    call_volume:double = null;
+    put_volume:double = null;
+    /// Open interest (contracts). Used by `QuoteFilter.min_open_interest`.
+    call_open_interest:double = null;
+    put_open_interest:double = null;
+}
+
+/// A sheet of listed-option quotes for one underlying on one date (the
+/// request's `pricing.as_of_date`). The spot is NOT on the sheet: it is the
+/// `spot_quote_id` of the referenced `EquityUnderlyingSpec` in
+/// `pricing.equity.equity_underlyings`, so the same number prices the
+/// options and seeds the forward fit.
+table OptionQuoteSheet {
+    id:string (required);
+    /// `EquityUnderlyingSpec.id` in `pricing.equity.equity_underlyings`.
+    /// Only its spot quote is read here; its `dividend_yield_curve_id` must
+    /// resolve (the shared registry requires it) but is not used by the
+    /// implied-forward fit — a flat 0 % placeholder curve is the convention.
+    underlying_id:string (required);
+    quotes:[OptionQuote] (required);
+    /// Exercise style of the listed options. Put-call parity, the identity
+    /// the forward fit rests on, holds for European exercise only: American
+    /// quotes (single stocks, some ETFs) carry an early-exercise premium that
+    /// biases the fit, so `/calibrate-implied-forwards` rejects any style
+    /// other than European with 400 naming this field. Index options (NDX,
+    /// RUT, SPX, SX5E) are European.
+    option_style:enums.ExerciseType = European;
+}
+
+/// Quote-quality filter applied before the parity fit. Every threshold is
+/// echoed back on the response so the caller sees what was applied.
+table QuoteFilter {
+    /// Maximum (ask - bid) / mid on EACH side (call and put) of a line.
+    /// Must be > 0.
+    max_relative_spread:double = 0.05;
+    /// Minimum number of call/put pairs an expiry needs AFTER both filter
+    /// passes to be fitted; an expiry with fewer is reported as dropped
+    /// (not a 400, unless no expiry survives). Must be >= 2.
+    min_quotes_per_expiry:uint = 4;
+    /// Second-pass window: after a first fit over every surviving pair gives
+    /// a provisional forward F1, only strikes inside
+    /// [F1 * (1 - w), F1 * (1 + w)] enter the final fit. Must be > 0.
+    moneyness_window:double = 0.25;
+    /// Optional: drop a line whose call OR put open interest is below this
+    /// (a line without open-interest fields is kept when the threshold is
+    /// absent and dropped when it is present).
+    min_open_interest:double = null;
+}

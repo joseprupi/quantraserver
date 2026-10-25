@@ -1170,7 +1170,7 @@ shared between notes):
 | `trade_id` | Echoed in the response. Required. |
 | `currency` | ISO code of the note: coupons, redemption and NPV. Required. |
 | `notional` | Coupons and the redemption are fractions of it. Presence-required, `> 0`. |
-| `underlyings[]` | The basket, at least one entry, ids distinct. Each: `underlying_id` (an `EquityUnderlyingSpec`, whose `currency` is required here), `volatility_id` (a `VolSurfaceSpec` with a `BlackVolSpec` payload: constant or term vols step exactly between observation dates; a strike x expiry surface makes the simulation Dupire local-vol and requires `monte_carlo.steps_per_year`), `initial_level` (the strike fixing every performance `S(t) / initial_level` is measured against; presence-required, `> 0`), `quanto` (present iff the underlying's currency differs from the note's: `discounting_curve` = the rate curve of the underlying's currency, `fx_spot_id` = an `FxSpotSpec` quoting the two currencies in either direction, `fx_volatility_id` = a constant or term `BlackVolSpec`, `fx_underlying_correlation` in `[-1, 1]`, presence-required), `historical_levels[]` (`{date, value}` closes on past dated observation dates; a past observation without one is a `400` naming the date). |
+| `underlyings[]` | The basket, at least one entry, ids distinct. Each: `underlying_id` (an `EquityUnderlyingSpec`, whose `currency` is required here), `volatility_id` (a `VolSurfaceSpec` with a `BlackVolSpec` payload: constant or term vols step exactly between observation dates; a strike x expiry surface makes the simulation Dupire local-vol and requires `monte_carlo.steps_per_year`; `POST /calibrate-vol-surface` returns such a surface from listed option quotes, ready to paste — see "Volatility surface from option quotes"), `initial_level` (the strike fixing every performance `S(t) / initial_level` is measured against; presence-required, `> 0`), `quanto` (present iff the underlying's currency differs from the note's: `discounting_curve` = the rate curve of the underlying's currency, `fx_spot_id` = an `FxSpotSpec` quoting the two currencies in either direction, `fx_volatility_id` = a constant or term `BlackVolSpec`, `fx_underlying_correlation` in `[-1, 1]`, presence-required), `historical_levels[]` (`{date, value}` closes on past dated observation dates; a past observation without one is a `400` naming the date). |
 | `performance_rule` | `WorstOf`, `BestOf` or `Average` of the underlyings' performances. Presence-required. |
 | `events[]` | Strictly increasing `observation_date`s; the last is the final observation. `autocall_trigger` present: `perf >= trigger` ends the note (notional plus this coupon plus the memory on `payment_date`). `coupon_trigger` present: `perf >= trigger` earns `coupon` plus the memory, paid on `payment_date` or held (`pay_only_on_call`). Both present (Phoenix with a call): the coupon test runs first. Neither: an accrual-only event, `coupon` joins the memory, nothing is observed or paid (`coupon_rule.memory` must be true, `payment_date` absent). `payment_date` is required iff a trigger is present and must be on or after the observation date; `coupon` is required with `coupon_trigger` and on accrual-only events. The final event must carry a trigger, unless it is marked `is_final: true`: a maturity-only observation where only the capital protection block (and `upside`) is tested, with no coupon test and no call test (the memory is not paid there); `coupon`, `coupon_trigger` and `autocall_trigger` must then be absent, `payment_date` is required and must equal `maturity_payment_date`, and the event must be the last one. A final observation that also tests a coupon or a call (Santander's 80 % hurdle, BNP's 100 % call) keeps its trigger; `is_final` is for a final date that only decides the redemption (the Scotia note). |
 | `coupon_rule` | `memory` (a missed coupon is added to a memory paid with the next coupon; the memory is a sum of amounts) and `pay_only_on_call` (true = Athena / snowball: earned coupons are held until a call or the final event; false = Phoenix: paid on their `payment_date`). Both presence-required. |
@@ -1444,6 +1444,391 @@ underlying (no cross-gammas, no vol-of-vol). The correlation matrix of the
 price is validated (symmetric, unit diagonal, positive semi-definite) and
 never repaired; only the bumped matrix of the Greeks is repaired, and the
 response says so.
+
+## Implied forwards and dividends from option quotes
+
+`POST /calibrate-implied-forwards` reads a sheet of listed European option
+quotes for one underlying on the as-of date and returns, per expiry, the
+forward the market implies, the discount factor it implies (the index's
+funding), the continuous funding spread against the request's discounting
+curve, the continuous dividend yield that reproduces the forward, and a fit
+report; plus a ready-to-paste dividend curve (`TermStructure`,
+`InterpolatedZero`) under the request's `dividend_curve_id`. It is the first
+step of the market-data chain for equity pricing (forwards → vol surface →
+models): nothing is priced, and the response says what was dropped and why.
+
+### Request
+
+```json
+{
+  "pricing": {
+    "as_of_date": "2026-09-30",
+    "quotes": [{"id": "NDX_SPOT", "kind": "Price", "value": 24000.0, "quote_type": "Curve"}],
+    "rates": {"curves": [ <discounting curve>, <flat 0 % placeholder dividend curve> ]},
+    "equity": {"equity_underlyings": [{"id": "NDX", "currency": "USD",
+               "spot_quote_id": "NDX_SPOT", "dividend_yield_curve_id": "<placeholder id>"}]}
+  },
+  "sheet": {
+    "id": "NDX_2026-09-30", "underlying_id": "NDX", "option_style": "European",
+    "quotes": [
+      {"expiry": "2026-10-16", "strike": 23000.0,
+       "call_bid": 1101.0, "call_ask": 1111.0, "put_bid": 91.0, "put_ask": 93.0,
+       "call_open_interest": 500.0, "put_open_interest": 800.0}
+    ]
+  },
+  "discounting_curve": "USD_OIS",
+  "filter": {"max_relative_spread": 0.05, "min_quotes_per_expiry": 4, "moneyness_window": 0.25},
+  "dividend_curve_id": "NDX_DIV_IMPLIED"
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `sheet.underlying_id` | `EquityUnderlyingSpec.id`; only its spot quote is read. Its `dividend_yield_curve_id` must resolve (the shared registry requires it) but is not used here: a flat 0 % `InterpolatedZero` curve is the placeholder. |
+| `sheet.option_style` | `European` (default). `American` / `Bermudan` → `400`: put-call parity, which the fit rests on, does not hold under early exercise. Index options (NDX, RUT, SPX, SX5E) are European; single stocks are not. |
+| `sheet.quotes[]` | One line per expiry × strike: `expiry`, `strike`, `call_bid`, `call_ask`, `put_bid`, `put_ask`, optional `call_volume`, `put_volume`, `call_open_interest`, `put_open_interest`. Prices per unit of underlying. Every scalar is optional on the wire so that an absent value is reported as a dropped line, never read as 0. |
+| `discounting_curve` | Curve id in `pricing.rates.curves`; gives `DF_curve(T)` and `r(T)`. |
+| `filter` | Optional; the values applied (request or defaults) are echoed in the response. |
+| `dividend_curve_id` | Id of the returned curve spec. |
+
+Filter rules, applied per line in this order, each one a dropped line with
+that reason: `strike missing or not > 0`; `missing call or put side`;
+`non-finite price`; `negative bid or non-positive ask`; `crossed quote
+(bid > ask)`; `open interest below min_open_interest` (only when the
+threshold is given; a line without open-interest fields is then dropped);
+`relative spread above max_relative_spread` ((ask − bid) / mid on each side);
+`duplicate strike` (the first line wins). `max_relative_spread` and
+`moneyness_window` must be > 0 and `min_quotes_per_expiry` ≥ 2 (`400`
+naming the field).
+
+### Method
+
+For European options at one expiry, `C(K) − P(K) = DF · (F − K)`: the mid
+call-minus-put is affine in the strike with intercept `a = DF · F` and slope
+`b = −DF`. The engine fits that line by weighted least squares over the
+surviving strikes of the expiry, with weights
+`w = 1 / ((call_ask − call_bid) + (put_ask − put_bid))` (equal weights for the
+whole expiry if any pair has a zero total spread), and reads
+
+```
+DF_implied = −b
+F          = a / DF_implied = −a / b          (the strike where C − P = 0)
+```
+
+Two passes: the first over every surviving pair gives a provisional `F1`;
+the second over the pairs with `K` in `[F1 (1 − w), F1 (1 + w)]`
+(`w = moneyness_window`) gives the reported values; strikes outside the
+window are reported as dropped with the window bounds in the reason. An
+expiry with fewer than `min_quotes_per_expiry` pairs after either pass, or
+whose fitted slope is not negative, is reported as dropped
+(`usable: false`, `dropped_reason`), not rejected; when no expiry survives
+the request is a `400` listing every expiry's reason.
+
+With `T` the Act/365F year fraction from the as-of date and `DF_curve` the
+discounting curve's discount factor at the expiry date:
+
+```
+r(T)               = −ln(DF_curve) / T                      (continuous)
+q(T)               = r(T) − ln(F / S) / T                   (from F = S e^{(r − q) T})
+implied_funding_bp = −ln(DF_implied / DF_curve) / T · 1e4   (> 0: options imply a
+                                                             higher funding rate)
+fit_residual_rmse  = sqrt(Σ (C − P − a − b K)² / n)         (price units, final pass)
+max_abs_residual   = max |C − P − a − b K|
+```
+
+The residuals are unweighted, so they read directly against the bid/ask.
+The algebra, in the same words, is in
+`src/evaluators/implied_forwards_evaluator.h`; the Python reference
+`calibrate_implied_forwards_ql` in `tests/contract/ql_reference.py` repeats
+it in plain Python and the catalog compares every field.
+
+### Response
+
+```json
+{
+  "sheet_id": "NDX_2026-09-30", "underlying_id": "NDX", "spot": 24000.0,
+  "filter": {"max_relative_spread": 0.05, "min_quotes_per_expiry": 4, "moneyness_window": 0.25},
+  "expiries": [
+    {"expiry": "2026-10-16", "time": 0.0438, "quotes_used": 21, "quotes_dropped": 4,
+     "dropped": [{"expiry": "2026-10-16", "strike": 16800.0,
+                  "reason": "outside moneyness window [18025.2, 30042.0] around first-pass forward 24033.6"}],
+     "usable": true,
+     "forward": 24033.597, "implied_discount_factor": 0.998252, "curve_discount_factor": 0.998252,
+     "implied_funding_bp": 0.0, "implied_dividend_yield": 0.008,
+     "fit_residual_rmse": 1.2e-12, "max_abs_residual": 3.6e-12},
+    {"expiry": "2026-12-18", "time": 0.216, "quotes_used": 0, "quotes_dropped": 1,
+     "dropped": [{"expiry": "2026-12-18",
+                  "reason": "fewer than min_quotes_per_expiry (4) usable pairs after the quote filters: 3"}],
+     "usable": false,
+     "dropped_reason": "fewer than min_quotes_per_expiry (4) usable pairs after the quote filters: 3"}
+  ],
+  "forwards": [{"expiry": "2026-10-16", "time": 0.0438, "forward": 24033.597,
+                "implied_dividend_yield": 0.008}],
+  "dividend_curve_spec": {
+    "id": "NDX_DIV_IMPLIED", "day_counter": "Actual365Fixed", "interpolator": "Linear",
+    "bootstrap_trait": "InterpolatedZero", "reference_date": "2026-09-30",
+    "points": [
+      {"point_type": "ZeroRatePoint", "point": {"date": "2026-09-30", "zero_rate": 0.008,
+                                                "compounding": "Continuous", "frequency": "Annual"}},
+      {"point_type": "ZeroRatePoint", "point": {"date": "2026-10-16", "zero_rate": 0.008,
+                                                "compounding": "Continuous", "frequency": "Annual"}}
+    ]
+  }
+}
+```
+
+`expiries` lists every expiry of the sheet in date order; the fit fields
+(`forward` onwards) are present iff `usable`, so an absent `forward` always
+means "not fitted", never 0. `quotes_used + quotes_dropped` is the number of
+lines of that expiry (plus one for the expiry-level entry when the whole
+expiry was dropped). `forwards` is the plain table of fitted expiries.
+
+### Using the dividend curve
+
+`dividend_curve_spec` is a complete `TermStructure`: append it to
+`pricing.rates.curves` and set the underlying's `dividend_yield_curve_id` to
+its id. It has a node at the as-of date carrying the first fitted expiry's
+yield (the curve's first node is its reference date, so the short end is
+flat) and one node per fitted expiry with `q(T)`, continuous, Act/365F,
+linear between nodes. Pricing on the request's discounting curve and this
+dividend curve gives `S · DF_div(T) / DF_curve(T) = F` exactly at every
+fitted expiry — a call/put pair priced by `/price-equity-option` reproduces
+the forward through parity (the contract test checks it). The yields are
+"equity repo + dividend": whatever the market forward implies relative to
+the chosen discounting curve, which is what pricing should carry; the
+`implied_funding_bp` column shows how much of it is funding rather than
+dividends. Between fitted expiries the curve interpolates the zero yield;
+beyond the last one it is flat.
+
+### Rejected requests
+
+| Request | Status |
+|---|---|
+| `sheet.option_style` not `European` | `400` naming `option_style` |
+| `sheet.quotes` empty, a quote without `expiry`, a malformed date | `400` |
+| `filter.max_relative_spread` ≤ 0, `filter.moneyness_window` ≤ 0, `filter.min_quotes_per_expiry` < 2 | `400` naming the field |
+| `discounting_curve` or `sheet.underlying_id` not in `pricing` | `404` |
+| no expiry survives the filters and the minimum-pairs rule | `400` listing every expiry's reason |
+
+### Data
+
+The repository carries one quote sheet, synthetic and labelled so:
+`examples/data/implied_forwards/synthetic_ndx_like_2026-09-30.json`,
+generated by `tests/tools/make_synthetic_quote_sheet.py` from a stated spot,
+zero curve, dividend yield per expiry and Black smile (its README has the
+numbers). Vendor files (Cboe DataShop "Option EOD Summary") are converted
+with `tools/option_quotes/cboe_eod_to_quote_sheet.py` and are never
+committed.
+
+## Volatility surface from option quotes
+
+`POST /calibrate-vol-surface` turns the same `OptionQuoteSheet` into a Black
+implied-volatility surface on a strike x expiry grid: the second step of the
+chain quotes → forwards → surface → models. It returns a complete
+`VolSurfaceSpec` (a `BlackVolSpec` of shape `SmileCube3D`) ready to paste
+into `pricing.volatility.vol_surfaces`, the forwards it used, a per-expiry
+report and the repricing of every used quote on the returned surface. Two
+methods: Andreasen-Huge local-vol interpolation (default; arbitrage-free by
+construction) and one SVI slice per expiry with butterfly and calendar
+checks.
+
+### Request
+
+```json
+{
+  "pricing": { "...": "as for /calibrate-implied-forwards: spot quote, discounting curve, EquityUnderlyingSpec" },
+  "sheet": { "id": "NDX_2026-09-30", "underlying_id": "NDX", "option_style": "European", "quotes": [ "..." ] },
+  "discounting_curve": "USD_OIS",
+  "filter": {"max_relative_spread": 0.05, "min_quotes_per_expiry": 4, "moneyness_window": 0.25},
+  "forwards": [ "<the expiries array of a /calibrate-implied-forwards response, optional>" ],
+  "method": "AndreasenHuge",
+  "output_grid": {"strikes_as_moneyness": [0.5, 0.525, "...", 1.5],
+                  "expiries": [{"n": 16, "unit": "Days"}, {"n": 51, "unit": "Days"}]},
+  "vol_surface_id": "NDX_VOL",
+  "svi": {"enforce_butterfly": true, "enforce_calendar": true}
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `sheet`, `discounting_curve`, `filter` | As for `/calibrate-implied-forwards`; same per-line rules, same reasons. `filter.moneyness_window` concerns the forward fit only: the vol fit uses every line that passes the per-line rules. European exercise only (`400` otherwise). |
+| `forwards` | Optional. The `expiries` array of an implied-forwards response pasted as is; only `expiry`, `usable`, `forward` and `implied_discount_factor` are read (non-usable entries skipped). Absent: the same fit is run here with `filter`, and `forwards_source` says `"fitted"` instead of `"request"`. A sheet expiry without a forward is reported unusable. |
+| `method` | `AndreasenHuge` (default) or `SviPerExpiry`. |
+| `output_grid.strikes_as_moneyness` | Strikes as multiples of the spot, > 0, strictly increasing. Default `0.500, 0.525, …, 1.500` (41 points). The returned surface is keyed by absolute strike (`strike = moneyness x spot`); the spot used is echoed as `spot`. |
+| `output_grid.expiries` | Calendar-day periods from `as_of_date` (`{n, unit}`; months and years are added on a NullCalendar, unadjusted). Default: the fitted sheet expiries. `SviPerExpiry` requires each one to be a fitted sheet expiry (`400` otherwise: the slices are not interpolated in time); `AndreasenHuge` accepts any date up to the last fitted expiry. |
+| `vol_surface_id` | Id of the returned spec. |
+| `svi.enforce_butterfly`, `svi.enforce_calendar` | `SviPerExpiry` only, default true: fix what the checks find (below) or report only. |
+
+### Method
+
+**Implied vols.** Per expiry with forward `F` and implied discount factor
+`DF` (from `forwards` or the internal fit), every line that passes the
+per-line rules contributes its out-of-the-money side: the call for
+`K ≥ F`, the put below. Its mid is inverted with Black-76 on the forward
+(`blackFormulaImpliedStdDev(type, K, F, mid, DF)`, `σ = stdDev / √T`, `T`
+Act/365F). Dropped with a reason: a mid not above the intrinsic value, a mid
+below the quote resolution `1e-5 x spot` (0.24 points on a 24,000 index:
+such a price carries no vol information, any vol prices inside its bid/ask),
+a mid outside the Black bounds (no vol solves). An expiry needs
+`max(filter.min_quotes_per_expiry, 5)` used quotes for `SviPerExpiry`
+(five parameters) and `filter.min_quotes_per_expiry` for `AndreasenHuge`;
+with fewer it is reported unusable. `400` when no expiry is usable.
+
+**AndreasenHuge.** Every used quote becomes a calibration pair of QuantLib's
+`AndreasenHugeVolatilityInterpl` (the out-of-the-money `VanillaOption` and a
+quote carrying its implied vol; interpolation `CubicSpline`, calibration
+type `CallPut`, 500 grid points, Levenberg-Marquardt), on a risk-free curve
+built from the implied discount factors and a dividend curve with
+`DF_q(T) = F · DF / S` (both log-linear, Act/365F), so the model's forwards
+and discounting are the sheet's. The method calibrates a piecewise local
+volatility expiry by expiry to the Black prices of those vols on a one-step
+finite-difference scheme (Andreasen & Huge, *Volatility Interpolation*,
+2010) and is free of static arbitrage by construction; no weights, the
+calibration matches prices. `AndreasenHugeVolatilityAdapter` then gives the
+Black vol at every grid point by inverting the model price. A point is
+inverted only where the model's out-of-the-money price is at least
+`1e-4 x spot` (the finite-difference price carries noise of about
+`1e-7 x spot`, which below that moves the implied vol by more than a tenth
+of a vol point and inverts to arbitrary vols where the true price is ~0);
+the other points are filled flat from the nearest inverted strike of the
+same expiry and counted in `grid_points_filled`. On the flat 20 % synthetic
+sheet this keeps every grid vol within 0.1 vol point of 20 %.
+`andreasen_huge_error` reports QuantLib's calibration error (min, max, mean
+in vol units over the calibration set).
+
+**SviPerExpiry.** Per usable expiry QuantLib's `SviInterpolation`
+(Levenberg-Marquardt on the vega-weighted implied-vol residuals, several
+deterministic starts; the parameter transforms keep `b ≥ 0`, `|ρ| < 1`,
+`σ > 0`, `a + b σ √(1 − ρ²) ≥ 0`, `b (1 + |ρ|) ≤ 4`) fits the raw SVI
+total variance
+
+```
+w(k) = a + b (ρ (k − m) + sqrt((k − m)² + σ²)),   k = ln(K / F)
+```
+
+Butterfly check: Durrleman's `g(k) = (1 − k w′/(2w))² − (w′²/4)(1/w + 1/4)
++ w″/2` on 201 points of the output strike range; `min g < 0` is a
+violation (`butterfly_violation`, `butterfly_min_g`). With
+`enforce_butterfly` the five parameters are refitted from the fitted ones
+by Levenberg-Marquardt on the same weighted residuals plus a penalty
+`100 · max(0, −g(k_j))` per point; `butterfly_action` carries `min g`
+before and after (`"refit with penalty: min g -0.41 -> 0.0012"`). Grid vols
+are `sqrt(w(k) / T)`.
+
+**Calendar check (both methods).** At every grid strike total variance
+`σ² T` must not decrease from one grid expiry to the next; a point where
+`w_i < w_{i−1} + 1e-8` is counted in `calendar_violations`. `SviPerExpiry`
+with `enforce_calendar` clips it to `w_{i−1} + 1e-8` (`calendar_action`,
+`calendar_max_clip_vol` = largest vol change); `AndreasenHuge` reports only
+(the surface is arbitrage-free by construction; a residual count is within
+the implied-vol inversion tolerance).
+
+**Fit error and repricing.** `rmse_vol` / `max_abs_error_vol` per expiry
+compare the calibrated object (the SVI slice, the Andreasen-Huge surface)
+with the market implied vols of the used quotes, in vol units (0.01 = one
+vol point), unweighted. `vanilla_repricing` then rebuilds the returned
+surface exactly as the pricers read it (`BlackVarianceSurface`,
+NullCalendar, Act/365F, bilinear in total variance, extrapolation allowed)
+and reprices every used quote on it: `model_vol`, `model_price` (Black on
+the same `F` and `DF`), `inside_bid_ask`, `price_error = model − mid`,
+`vol_error = model_vol − market_vol`, with `count`, `inside_bid_ask`,
+`max_abs_price_error`, `max_abs_vol_error` on top. This is the acceptance
+check of the surface, grid interpolation included: a quote between grid
+strikes reads an interpolated vol. On the synthetic SVI sheet (strikes every
+2.5 % of spot, 1 % bid/ask) the default grid reprices every used quote
+inside its bid/ask under both methods; the coarser 5 % grid read bilinearly
+misses about a quarter of them, which is why the default is 2.5 %.
+
+### Response
+
+```json
+{
+  "sheet_id": "NDX_SYN_SVI_2026-09-30", "underlying_id": "NDX_SYN", "spot": 24000.0,
+  "method": "SviPerExpiry", "forwards_source": "fitted",
+  "filter": {"max_relative_spread": 0.05, "min_quotes_per_expiry": 4, "moneyness_window": 0.25},
+  "forwards": [{"expiry": "2026-10-16", "time": 0.0438, "forward": 24033.597, "implied_discount_factor": 0.998252}],
+  "expiries": [
+    {"expiry": "2026-10-16", "time": 0.0438, "usable": true,
+     "forward": 24033.597, "implied_discount_factor": 0.998252,
+     "quotes_used": 19, "quotes_dropped": 6,
+     "dropped": [{"expiry": "2026-10-16", "strike": 16800.0,
+                  "reason": "out-of-the-money put mid below 1e-5 of the spot (quote resolution, no vol information)"}],
+     "rmse_vol": 1.1e-16, "max_abs_error_vol": 2.2e-16,
+     "svi": {"a": 0.000591, "b": 0.024078, "sigma": 0.034390, "rho": -0.7, "m": 0.033709},
+     "butterfly_min_g": 0.61, "butterfly_violation": false, "butterfly_action": "none",
+     "calendar_violations": 0, "calendar_action": "none", "grid_points_filled": 0}
+  ],
+  "strikes_as_moneyness": [0.5, 0.525, "...", 1.5],
+  "grid_strikes": [12000.0, 12600.0, "...", 36000.0],
+  "grid_expiries": ["2026-10-16", "2026-11-20", "..."],
+  "vol_surface_spec": {
+    "id": "NDX_SYN_VOL", "payload_type": "BlackVolSpec",
+    "payload": {
+      "base": {"reference_date": "2026-09-30", "calendar": "NullCalendar",
+               "business_day_convention": "Unadjusted", "day_counter": "Actual365Fixed",
+               "shape": "SmileCube3D"},
+      "expiries": [{"n": 16, "unit": "Days"}, {"n": 51, "unit": "Days"}, "..."],
+      "strikes": [12000.0, 12600.0, "..."],
+      "surface_vols": {"n_rows": 8, "n_cols": 41, "values": ["row-major by expiry then strike"]},
+      "allow_extrapolation": true, "surface_interpolator": "Bilinear"
+    }
+  },
+  "vanilla_repricing": {
+    "count": 169, "inside_bid_ask": 169, "max_abs_price_error": 3.1e-9, "max_abs_vol_error": 4.4e-16,
+    "quotes": [{"expiry": "2026-10-16", "strike": 24000.0, "option_type": "Put",
+                "bid": 377.3, "ask": 381.1, "mid": 379.2, "market_vol": 0.2322,
+                "model_vol": 0.2322, "model_price": 379.2, "inside_bid_ask": true,
+                "price_error": -1.2e-10, "vol_error": -2.8e-17}]
+  }
+}
+```
+
+`expiries` lists every sheet expiry in date order; `forward` onwards is
+present iff `usable`. `svi` and `butterfly_*` appear with `SviPerExpiry`,
+`andreasen_huge_error` and `grid_points_filled` with `AndreasenHuge`.
+`method` is always printed (it is an optional enum on the response). The
+surface's expiries are calendar-day periods on a NullCalendar so that the
+pricers' `calendar.advance(reference_date, period, Unadjusted)` lands on
+the grid dates exactly.
+
+### Using the surface
+
+Append `vol_surface_spec` to `pricing.volatility.vol_surfaces` and
+reference its id from the trade: `volatility` on an equity option (the
+contract test prices the used quotes this way, inside their bid/ask, next
+to the implied dividend curve of `/calibrate-implied-forwards`), or
+`underlyings[].volatility_id` on a structured note, where a strike x expiry
+surface makes the simulation Dupire local-vol and requires
+`monte_carlo.steps_per_year` (see "Structured notes"). Keep the forwards
+consistent: price on the discounting curve the quotes were fitted against
+and on the dividend curve the implied-forward step returned; otherwise the
+surface's strikes sit at other forward moneyness than the market's. Vols
+beyond the grid are extrapolated flat in total variance at the edge
+(`allow_extrapolation: true`).
+
+### Rejected requests
+
+| Request | Status |
+|---|---|
+| `sheet.option_style` not `European`; a bad `filter` value | `400` naming the field |
+| `output_grid.strikes_as_moneyness` not finite, ≤ 0 or not strictly increasing | `400` |
+| `output_grid.expiries` not after `as_of_date`, not increasing, after the last fitted expiry, or (SVI) not a fitted sheet expiry | `400` naming the entry |
+| `forwards` with a usable entry lacking `forward` / `implied_discount_factor`, a non-positive value, a duplicate expiry, or no usable entry at all | `400` |
+| no usable expiry (nothing passes the rules, or every forward is missing) | `400` listing every expiry's reason |
+| `vol_surface_id` missing | `400` |
+| `discounting_curve` or `sheet.underlying_id` not in `pricing` | `404` |
+| the Andreasen-Huge or SVI optimizer fails | `400` with QuantLib's message |
+
+### Data
+
+`examples/data/vol_surface/` carries one synthetic SVI sheet as two
+requests (one per method), generated by
+`tests/tools/make_synthetic_quote_sheet.py --preset svi --endpoint
+vol-surface` from a stated SSVI surface (README there). The Scotia note
+example `examples/data/structured_note/scotia_…_with_synthetic_surface.json`
+shows the pasted result, clearly labelled synthetic. Vendor files are
+converted with `tools/option_quotes/cboe_eod_to_quote_sheet.py` and never
+committed.
 
 ## Hull-White calibration
 

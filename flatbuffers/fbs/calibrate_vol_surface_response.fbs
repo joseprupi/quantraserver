@@ -1,0 +1,142 @@
+include "enums.fbs";
+include "volatility.fbs";
+include "option_quotes.fbs";
+include "calibrate_implied_forwards_response.fbs";
+
+namespace quantra;
+
+/// Forward and implied discount factor used at one fitted expiry (from the
+/// request's `forwards` or from the internal implied-forward fit).
+table VolSurfaceForward {
+    expiry:string (required);
+    /// Act/365F year fraction from the as-of date.
+    time:double;
+    forward:double;
+    implied_discount_factor:double;
+}
+
+/// Raw SVI parameters of one slice: total variance
+/// w(k) = a + b (rho (k - m) + sqrt((k - m)^2 + sigma^2)), k = ln(K / F).
+table SviParameters {
+    a:double;
+    b:double;
+    sigma:double;
+    rho:double;
+    m:double;
+}
+
+/// Andreasen-Huge calibration error over the whole calibration set, in
+/// volatility units (QuantLib `calibrationError()`).
+table AndreasenHugeCalibrationError {
+    min_vol:double;
+    max_vol:double;
+    avg_vol:double;
+}
+
+/// Per-expiry report. Every sheet expiry appears once, in date order.
+table VolSurfaceExpiryReport {
+    expiry:string (required);
+    time:double;
+    /// True iff the expiry entered the fit.
+    usable:bool;
+    /// Why not (absent when `usable`).
+    dropped_reason:string;
+    forward:double = null;
+    implied_discount_factor:double = null;
+    /// Quotes whose out-of-the-money mid gave an implied vol and entered the fit.
+    quotes_used:uint;
+    quotes_dropped:uint;
+    dropped:[DroppedQuote];
+    /// Fit error of the calibrated object (the SVI slice, the Andreasen-Huge
+    /// surface) against the market implied vols of the used quotes, in vol
+    /// units (0.01 = one vol point), unweighted.
+    rmse_vol:double = null;
+    max_abs_error_vol:double = null;
+    /// `SviPerExpiry` only.
+    svi:SviParameters;
+    /// `SviPerExpiry` only: minimum of Durrleman's g(k) over the output
+    /// strike range (negative = butterfly arbitrage) after whatever was done.
+    butterfly_min_g:double = null;
+    butterfly_violation:bool;
+    /// What was found and done ("none", "refit with penalty: min g ... -> ...").
+    butterfly_action:string;
+    /// Grid strikes at which total variance was below the previous grid
+    /// expiry's.
+    calendar_violations:uint;
+    /// Largest change in vol applied by the calendar clip (vol units).
+    calendar_max_clip_vol:double = null;
+    calendar_action:string;
+    /// `AndreasenHuge` only: grid strikes where the model's out-of-the-money
+    /// price is below 1e-4 of the spot (finite-difference noise would move
+    /// the vol by more than a tenth of a point) or its inversion failed,
+    /// filled flat from the nearest inverted strike of the expiry.
+    grid_points_filled:uint;
+}
+
+/// One used quote repriced on the returned surface.
+table VanillaRepricePoint {
+    expiry:string (required);
+    strike:double;
+    /// The out-of-the-money side that was used.
+    option_type:enums.EquityOptionType = null;
+    bid:double;
+    ask:double;
+    mid:double;
+    /// Implied vol of the mid (Black-76 on the fitted forward and implied
+    /// discount factor).
+    market_vol:double;
+    /// Black vol read off the returned surface (bilinear in total variance
+    /// on the grid, as the pricers read it) at this expiry and strike.
+    model_vol:double;
+    /// Black price at `model_vol` on the same forward and discount factor.
+    model_price:double;
+    inside_bid_ask:bool;
+    /// model_price - mid.
+    price_error:double;
+    /// model_vol - market_vol.
+    vol_error:double;
+}
+
+/// Vanilla repricing of every used quote on the returned surface: the
+/// acceptance check of the surface.
+table VanillaRepricing {
+    count:uint;
+    inside_bid_ask:uint;
+    /// Largest |model_price - mid| over the used quotes (price units).
+    max_abs_price_error:double;
+    /// Largest |model_vol - market_vol| (vol units).
+    max_abs_vol_error:double;
+    quotes:[VanillaRepricePoint] (required);
+}
+
+/// Response of `/calibrate-vol-surface`.
+table CalibrateVolSurfaceResponse {
+    sheet_id:string (required);
+    underlying_id:string (required);
+    spot:double;
+    method:enums.VolSurfaceFitMethod = null;
+    /// "request" when `forwards` was given, "fitted" when the implied-forward
+    /// fit was run here.
+    forwards_source:string (required);
+    /// The quote filter applied (request values or the defaults).
+    filter:QuoteFilter (required);
+    /// Forwards used, fitted expiries only, date order.
+    forwards:[VolSurfaceForward] (required);
+    /// Per-expiry report, every sheet expiry, date order.
+    expiries:[VolSurfaceExpiryReport] (required);
+    /// The moneyness axis applied and the absolute strikes it became.
+    strikes_as_moneyness:[double] (required);
+    grid_strikes:[double] (required);
+    /// Grid expiry dates (YYYY-MM-DD).
+    grid_expiries:[string] (required);
+    /// `AndreasenHuge` only.
+    andreasen_huge_error:AndreasenHugeCalibrationError;
+    /// Complete `VolSurfaceSpec` (BlackVolSpec, shape SmileCube3D,
+    /// NullCalendar / Unadjusted / Actual365Fixed, expiries as calendar-day
+    /// periods from the as-of date, absolute strikes, bilinear,
+    /// allow_extrapolation true) under the request's `vol_surface_id`.
+    vol_surface_spec:VolSurfaceSpec (required);
+    vanilla_repricing:VanillaRepricing (required);
+}
+
+root_type CalibrateVolSurfaceResponse;
