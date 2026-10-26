@@ -3,6 +3,7 @@
 #include "date_convert.h"
 #include "error.h"
 
+#include <ql/pricingengines/blackformula.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
 
 #include <algorithm>
@@ -138,6 +139,84 @@ std::vector<FilteredQuote> filterExpiryLines(
         out.push_back(f);
     }
     return out;
+}
+
+std::optional<double> impliedBlackVol(
+    QuantLib::Option::Type type,
+    double strike,
+    double forward,
+    double price,
+    double discountFactor,
+    double time) {
+    try {
+        const double sd = QuantLib::blackFormulaImpliedStdDev(
+            type, strike, forward, price, discountFactor, 0.0, QuantLib::Null<QuantLib::Real>(),
+            1e-12, 1000);
+        const double v = sd / std::sqrt(time);
+        if (!std::isfinite(v) || !(v > 0.0)) return std::nullopt;
+        return v;
+    } catch (...) {
+        return std::nullopt;
+    }
+}
+
+std::vector<OutOfTheMoneyQuote> selectOutOfTheMoneyQuotes(
+    const std::vector<const OptionQuoteLine*>& lines,
+    const QuoteFilterData& flt,
+    const std::string& expiryIso,
+    double spot,
+    double forward,
+    double discountFactor,
+    double time,
+    std::vector<DroppedQuoteData>& dropped) {
+    const double F = forward, DF = discountFactor;
+    std::vector<OutOfTheMoneyQuote> used;
+    for (const FilteredQuote& q : filterExpiryLines(lines, flt, dropped)) {
+        const bool isCall = q.strike >= F;
+        const char* side = isCall ? "call" : "put";
+        const double bid = isCall ? q.callBid : q.putBid;
+        const double ask = isCall ? q.callAsk : q.putAsk;
+        const double mid = isCall ? q.callMid : q.putMid;
+        const double intrinsic = DF * std::max(isCall ? F - q.strike : q.strike - F, 0.0);
+        if (!(mid > intrinsic)) {
+            dropped.push_back(
+                DroppedQuoteData{
+                    expiryIso, q.strike,
+                    std::string("out-of-the-money ") + side + " mid not above intrinsic value"});
+            continue;
+        }
+        if (mid < kQuoteResolution * spot) {
+            dropped.push_back(
+                DroppedQuoteData{
+                    expiryIso, q.strike,
+                    std::string("out-of-the-money ") + side +
+                        " mid below 1e-5 of the spot (quote resolution, no vol information)"});
+            continue;
+        }
+        const auto vol = impliedBlackVol(
+            isCall ? QuantLib::Option::Call : QuantLib::Option::Put, q.strike, F, mid, DF, time);
+        if (!vol) {
+            dropped.push_back(
+                DroppedQuoteData{
+                    expiryIso, q.strike,
+                    std::string("implied vol of the out-of-the-money ") + side +
+                        " mid does not solve (price outside the Black bounds)"});
+            continue;
+        }
+        OutOfTheMoneyQuote u;
+        u.strike = q.strike;
+        u.isCall = isCall;
+        u.bid = bid;
+        u.ask = ask;
+        u.mid = mid;
+        u.vol = *vol;
+        used.push_back(u);
+    }
+    std::sort(
+        used.begin(), used.end(), [](const OutOfTheMoneyQuote& x, const OutOfTheMoneyQuote& y) {
+            return x.strike < y.strike;
+        });
+    return used;
 }
 
 SheetMarket resolveSheetMarket(

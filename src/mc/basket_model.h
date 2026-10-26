@@ -52,6 +52,37 @@
  * tests/parity/mc_core_test.cpp). A basket with a local-vol asset has no
  * table: its log-Euler step depends on the simulated level.
  *
+ * Local vol of a strike x expiry surface. GeneralizedBlackScholesProcess
+ * derives its Dupire local vol lazily (LocalVolSurface(blackVol, riskFree,
+ * dividend, spot) on first use, one per process instance) and evaluates it
+ * at the simulated level, wherever the path went. Outside the quoted
+ * strikes that is undefined territory: LocalVolSurface differentiates the
+ * Black variance with a finite-difference stencil (dy = 1e-4 |ln(K/F)| in
+ * log-strike, ~1e-6 near the money), and at the edge of the strike grid the
+ * stencil straddles the surface's extrapolation kink. With the engine's
+ * constant strike extrapolation (the edge vol held) that kink is concave on
+ * a skewed wing and the Dupire denominator turns negative ("negative local
+ * vol^2 at strike ..." from QuantLib); with QuantLib's default linear
+ * continuation of the variance it is the variance itself that turns
+ * negative far away. Either way the surface knows nothing beyond its last
+ * strike. `EdgeClampedLocalVol` therefore holds the LOCAL vol at the edge:
+ * the level is clamped to [minStrike e^m, maxStrike e^-m] (m = kEdgeMargin
+ * = 1e-3 in log-strike, wider than the stencil) before LocalVolSurface is
+ * asked, so a path beyond the quoted strikes evolves with the edge
+ * strike's local vol and the stencil never leaves the grid. Inside that
+ * interior the value is LocalVolSurface's own, bit for bit.
+ *
+ * Sharing. A request builds several process arrays from the same market
+ * (the price, the correlation limits of `checks`, the repricing run, the
+ * bumped runs whose inputs did not move), each deriving its own local vol
+ * copy. `LocalVolCache` hands out ONE edge-clamped LocalVolSurface per
+ * distinct (vol, spot, dividend, riskFree) quadruple and
+ * `BasketAsset::localVol` carries it into the process (QuantLib's
+ * external-local-vol constructor), so every process built from the same
+ * market shares the object. The Euler step is QuantLib's own either way:
+ * for levels inside the clamp the paths are bit-identical to the lazily
+ * derived ones (tests/parity/mc_core_test.cpp).
+ *
  * QuantLib only: no FlatBuffers, no gRPC, no registries in this module.
  */
 
@@ -60,11 +91,14 @@
 #include <ql/processes/stochasticprocessarray.hpp>
 #include <ql/quote.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
+#include <ql/termstructures/volatility/equityfx/localvoltermstructure.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/timegrid.hpp>
 
+#include <map>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <vector>
 
 namespace quantra { namespace mc {
@@ -87,6 +121,11 @@ struct BasketAsset {
     /// MakeBasketAsset; BasketModel::build rejects a value that contradicts
     /// the vol's type.
     bool exactStepCapable = false;
+    /// Optional: the Dupire local vol of a strike-dependent `vol`, shared
+    /// between the processes of one request (LocalVolCache). Empty = the
+    /// process derives its own on first use. Must be empty for an
+    /// exact-step asset (QUANTRA_ERROR otherwise: caller wiring bug).
+    QuantLib::Handle<QuantLib::LocalVolTermStructure> localVol;
 };
 
 /**
@@ -105,6 +144,57 @@ BasketAsset MakeBasketAsset(
     const QuantLib::Handle<QuantLib::YieldTermStructure>& dividend,
     const QuantLib::Handle<QuantLib::YieldTermStructure>& riskFree,
     const QuantLib::Handle<QuantLib::BlackVolTermStructure>& vol);
+
+/**
+ * QuantLib's LocalVolSurface evaluated at the level clamped to the interior
+ * of the Black surface's strike grid (see the file comment). Every term
+ * structure property is the inner surface's.
+ */
+class EdgeClampedLocalVol : public QuantLib::LocalVolTermStructure {
+public:
+    /// Clamp margin in log-strike on each side of the quoted strike range.
+    static constexpr double kEdgeMargin = 1.0e-3;
+
+    EdgeClampedLocalVol(
+        std::shared_ptr<QuantLib::LocalVolTermStructure> inner,
+        QuantLib::Real minStrike,
+        QuantLib::Real maxStrike);
+
+    /// The level the inner local vol is read at for a simulated level `s`.
+    QuantLib::Real clampedLevel(QuantLib::Real s) const;
+
+    const QuantLib::Date& referenceDate() const override { return inner_->referenceDate(); }
+    QuantLib::DayCounter dayCounter() const override { return inner_->dayCounter(); }
+    QuantLib::Date maxDate() const override { return inner_->maxDate(); }
+    QuantLib::Real minStrike() const override { return inner_->minStrike(); }
+    QuantLib::Real maxStrike() const override { return inner_->maxStrike(); }
+
+protected:
+    QuantLib::Volatility localVolImpl(QuantLib::Time t, QuantLib::Real s) const override;
+
+private:
+    std::shared_ptr<QuantLib::LocalVolTermStructure> inner_;
+    QuantLib::Real lower_, upper_;
+};
+
+/**
+ * One edge-clamped LocalVolSurface per distinct (vol, spot, dividend,
+ * riskFree) market,
+ * keyed by the identity of the linked objects (a bumped spot quote, a
+ * shifted vol or a shifted curve is another object and gets its own
+ * surface, as it must: the local vol reads all four). `attach` sets
+ * `asset.localVol` for a strike-dependent vol and leaves an exact-step
+ * asset untouched. Scope: one request (the evaluator owns one per note).
+ */
+class LocalVolCache {
+public:
+    void attach(BasketAsset& asset);
+    std::size_t size() const { return cache_.size(); }
+
+private:
+    using Key = std::tuple<const void*, const void*, const void*, const void*>;
+    std::map<Key, QuantLib::Handle<QuantLib::LocalVolTermStructure>> cache_;
+};
 
 /**
  * Coefficients of the exact lognormal step of every asset over every step of

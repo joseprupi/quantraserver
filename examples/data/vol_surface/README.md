@@ -54,10 +54,17 @@ spot are dropped as uninformative, with that reason), `rmse_vol` /
 `a, b, sigma, rho, m` (the generating ones to ~1e-6) and the butterfly /
 calendar findings; `vol_surface_spec`, the `BlackVolSpec` on the default
 41 x 8 grid (strikes 50 % to 150 % of spot every 2.5 %, the eight sheet
-expiries as calendar-day periods); and `vanilla_repricing`, every used quote
-repriced on that surface — all inside their bid/ask under both methods on
-this sheet. See "Volatility surface from option quotes" in
-`docs/http-api.md` for the method and every field.
+expiries as calendar-day periods, `surface_interpolator:
+CubicStrikeLinearTime` — a natural cubic spline of total variance in
+log-strike per expiry, linear in time, so the smile's curvature survives
+between the nodes); with `SviPerExpiry` also `vol_surface_spec_svi`, the
+same surface as an `SviVolSpec` payload (the eight fitted slices with their
+forwards, the exact surface the quotes came from), and with
+`AndreasenHuge` instead `vol_surface_spec_svi_note` (no closed-form slices
+for that method); and `vanilla_repricing`, every used quote repriced on the
+grid — all inside their bid/ask under both methods on this sheet. See
+"Volatility surface from option quotes" in `docs/http-api.md` for the
+method and every field.
 
 ## The two-step flow
 
@@ -68,17 +75,34 @@ this sheet. See "Volatility surface from option quotes" in
    response's `expiries` array as `forwards` (without it the fit is rerun
    here, same result) → `vol_surface_spec`.
 3. Paste `dividend_curve_spec` into `pricing.rates.curves` (and set the
-   underlying's `dividend_yield_curve_id`) and `vol_surface_spec` into
+   underlying's `dividend_yield_curve_id`) and `vol_surface_spec` (the
+   grid) or `vol_surface_spec_svi` (the slices) into
    `pricing.volatility.vol_surfaces`; reference the vol id from an equity
    option's `volatility` or a structured note's `underlyings[].volatility_id`
    with `monte_carlo.steps_per_year` set (Dupire local vol).
 
 `examples/data/structured_note/scotia_autocallable_trigger_ndx_rty_us06419jme72_with_synthetic_surface.json`
-is step 3 applied to the Scotia note: its NDX and RTY vols are surfaces
-calibrated with the SVI method from the `svi` and `svi_rty` presets
-re-struck at the note's own spot levels (`--spot 30408.5 --underlying-id
-NDX`, `--spot 2796.864 --underlying-id RTY`). Those surfaces are synthetic:
-the file shows the shape of a surface-priced note, not a market value.
+(the grids) and `..._with_synthetic_svi.json` (the SVI payloads) are step 3
+applied to the Scotia note: its NDX and RTY vols are surfaces calibrated
+with the SVI method from the `svi_scotia_ndx` and `svi_scotia_rty` presets — the `svi` / `svi_rty` smiles written on the
+note's own market (its spot levels, its `USD_TSY` Treasury curve read at
+the eight sheet expiries, its flat `NDX_DIV` / `RTY_DIV` yields), so that
+the forwards the quotes imply are exactly the forwards the note simulates:
+
+```bash
+python3 tests/tools/make_synthetic_quote_sheet.py --preset svi_scotia_ndx --endpoint vol-surface --method SviPerExpiry
+python3 tests/tools/make_synthetic_quote_sheet.py --preset svi_scotia_rty --endpoint vol-surface --method SviPerExpiry
+```
+
+each POSTed to `/calibrate-vol-surface`; the returned `vol_surface_spec`s
+(grid file) or `vol_surface_spec_svi`s (SVI file) are the note's
+`vol_surfaces`, the requests' `sheet`s are its
+`diagnostics.vanilla_repricing_sheets` (step 4: `vanilla_repricing: true`
+reprices every used quote through the simulated paths, see "Structured
+notes" > "Diagnostics" in `docs/http-api.md`; a test asserts the pasted
+sheets equal the generator's output and that both files reprice them within
+the Monte Carlo noise of their bid/ask). Those surfaces are synthetic: the
+files show the shape of a surface-priced note, not a market value.
 
 ## Running
 

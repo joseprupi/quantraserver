@@ -28,10 +28,33 @@ enum Interpolator : byte {
     LogLinear = 4,
 }
 
-/// 2D surface interpolation mode.
+/// Interpolation of a strike x expiry Black surface (`BlackVolSpec`
+/// `SmileCube3D` / `SurfaceFromPrices`), always in total variance.
+///   Bilinear: QuantLib `BlackVarianceSurface`, bilinear in (strike, time).
+///     The variance is linear between two grid strikes, so a Dupire local
+///     vol derived from it has no smile curvature inside a cell (it does not
+///     reprice the quotes through a Monte Carlo; see docs/http-api.md).
+///   Bicubic: QuantLib `BicubicSpline` on the whole grid (a spline in time
+///     too, through the zero-variance column at t = 0: the short end is
+///     distorted; costly per evaluation).
+///   CubicStrikeLinearTime: per expiry a natural cubic spline of total
+///     variance in log-strike (C2, so the local vol is continuous), linear
+///     in total variance between expiries at fixed strike (calendar-safe),
+///     constant beyond the first and last strike, flat implied vol beyond
+///     the last expiry. The default of the surfaces `/calibrate-vol-surface`
+///     returns; a supplied grid keeps Bilinear unless it says otherwise.
 enum SurfaceInterpolator2D : byte {
     Bilinear = 0,
-    Bicubic = 1
+    Bicubic = 1,
+    CubicStrikeLinearTime = 2
+}
+
+/// How an `SviVolSpec` interpolates between its slices at a fixed strike.
+///   LinearTotalVariance: w(t, K) linear in t between the bracketing
+///     slices' total variances at K; before the first slice w(T1, K) t / T1
+///     and after the last w(Tn, K) t / Tn (flat implied vol on both ends).
+enum SviTimeInterpolation : byte {
+    LinearTotalVariance = 0
 }
 
 /// Bootstrap trait for curve construction.
@@ -281,7 +304,10 @@ enum VolSurfaceShape : byte {
     SmileCube3D = 2,
     SurfaceFromPrices = 3,
     SabrParams = 4,
-    SabrCalibrate = 5
+    SabrCalibrate = 5,
+    /// The shape an `SviVolSpec` payload reports (`vol_shape` echoes); not
+    /// a `BlackVolSpec.base.shape` value (400).
+    SviSlices = 6
 }
 
 /// Pricing formula (engine) for year-on-year inflation caps/floors. Selects the

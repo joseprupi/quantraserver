@@ -1103,8 +1103,8 @@ an optional autocall trigger, an optional coupon trigger and a coupon, a
 coupon carry rule and a capital-protection block; every product shape is a
 configuration of those fields, never a product of its own. Market data is
 the shared `pricing` block: `EquityUnderlyingSpec` (spot, dividend curve,
-currency), `VolSurfaceSpec` with a `BlackVolSpec` payload (constant, term or
-strike x expiry surface), yield curves, `FxSpotSpec` and the correlation
+currency), `VolSurfaceSpec` with a `BlackVolSpec` (constant, term or
+strike x expiry surface) or an `SviVolSpec` (SVI slices), yield curves, `FxSpotSpec` and the correlation
 matrices of "Correlation matrices". Nothing product-specific is in
 `pricing`. The two factsheet transcriptions and the synthetic cases are in
 `examples/data/structured_note/` (its README maps every factsheet line to a
@@ -1170,7 +1170,7 @@ shared between notes):
 | `trade_id` | Echoed in the response. Required. |
 | `currency` | ISO code of the note: coupons, redemption and NPV. Required. |
 | `notional` | Coupons and the redemption are fractions of it. Presence-required, `> 0`. |
-| `underlyings[]` | The basket, at least one entry, ids distinct. Each: `underlying_id` (an `EquityUnderlyingSpec`, whose `currency` is required here), `volatility_id` (a `VolSurfaceSpec` with a `BlackVolSpec` payload: constant or term vols step exactly between observation dates; a strike x expiry surface makes the simulation Dupire local-vol and requires `monte_carlo.steps_per_year`; `POST /calibrate-vol-surface` returns such a surface from listed option quotes, ready to paste — see "Volatility surface from option quotes"), `initial_level` (the strike fixing every performance `S(t) / initial_level` is measured against; presence-required, `> 0`), `quanto` (present iff the underlying's currency differs from the note's: `discounting_curve` = the rate curve of the underlying's currency, `fx_spot_id` = an `FxSpotSpec` quoting the two currencies in either direction, `fx_volatility_id` = a constant or term `BlackVolSpec`, `fx_underlying_correlation` in `[-1, 1]`, presence-required), `historical_levels[]` (`{date, value}` closes on past dated observation dates; a past observation without one is a `400` naming the date). |
+| `underlyings[]` | The basket, at least one entry, ids distinct. Each: `underlying_id` (an `EquityUnderlyingSpec`, whose `currency` is required here), `volatility_id` (a `VolSurfaceSpec` with a `BlackVolSpec` or an `SviVolSpec` payload: constant or term vols step exactly between observation dates; a strike x expiry grid or SVI slices make the simulation Dupire local-vol and require `monte_carlo.steps_per_year`; `POST /calibrate-vol-surface` returns both forms from listed option quotes, ready to paste — see "Volatility surface from option quotes"), `initial_level` (the strike fixing every performance `S(t) / initial_level` is measured against; presence-required, `> 0`), `quanto` (present iff the underlying's currency differs from the note's: `discounting_curve` = the rate curve of the underlying's currency, `fx_spot_id` = an `FxSpotSpec` quoting the two currencies in either direction, `fx_volatility_id` = a constant or term `BlackVolSpec`, `fx_underlying_correlation` in `[-1, 1]`, presence-required), `historical_levels[]` (`{date, value}` closes on past dated observation dates; a past observation without one is a `400` naming the date). |
 | `performance_rule` | `WorstOf`, `BestOf` or `Average` of the underlyings' performances. Presence-required. |
 | `events[]` | Strictly increasing `observation_date`s; the last is the final observation. `autocall_trigger` present: `perf >= trigger` ends the note (notional plus this coupon plus the memory on `payment_date`). `coupon_trigger` present: `perf >= trigger` earns `coupon` plus the memory, paid on `payment_date` or held (`pay_only_on_call`). Both present (Phoenix with a call): the coupon test runs first. Neither: an accrual-only event, `coupon` joins the memory, nothing is observed or paid (`coupon_rule.memory` must be true, `payment_date` absent). `payment_date` is required iff a trigger is present and must be on or after the observation date; `coupon` is required with `coupon_trigger` and on accrual-only events. The final event must carry a trigger, unless it is marked `is_final: true`: a maturity-only observation where only the capital protection block (and `upside`) is tested, with no coupon test and no call test (the memory is not paid there); `coupon`, `coupon_trigger` and `autocall_trigger` must then be absent, `payment_date` is required and must equal `maturity_payment_date`, and the event must be the last one. A final observation that also tests a coupon or a call (Santander's 80 % hurdle, BNP's 100 % call) keeps its trigger; `is_final` is for a final date that only decides the redemption (the Scotia note). |
 | `coupon_rule` | `memory` (a missed coupon is added to a memory paid with the next coupon; the memory is a sum of amounts) and `pay_only_on_call` (true = Athena / snowball: earned coupons are held until a call or the final event; false = Phoenix: paid on their `payment_date`). Both presence-required. |
@@ -1181,9 +1181,12 @@ shared between notes):
 | `correlation_id` | A `CorrelationMatrixSpec` whose labels are exactly the basket's ids. Required with two or more underlyings; must be absent with one (a 1 x 1 unit matrix is used). |
 | `monte_carlo` | `paths` (presence-required, even with `antithetic`), `seed` (default 42; `> 0` with Sobol), `sequence` (`Sobol` default, or `PseudoRandom`), `antithetic` (default true), `brownian_bridge` (default true; must be false with `PseudoRandom`), `steps_per_year` (required with a surface vol or a `DailyClose` barrier, must be absent otherwise). |
 
-Top-level: `greeks` (schema-ready, a `501` in this version) and `diagnostics`
-(`market`, `decomposition`, `checks`, `distribution`, `timing`, each false
-by default, and `sample_paths`, at most 100, only with `distribution`).
+Top-level: `greeks` (see "Greeks") and `diagnostics` (`market`,
+`decomposition`, `checks`, `distribution`, `timing`, each false by default,
+`sample_paths`, at most 100, only with `distribution`, and
+`vanilla_repricing` with `vanilla_repricing_sheets` and optionally
+`vanilla_repricing_filter`, the listed quotes to reprice through the
+simulation — see "Diagnostics").
 
 ### The two factsheets in short
 
@@ -1220,13 +1223,15 @@ One row per note, in request order.
 | `seasoning` | How the past was resolved: per past event the levels, performances, basket performance, call and coupon outcomes, coupon paid, memory after; `memory_carried` into the simulation; `next_event_index`; for a decided note `known_payment_date` and `known_payment`. |
 | `model` | Per underlying `vol_shape`, `local_vol`, `quanto_drift` (rate units, at the first observation); `observation_dates_only`, `time_steps`, `time_grid`, `sequence_dimension`. |
 | `greeks` | The bump-and-reprice sensitivities below, present iff `greeks` was in the request. |
-| `market`, `decomposition`, `checks`, `distribution`, `timing` | The diagnostic blocks below, each present iff its flag was set and something was simulated. |
+| `market`, `decomposition`, `checks`, `distribution`, `timing`, `vanilla_repricing` | The diagnostic blocks below, each present iff its flag was set and something was simulated. |
 
 ### Diagnostics
 
-Every block is computed from the same paths as the price, so the parts add
-up to the headline. The definitions below are the contract (they are also
-the doc comments of `flatbuffers/fbs/structured_note_response.fbs`).
+Every block but `vanilla_repricing` is computed from the same paths as the
+price, so the parts add up to the headline (`vanilla_repricing` is one
+extra simulation on a grid of its own, see below). The definitions below
+are the contract (they are also the doc comments of
+`flatbuffers/fbs/structured_note_response.fbs`).
 
 `market` (deterministic, no simulation): `observation_dates` (the simulated
 dated events); per underlying `spot`, `forwards[]` = `spot x D_div(t) /
@@ -1300,12 +1305,54 @@ its average over the paths is `npv / notional`), `called_on` (absent when
 the path reached the final event), `breached`. Raw underlying levels are
 never returned.
 
+`vanilla_repricing` (with `vanilla_repricing_sheets`, one `OptionQuoteSheet`
+per underlying as `/calibrate-vol-surface` takes it, and optionally
+`vanilla_repricing_filter`, the same `QuoteFilter`): the acceptance check of
+the quotes -> surface -> simulation chain. Every usable quote of every sheet
+— the per-line rules of `/calibrate-implied-forwards`, then the
+out-of-the-money side with respect to the model forward (`Call` iff `strike
+>= forward`) kept when its mid is above intrinsic, at least `1e-5 x spot`
+and has a Black-76 implied vol — is priced as a European option on ONE
+extra simulation of the note's model: same market, correlation, sequence,
+seed and `paths`, on the note's time grid with the sheet expiries added as
+mandatory dates (refined by `steps_per_year` as usual; an expiry after the
+note's maturity extends the grid). Per option: `model_price =
+D_note(T) x mean(max(+/-(S_T - K), 0))` with `D_note` the discounting curve
+without the funding spread (listed options are not note liabilities),
+`standard_error`, `inside_bid_ask`, `price_error = model_price - mid`,
+`market_vol` and `model_vol` (Black-76 implied vols of the mid and of the
+model price on the model forward `spot x D_div(T) / D_note(T)` and
+`D_note(T)`, absent when they do not solve), `vol_error`. Per expiry the
+forward and discount factor used, `quotes_used` and the `dropped` lines
+with reasons; per sheet and overall `count`, `inside_bid_ask`,
+`max_abs_price_error`, `max_abs_vol_error`, `max_standard_error`. The
+headline and every other block are computed on the note's own grid and are
+unchanged by the flag; `note_npv` / `note_standard_error` is the note walked
+on the repricing paths (a different random stream, the same model: it
+differs from the headline by Monte Carlo noise only, and the gate asserts
+so). A sheet on a quanto underlying is a `400` (its listed options live in
+the underlying's own measure, the note simulates the quanto-adjusted one);
+a sheet whose underlying is in no note, a note with no sheet for any of its
+underlyings, a non-European sheet, a sheet with no usable quote and a bad
+filter value are `400`s naming the entry. Read the result against
+`standard_error`: at a few thousand paths the deep wings of a short expiry
+are at the sampling limit (`max_standard_error` says so) and an option is
+"inside" only when the noise lets it be; the criterion is that no option
+sits further than the Monte Carlo noise from its bid/ask band and that the
+mean vol error per expiry is zero within that noise. The surfaces
+`/calibrate-vol-surface` returns (`CubicStrikeLinearTime` grid, SVI
+slices) meet it on the Scotia synthetic-surface examples every option of the core set — expiries from the second on, out-of-the-money mids of at least 0.25 % of the spot — within 3.5 standard errors of its bid/ask band at 2048, 16 384 and 65 536 paths, the mean vol error per expiry within 0.12 vol points from two months on at 65 536 paths; the 16-day expiry carries a residual −1 vol point from the 11 Euler steps of the local vol (halved at 1008 steps per year) and the deep short wings are at the sampling limit — reported, not hidden;
+the same grid read `Bilinear` does not (the smile's curvature is lost
+between grid strikes; see "Pricing conventions" below and `docs/versioning.md`
+§ 0.15.0 for the numbers).
+
 `timing`: wall-clock milliseconds per stage: `market_build` (curves, quanto
 curves, grid, processes), `simulation` (path generation and payoff walk
 together: the path engine hands each path to the walk as it is generated,
 the two are not separable), `deterministic_forward`, `correlation_one`,
 `correlation_zero` (only when run), `diagnostics` (sorting and summarising
-the per-path records); `total_milliseconds` covers the whole note.
+the per-path records), `vanilla_repricing` (its one extra run);
+`total_milliseconds` covers the whole note.
 
 ### Greeks
 
@@ -1367,6 +1414,34 @@ there is no adapter around the original object).
   index in a USD note); the other quoting direction flips its sign. Positive
   `rho` lowers the drift. The processes are correlated by the
   `StochasticProcessArray` (spectral pseudo-square-root).
+- Local vol: a strike-dependent vol — a strike x expiry `BlackVolSpec`
+  (`SmileCube3D`, `SurfaceFromPrices`) or an `SviVolSpec` — is simulated
+  as Dupire local vol (QuantLib `LocalVolSurface`: finite differences of
+  the Black variance in log-strike and time) with log-Euler steps on the
+  `steps_per_year` grid. A grid is read with its `surface_interpolator`
+  (`Bilinear` by default for a supplied grid, `CubicStrikeLinearTime` on
+  the grids `/calibrate-vol-surface` returns, `Bicubic` on request; see
+  "Volatility surface from option quotes" > "The two payloads") with
+  CONSTANT strike extrapolation on both sides (a strike beyond the grid
+  reads the edge strike's vol; the same object the equity option pricer
+  reads) and, beyond the last expiry, a flat implied vol (the last
+  expiry's total variance scaled linearly in time); the local vol is read
+  at the simulated level clamped to the interior of the strike grid
+  (`[min strike x e^0.001, max strike x e^-0.001]`, wider than the
+  finite-difference stencil), so a path beyond the quoted strikes evolves
+  with the edge strike's local vol and the stencil never straddles the
+  extrapolation kink (where constant extrapolation would make the total
+  variance concave and the local variance negative). An SVI payload is
+  global in strike: no edge, the clamp is a no-op. One local-vol object
+  per distinct (vol, spot, dividend, discount) market is shared by every
+  process array of the request. A `Bilinear` grid is the documented
+  limit: between two grid strikes its variance is linear, so the smile's
+  curvature (the `d2w/dk2` term of Dupire's formula) is zero inside every
+  cell and sits in a spike at each node that the paths never meet; the
+  simulated distribution is that of a surface without curvature and the
+  `vanilla_repricing` diagnostic shows it (2 to 3 vol points high at one
+  year on the synthetic SVI surfaces). `CubicStrikeLinearTime` and the SVI
+  payload keep the curvature and reprice the quotes from two months on the mean vol error per expiry is within 0.12 vol points at 65 536 paths and every option with a mid of at least 0.25 % of the spot is within 3.5 standard errors of its bid/ask; the note prices 951.9 ± 6.2 instead of 939.6 ± 7.1 at 2048 paths — the lost convexity was worth 12 per 1,000.
 - Grid: Actual/365 (Fixed) years from the valuation date to every future
   dated observation (accrual-only events are not observed); with
   `steps_per_year` each interval is split into `ceil(length x
@@ -1421,8 +1496,16 @@ vols and a European barrier, or 0; `knocked_in` missing when required or
 present otherwise; odd `paths` with `antithetic`; Sobol `seed` 0;
 `brownian_bridge` with `PseudoRandom`; `upside.strike` / `participation`
 missing or `cap <= 0`; a surface whose local vol cannot be evaluated along
-the paths (names the vol ids and the remedy); `diagnostics.sample_paths`
-above 100, without `distribution`, or above `paths`. Missing required
+the paths (names the vol ids and the remedy: the surface is not
+arbitrage-free where the paths went); `diagnostics.sample_paths`
+above 100, without `distribution`, or above `paths`;
+`diagnostics.vanilla_repricing` without `vanilla_repricing_sheets` or sheets
+(or a filter) without the flag, two sheets for one underlying, a sheet
+missing `id` / `underlying_id` / `quotes` / an `expiry`, a non-European
+sheet, a sheet on a quanto underlying, a sheet for an underlying of no
+note, a note with no sheet for any of its underlyings, a sheet with no
+usable quote (listing the reasons), a bad `vanilla_repricing_filter`
+value. Missing required
 strings and tables (`trade_id`, `currency`, `volatility_id`,
 `discounting_curve`, `coupon_rule`, `capital`, `maturity_payment_date`,
 `monte_carlo`, ...) are rejected by the JSON parser. A `greeks` bump that
@@ -1625,12 +1708,15 @@ committed.
 `POST /calibrate-vol-surface` turns the same `OptionQuoteSheet` into a Black
 implied-volatility surface on a strike x expiry grid: the second step of the
 chain quotes → forwards → surface → models. It returns a complete
-`VolSurfaceSpec` (a `BlackVolSpec` of shape `SmileCube3D`) ready to paste
-into `pricing.volatility.vol_surfaces`, the forwards it used, a per-expiry
-report and the repricing of every used quote on the returned surface. Two
-methods: Andreasen-Huge local-vol interpolation (default; arbitrage-free by
-construction) and one SVI slice per expiry with butterfly and calendar
-checks.
+`VolSurfaceSpec` (a `BlackVolSpec` of shape `SmileCube3D`, read with
+`surface_interpolator: CubicStrikeLinearTime`) ready to paste into
+`pricing.volatility.vol_surfaces`, with `SviPerExpiry` a second spec of
+the same surface as its fitted SVI slices (`vol_surface_spec_svi`, an
+`SviVolSpec` payload, also ready to paste), the forwards it used, a
+per-expiry report and the repricing of every used quote on the returned
+grid. Two methods: Andreasen-Huge local-vol interpolation (default;
+arbitrage-free by construction) and one SVI slice per expiry with
+butterfly and calendar checks.
 
 ### Request
 
@@ -1654,7 +1740,7 @@ checks.
 | `sheet`, `discounting_curve`, `filter` | As for `/calibrate-implied-forwards`; same per-line rules, same reasons. `filter.moneyness_window` concerns the forward fit only: the vol fit uses every line that passes the per-line rules. European exercise only (`400` otherwise). |
 | `forwards` | Optional. The `expiries` array of an implied-forwards response pasted as is; only `expiry`, `usable`, `forward` and `implied_discount_factor` are read (non-usable entries skipped). Absent: the same fit is run here with `filter`, and `forwards_source` says `"fitted"` instead of `"request"`. A sheet expiry without a forward is reported unusable. |
 | `method` | `AndreasenHuge` (default) or `SviPerExpiry`. |
-| `output_grid.strikes_as_moneyness` | Strikes as multiples of the spot, > 0, strictly increasing. Default `0.500, 0.525, …, 1.500` (41 points). The returned surface is keyed by absolute strike (`strike = moneyness x spot`); the spot used is echoed as `spot`. |
+| `output_grid.strikes_as_moneyness` | Strikes as multiples of the spot, > 0, strictly increasing, at least 2. Default `0.500, 0.525, …, 1.500` (41 points). The returned surface is keyed by absolute strike (`strike = moneyness x spot`); the spot used is echoed as `spot`. |
 | `output_grid.expiries` | Calendar-day periods from `as_of_date` (`{n, unit}`; months and years are added on a NullCalendar, unadjusted). Default: the fitted sheet expiries. `SviPerExpiry` requires each one to be a fitted sheet expiry (`400` otherwise: the slices are not interpolated in time); `AndreasenHuge` accepts any date up to the last fitted expiry. |
 | `vol_surface_id` | Id of the returned spec. |
 | `svi.enforce_butterfly`, `svi.enforce_calendar` | `SviPerExpiry` only, default true: fix what the checks find (below) or report only. |
@@ -1727,8 +1813,9 @@ the implied-vol inversion tolerance).
 compare the calibrated object (the SVI slice, the Andreasen-Huge surface)
 with the market implied vols of the used quotes, in vol units (0.01 = one
 vol point), unweighted. `vanilla_repricing` then rebuilds the returned
-surface exactly as the pricers read it (`BlackVarianceSurface`,
-NullCalendar, Act/365F, bilinear in total variance, extrapolation allowed)
+grid exactly as the pricers read it (`CubicStrikeLinearTime`: per expiry a
+natural cubic spline of total variance in log-strike, linear in total
+variance between expiries, NullCalendar, Act/365F, extrapolation allowed)
 and reprices every used quote on it: `model_vol`, `model_price` (Black on
 the same `F` and `DF`), `inside_bid_ask`, `price_error = model − mid`,
 `vol_error = model_vol − market_vol`, with `count`, `inside_bid_ask`,
@@ -1736,8 +1823,7 @@ the same `F` and `DF`), `inside_bid_ask`, `price_error = model − mid`,
 check of the surface, grid interpolation included: a quote between grid
 strikes reads an interpolated vol. On the synthetic SVI sheet (strikes every
 2.5 % of spot, 1 % bid/ask) the default grid reprices every used quote
-inside its bid/ask under both methods; the coarser 5 % grid read bilinearly
-misses about a quarter of them, which is why the default is 2.5 %.
+inside its bid/ask under both methods.
 
 ### Response
 
@@ -1770,7 +1856,17 @@ misses about a quarter of them, which is why the default is 2.5 %.
       "expiries": [{"n": 16, "unit": "Days"}, {"n": 51, "unit": "Days"}, "..."],
       "strikes": [12000.0, 12600.0, "..."],
       "surface_vols": {"n_rows": 8, "n_cols": 41, "values": ["row-major by expiry then strike"]},
-      "allow_extrapolation": true, "surface_interpolator": "Bilinear"
+      "allow_extrapolation": true, "surface_interpolator": "CubicStrikeLinearTime"
+    }
+  },
+  "vol_surface_spec_svi": {
+    "id": "NDX_SYN_VOL", "payload_type": "SviVolSpec",
+    "payload": {
+      "base": {"reference_date": "2026-09-30", "calendar": "NullCalendar",
+               "business_day_convention": "Unadjusted", "day_counter": "Actual365Fixed"},
+      "slices": [{"expiry": "2026-10-16", "forward": 24033.597,
+                  "a": 0.000591, "b": 0.024078, "sigma": 0.034390, "rho": -0.7, "m": 0.033709}, "..."],
+      "time_interpolation": "LinearTotalVariance", "allow_extrapolation": true
     }
   },
   "vanilla_repricing": {
@@ -1789,7 +1885,19 @@ present iff `usable`. `svi` and `butterfly_*` appear with `SviPerExpiry`,
 `method` is always printed (it is an optional enum on the response). The
 surface's expiries are calendar-day periods on a NullCalendar so that the
 pricers' `calendar.advance(reference_date, period, Unadjusted)` lands on
-the grid dates exactly.
+the grid dates exactly. `vol_surface_spec_svi` is present with
+`SviPerExpiry` only (one slice per fitted expiry: the forward the slice is
+written against and its final `a, b, sigma, rho, m`, after the butterfly
+refit; the grid's calendar clip is not applied to the slices); with
+`AndreasenHuge` it is absent and `vol_surface_spec_svi_note` says why (a
+piecewise local volatility has no closed-form slices).
+
+### The two payloads and how they are read
+
+| Payload | Reading | Use |
+|---|---|---|
+| `BlackVolSpec` `SmileCube3D` (the grid, `vol_surface_spec`) | `surface_interpolator`: `Bilinear` (default of a supplied grid — QuantLib `BlackVarianceSurface`, linear in total variance inside every cell, so the smile's curvature is lost between nodes and a Dupire local vol derived from it misprices vanillas by 2 to 3 vol points at a year), `Bicubic` (QuantLib's 2-D spline, a spline in time too through the zero-variance column at t = 0, which distorts the short end; ~15x the cost), `CubicStrikeLinearTime` (what `/calibrate-vol-surface` returns: per expiry a natural cubic spline of total variance in log-strike — C2, every node reproduced, the curvature kept between nodes — linear in total variance between expiries at fixed strike, constant beyond the first and last strike, flat implied vol beyond the last expiry; two 1-D evaluations per read). A grid you supply yourself keeps `Bilinear` unless it says otherwise: no existing request changes. | Any grid, from this endpoint or elsewhere. |
+| `SviVolSpec` (the slices, `vol_surface_spec_svi`) | The raw SVI total variance of each slice, `w(k) = a + b (ρ (k − m) + sqrt((k − m)² + σ²))`, `k = ln(K / forward)`, Black vol `sqrt(w / T)`; linear in total variance between the bracketing slices at fixed strike (`time_interpolation: LinearTotalVariance`, the only value), `w(T₁, K) t / T₁` before the first slice and `w(Tₙ, K) t / Tₙ` after the last (flat implied vol on both ends; `allow_extrapolation` gates reading past the last slice). The formula is global in strike: no strike extrapolation exists or is needed. The exact surface the quotes were fitted to, with its exact curvature. `base.shape`, `constant_vol` and `quote_id` must be absent (`400`); slices strictly increasing after `reference_date`, `forward > 0`, `b ≥ 0`, `σ > 0`, `|ρ| < 1`, `a + bσ sqrt(1 − ρ²) ≥ 0` (`400` naming the slice). | Everywhere a Black vol is referenced: `volatility` on an equity option (a European option prices at the Black price of the slice's vol), `underlyings[].volatility_id` on a structured note (strike-dependent: Dupire local vol, `steps_per_year` required; vega bumps shift every vol by the bump — a shifted SVI smile is no SVI slice, so the shift is applied at every read), `/sample-vol-surfaces` `EquityBlack`. |
 
 ### Using the surface
 
@@ -1803,15 +1911,23 @@ surface makes the simulation Dupire local-vol and requires
 consistent: price on the discounting curve the quotes were fitted against
 and on the dividend curve the implied-forward step returned; otherwise the
 surface's strikes sit at other forward moneyness than the market's. Vols
-beyond the grid are extrapolated flat in total variance at the edge
-(`allow_extrapolation: true`).
+beyond the grid are extrapolated constant in strike (the edge strike's vol,
+on both sides; `allow_extrapolation: true` lets a strike or an expiry
+beyond the grid be read at all) and flat in implied vol beyond the last
+expiry. Under a structured note the surface is simulated as Dupire local
+vol; `diagnostics.vanilla_repricing` with the same sheet reprices the used
+quotes through the paths (see "Structured notes", Diagnostics). Both
+returned payloads pass that check on the Scotia synthetic-surface example
+every option beyond the first expiry and the deep wings within the Monte Carlo noise of its bid/ask, the mean vol error per expiry within 0.12 vol points at 65 536 paths; the same grid read `Bilinear` does not (2 to 3 vol points
+high at a year: the interpolation loses the smile's curvature), which is
+why a grid from this endpoint carries `CubicStrikeLinearTime`.
 
 ### Rejected requests
 
 | Request | Status |
 |---|---|
 | `sheet.option_style` not `European`; a bad `filter` value | `400` naming the field |
-| `output_grid.strikes_as_moneyness` not finite, ≤ 0 or not strictly increasing | `400` |
+| `output_grid.strikes_as_moneyness` not finite, ≤ 0, not strictly increasing or fewer than 2 | `400` |
 | `output_grid.expiries` not after `as_of_date`, not increasing, after the last fitted expiry, or (SVI) not a fitted sheet expiry | `400` naming the entry |
 | `forwards` with a usable entry lacking `forward` / `implied_discount_factor`, a non-positive value, a duplicate expiry, or no usable entry at all | `400` |
 | no usable expiry (nothing passes the rules, or every forward is missing) | `400` listing every expiry's reason |

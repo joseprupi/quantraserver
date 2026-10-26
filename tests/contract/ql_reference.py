@@ -33,6 +33,7 @@ import json
 import argparse
 import math
 import requests
+import sys
 import re
 from pathlib import Path
 from typing import Tuple, Optional, Dict, Any
@@ -4987,20 +4988,213 @@ def _sn_find(items, key, value, what):
     return hit
 
 
+class _SliceSurface:
+    """Python twin of the engine's SmileSliceVolSurface
+    (src/market/smile_slice_vol_surface.h): one total-variance smile per
+    expiry (`slices`: callables strike -> w), linear in total variance between
+    the bracketing expiries at fixed strike, w(T1, K) t / T1 before the first
+    and w(Tn, K) t / Tn after the last. Same expressions in the same order,
+    so the values are the engine's bit for bit. Offers what the reference
+    reads from a QuantLib Black vol handle (blackVol / blackVariance /
+    minStrike / maxStrike); the extrapolation flags are no-ops here (every
+    reference read extrapolates, as the engine's simulation does)."""
+
+    def __init__(self, ref, dc, dates, slices, min_strike, max_strike):
+        self.ref, self.dc, self.dates, self.slices = ref, dc, list(dates), list(slices)
+        self.times = [dc.yearFraction(ref, d) for d in self.dates]
+        self._min, self._max = min_strike, max_strike
+
+    def referenceDate(self):
+        return self.ref
+
+    def dayCounter(self):
+        return self.dc
+
+    def maxDate(self):
+        return self.dates[-1]
+
+    def minStrike(self):
+        return self._min
+
+    def maxStrike(self):
+        return self._max
+
+    def enableExtrapolation(self):
+        pass
+
+    def disableExtrapolation(self):
+        pass
+
+    def blackVariance(self, t, strike, extrapolate=False):
+        if not isinstance(t, float):
+            t = self.dc.yearFraction(self.ref, t)
+        times = self.times
+        if t <= times[0]:
+            return self.slices[0](strike) * t / times[0]
+        if t >= times[-1]:
+            return self.slices[-1](strike) * t / times[-1]
+        i = bisect.bisect_right(times, t) - 1
+        w0 = self.slices[i](strike)
+        w1 = self.slices[i + 1](strike)
+        return w0 + (w1 - w0) * (t - times[i]) / (times[i + 1] - times[i])
+
+    def blackVol(self, t, strike, extrapolate=False):
+        # BlackVarianceTermStructure::blackVolImpl.
+        if not isinstance(t, float):
+            t = self.dc.yearFraction(self.ref, t)
+        nz = 0.00001 if t == 0.0 else t
+        return math.sqrt(self.blackVariance(nz, strike) / nz)
+
+
+class _ShiftedSurface:
+    """Twin of the engine's ShiftedBlackVolSurface: every Black vol of
+    `inner` plus `shift`, w = (sigma + shift)^2 t (the vega bump of an SVI
+    payload)."""
+
+    def __init__(self, inner, shift):
+        self.inner, self.shift = inner, shift
+        self.ref, self.dc = inner.ref, inner.dc
+
+    def minStrike(self):
+        return self.inner.minStrike()
+
+    def maxStrike(self):
+        return self.inner.maxStrike()
+
+    def blackVariance(self, t, strike, extrapolate=False):
+        if not isinstance(t, float):
+            t = self.dc.yearFraction(self.ref, t)
+        v = self.inner.blackVol(t, strike, True) + self.shift
+        if not v > 0.0:
+            raise ValueError(f"Black vol shift {self.shift} makes the volatility non-positive")
+        return v * v * t
+
+    def blackVol(self, t, strike, extrapolate=False):
+        if not isinstance(t, float):
+            t = self.dc.yearFraction(self.ref, t)
+        nz = 0.00001 if t == 0.0 else t
+        return math.sqrt(self.blackVariance(nz, strike) / nz)
+
+
+def _cubic_variance_slice(strikes, total_variances):
+    """CubicVarianceSlice: QuantLib's CubicNaturalSpline of total variance in
+    ln K over the nodes (the same class the engine instantiates), constant
+    beyond the first and last strike."""
+    xs = [math.log(k) for k in strikes]
+    spline = ql.CubicNaturalSpline(xs, list(total_variances))
+    lo, hi = xs[0], xs[-1]
+
+    def w(strike):
+        return spline(min(max(math.log(strike), lo), hi), True)
+    return w
+
+
+def _svi_slice(p):
+    """SviSlice: the raw SVI total variance about the slice's forward, the
+    strike floored at 1e-6 as QuantLib's SviSmileSection does; same
+    expression order as the engine's sviRawTotalVariance."""
+    fwd, a, b, sigma, rho, m = (float(p["forward"]), float(p["a"]), float(p["b"]),
+                                float(p["sigma"]), float(p["rho"]), float(p["m"]))
+
+    def w(strike):
+        k = math.log(max(strike, 1.0e-6) / fwd)
+        d = k - m
+        return a + b * (rho * d + math.sqrt(d * d + sigma * sigma))
+    return w
+
+
+class _PyLocalVol:
+    """QuantLib's LocalVolSurface::localVolImpl (ql/termstructures/volatility/
+    equityfx/localvolsurface.cpp, 1.44) on a Python surface: the same
+    finite-difference stencil in log-strike (dy = 1e-4 |y| or 1e-6 near the
+    money) and in time (dt = min(1e-4, t/2), the strikes carried along the
+    forward) with the same discount reads, so that a structured note on a
+    CubicStrikeLinearTime grid or an SVI payload is reproduced to the bit
+    without subclassing a term structure through the bindings."""
+
+    def __init__(self, surface, risk_free, dividend, spot_handle):
+        self.bs, self.rf, self.dq, self.spot = surface, risk_free, dividend, spot_handle
+
+    def localVol(self, t, level, extrapolate=True):
+        dr = self.rf.discount(t, True)
+        dq = self.dq.discount(t, True)
+        forward = self.spot.value() * dq / dr
+        strike = level
+        y = math.log(strike / forward)
+        dy = y * 0.0001 if abs(y) > 0.001 else 0.000001
+        strikep = strike * math.exp(dy)
+        strikem = strike / math.exp(dy)
+        w = self.bs.blackVariance(t, strike, True)
+        wp = self.bs.blackVariance(t, strikep, True)
+        wm = self.bs.blackVariance(t, strikem, True)
+        dwdy = (wp - wm) / (2.0 * dy)
+        d2wdy2 = (wp - 2.0 * w + wm) / (dy * dy)
+        if t == 0.0:
+            dt = 0.0001
+            drpt = self.rf.discount(t + dt, True)
+            dqpt = self.dq.discount(t + dt, True)
+            strikept = strike * dr * dqpt / (drpt * dq)
+            wpt = self.bs.blackVariance(t + dt, strikept, True)
+            if not wpt >= w:
+                raise ValueError(f"decreasing variance at strike {strike} between {t} and {t + dt}")
+            dwdt = (wpt - w) / dt
+        else:
+            dt = min(0.0001, t / 2.0)
+            drpt = self.rf.discount(t + dt, True)
+            drmt = self.rf.discount(t - dt, True)
+            dqpt = self.dq.discount(t + dt, True)
+            dqmt = self.dq.discount(t - dt, True)
+            strikept = strike * dr * dqpt / (drpt * dq)
+            strikemt = strike * dr * dqmt / (drmt * dq)
+            wpt = self.bs.blackVariance(t + dt, strikept, True)
+            wmt = self.bs.blackVariance(t - dt, strikemt, True)
+            if not wpt >= w or not w >= wmt:
+                raise ValueError(f"decreasing variance at strike {strike} around time {t}")
+            dwdt = (wpt - wmt) / (2.0 * dt)
+        if dwdy == 0.0 and d2wdy2 == 0.0:
+            return math.sqrt(dwdt)
+        den1 = 1.0 - y / w * dwdy
+        den2 = 0.25 * (-0.25 - 1.0 / w + y * y / w / w) * dwdy * dwdy
+        den3 = 0.5 * d2wdy2
+        den = den1 + den2 + den3
+        result = dwdt / den
+        if not result >= 0.0:
+            raise ValueError(f"negative local vol^2 at strike {strike} and time {t}")
+        return math.sqrt(result)
+
+
 def _sn_black_vol(pricing: dict, vol_id: str, shift: float = 0.0):
-    """The referenced BlackVolSpec as the server builds it
+    """The referenced Black vol as the server builds it
     (src/decode/market/vol_surface_parsers.cpp): Constant -> BlackConstantVol,
     AtmMatrix2D -> BlackVarianceCurve (pillars = calendar.advance(reference,
     expiry, bdc), forceMonotoneVariance), SmileCube3D -> BlackVarianceSurface
-    (rows = strikes, columns = expiries, bilinear or bicubic). `shift` is
-    added to every Black vol (the constant, every term node, every surface
-    entry) before the object is built: the engine's `shiftedBlackVol` of the
-    vega bump. Returns (handle, shape, exact_step) where exact_step is True
-    for the two strike-independent shapes that the process steps exactly
-    (anything else is Dupire local vol on a fine grid)."""
+    (rows = strikes, columns = expiries, bilinear or bicubic) or, with
+    `surface_interpolator: CubicStrikeLinearTime`, the Python twin of the
+    engine's SmileSliceVolSurface (one CubicNaturalSpline of total variance
+    in log-strike per expiry, linear in time); an SviVolSpec payload -> the
+    same twin on SVI slices (shape reported as SviSlices). `shift` is added
+    to every Black vol (the constant, every term node, every surface entry;
+    for SVI slices at every read, the engine's ShiftedBlackVolSurface)
+    before the object is built: the engine's `shiftedBlackVol` of the vega
+    bump. Returns (handle, shape, exact_step) where exact_step is True for
+    the two strike-independent shapes that the process steps exactly
+    (anything else is Dupire local vol on a fine grid; a Python twin cannot
+    be handed to a QuantLib process and is stepped by hand, see
+    structured_note_ql)."""
     spec = _find_vol_surface_spec(pricing, vol_id)
+    if spec.get("payload_type") == "SviVolSpec":
+        payload = spec["payload"]
+        base = payload["base"]
+        ref = parse_date(base["reference_date"])
+        dc = get_day_counter(base["day_counter"])
+        dates = [parse_date(sl["expiry"]) for sl in payload["slices"]]
+        ts = _SliceSurface(ref, dc, dates, [_svi_slice(sl) for sl in payload["slices"]],
+                           0.0, sys.float_info.max)
+        if shift != 0.0:
+            ts = _ShiftedSurface(ts, shift)
+        return ts, "SviSlices", False
     if spec.get("payload_type") != "BlackVolSpec":
-        raise ValueError(f"vol {vol_id}: a BlackVolSpec payload is required")
+        raise ValueError(f"vol {vol_id}: a BlackVolSpec or SviVolSpec payload is required")
     payload = spec["payload"]
     base = payload["base"]
     ref = parse_date(base["reference_date"])
@@ -5028,15 +5222,35 @@ def _sn_black_vol(pricing: dict, vol_id: str, shift: float = 0.0):
         if len(values) != n_exp * n_str:
             raise ValueError(f"vol {vol_id}: surface_vols has {len(values)} values, "
                              f"expected {n_exp} x {n_str}")
+        legacy_cubic = (payload.get("expiry_interpolator", "Linear") == "LogCubic")
+        interp = payload.get("surface_interpolator", "Bilinear")
+        if interp == "CubicStrikeLinearTime" and not legacy_cubic:
+            # The engine's SmileSliceVolSurface: per expiry the nodes'
+            # (shifted vol)^2 T in ln K through a natural cubic spline,
+            # constant outside; linear in total variance between expiries.
+            slices = []
+            for i, d in enumerate(dates):
+                t = dc.yearFraction(ref, d)
+                ws = []
+                for j in range(n_str):
+                    v = float(values[i * n_str + j]) + shift
+                    ws.append(v * v * t)
+                slices.append(_cubic_variance_slice(strikes, ws))
+            return (_SliceSurface(ref, dc, dates, slices, strikes[0], strikes[-1]), shape,
+                    False)
         # Wire order is row-major by expiry then strike; QuantLib wants a
         # (strikes x expiries) matrix.
         matrix = ql.Matrix(n_str, n_exp)
         for i in range(n_exp):
             for j in range(n_str):
                 matrix[j][i] = float(values[i * n_str + j]) + shift
-        ts = ql.BlackVarianceSurface(ref, cal, dates, strikes, matrix, dc)
-        legacy_cubic = (payload.get("expiry_interpolator", "Linear") == "LogCubic")
-        if legacy_cubic or payload.get("surface_interpolator", "Bilinear") == "Bicubic":
+        # Constant strike extrapolation on both sides (the edge strike's vol),
+        # as the server builds every BlackVarianceSurface; beyond the last
+        # expiry QuantLib scales the last total variance linearly in t.
+        ts = ql.BlackVarianceSurface(ref, cal, dates, strikes, matrix, dc,
+                                     ql.BlackVarianceSurface.ConstantExtrapolation,
+                                     ql.BlackVarianceSurface.ConstantExtrapolation)
+        if legacy_cubic or interp == "Bicubic":
             ts.setInterpolation("bicubic")
         else:
             ts.setInterpolation("bilinear")
@@ -5204,7 +5418,6 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
     def df(d):
         return 1.0 if d <= as_of else spreaded.discount(d, True)
 
-    processes = []
     exact_step = True
     initial = []
     ids = []
@@ -5226,6 +5439,10 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
                              f"must match a currency different from the note's")
         fx_vol, fx_rate, rho = None, 0.0, 0.0
         if quanto is not None:
+            if isinstance(vol, _SliceSurface):
+                raise NotImplementedError("quanto underlying on a CubicStrikeLinearTime grid or "
+                                          "an SVI payload: no QuantLib handle for the "
+                                          "QuantoTermStructure in the reference")
             local_curve = curve(quanto["discounting_curve"], "Discounting curve")
             fx = build_fx_spot(pricing, quanto["fx_spot_id"], request)
             fx_vol, _fx_shape, fx_exact = _sn_black_vol(pricing, quanto["fx_volatility_id"])
@@ -5235,12 +5452,11 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
             rho = float(quanto["fx_underlying_correlation"])
             dividend = ql.YieldTermStructureHandle(ql.QuantoTermStructure(
                 dividend, note_curve, local_curve, vol, level, fx_vol, fx["rate"], rho))
-        processes.append(ql.GeneralizedBlackScholesProcess(spot, dividend, note_curve, vol))
         initial.append(level)
         ids.append(u["underlying_id"])
         und.append({"spot": float(spot_value), "spot_handle": spot, "dividend": dividend,
                     "plain_dividend": plain_dividend, "local_curve": local_curve, "vol": vol,
-                    "vol_id": u["volatility_id"], "level": level,
+                    "vol_id": u["volatility_id"], "level": level, "exact": exact,
                     "quanto": quanto is not None, "fx_vol": fx_vol, "fx_spot": fx_rate,
                     "rho": rho})
 
@@ -5268,7 +5484,34 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
         for a, ia in enumerate(ids):
             for b, ib in enumerate(ids):
                 correlation[a][b] = float(flat[labels.index(ia) * n_lab + labels.index(ib)])
-    array = ql.StochasticProcessArray(processes, correlation)
+
+    def make_asset(spot_handle, dividend, risk_free, vol, exact):
+        """One simulated asset: the GeneralizedBlackScholesProcess(spot,
+        dividend, riskFree, vol) and, for a strike x expiry surface, the
+        engine's edge-clamped Dupire local vol (src/mc/basket_model.h):
+        QuantLib's LocalVolSurface on the same handles, read at the level
+        clamped to [minStrike e^1e-3, maxStrike e^-1e-3]."""
+        python_surface = isinstance(vol, (_SliceSurface, _ShiftedSurface))
+        a = {"process": None if python_surface else
+             ql.GeneralizedBlackScholesProcess(spot_handle, dividend, risk_free, vol),
+             "exact": exact, "x0": spot_handle.value()}
+        if not exact:
+            # A CubicStrikeLinearTime grid or an SVI payload has no QuantLib
+            # object behind it: the local vol is QuantLib's stencil in Python
+            # (_PyLocalVol) on the twin surface; anything else is QuantLib's.
+            a["lv"] = (_PyLocalVol(vol, risk_free, dividend, spot_handle) if python_surface
+                       else ql.LocalVolSurface(vol, risk_free, dividend, spot_handle))
+            a["risk_free"] = risk_free
+            a["dividend"] = dividend
+            a["lower"] = vol.minStrike() * math.exp(1.0e-3)
+            a["upper"] = vol.maxStrike() * math.exp(-1.0e-3)
+            if not a["lower"] < a["upper"]:
+                a["lower"], a["upper"] = vol.minStrike(), vol.maxStrike()
+        return a
+
+    def base_assets():
+        return [make_asset(u["spot_handle"], u["dividend"], note_curve, u["vol"], u["exact"])
+                for u in und]
 
     # --- events ---------------------------------------------------------------
     events = note["events"]
@@ -5455,13 +5698,14 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
     def perf_at(path, j):
         return perf_rule([path[k][j] / initial[k] for k in range(n_u)])
 
-    def walk(path, disc, rec=None, slot=0):
+    def walk(path, disc, rec=None, slot=0, grid_index=None):
         """One path through the state machine, discounted on `disc`
         (discounting_on); returns its accumulators. With `rec` (the
         distribution block) the basket performance is recorded at every
         observed event whether or not the note is still alive, together
         with the path's undiscounted payout, its PV, the call event and the
-        breach flag, at slot `slot`."""
+        breach flag, at slot `slot`. `grid_index` (per future event, the
+        vanilla-repricing grid) replaces the events' own grid indices."""
         acc = [0.0] * n_acc
         st = {"memory": state["memory"], "called": False, "knocked_in": state["knocked_in"]}
         prev = 0
@@ -5472,17 +5716,18 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
                 if alive:
                     step_event(ev, 0.0, st)
                 continue
-            perf = perf_at(path, ev["grid_index"])
+            gi = ev["grid_index"] if grid_index is None else grid_index[e]
+            perf = perf_at(path, gi)
             if rec is not None:
                 rec["perf"][ev["observed_index"]][slot] = perf
             if not alive:
                 continue
             if daily_close and not st["knocked_in"]:
-                for j in range(prev + 1, ev["grid_index"] + 1):
+                for j in range(prev + 1, gi + 1):
                     if perf_at(path, j) < barrier:
                         st["knocked_in"] = True
                         break
-            prev = ev["grid_index"]
+            prev = gi
             out = step_event(ev, perf, st)
             b = A_BASE + per_event * e
             if out["earned"]:
@@ -5532,80 +5777,128 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
         raise ValueError("paths must be even with antithetic variates")
     samples = paths // 2 if antithetic else paths
 
-    def simulate(proc_array, disc, rec=None, capture=None):
-        """The engine's RunPaths (src/mc/path_engine.cpp) on `proc_array`: a
-        fresh generator, the paths evolved by hand, the pair averaged into
-        one sample, the running means at 1/4, 1/2 and 3/4 of the samples
-        with the same estimator on the first k samples (an entry is skipped
-        when its count is 0 or repeats the previous one). `capture` (a
-        list) receives every simulated path's acc[TOTAL] in simulation
-        order (the Greeks' common-random-number differences)."""
-        draw = _sn_gaussian_source(sequence, brownian_bridge, seed, n_u, steps)
-        x0 = proc_array.initialValues()
+    def make_simulate(grid, steps, n_acc, walk, extra=None):
+        """The engine's RunPaths (src/mc/path_engine.cpp) over `grid`
+        (`steps` = grid points - 1) with `n_acc` accumulators filled by
+        `walk(path, disc, rec, slot)` and, when given, `extra(path, acc)`
+        (the vanilla repricing's option payoffs beyond the walk's): a fresh
+        generator per run, the paths evolved by hand, the pair averaged
+        into one sample, the running means at 1/4, 1/2 and 3/4 of the
+        samples with the same estimator on the first k samples (an entry is
+        skipped when its count is 0 or repeats the previous one). The
+        returned simulate(assets, matrix, disc, rec, capture) takes `capture`
+        (a list) that receives every simulated path's acc[TOTAL] in
+        simulation order (the Greeks' common-random-number differences)."""
 
-        def evolve(dw):
-            path = [[0.0] * (steps + 1) for _ in range(n_u)]
-            asset = x0
-            for j in range(n_u):
-                path[j][0] = asset[j]
-            for i in range(1, steps + 1):
-                offset = (i - 1) * n_u
-                asset = proc_array.evolve(grid[i - 1], asset, grid.dt(i - 1),
-                                          ql.Array(dw[offset:offset + n_u]))
+        def one_path(path, disc, rec, slot):
+            acc = walk(path, disc, rec, slot)
+            if extra is not None:
+                acc = acc + [0.0] * (n_acc - len(acc))
+                extra(path, acc)
+            return acc
+
+        def simulate(assets, matrix, disc, rec=None, capture=None):
+            draw = _sn_gaussian_source(sequence, brownian_bridge, seed, n_u, steps)
+            all_exact = all(a["exact"] for a in assets)
+            if all_exact:
+                proc_array = ql.StochasticProcessArray([a["process"] for a in assets], matrix)
+                x0 = proc_array.initialValues()
+            else:
+                # The engine's local-vol path is QuantLib's StochasticProcessArray
+                # evolve (dz = spectral pseudo-square-root x dw, then each
+                # process's Euler step) with the edge-clamped local vol as the
+                # external local vol of the process; reproduced step by step:
+                # GeneralizedBlackScholesProcess::evolve (Euler branch) is
+                # x exp(drift(t, x) dt + sigma(t, x) sqrt(dt) dz) with
+                # drift = r(t, t + 1e-4) - q(t, t + 1e-4) - sigma^2 / 2 on the
+                # continuous forward rates and sigma = localVol(t, clamp(x)).
+                sqrt_corr = ql.pseudoSqrt(matrix, ql.SalvagingAlgorithm.Spectral)
+                x0 = [a["x0"] for a in assets]
+
+            def step(a, t0, x, dt, dz):
+                if a["exact"]:
+                    return a["process"].evolve(t0, x, dt, dz)
+                sigma = a["lv"].localVol(t0, min(max(x, a["lower"]), a["upper"]), True)
+                t1 = t0 + 0.0001
+                drift = (a["risk_free"].forwardRate(t0, t1, ql.Continuous, ql.NoFrequency,
+                                                    True).rate()
+                         - a["dividend"].forwardRate(t0, t1, ql.Continuous, ql.NoFrequency,
+                                                     True).rate()
+                         - 0.5 * sigma * sigma)
+                return x * math.exp(drift * dt + (sigma * math.sqrt(dt)) * dz)
+
+            def evolve(dw):
+                path = [[0.0] * (steps + 1) for _ in range(n_u)]
+                asset = x0
                 for j in range(n_u):
-                    path[j][i] = asset[j]
-            return path
+                    path[j][0] = asset[j]
+                for i in range(1, steps + 1):
+                    offset = (i - 1) * n_u
+                    if all_exact:
+                        asset = proc_array.evolve(grid[i - 1], asset, grid.dt(i - 1),
+                                                  ql.Array(dw[offset:offset + n_u]))
+                    else:
+                        dz = sqrt_corr * ql.Array(dw[offset:offset + n_u])
+                        t0, dt = grid[i - 1], grid.dt(i - 1)
+                        asset = [step(assets[j], t0, asset[j], dt, dz[j]) for j in range(n_u)]
+                    for j in range(n_u):
+                        path[j][i] = asset[j]
+                return path
 
-        total = [0.0] * n_acc
-        total_sq = [0.0] * n_acc
-        running = []
-        quarter, half, three_quarters = samples // 4, samples // 2, (3 * samples) // 4
+            total = [0.0] * n_acc
+            total_sq = [0.0] * n_acc
+            running = []
+            quarter, half, three_quarters = samples // 4, samples // 2, (3 * samples) // 4
 
-        def statistics(count):
-            n = float(count)
-            means = [s / n for s in total]
-            ses = []
-            for k in range(n_acc):
-                if count < 2:
-                    ses.append(float("nan"))
-                    continue
-                variance = (total_sq[k] - n * means[k] * means[k]) / (n - 1.0)
-                if variance < 0.0:
-                    variance = 0.0  # rounding on a constant accumulator
-                ses.append(math.sqrt(variance / n))
-            return means, ses
+            def statistics(count):
+                n = float(count)
+                means = [s / n for s in total]
+                ses = []
+                for k in range(n_acc):
+                    if count < 2:
+                        ses.append(float("nan"))
+                        continue
+                    variance = (total_sq[k] - n * means[k] * means[k]) / (n - 1.0)
+                    if variance < 0.0:
+                        variance = 0.0  # rounding on a constant accumulator
+                    ses.append(math.sqrt(variance / n))
+                return means, ses
 
-        def maybe_record(done, at, fraction):
-            if done != at or at == 0:
-                return
-            if running and running[-1]["samples"] == at:
-                return
-            means, ses = statistics(at)
-            running.append({"fraction": fraction, "samples": at,
-                            "means": means, "standard_errors": ses})
+            def maybe_record(done, at, fraction):
+                if done != at or at == 0:
+                    return
+                if running and running[-1]["samples"] == at:
+                    return
+                means, ses = statistics(at)
+                running.append({"fraction": fraction, "samples": at,
+                                "means": means, "standard_errors": ses})
 
-        slot = 0
-        for s in range(samples):
-            dw = draw()
-            acc = walk(evolve(dw), disc, rec, slot)
-            slot += 1
-            if capture is not None:
-                capture.append(acc[A_TOTAL])
-            if antithetic:
-                acc_anti = walk(evolve([-x for x in dw]), disc, rec, slot)
+            slot = 0
+            for s in range(samples):
+                dw = draw()
+                acc = one_path(evolve(dw), disc, rec, slot)
                 slot += 1
                 if capture is not None:
-                    capture.append(acc_anti[A_TOTAL])
-                acc = [0.5 * (a + b) for a, b in zip(acc, acc_anti)]
-            for k in range(n_acc):
-                total[k] += acc[k]
-                total_sq[k] += acc[k] * acc[k]
-            done = s + 1
-            maybe_record(done, quarter, 0.25)
-            maybe_record(done, half, 0.5)
-            maybe_record(done, three_quarters, 0.75)
-        mean, se = statistics(samples)
-        return {"mean": mean, "standard_error": se, "running_means": running}
+                    capture.append(acc[A_TOTAL])
+                if antithetic:
+                    acc_anti = one_path(evolve([-x for x in dw]), disc, rec, slot)
+                    slot += 1
+                    if capture is not None:
+                        capture.append(acc_anti[A_TOTAL])
+                    acc = [0.5 * (a + b) for a, b in zip(acc, acc_anti)]
+                for k in range(n_acc):
+                    total[k] += acc[k]
+                    total_sq[k] += acc[k] * acc[k]
+                done = s + 1
+                maybe_record(done, quarter, 0.25)
+                maybe_record(done, half, 0.5)
+                maybe_record(done, three_quarters, 0.75)
+            mean, se = statistics(samples)
+            return {"mean": mean, "standard_error": se, "running_means": running}
+
+        return simulate
+
+    simulate = make_simulate(grid, steps, n_acc, walk)
 
     diag = request.get("diagnostics") or {}
     want_market = bool(diag.get("market", False))
@@ -5620,7 +5913,7 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
                "called_event": [None] * paths, "breached": [False] * paths}
     greeks_spec = request.get("greeks")
     base_totals = [] if greeks_spec is not None else None
-    sim = simulate(array, base, rec, base_totals)
+    sim = simulate(base_assets(), correlation, base, rec, base_totals)
     mean, se = sim["mean"], sim["standard_error"]
 
     result["paths"] = paths
@@ -5750,9 +6043,7 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
                 for i in range(n_u):
                     for j in range(n_u):
                         m[i][j] = fill(i, j)
-                procs = [ql.GeneralizedBlackScholesProcess(u["spot_handle"], u["dividend"],
-                                                           note_curve, u["vol"]) for u in und]
-                limit = simulate(ql.StochasticProcessArray(procs, m), base)
+                limit = simulate(base_assets(), m, base)
                 checks[f"correlation_{name}_npv"] = (limit["mean"][A_TOTAL] + known_total) * notional
                 checks[f"correlation_{name}_standard_error"] = limit["standard_error"][A_TOTAL] * notional
         result["checks"] = checks
@@ -5798,6 +6089,117 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
             dist["sample_paths"].append(sp)
         result["distribution"] = dist
 
+    # --- vanilla repricing (StructuredNoteVanillaRepricing doc comments) ---------
+    # One extra simulation on the note's grid plus every used sheet expiry:
+    # the out-of-the-money side of every usable quote (the engine's
+    # selectOutOfTheMoneyQuotes on the model forward spot x D_div(T) /
+    # D_note(T) and the plain note curve's DF) as a European payoff at its
+    # expiry grid point, D_note(T) x mean, with the note walked on the same
+    # paths (note_npv).
+    if bool(diag.get("vanilla_repricing", False)):
+        flt = diag.get("vanilla_repricing_filter") or {}
+        rep_dates = [ev["observation"] for ev in observed]
+        rep_unds = []
+        options = []  # (k, expiry date, strike, is_call)
+        for sheet in diag.get("vanilla_repricing_sheets") or []:
+            if sheet["underlying_id"] not in ids:
+                continue
+            k = ids.index(sheet["underlying_id"])
+            if und[k]["quanto"]:
+                raise ValueError("vanilla repricing: a sheet on a quanto underlying")
+            if sheet.get("option_style", "European") != "European":
+                raise ValueError("vanilla repricing: option_style must be European")
+            spot_k = und[k]["spot"]
+            by_expiry = {}
+            for q in sheet["quotes"]:
+                by_expiry.setdefault(q["expiry"], []).append(q)
+            ru = {"underlying_id": ids[k], "sheet_id": sheet["id"], "spot": spot_k,
+                  "expiries": [], "options": []}
+            for expiry in sorted(by_expiry, key=parse_date):
+                d = parse_date(expiry)
+                t = dc365.yearFraction(as_of, d)
+                if d <= as_of:
+                    ru["expiries"].append({"expiry": expiry, "time": t, "quotes_used": 0})
+                    continue
+                df = note_curve.discount(t, True)
+                fwd = spot_k * und[k]["dividend"].discount(t, True) / note_curve.discount(t, True)
+                used = _otm_quotes(by_expiry[expiry], flt, spot_k, fwd, df, t)
+                ru["expiries"].append({"expiry": expiry, "time": t, "forward": fwd,
+                                       "discount_factor": df, "quotes_used": len(used)})
+                if used:
+                    rep_dates.append(d)
+                for u in used:
+                    ru["options"].append({"expiry": expiry, "time": t, "strike": u["strike"],
+                                          "option_type": "Call" if u["is_call"] else "Put",
+                                          "bid": u["bid"], "ask": u["ask"], "mid": u["mid"],
+                                          "market_vol": u["vol"], "forward": fwd,
+                                          "discount_factor": df})
+                    options.append((k, d, u["strike"], u["is_call"]))
+            if not ru["options"]:
+                raise ValueError(f"vanilla repricing: no usable quote for {ids[k]}")
+            rep_unds.append(ru)
+        if not rep_unds:
+            raise ValueError("vanilla repricing: no sheet for any underlying of the note")
+        rep_dates.sort()
+        rep_times, rep_index = _sn_simulation_times(as_of, rep_dates, steps_per_year)
+        rep_grid = ql.TimeGrid(rep_times)
+        rep_steps = len(rep_times) - 1
+        rep_gi = [None if ev["accrual_only"] else rep_index[ev["observation"]] for ev in future]
+        opt_gi = [rep_index[d] for (_k, d, _strike, _is_call) in options]
+        n_opt = len(options)
+
+        def rep_walk(path, disc, rec=None, slot=0):
+            return walk(path, disc, rec, slot, rep_gi)
+
+        def rep_extra(path, acc):
+            for i, (k, _d, strike, is_call) in enumerate(options):
+                level = path[k][opt_gi[i]]
+                acc[n_acc + i] = max(level - strike if is_call else strike - level, 0.0)
+
+        rep_simulate = make_simulate(rep_grid, rep_steps, n_acc + n_opt, rep_walk, rep_extra)
+        rep = rep_simulate(base_assets(), correlation, base)
+        vr = {"paths": paths, "time_steps": rep_steps,
+              "note_npv": (rep["mean"][A_TOTAL] + known_total) * notional,
+              "note_standard_error": rep["standard_error"][A_TOTAL] * notional,
+              "count": 0, "inside_bid_ask": 0, "max_abs_price_error": 0.0,
+              "max_abs_vol_error": None, "max_standard_error": 0.0, "underlyings": rep_unds}
+        i = 0
+        for ru in rep_unds:
+            ru.update({"count": 0, "inside_bid_ask": 0, "max_abs_price_error": 0.0,
+                       "max_abs_vol_error": None, "max_standard_error": 0.0})
+            for o in ru["options"]:
+                df, fwd = o.pop("discount_factor"), o.pop("forward")
+                o["model_price"] = df * rep["mean"][n_acc + i]
+                o["standard_error"] = df * rep["standard_error"][n_acc + i]
+                o["inside_bid_ask"] = o["bid"] <= o["model_price"] <= o["ask"]
+                o["price_error"] = o["model_price"] - o["mid"]
+                mv = _black_implied_vol(o["option_type"] == "Call", o["strike"], fwd,
+                                        o["model_price"], df, o["time"])
+                if mv is not None:
+                    o["model_vol"] = mv
+                    o["vol_error"] = mv - o["market_vol"]
+                ru["count"] += 1
+                if o["inside_bid_ask"]:
+                    ru["inside_bid_ask"] += 1
+                ru["max_abs_price_error"] = max(ru["max_abs_price_error"], abs(o["price_error"]))
+                ru["max_standard_error"] = max(ru["max_standard_error"], o["standard_error"])
+                if "vol_error" in o:
+                    ru["max_abs_vol_error"] = max(ru["max_abs_vol_error"] or 0.0,
+                                                  abs(o["vol_error"]))
+                i += 1
+            vr["count"] += ru["count"]
+            vr["inside_bid_ask"] += ru["inside_bid_ask"]
+            vr["max_abs_price_error"] = max(vr["max_abs_price_error"], ru["max_abs_price_error"])
+            vr["max_standard_error"] = max(vr["max_standard_error"], ru["max_standard_error"])
+            if ru["max_abs_vol_error"] is not None:
+                vr["max_abs_vol_error"] = max(vr["max_abs_vol_error"] or 0.0,
+                                              ru["max_abs_vol_error"])
+            if ru["max_abs_vol_error"] is None:
+                del ru["max_abs_vol_error"]
+        if vr["max_abs_vol_error"] is None:
+            del vr["max_abs_vol_error"]
+        result["vanilla_repricing"] = vr
+
     # --- Greeks (StructuredNoteGreeks doc comments; the engine's arithmetic) ---
     if greeks_spec is not None:
         h = float(greeks_spec.get("spot_bump", 0.01))
@@ -5827,7 +6229,7 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
             return m * notional, math.sqrt(variance / n) * notional
 
         def bumped_run(spot_of, spot_factor, vol_of, risk_free, note_curve_moved, matrix, disc):
-            procs = []
+            assets = []
             for k, u in enumerate(und):
                 spot = u["spot_handle"]
                 if k == spot_of:
@@ -5840,9 +6242,9 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
                     dividend = ql.YieldTermStructureHandle(ql.QuantoTermStructure(
                         u["plain_dividend"], risk_free, u["local_curve"], vol, u["level"],
                         u["fx_vol"], u["fx_spot"], u["rho"]))
-                procs.append(ql.GeneralizedBlackScholesProcess(spot, dividend, risk_free, vol))
+                assets.append(make_asset(spot, dividend, risk_free, vol, u["exact"]))
             totals = []
-            simulate(ql.StochasticProcessArray(procs, matrix), disc, None, totals)
+            simulate(assets, matrix, disc, None, totals)
             return sample_values(totals, disc)
 
         def difference(a, b, scale):
@@ -5906,6 +6308,27 @@ def price_structured_note_ql(request: dict) -> dict:
         out["notes.0.p_barrier_breach"] = r["p_barrier_breach"]
         out["notes.0.expected_life_years"] = r["expected_life_years"]
     out["notes.0.seasoning.memory_carried"] = r["seasoning"]["memory_carried"]
+    if "vanilla_repricing" in r:
+        vr = r["vanilla_repricing"]
+        out["notes.0.vanilla_repricing.note_npv"] = vr["note_npv"]
+        out["notes.0.vanilla_repricing.note_standard_error"] = vr["note_standard_error"]
+        out["notes.0.vanilla_repricing.count"] = vr["count"]
+        out["notes.0.vanilla_repricing.inside_bid_ask"] = vr["inside_bid_ask"]
+        out["notes.0.vanilla_repricing.max_abs_price_error"] = vr["max_abs_price_error"]
+        out["notes.0.vanilla_repricing.max_standard_error"] = vr["max_standard_error"]
+        if "max_abs_vol_error" in vr:
+            out["notes.0.vanilla_repricing.max_abs_vol_error"] = vr["max_abs_vol_error"]
+        # A sample of the repriced options per sheet: the first, the middle
+        # and the last used quote (model price, standard error, model vol).
+        for i, u in enumerate(vr["underlyings"]):
+            n = len(u["options"])
+            for j in sorted({0, n // 2, n - 1}):
+                o = u["options"][j]
+                stem = f"notes.0.vanilla_repricing.underlyings.{i}.options.{j}."
+                out[stem + "model_price"] = o["model_price"]
+                out[stem + "standard_error"] = o["standard_error"]
+                if "model_vol" in o:
+                    out[stem + "model_vol"] = o["model_vol"]
     return out
 
 
@@ -5978,6 +6401,46 @@ def _quote_filter_pass(lines, flt):
                     "call_mid": c_mid, "put_mid": p_mid, "call_spread": c_spr,
                     "put_spread": p_spr})
     return out
+
+
+def _black_implied_vol(is_call, strike, fwd, price, df, t):
+    """The engine's impliedBlackVol: blackFormulaImpliedStdDev (1e-12, 1000
+    iterations) / sqrt(t); None when it does not solve or is not > 0."""
+    try:
+        sd = ql.blackFormulaImpliedStdDev(
+            ql.Option.Call if is_call else ql.Option.Put, strike, fwd, price, df, 0.0,
+            ql.nullDouble(), 1e-12, 1000)
+    except RuntimeError:
+        return None
+    vol = sd / math.sqrt(t)
+    if not math.isfinite(vol) or not vol > 0.0:
+        return None
+    return vol
+
+
+def _otm_quotes(lines, flt, spot, fwd, df, t):
+    """The engine's selectOutOfTheMoneyQuotes (implied_forwards_evaluator.cpp):
+    the out-of-the-money side (call iff strike >= fwd) of every line that
+    passes the per-line rules, kept when its mid is above intrinsic, at least
+    1e-5 * spot (quote resolution) and has a Black-76 implied vol on (fwd, df,
+    t); sorted by strike."""
+    used = []
+    for q in _quote_filter_pass(lines, flt):
+        k_abs = q["strike"]
+        is_call = k_abs >= fwd
+        bid = q["call_bid"] if is_call else q["put_bid"]
+        ask = q["call_ask"] if is_call else q["put_ask"]
+        mid = q["call_mid"] if is_call else q["put_mid"]
+        intrinsic = df * max(fwd - k_abs if is_call else k_abs - fwd, 0.0)
+        if not mid > intrinsic or mid < 1e-5 * spot:
+            continue
+        vol = _black_implied_vol(is_call, k_abs, fwd, mid, df, t)
+        if vol is None:
+            continue
+        used.append({"strike": k_abs, "is_call": is_call, "bid": bid, "ask": ask,
+                     "mid": mid, "vol": vol})
+    used.sort(key=lambda u: u["strike"])
+    return used
 
 
 def _implied_forwards_fit(sheet, spot, curve, flt, eval_date):
@@ -6229,28 +6692,7 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
             continue
         fwd, df = forwards[expiry]
         t = dc.yearFraction(eval_date, exp_date)
-        used = []
-        for q in _quote_filter_pass(by_expiry[expiry], flt):
-            k_abs = q["strike"]
-            is_call = k_abs >= fwd
-            bid = q["call_bid"] if is_call else q["put_bid"]
-            ask = q["call_ask"] if is_call else q["put_ask"]
-            mid = q["call_mid"] if is_call else q["put_mid"]
-            intrinsic = df * max(fwd - k_abs if is_call else k_abs - fwd, 0.0)
-            if not mid > intrinsic or mid < 1e-5 * spot:
-                continue
-            try:
-                sd = ql.blackFormulaImpliedStdDev(
-                    ql.Option.Call if is_call else ql.Option.Put, k_abs, fwd, mid, df, 0.0,
-                    ql.nullDouble(), 1e-12, 1000)
-            except RuntimeError:
-                continue
-            vol = sd / math.sqrt(t)
-            if not math.isfinite(vol) or not vol > 0.0:
-                continue
-            used.append({"strike": k_abs, "is_call": is_call, "bid": bid, "ask": ask,
-                         "mid": mid, "vol": vol})
-        used.sort(key=lambda u: u["strike"])
+        used = _otm_quotes(by_expiry[expiry], flt, spot, fwd, df, t)
         if len(used) < min_used:
             continue
         work.append({"expiry": expiry, "date": exp_date, "t": t, "fwd": fwd, "df": df,
@@ -6375,24 +6817,28 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
                     tv = prev + 1e-8
             prev = tv
 
-    # Fields: forwards used, quotes used, grid, surface.
+    # Fields: forwards used, quotes used, grid, surface, the SVI slices.
     for j, w in enumerate(work):
         fields[f"forwards.{j}.time"] = w["t"]
         fields[f"forwards.{j}.forward"] = w["fwd"]
         fields[f"forwards.{j}.implied_discount_factor"] = w["df"]
         fields[f"expiries.{report_idx[w['expiry']]}.quotes_used"] = float(len(w["used"]))
+        if method == "SviPerExpiry":
+            stem = f"vol_surface_spec_svi.payload.slices.{j}."
+            fields[stem + "forward"] = w["fwd"]
+            for name in ("a", "b", "sigma", "rho", "m"):
+                fields[stem + name] = w["svi"][name]
     fields["grid_strikes"] = strikes
     fields["vol_surface_spec.payload.surface_vols.values"] = \
         [vols[i][j] for i in range(n_exp) for j in range(n_str)]
 
-    # Vanilla repricing on the returned surface, as the pricers read it.
-    matrix = ql.Matrix(n_str, n_exp)
-    for i in range(n_exp):
-        for j in range(n_str):
-            matrix[j][i] = vols[i][j]
-    surface = ql.BlackVarianceSurface(eval_date, ql.NullCalendar(), grid_dates, strikes, matrix, dc)
-    surface.setInterpolation("bilinear")
-    surface.enableExtrapolation()
+    # Vanilla repricing on the returned grid as the pricers read it
+    # (CubicStrikeLinearTime: the engine's SmileSliceVolSurface twin).
+    surface = _SliceSurface(
+        eval_date, dc, grid_dates,
+        [_cubic_variance_slice(strikes, [vols[i][j] * vols[i][j] * times[i]
+                                         for j in range(n_str)]) for i in range(n_exp)],
+        strikes[0], strikes[-1])
     n = inside = 0
     max_p = max_v = 0.0
     for w in work:

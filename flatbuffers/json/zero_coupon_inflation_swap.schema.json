@@ -11,7 +11,11 @@
     },
     "quantra_enums_SurfaceInterpolator2D" : {
       "type" : "string",
-      "enum": ["Bilinear", "Bicubic"]
+      "enum": ["Bilinear", "Bicubic", "CubicStrikeLinearTime"]
+    },
+    "quantra_enums_SviTimeInterpolation" : {
+      "type" : "string",
+      "enum": ["LinearTotalVariance"]
     },
     "quantra_enums_BootstrapTrait" : {
       "type" : "string",
@@ -115,7 +119,7 @@
     },
     "quantra_enums_VolSurfaceShape" : {
       "type" : "string",
-      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate"]
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate", "SviSlices"]
     },
     "quantra_enums_YoYInflationCapFloorEngineType" : {
       "type" : "string",

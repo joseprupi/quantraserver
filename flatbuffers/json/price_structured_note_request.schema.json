@@ -11,7 +11,11 @@
     },
     "quantra_enums_SurfaceInterpolator2D" : {
       "type" : "string",
-      "enum": ["Bilinear", "Bicubic"]
+      "enum": ["Bilinear", "Bicubic", "CubicStrikeLinearTime"]
+    },
+    "quantra_enums_SviTimeInterpolation" : {
+      "type" : "string",
+      "enum": ["LinearTotalVariance"]
     },
     "quantra_enums_BootstrapTrait" : {
       "type" : "string",
@@ -115,7 +119,7 @@
     },
     "quantra_enums_VolSurfaceShape" : {
       "type" : "string",
-      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate"]
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate", "SviSlices"]
     },
     "quantra_enums_YoYInflationCapFloorEngineType" : {
       "type" : "string",
@@ -223,7 +227,7 @@
     },
     "quantra_VolPayload" : {
       "type" : "string",
-      "enum": ["NONE", "OptionletVolSpec", "SwaptionVolSpec", "BlackVolSpec", "YoYOptionletVolSpec"]
+      "enum": ["NONE", "OptionletVolSpec", "SwaptionVolSpec", "BlackVolSpec", "YoYOptionletVolSpec", "SviVolSpec"]
     },
     "quantra_QuoteKind" : {
       "type" : "string",
@@ -370,6 +374,93 @@
               },
         "flow" : {
                 "anyOf": [{ "$ref" : "#/definitions/quantra_FlowInterest" },{ "$ref" : "#/definitions/quantra_FlowPastInterest" },{ "$ref" : "#/definitions/quantra_FlowNotional" }]
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_OptionQuote" : {
+      "type" : "object",
+      "description" : "One listed-option quote line: a strike at an expiry with the call and put\nsides as quoted (bid/ask), plus optional liquidity fields. Shared by the\nimplied-forward calibration (`/calibrate-implied-forwards`) and the\nvol-surface calibration that consumes its forwards. Prices are in the\nunderlying's currency per unit of underlying (not per contract).\n\nEvery scalar is presence-required where it is needed: a strike or a price\nthat is absent is reported as a dropped quote with a reason, never read as\n0.0. A line may carry only one side (call or put); it then cannot enter a\nparity fit and is dropped with reason \"missing call or put side\".",
+      "properties" : {
+        "expiry" : {
+                "type" : "string",
+                "description" : "Expiry date (YYYY-MM-DD)."
+              },
+        "strike" : {
+                "type" : "number",
+                "description" : "Strike in underlying price units. Must be > 0."
+              },
+        "call_bid" : {
+                "type" : "number"
+              },
+        "call_ask" : {
+                "type" : "number"
+              },
+        "put_bid" : {
+                "type" : "number"
+              },
+        "put_ask" : {
+                "type" : "number"
+              },
+        "call_volume" : {
+                "type" : "number",
+                "description" : "Traded volume on the quote date (contracts). Informational; echoed\nnowhere, reserved for filters."
+              },
+        "put_volume" : {
+                "type" : "number"
+              },
+        "call_open_interest" : {
+                "type" : "number",
+                "description" : "Open interest (contracts). Used by `QuoteFilter.min_open_interest`."
+              },
+        "put_open_interest" : {
+                "type" : "number"
+              }
+      },
+      "required" : ["expiry"],
+      "additionalProperties" : false
+    },
+    "quantra_OptionQuoteSheet" : {
+      "type" : "object",
+      "description" : "A sheet of listed-option quotes for one underlying on one date (the\nrequest's `pricing.as_of_date`). The spot is NOT on the sheet: it is the\n`spot_quote_id` of the referenced `EquityUnderlyingSpec` in\n`pricing.equity.equity_underlyings`, so the same number prices the\noptions and seeds the forward fit.",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "underlying_id" : {
+                "type" : "string",
+                "description" : "`EquityUnderlyingSpec.id` in `pricing.equity.equity_underlyings`.\nOnly its spot quote is read here; its `dividend_yield_curve_id` must\nresolve (the shared registry requires it) but is not used by the\nimplied-forward fit — a flat 0 % placeholder curve is the convention."
+              },
+        "quotes" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_OptionQuote"}
+              },
+        "option_style" : {
+                "$ref" : "#/definitions/quantra_enums_ExerciseType",
+                "description" : "Exercise style of the listed options. Put-call parity, the identity\nthe forward fit rests on, holds for European exercise only: American\nquotes (single stocks, some ETFs) carry an early-exercise premium that\nbiases the fit, so `/calibrate-implied-forwards` rejects any style\nother than European with 400 naming this field. Index options (NDX,\nRUT, SPX, SX5E) are European."
+              }
+      },
+      "required" : ["id", "underlying_id", "quotes"],
+      "additionalProperties" : false
+    },
+    "quantra_QuoteFilter" : {
+      "type" : "object",
+      "description" : "Quote-quality filter applied before the parity fit. Every threshold is\nechoed back on the response so the caller sees what was applied.",
+      "properties" : {
+        "max_relative_spread" : {
+                "type" : "number",
+                "description" : "Maximum (ask - bid) / mid on EACH side (call and put) of a line.\nMust be > 0."
+              },
+        "min_quotes_per_expiry" : {
+                "type" : "integer", "minimum" : 0, "maximum" : 4294967295,
+                "description" : "Minimum number of call/put pairs an expiry needs AFTER both filter\npasses to be fitted; an expiry with fewer is reported as dropped\n(not a 400, unless no expiry survives). Must be >= 2."
+              },
+        "moneyness_window" : {
+                "type" : "number",
+                "description" : "Second-pass window: after a first fit over every surviving pair gives\na provisional forward F1, only strikes inside\n[F1 * (1 - w), F1 * (1 + w)] enter the final fit. Must be > 0."
+              },
+        "min_open_interest" : {
+                "type" : "number",
+                "description" : "Optional: drop a line whose call OR put open interest is below this\n(a line without open-interest fields is kept when the threshold is\nabsent and dropped when it is present)."
               }
       },
       "additionalProperties" : false
@@ -1460,7 +1551,7 @@
               },
         "surface_interpolator" : {
                 "$ref" : "#/definitions/quantra_enums_SurfaceInterpolator2D",
-                "description" : "2D surface interpolator for strike/expiry surfaces."
+                "description" : "Interpolation of a strike x expiry surface (see the enum): Bilinear\nunless asked; `/calibrate-vol-surface` returns CubicStrikeLinearTime."
               },
         "expiry_interpolator" : {
                 "$ref" : "#/definitions/quantra_enums_Interpolator",
@@ -1505,6 +1596,62 @@
       "required" : ["observation_lag"],
       "additionalProperties" : false
     },
+    "quantra_SviSlice" : {
+      "type" : "object",
+      "description" : "One expiry of an `SviVolSpec`: the raw SVI total variance\nw(k) = a + b (rho (k - m) + sqrt((k - m)^2 + sigma^2)), k = ln(K / forward)\n(Gatheral's raw parameterisation, QuantLib `SviSmileSection`), the Black\nvol being sqrt(w(k) / T) with T the base day counter's year fraction from\nthe reference date to `expiry`. The formula is global in strike: no\nstrike extrapolation exists or is needed.",
+      "properties" : {
+        "expiry" : {
+                "type" : "string",
+                "description" : "Expiry date (YYYY-MM-DD), strictly after the reference date; slices\nmust be strictly increasing."
+              },
+        "forward" : {
+                "type" : "number",
+                "description" : "The forward the slice is written against (the origin of k), > 0."
+              },
+        "a" : {
+                "type" : "number"
+              },
+        "b" : {
+                "type" : "number",
+                "description" : "b >= 0; the slice must satisfy a + b sigma sqrt(1 - rho^2) >= 0 so the\nminimum total variance is not negative."
+              },
+        "sigma" : {
+                "type" : "number",
+                "description" : "sigma > 0."
+              },
+        "rho" : {
+                "type" : "number",
+                "description" : "-1 < rho < 1."
+              },
+        "m" : {
+                "type" : "number"
+              }
+      },
+      "required" : ["expiry"],
+      "additionalProperties" : false
+    },
+    "quantra_SviVolSpec" : {
+      "type" : "object",
+      "description" : "Black volatility as raw SVI slices (what `/calibrate-vol-surface` with\n`SviPerExpiry` returns as `vol_surface_spec_svi`): the smile of every\nquoted expiry with its exact curvature, so that a Dupire local vol\nderived from it reprices the quotes through a Monte Carlo (the grid of\na `BlackVolSpec` loses that curvature between nodes unless it is\ninterpolated with `CubicStrikeLinearTime`). Accepted wherever a Black\nvol is referenced (`price-equity-option` `volatility`, a structured\nnote's `underlyings[].volatility_id`); strike-dependent, so a structured\nnote simulates it as Dupire local vol with `monte_carlo.steps_per_year`.\n`base` carries the reference date, calendar, business-day convention and\nday counter only: `shape` must be left at its default, `constant_vol` and\n`quote_id` absent (400 otherwise).",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_BlackVolBaseSpec"
+              },
+        "slices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SviSlice"},
+                "description" : "At least one slice, strictly increasing expiries."
+              },
+        "time_interpolation" : {
+                "$ref" : "#/definitions/quantra_enums_SviTimeInterpolation"
+              },
+        "allow_extrapolation" : {
+                "type" : "boolean",
+                "description" : "Whether an expiry beyond the last slice may be read at all (flat\nimplied vol); strikes need no flag, the formula is global."
+              }
+      },
+      "required" : ["slices"],
+      "additionalProperties" : false
+    },
     "quantra_VolSurfaceSpec" : {
       "type" : "object",
       "description" : "Volatility surface specification referenced by id in trade requests.",
@@ -1516,7 +1663,7 @@
                 "$ref" : "#/definitions/quantra_VolPayload"
               },
         "payload" : {
-                "anyOf": [{ "$ref" : "#/definitions/quantra_OptionletVolSpec" },{ "$ref" : "#/definitions/quantra_SwaptionVolSpec" },{ "$ref" : "#/definitions/quantra_BlackVolSpec" },{ "$ref" : "#/definitions/quantra_YoYOptionletVolSpec" }]
+                "anyOf": [{ "$ref" : "#/definitions/quantra_OptionletVolSpec" },{ "$ref" : "#/definitions/quantra_SwaptionVolSpec" },{ "$ref" : "#/definitions/quantra_BlackVolSpec" },{ "$ref" : "#/definitions/quantra_YoYOptionletVolSpec" },{ "$ref" : "#/definitions/quantra_SviVolSpec" }]
               }
       },
       "required" : ["id"],
@@ -2864,6 +3011,18 @@
         "sample_paths" : {
                 "type" : "integer", "minimum" : 0, "maximum" : 4294967295,
                 "description" : "Number of individual paths returned with `distribution` (basket\nperformance per event, payout, call date), capped at 100; 0 = none.\nRaw underlying levels are never returned."
+              },
+        "vanilla_repricing" : {
+                "type" : "boolean",
+                "description" : "Vanilla repricing through the Monte Carlo, the acceptance check of\nthe quotes -> surface -> simulation chain: every usable quote of\n`vanilla_repricing_sheets` is priced as a European option on\nsimulated paths of the note's own model (same market, curves,\ncorrelation, random sequence, seed and path count; the time grid is\nthe note's grid with the sheet expiries added as mandatory dates,\nrefined by `steps_per_year` as usual) and compared with its bid/ask.\nIt is a separate simulation: the headline and every other block are\nunchanged by this flag. Requires `vanilla_repricing_sheets`.\nDefinitions: `StructuredNoteVanillaRepricing` in\nstructured_note_response.fbs."
+              },
+        "vanilla_repricing_sheets" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_OptionQuoteSheet"},
+                "description" : "The listed-option quote sheets to reprice, at most one per\nunderlying, matched to the notes' underlyings by\n`OptionQuoteSheet.underlying_id`; every sheet must belong to an\nunderlying of some note and every note must have a sheet for at\nleast one of its underlyings (400 otherwise). A sheet for a quanto\nunderlying is a 400: the listed options live in the underlying's\nown measure, the note simulates the quanto-adjusted one. European\nstyle only. Requires `vanilla_repricing = true`."
+              },
+        "vanilla_repricing_filter" : {
+                "$ref" : "#/definitions/quantra_QuoteFilter",
+                "description" : "Quote filter applied to the sheets, the same rules and defaults as\n`/calibrate-vol-surface` (`min_quotes_per_expiry` and\n`moneyness_window` are not used here: there is no parity fit)."
               }
       },
       "additionalProperties" : false

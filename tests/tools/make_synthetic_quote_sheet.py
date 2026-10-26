@@ -131,6 +131,49 @@ SYNTHETIC_SVI_RTY_LIKE.update({
     },
 })
 
+# The two sheets of the Scotia structured-note example
+# (examples/data/structured_note/scotia_..._with_synthetic_surface.json): the
+# `svi` / `svi_rty` smiles on the NOTE's own market, so that the forwards the
+# quotes imply are the forwards the note simulates (the vanilla-repricing
+# diagnostic compares both in the same measure). Spots = the note's
+# NDX_SPOT / RTY_SPOT; `zero_curve` = the note's USD_TSY curve read at the
+# eight sheet expiries (continuous Act/365F zero rates of its InterpolatedZero
+# Treasury curve on 2026-09-30, so the generator's linear interpolation hits
+# the engine's values at every expiry); dividend yields = the note's flat
+# NDX_DIV 0.43 % / RTY_DIV 0.98 %.
+_SCOTIA_TSY_AT_SHEET_EXPIRIES = [
+    ("2026-10-16", 0.040133000000),
+    ("2026-11-20", 0.040700344262),
+    ("2026-12-18", 0.041456803279),
+    ("2027-01-15", 0.041968911111),
+    ("2027-03-19", 0.042708811111),
+    ("2027-06-18", 0.043741478261),
+    ("2027-09-17", 0.044769184783),
+    ("2027-12-17", 0.045642000000),
+]
+SYNTHETIC_SVI_SCOTIA_NDX = copy.deepcopy(SYNTHETIC_SVI_NDX_LIKE)
+SYNTHETIC_SVI_SCOTIA_NDX.update({
+    "underlying_id": "NDX",
+    "spot": 30408.5,
+    "zero_curve": [("2026-09-30", 0.040133)] + _SCOTIA_TSY_AT_SHEET_EXPIRIES,
+    "discounting_curve_id": "USD_TSY",
+    "expiries": [(d, 0.0043) for d, _q in SYNTHETIC_NDX_LIKE["expiries"]],
+    "sheet_id": "NDX_SCOTIA_SYN_SVI_2026-09-30",
+    "dividend_curve_id": "NDX_DIV_IMPLIED",
+    "vol_surface_id": "NDX_VOL",
+})
+SYNTHETIC_SVI_SCOTIA_RTY = copy.deepcopy(SYNTHETIC_SVI_RTY_LIKE)
+SYNTHETIC_SVI_SCOTIA_RTY.update({
+    "underlying_id": "RTY",
+    "spot": 2796.864,
+    "zero_curve": [("2026-09-30", 0.040133)] + _SCOTIA_TSY_AT_SHEET_EXPIRIES,
+    "discounting_curve_id": "USD_TSY",
+    "expiries": [(d, 0.0098) for d, _q in SYNTHETIC_NDX_LIKE["expiries"]],
+    "sheet_id": "RTY_SCOTIA_SYN_SVI_2026-09-30",
+    "dividend_curve_id": "RTY_DIV_IMPLIED",
+    "vol_surface_id": "RTY_VOL",
+})
+
 # Flat 20 % everywhere: both methods must return 0.20 on the whole grid.
 SYNTHETIC_FLAT_20 = copy.deepcopy(SYNTHETIC_NDX_LIKE)
 SYNTHETIC_FLAT_20.update({
@@ -143,6 +186,8 @@ PRESETS = {
     "ndx_like": SYNTHETIC_NDX_LIKE,
     "svi": SYNTHETIC_SVI_NDX_LIKE,
     "svi_rty": SYNTHETIC_SVI_RTY_LIKE,
+    "svi_scotia_ndx": SYNTHETIC_SVI_SCOTIA_NDX,
+    "svi_scotia_rty": SYNTHETIC_SVI_SCOTIA_RTY,
     "flat": SYNTHETIC_FLAT_20,
 }
 

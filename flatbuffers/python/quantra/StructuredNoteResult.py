@@ -245,8 +245,21 @@ class StructuredNoteResult(object):
             return obj
         return None
 
+    # Absent unless `diagnostics.vanilla_repricing` was set (or nothing
+    # was simulated).
+    # StructuredNoteResult
+    def VanillaRepricing(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(44))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.StructuredNoteVanillaRepricing import StructuredNoteVanillaRepricing
+            obj = StructuredNoteVanillaRepricing()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
 def StructuredNoteResultStart(builder):
-    builder.StartObject(20)
+    builder.StartObject(21)
 
 def Start(builder):
     StructuredNoteResultStart(builder)
@@ -377,6 +390,12 @@ def StructuredNoteResultAddTiming(builder, timing):
 def AddTiming(builder, timing):
     StructuredNoteResultAddTiming(builder, timing)
 
+def StructuredNoteResultAddVanillaRepricing(builder, vanillaRepricing):
+    builder.PrependUOffsetTRelativeSlot(20, flatbuffers.number_types.UOffsetTFlags.py_type(vanillaRepricing), 0)
+
+def AddVanillaRepricing(builder, vanillaRepricing):
+    StructuredNoteResultAddVanillaRepricing(builder, vanillaRepricing)
+
 def StructuredNoteResultEnd(builder):
     return builder.EndObject()
 
@@ -412,6 +431,7 @@ class StructuredNoteResultT(object):
         self.checks = None  # type: Optional[StructuredNoteChecksDiagnosticsT]
         self.distribution = None  # type: Optional[StructuredNoteDistributionDiagnosticsT]
         self.timing = None  # type: Optional[StructuredNoteTimingDiagnosticsT]
+        self.vanillaRepricing = None  # type: Optional[StructuredNoteVanillaRepricingT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -471,6 +491,8 @@ class StructuredNoteResultT(object):
             self.distribution = StructuredNoteDistributionDiagnosticsT.InitFromObj(structuredNoteResult.Distribution())
         if structuredNoteResult.Timing() is not None:
             self.timing = StructuredNoteTimingDiagnosticsT.InitFromObj(structuredNoteResult.Timing())
+        if structuredNoteResult.VanillaRepricing() is not None:
+            self.vanillaRepricing = StructuredNoteVanillaRepricingT.InitFromObj(structuredNoteResult.VanillaRepricing())
 
     # StructuredNoteResultT
     def Pack(self, builder):
@@ -504,6 +526,8 @@ class StructuredNoteResultT(object):
             distribution = self.distribution.Pack(builder)
         if self.timing is not None:
             timing = self.timing.Pack(builder)
+        if self.vanillaRepricing is not None:
+            vanillaRepricing = self.vanillaRepricing.Pack(builder)
         StructuredNoteResultStart(builder)
         if self.tradeId is not None:
             StructuredNoteResultAddTradeId(builder, tradeId)
@@ -537,5 +561,7 @@ class StructuredNoteResultT(object):
             StructuredNoteResultAddDistribution(builder, distribution)
         if self.timing is not None:
             StructuredNoteResultAddTiming(builder, timing)
+        if self.vanillaRepricing is not None:
+            StructuredNoteResultAddVanillaRepricing(builder, vanillaRepricing)
         structuredNoteResult = StructuredNoteResultEnd(builder)
         return structuredNoteResult

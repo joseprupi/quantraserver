@@ -26,7 +26,76 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
-## Unreleased
+## Version 0.15.0 (October 2026) — surfaces that the simulation can trust
+
+`v0.15.0` is a backward-compatible MINOR release. No existing request changes
+shape or value unless it opts in. It closes the chain quotes → surface →
+simulation with an acceptance check the engine runs on itself (the
+`vanilla_repricing` diagnostic), and it changes how a calibrated surface is
+carried: as a grid read with a cubic spline in strike, or as the fitted SVI
+parameters themselves. Also includes the repository layout change (paths
+only: `src/decode/{market,products}`, `clients/`, `flatbuffers/grpc/`,
+examples in product folders).
+
+- Strike x expiry Black surfaces (`BlackVolSpec` `SmileCube3D` and
+  `SurfaceFromPrices`, and the vega-shifted rebuilds) now extrapolate
+  CONSTANT in strike on both sides: a strike beyond the grid reads the edge
+  strike's vol instead of QuantLib's linear continuation of the total
+  variance, which turns negative far from the grid. No wire change; a
+  request whose strikes and simulated levels stay inside the grid is
+  unchanged. Beyond the last expiry the implied vol is flat (QuantLib's
+  own rule, unchanged). Under a structured note the Dupire local vol is
+  read at the simulated level clamped to the interior of the strike grid
+  (margin 1e-3 in log-strike), so a path beyond the quoted strikes evolves
+  with the edge strike's local vol; one local-vol object per distinct
+  market is shared by every simulation of the request. The Scotia
+  synthetic-surface catalog row moves by the extrapolation policy (paths
+  below half the spot).
+- `POST /price-structured-note`: `diagnostics.vanilla_repricing` with
+  `diagnostics.vanilla_repricing_sheets` (`OptionQuoteSheet`s, one per
+  underlying) and optionally `diagnostics.vanilla_repricing_filter`
+  (`QuoteFilter`), additive: every usable quote priced as a European option
+  on one extra simulation of the note's model (the note's grid plus the
+  sheet expiries), compared with its bid/ask, with the implied vols of the
+  mid and of the model price; the response gains the optional
+  `vanilla_repricing` block (`StructuredNoteVanillaRepricing`) and the
+  timing stage `vanilla_repricing`. The headline is unchanged by the flag.
+  The Scotia synthetic-surface example now carries the two sheets its
+  surfaces were calibrated from (generated on the note's own curves) and
+  the flag; the generator gains the `svi_scotia_ndx` / `svi_scotia_rty`
+  presets.
+- `SurfaceInterpolator2D` gains `CubicStrikeLinearTime` (additive): a
+  strike x expiry `BlackVolSpec` read as one natural cubic spline of total
+  variance in log-strike per expiry (C2: every node reproduced, the smile's
+  curvature kept between nodes), linear in total variance between expiries
+  at fixed strike, constant beyond the first and last strike, flat implied
+  vol beyond the last expiry. `/calibrate-vol-surface` now returns its grid
+  with this interpolator (the only change to its `vol_surface_spec`; its
+  `vanilla_repricing` reads the grid the same way). A grid supplied by a
+  request keeps `Bilinear` unless it asks: no existing request changes.
+  `Bicubic` is kept.
+- New `VolPayload` member `SviVolSpec` (additive): a Black vol as raw SVI
+  slices (`SviSlice {expiry, forward, a, b, sigma, rho, m}` per expiry,
+  `time_interpolation: LinearTotalVariance`, `allow_extrapolation`),
+  accepted wherever a Black vol is referenced (`price-equity-option`,
+  structured-note underlyings — Dupire local vol with `steps_per_year` —,
+  `sample-vol-surfaces`). `VolSurfaceShape` gains `SviSlices` for the
+  structured-note `model.underlyings[].vol_shape` echo (a `BlackVolSpec`
+  with that shape is a `400`). `/calibrate-vol-surface` with `SviPerExpiry`
+  returns the fitted slices as `vol_surface_spec_svi` next to the grid;
+  with `AndreasenHuge` the field is absent and `vol_surface_spec_svi_note`
+  says why. New example
+  `examples/data/structured_note/scotia_..._with_synthetic_svi.json` (the
+  Scotia note on the SVI payloads) and catalog row.
+- The acceptance check of the chain is met: the vanilla-repricing
+  diagnostic on the Scotia synthetic-surface examples has every used quote
+  within the Monte Carlo noise of its bid/ask on the `CubicStrikeLinearTime`
+  grid and on the SVI payload every option beyond the first expiry with a mid of at least 0.25 % of the spot within 3.5 standard errors of its bid/ask at 2048, 16 384 and 65 536 paths, the mean vol error per expiry within 0.12 vol points from two months on at 65 536 paths; the 16-day expiry keeps a −1 vol point residual from the Euler steps and the deep short wings are at the sampling limit, reported separately. The documented limit of the
+  previous bullet is now the `Bilinear` reading only. The Scotia
+  synthetic-surface catalog row moves with the regenerated example (its
+  surfaces now carry `CubicStrikeLinearTime`); the two 0.14.0 vol-surface
+  rows move in their `vanilla_repricing.model_vol` / `model_price` fields
+  (the grid is read cubic instead of bilinear).
 
 - Repository layout tidy-up, paths only, no behaviour or wire change:
   `src/parsers/` → `src/decode/market/` and the per-product mappers →

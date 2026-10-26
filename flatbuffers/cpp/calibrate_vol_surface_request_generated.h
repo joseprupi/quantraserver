@@ -53,9 +53,7 @@ struct VolSurfaceOutputGrid FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
     VT_EXPIRIES = 6
   };
   /// Strikes as multiples of the spot, strictly increasing, > 0.
-  /// Default when absent or empty: 0.500, 0.525, ..., 1.500 (41 points;
-  /// the surface is read bilinearly in total variance, and a coarser
-  /// 0.05 step misses a 1 % bid/ask between its nodes on a skewed smile).
+  /// Default when absent or empty: 0.500, 0.525, ..., 1.500 (41 points).
   const ::flatbuffers::Vector<double> *strikes_as_moneyness() const {
     return GetPointer<const ::flatbuffers::Vector<double> *>(VT_STRIKES_AS_MONEYNESS);
   }

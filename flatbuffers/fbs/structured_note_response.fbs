@@ -1,5 +1,6 @@
 include "enums.fbs";
 include "common.fbs";
+include "calibrate_implied_forwards_response.fbs";
 
 namespace quantra;
 
@@ -522,6 +523,111 @@ table StructuredNoteTimingDiagnostics {
     total_milliseconds:double;
 }
 
+/// One listed quote repriced on the simulated paths
+/// (`diagnostics.vanilla_repricing`).
+table StructuredNoteRepricedOption {
+    /// Expiry date (YYYY-MM-DD), a point of the repricing time grid.
+    expiry:string (required);
+    /// Actual/365 (Fixed) years from the valuation date.
+    time:double;
+    strike:double;
+    /// The side priced: the out-of-the-money one with respect to the model
+    /// forward (`Call` when strike >= forward, `Put` otherwise), as
+    /// `/calibrate-vol-surface` selects it.
+    option_type:enums.EquityOptionType = null;
+    bid:double;
+    ask:double;
+    mid:double;
+    /// `discount_factor x mean of max(+/-(S_T - K), 0)` over the simulated
+    /// paths, `S_T` the simulated level at the expiry grid point and
+    /// `discount_factor` the note's discounting curve without the funding
+    /// spread (listed options are not note liabilities).
+    model_price:double;
+    /// Monte Carlo standard error of `model_price` (the path engine's
+    /// estimator, discounted).
+    standard_error:double;
+    /// bid <= model_price <= ask.
+    inside_bid_ask:bool;
+    /// model_price - mid.
+    price_error:double;
+    /// Black-76 implied vol of the mid on the model forward and discount
+    /// factor of the expiry; absent when the mid does not solve (outside
+    /// the Black bounds).
+    market_vol:double = null;
+    /// Black-76 implied vol of `model_price` on the same forward and
+    /// discount factor; absent when it does not solve.
+    model_vol:double = null;
+    /// model_vol - market_vol; absent when either is.
+    vol_error:double = null;
+}
+
+/// One sheet expiry as the repricing used it.
+table StructuredNoteRepricingExpiry {
+    expiry:string (required);
+    time:double;
+    /// The model forward of the underlying at the expiry: spot x
+    /// D_div(T) / D_note(T) on the simulation's time axis (the forward the
+    /// process drifts along, quanto excluded).
+    forward:double;
+    /// D_note(T), the discounting curve without the funding spread.
+    discount_factor:double;
+    quotes_used:uint;
+    quotes_dropped:uint;
+    /// Every line not used, with its reason (the per-line quality rules of
+    /// `/calibrate-implied-forwards`, then the out-of-the-money side's mid
+    /// not above intrinsic, below 1e-5 of the spot, or without an implied
+    /// vol).
+    dropped:[DroppedQuote] (required);
+}
+
+/// The repricing of one sheet (one underlying).
+table StructuredNoteVanillaRepricingUnderlying {
+    underlying_id:string (required);
+    sheet_id:string (required);
+    spot:double;
+    /// Every sheet expiry in date order (an expiry on or before the
+    /// valuation date is reported with every line dropped).
+    expiries:[StructuredNoteRepricingExpiry] (required);
+    count:uint;
+    inside_bid_ask:uint;
+    /// Largest |model_price - mid| over the used quotes (price units).
+    max_abs_price_error:double;
+    /// Largest |model_vol - market_vol| (vol units) over the used quotes
+    /// where both solve; absent when none does.
+    max_abs_vol_error:double = null;
+    /// Largest standard error over the used quotes, in price units.
+    max_standard_error:double;
+    options:[StructuredNoteRepricedOption] (required);
+}
+
+/// `diagnostics.vanilla_repricing`: every usable quote of the request's
+/// sheets priced as a European option on ONE extra simulation of the
+/// note's model (same market, correlation, sequence, seed and paths; the
+/// time grid is the note's grid with the sheet expiries added as mandatory
+/// dates), so that the quotes a surface was calibrated to are repriced
+/// through the very paths the note is priced on. The headline and every
+/// other block are computed on the note's own grid and are unchanged by
+/// this flag; `note_npv` is the note walked on the repricing grid so the
+/// effect of the extra grid points is visible (Monte Carlo noise: with
+/// `steps_per_year` the grid refinement differs where an expiry splits an
+/// interval, and without it the exact lognormal steps simply pass through
+/// more dates; both change the random stream, neither changes the model).
+table StructuredNoteVanillaRepricing {
+    /// Paths simulated (the note's `monte_carlo.paths`).
+    paths:uint;
+    /// Steps of the repricing grid (the note's grid plus the expiries).
+    time_steps:uint;
+    /// The note's NPV and standard error on the repricing paths.
+    note_npv:double;
+    note_standard_error:double;
+    count:uint;
+    inside_bid_ask:uint;
+    max_abs_price_error:double;
+    max_abs_vol_error:double = null;
+    max_standard_error:double;
+    underlyings:[StructuredNoteVanillaRepricingUnderlying] (required);
+}
+
 // ---------------------------------------------------------------------------
 // Result
 // ---------------------------------------------------------------------------
@@ -570,6 +676,9 @@ table StructuredNoteResult {
     checks:StructuredNoteChecksDiagnostics;
     distribution:StructuredNoteDistributionDiagnostics;
     timing:StructuredNoteTimingDiagnostics;
+    /// Absent unless `diagnostics.vanilla_repricing` was set (or nothing
+    /// was simulated).
+    vanilla_repricing:StructuredNoteVanillaRepricing;
 }
 
 /// Response wrapper for multiple structured notes, in request order.

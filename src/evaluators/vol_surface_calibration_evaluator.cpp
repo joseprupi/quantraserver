@@ -2,12 +2,12 @@
 
 #include "date_convert.h"
 #include "error.h"
+#include "smile_slice_vol_surface.h"
 
 #include <ql/exercise.hpp>
 #include <ql/experimental/volatility/sviinterpolation.hpp>
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/math/array.hpp>
-#include <ql/math/interpolations/bilinearinterpolation.hpp>
 #include <ql/math/matrix.hpp>
 #include <ql/math/optimization/constraint.hpp>
 #include <ql/math/optimization/costfunction.hpp>
@@ -18,7 +18,6 @@
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/volatility/equityfx/andreasenhugevolatilityadapter.hpp>
 #include <ql/termstructures/volatility/equityfx/andreasenhugevolatilityinterpl.hpp>
-#include <ql/termstructures/volatility/equityfx/blackvariancesurface.hpp>
 #include <ql/termstructures/yield/discountcurve.hpp>
 #include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
@@ -43,20 +42,12 @@ constexpr double kCalendarFloor = 1e-8; // total variance
 constexpr double kButterflyPenalty = 100.0;
 constexpr unsigned kButterflyPoints = 201;
 constexpr unsigned kMinQuotesSvi = 5;
-// Quote resolution: an out-of-the-money price below this fraction of the spot
-// (0.24 index points on a 24,000 index) carries no vol information.
-constexpr double kPriceResolution = 1e-5;
 // Andreasen-Huge grid inversion: the one-step finite-difference price carries
 // noise of ~1e-7 of the spot; below this fraction of the spot that noise
 // moves the implied vol by more than a tenth of a vol point.
 constexpr double kGridInversionResolution = 1e-4;
 
-struct UsedQuote {
-    double strike = 0.0;
-    bool isCall = true;
-    double bid = 0.0, ask = 0.0, mid = 0.0;
-    double vol = 0.0;
-};
+using UsedQuote = OutOfTheMoneyQuote;
 
 struct ExpiryWork {
     Date expiry;
@@ -79,19 +70,6 @@ std::string trimMessage(const std::string& s) {
     for (auto& c : t)
         if (c == '\n') c = ' ';
     return t.size() > 160 ? t.substr(0, 160) + "..." : t;
-}
-
-std::optional<double> impliedVol(
-    QuantLib::Option::Type type, double K, double F, double price, double DF, double T) {
-    try {
-        const double sd = QuantLib::blackFormulaImpliedStdDev(
-            type, K, F, price, DF, 0.0, QuantLib::Null<Real>(), 1e-12, 1000);
-        const double v = sd / std::sqrt(T);
-        if (!std::isfinite(v) || !(v > 0.0)) return std::nullopt;
-        return v;
-    } catch (...) {
-        return std::nullopt;
-    }
 }
 
 std::vector<double> defaultMoneyness() {
@@ -180,8 +158,7 @@ double minDurrleman(const SviParams& p, const std::vector<double>& ks) {
 } // namespace
 
 double sviTotalVariance(const SviParams& p, double k) {
-    const double d = k - p.m;
-    return p.a + p.b * (p.rho * d + std::sqrt(d * d + p.sigma * p.sigma));
+    return sviRawTotalVariance(p.a, p.b, p.sigma, p.rho, p.m, k);
 }
 
 double sviDurrlemanG(const SviParams& p, double k) {
@@ -329,51 +306,8 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
         w.time = T;
         w.forward = F;
         w.df = DF;
-        for (const FilteredQuote& q : filterExpiryLines(lines, base.filter, e.dropped)) {
-            const bool isCall = q.strike >= F;
-            const char* side = isCall ? "call" : "put";
-            const double bid = isCall ? q.callBid : q.putBid;
-            const double ask = isCall ? q.callAsk : q.putAsk;
-            const double mid = isCall ? q.callMid : q.putMid;
-            const double intrinsic = DF * std::max(isCall ? F - q.strike : q.strike - F, 0.0);
-            if (!(mid > intrinsic)) {
-                e.dropped.push_back(
-                    DroppedQuoteData{
-                        e.expiryIso, q.strike,
-                        std::string("out-of-the-money ") + side +
-                            " mid not above intrinsic value"});
-                continue;
-            }
-            if (mid < kPriceResolution * spot) {
-                e.dropped.push_back(
-                    DroppedQuoteData{
-                        e.expiryIso, q.strike,
-                        std::string("out-of-the-money ") + side +
-                            " mid below 1e-5 of the spot (quote resolution, no vol information)"});
-                continue;
-            }
-            const auto vol = impliedVol(
-                isCall ? QuantLib::Option::Call : QuantLib::Option::Put, q.strike, F, mid, DF, T);
-            if (!vol) {
-                e.dropped.push_back(
-                    DroppedQuoteData{
-                        e.expiryIso, q.strike,
-                        std::string("implied vol of the out-of-the-money ") + side +
-                            " mid does not solve (price outside the Black bounds)"});
-                continue;
-            }
-            UsedQuote u;
-            u.strike = q.strike;
-            u.isCall = isCall;
-            u.bid = bid;
-            u.ask = ask;
-            u.mid = mid;
-            u.vol = *vol;
-            w.used.push_back(u);
-        }
-        std::sort(w.used.begin(), w.used.end(), [](const UsedQuote& x, const UsedQuote& y) {
-            return x.strike < y.strike;
-        });
+        w.used =
+            selectOutOfTheMoneyQuotes(lines, base.filter, e.expiryIso, spot, F, DF, T, e.dropped);
         if (w.used.size() < minUsed) {
             dropExpiry(
                 "fewer than " + std::to_string(minUsed) + " quotes with an implied vol (" +
@@ -713,16 +647,22 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
     }
 
     // ------------------------------------------------------------------
-    // 5. Vanilla repricing on the returned surface.
+    // 5. Vanilla repricing on the returned surface, read as the pricers
+    //    read it (CubicStrikeLinearTime, the output spec's interpolator).
     // ------------------------------------------------------------------
     {
-        QuantLib::Matrix m(nStr, nExp);
+        if (nStr < 2) {
+            QUANTRA_INVALID_ARGUMENT(
+                "output_grid.strikes_as_moneyness needs at least 2 strikes (the returned surface "
+                "is a cubic spline in strike)");
+        }
+        std::vector<std::vector<double>> rows(nExp, std::vector<double>(nStr));
         for (std::size_t i = 0; i < nExp; ++i)
             for (std::size_t j = 0; j < nStr; ++j)
-                m[j][i] = out.gridVols[i * nStr + j];
-        auto surface = std::make_shared<QuantLib::BlackVarianceSurface>(
-            asOf, QuantLib::NullCalendar(), gridDates, out.gridStrikes, m, dc);
-        surface->setInterpolation<QuantLib::Bilinear>();
+                rows[i][j] = out.gridVols[i * nStr + j];
+        auto surface = makeCubicStrikeLinearTimeSurface(
+            asOf, QuantLib::NullCalendar(), QuantLib::Unadjusted, dc, gridDates, out.gridStrikes,
+            rows);
         surface->enableExtrapolation();
         auto& rp = out.repricing;
         for (const auto& w : work) {

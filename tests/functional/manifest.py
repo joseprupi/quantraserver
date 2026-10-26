@@ -3646,7 +3646,7 @@ CASES = [
             "expiries), exact Black mids with a 1 % bid/ask: implied forwards "
             "fitted internally, out-of-the-money mids inverted to Black-76 vols, "
             "sampled on the default 41 x 8 moneyness grid; every used quote "
-            "repriced on the returned surface. Compares the forwards, the "
+            "repriced on the returned surface read CubicStrikeLinearTime. Compares the forwards, the "
             "per-expiry fit errors, the grid strikes, every grid vol and the "
             "per-quote model vol and price."
         ),
@@ -3667,10 +3667,12 @@ CASES = [
             "vega-weighted Levenberg-Marquardt, five free parameters) on the "
             "same synthetic SSVI sheet, Durrleman butterfly check and calendar "
             "check of total variance across the grid expiries, sampled on the "
-            "default 41 x 8 grid. The fit recovers the generating slices to "
-            "machine precision (rmse_vol ~1e-16). Compares the forwards, the "
-            "SVI parameters and fit errors per expiry, the grid strikes, every "
-            "grid vol and the per-quote model vol and price."
+            "default 41 x 8 grid, the slices also returned as an SviVolSpec "
+            "payload. The fit recovers the generating slices to machine "
+            "precision (rmse_vol ~1e-16). Compares the forwards, the SVI "
+            "parameters and fit errors per expiry, the slices of the SVI "
+            "payload, the grid strikes, every grid vol and the per-quote model "
+            "vol and price on the grid read CubicStrikeLinearTime."
         ),
         "request": "vol_surface/synthetic_svi_sheet_2026-09-30_svi.json",
         "ql_pricer": "calibrate_vol_surface_ql",
@@ -4566,21 +4568,57 @@ CASES = [
         "description": (
             "The Scotia request with its flat VXN/RVX vols replaced by SYNTHETIC "
             "Black surfaces for NDX and RTY: SVI slices calibrated by "
-            "/calibrate-vol-surface from the generator's svi and svi_rty presets "
-            "(SSVI, rho -0.7 / -0.65) re-struck at the note's own spot levels, "
-            "41 strikes x 8 expiries each. The surfaces make the simulation "
-            "Dupire local vol on 252 steps per year; 2048 Sobol paths with "
-            "Brownian bridge and antithetic variates. Shows the shape of a "
+            "/calibrate-vol-surface from the generator's svi_scotia_ndx and "
+            "svi_scotia_rty presets (SSVI, rho -0.7 / -0.65, written on the "
+            "note's own spots, Treasury curve and dividend yields), 41 strikes x "
+            "8 expiries each, read CubicStrikeLinearTime (a natural cubic spline "
+            "of total variance in log-strike per expiry, linear in time). The "
+            "surfaces make the simulation Dupire local vol on 252 steps per year "
+            "(edge-clamped, constant strike extrapolation); 2048 Sobol paths "
+            "with Brownian bridge and antithetic variates. The two sheets are "
+            "pasted under diagnostics.vanilla_repricing_sheets: every used quote "
+            "repriced on one extra simulation (the note's grid plus the sheet "
+            "expiries) and compared with its bid/ask. Shows the shape of a "
             "surface-priced note; the price is not a market value. Same-stream "
-            "Monte Carlo parity on every reported scalar."
+            "Monte Carlo parity on every reported scalar, the repricing summary "
+            "and a sample of the repriced options included (the reference "
+            "evaluates the cubic slices and QuantLib's Dupire stencil in Python)."
         ),
         "request": "structured_note/scotia_autocallable_trigger_ndx_rty_us06419jme72_with_synthetic_surface.json",
         "ql_pricer": "price_structured_note_ql",
         "tolerance": STRUCTURED_NOTE_TOLERANCE,
         "compare": "fields",
         "exercises": ["structured note", "worst-of", "strike x expiry vol surface",
-                      "Dupire local vol", "steps_per_year", "synthetic surface from option quotes",
+                      "CubicStrikeLinearTime", "Dupire local vol", "steps_per_year",
+                      "synthetic surface from option quotes", "vanilla repricing",
                       "same-stream Monte Carlo parity"],
+    },
+    {
+        "id": "structured_note_scotia_autocallable_trigger_ndx_rty_synthetic_svi",
+        "product": "structured_note",
+        "family": "Structured Notes",
+        "title": "Scotia Autocallable Trigger Notes on NDX/RTY under synthetic SVI slices (SviVolSpec payload, Dupire local vol)",
+        "description": (
+            "The same Scotia request with the two calibrations returned as "
+            "SviVolSpec payloads instead of grids: the eight fitted raw SVI "
+            "slices per index (a, b, sigma, rho, m about the fitted forward), "
+            "linear in total variance between expiries, the exact surfaces the "
+            "synthetic sheets were generated from. Dupire local vol on 252 steps "
+            "per year (no strike edge: the formula is global), 2048 Sobol paths "
+            "with Brownian bridge and antithetic variates, the two sheets under "
+            "diagnostics.vanilla_repricing_sheets. Synthetic vols; the price is "
+            "not a market value. Same-stream Monte Carlo parity on every "
+            "reported scalar, the repricing summary and a sample of the repriced "
+            "options (the reference evaluates the SVI slices and QuantLib's "
+            "Dupire stencil in Python)."
+        ),
+        "request": "structured_note/scotia_autocallable_trigger_ndx_rty_us06419jme72_with_synthetic_svi.json",
+        "ql_pricer": "price_structured_note_ql",
+        "tolerance": STRUCTURED_NOTE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["structured note", "worst-of", "SVI slices", "SviVolSpec",
+                      "Dupire local vol", "steps_per_year", "synthetic surface from option quotes",
+                      "vanilla repricing", "same-stream Monte Carlo parity"],
     },
     {
         "id": "structured_note_jpm_review_notes_ndx_rty_spx_46661pt64",

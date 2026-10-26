@@ -62,8 +62,7 @@
  *    carries min g before and after. Grid vols are sqrt(w(k) / T).
  *
  * 4. Grid and calendar check. Strikes = moneyness * spot (default 0.50 ..
- *    1.50 step 0.025, 41 points: a 0.05 step read bilinearly misses a 1 %
- *    bid/ask on a quarter of the synthetic quotes); expiries default to the
+ *    1.50 step 0.025, 41 points, at least 2); expiries default to the
  *    fitted sheet expiries. At each
  *    grid strike total variance w_i = sigma_i^2 T_i must not decrease with
  *    the expiry; a point where w_i < w_{i-1} + 1e-8 is a calendar violation,
@@ -73,11 +72,17 @@
  * 5. Output and repricing. The surface is a BlackVolSpec SmileCube3D on a
  *    NullCalendar / Unadjusted / Actual365Fixed base with the grid expiries
  *    as calendar-day periods from the as-of date (so the dates are exact),
- *    bilinear in total variance, extrapolation allowed. Every used quote is
- *    repriced on that very object (BlackVarianceSurface, as
- *    vol_surface_parsers builds it): model vol at (expiry, K), Black price on
- *    the same F and DF, inside the bid/ask or not, with the largest price
- *    and vol excursions.
+ *    read with surface_interpolator CubicStrikeLinearTime (per expiry a
+ *    natural cubic spline of total variance in log-strike, linear in total
+ *    variance between expiries; src/market/smile_slice_vol_surface.h),
+ *    extrapolation allowed. Every used quote is repriced on that very
+ *    object (SmileSliceVolSurface, as vol_surface_parsers builds it): model
+ *    vol at (expiry, K), Black price on the same F and DF, inside the
+ *    bid/ask or not, with the largest price and vol excursions. With
+ *    SviPerExpiry the fitted slices (forward, a, b, sigma, rho, m per
+ *    usable expiry, after the butterfly refit, before the grid's calendar
+ *    clip) are returned as well, as an SviVolSpec payload (the mapper
+ *    builds it from `expiries[].svi` and `forwards`).
  *
  * INVARIANT: this file (and its .cpp) must NEVER include any *_generated.h or
  * mention FlatBuffers/gRPC namespaces. Suite 0 (scripts/check_evaluator_boundary.sh)

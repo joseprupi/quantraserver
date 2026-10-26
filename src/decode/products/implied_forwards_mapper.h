@@ -19,6 +19,25 @@
 
 namespace quantra {
 
+/// An OptionQuoteSheet as decoded for any endpoint that takes one: ids,
+/// style, the quote lines with absent scalars kept absent.
+struct DecodedQuoteSheet {
+    std::string sheetId;
+    std::string underlyingId;
+    OptionSheetStyle style = OptionSheetStyle::European;
+    std::vector<OptionQuoteLine> quotes;
+};
+
+/// Decode a sheet; 400 naming `<path>.<field>` for a missing `id`,
+/// `underlying_id`, an empty `quotes`, a missing `expiry` or an unknown
+/// `option_style`. `path` is the sheet's own path ("sheet",
+/// "diagnostics.vanilla_repricing_sheets[0]").
+DecodedQuoteSheet decodeOptionQuoteSheet(
+    const quantra::OptionQuoteSheet* sheet, const std::string& path);
+
+/// Decode a QuoteFilter (schema defaults when absent).
+QuoteFilterData decodeQuoteFilter(const quantra::QuoteFilter* filter);
+
 class ImpliedForwardsMapper {
 public:
     ImpliedForwardsInputs toInputs(const quantra::CalibrateImpliedForwardsRequest* req) const;

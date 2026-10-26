@@ -10,3 +10,6 @@ class VolSurfaceShape(object):
     SurfaceFromPrices = 3
     SabrParams = 4
     SabrCalibrate = 5
+    # The shape an `SviVolSpec` payload reports (`vol_shape` echoes); not
+    # a `BlackVolSpec.base.shape` value (400).
+    SviSlices = 6

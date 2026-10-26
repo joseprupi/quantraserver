@@ -55,12 +55,15 @@
 #include <ql/instruments/payoffs.hpp>
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/math/distributions/bivariatenormaldistribution.hpp>
+#include <ql/math/interpolations/bilinearinterpolation.hpp>
 #include <ql/math/matrixutilities/symmetricschurdecomposition.hpp>
+#include <ql/pricingengines/blackformula.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/settings.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
+#include <ql/termstructures/volatility/equityfx/blackvariancesurface.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
@@ -114,6 +117,48 @@ struct NoteMarket {
         v.shapeFb = quantra::enums::VolSurfaceShape_Constant;
         v.referenceDate = asOf;
         v.dayCounter = dc;
+        reg.volatility.blackVols[id + "_VOL"] = v;
+    }
+
+    /// A strike x expiry surface underlying (the same vols at every
+    /// expiry), built exactly as the parser builds it: BlackVarianceSurface,
+    /// bilinear in variance, constant strike extrapolation, extrapolating.
+    void addSurfaceUnderlying(
+        const std::string& id,
+        double spot,
+        double q,
+        const std::vector<double>& strikes,
+        const std::vector<double>& volsAtStrike,
+        const std::vector<Date>& expiries,
+        QuantLib::BlackVarianceSurface::Extrapolation extrapolation =
+            QuantLib::BlackVarianceSurface::ConstantExtrapolation) {
+        auto div = std::make_shared<QuantLib::FlatForward>(asOf, q, dc);
+        reg.rates.curves[id + "_DIV"] =
+            std::make_shared<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>(div);
+        EquityUnderlyingRuntime u;
+        u.currency = "USD";
+        u.spot = Handle<QuantLib::Quote>(std::make_shared<QuantLib::SimpleQuote>(spot));
+        u.dividend = Handle<QuantLib::YieldTermStructure>(div);
+        reg.equity.equityUnderlyings[id] = u;
+        QuantLib::Matrix vols(strikes.size(), expiries.size());
+        for (std::size_t i = 0; i < strikes.size(); ++i)
+            for (std::size_t j = 0; j < expiries.size(); ++j)
+                vols[i][j] = volsAtStrike[i];
+        auto surface = std::make_shared<QuantLib::BlackVarianceSurface>(
+            asOf, QuantLib::NullCalendar(), expiries, strikes, vols, dc, extrapolation,
+            extrapolation);
+        surface->setInterpolation<QuantLib::Bilinear>();
+        surface->enableExtrapolation();
+        BlackVolEntry v;
+        v.handle = Handle<QuantLib::BlackVolTermStructure>(surface);
+        v.shapeFb = quantra::enums::VolSurfaceShape_SmileCube3D;
+        v.referenceDate = asOf;
+        v.calendar = QuantLib::NullCalendar();
+        v.dayCounter = dc;
+        v.pillarDates = expiries;
+        v.strikes = strikes;
+        v.surfaceVols = vols;
+        v.allowExtrapolation = true;
         reg.volatility.blackVols[id + "_VOL"] = v;
     }
 
@@ -630,6 +675,69 @@ TEST_F(StructuredNoteCollapseTest, MarketDependentRulesAre400s) {
     expect400(t, "historical_levels[0].date: 2027-10-28 is after the valuation date");
 }
 
+// A strike x expiry surface quoted on a narrow strike grid (80..120 on a
+// 100 spot, 45 % -> 36 % skew) under a one-year note at that vol: the
+// simulated levels reach 50 and 160, far outside the grid. The surface is
+// read with constant strike extrapolation (the market block's barrier vol
+// at 50 % is the 80 strike's vol) and the Dupire local vol is held at the
+// edge, so the note prices. The same surface with QuantLib's default
+// linear continuation of the variance in strike (which turns negative
+// above ~200 on the call wing) prices too, because the simulation never
+// reads the surface beyond the clamp margin: the extrapolation mode only
+// changes what direct readers see (the barrier vol at 50 % here).
+TEST_F(StructuredNoteCollapseTest, SurfaceVolHoldsTheEdgeOutsideTheStrikeGrid) {
+    const std::vector<double> strikes = {80.0, 90.0, 100.0, 110.0, 120.0};
+    const std::vector<double> vols = {0.45, 0.42, 0.40, 0.38, 0.36};
+    const std::vector<Date> expiries = {valuation + 182, valuation + 730};
+    auto trade = [&]() {
+        auto t = baseTrade({"IDX"}, "");
+        t.events.push_back(event(obs1y, pay1y, std::nullopt, 0.0, 0.0));
+        t.maturityPaymentDate = pay1y;
+        t.capital.barrier = 0.5;
+        t.monteCarlo.paths = 4096;
+        t.monteCarlo.stepsPerYear = 52;
+        return t;
+    };
+    {
+        NoteMarket m(valuation);
+        m.addSurfaceUnderlying("IDX", kSpot, 0.0, strikes, vols, expiries);
+        NoteDiagnosticsRequest diag;
+        diag.market = diag.distribution = true;
+        const NoteResultRow row = price(m, trade(), diag);
+        ASSERT_TRUE(row.standardError.has_value());
+        EXPECT_TRUE(std::isfinite(row.npv));
+        ASSERT_TRUE(row.market.has_value());
+        const auto& mu = row.market->underlyings.at(0);
+        // barrier_vols at 0.5 x 100 = 50: the edge strike's vol, held.
+        EXPECT_NEAR(mu.barrierVols.at(0), 0.45, 1.0e-12);
+        const auto& vol = m.reg.volatility.blackVols.at("IDX_VOL").handle;
+        EXPECT_NEAR(vol->blackVol(obs1y, 10.0, true), 0.45, 1.0e-12);
+        EXPECT_NEAR(vol->blackVol(obs1y, 300.0, true), 0.36, 1.0e-12);
+        // The paths did leave the grid on both sides.
+        ASSERT_TRUE(row.distribution.has_value());
+        const auto& qs = row.distribution->basketPerformanceQuantiles.at(0);
+        EXPECT_LT(qs.q05, 0.5);
+        EXPECT_GT(qs.q95, 1.4);
+        EXPECT_GT(*row.pBarrierBreach, 0.03);
+        std::cout << "  narrow-grid surface note: npv " << row.npv << " (SE " << *row.standardError
+                  << "), perf q05 " << qs.q05 << " q95 " << qs.q95 << ", p_breach "
+                  << *row.pBarrierBreach << std::endl;
+    }
+    {
+        NoteMarket m(valuation);
+        m.addSurfaceUnderlying(
+            "IDX", kSpot, 0.0, strikes, vols, expiries,
+            QuantLib::BlackVarianceSurface::InterpolatorDefaultExtrapolation);
+        NoteDiagnosticsRequest diag;
+        diag.market = true;
+        const NoteResultRow row = price(m, trade(), diag);
+        EXPECT_TRUE(std::isfinite(row.npv));
+        // The linearly continued variance at 50 is larger than the edge's
+        // (the put-wing slope keeps rising); the simulation did not read it.
+        EXPECT_GT(row.market->underlyings.at(0).barrierVols.at(0), 0.45 + 0.01);
+    }
+}
+
 class StructuredNoteDiagnosticsTest : public ::testing::Test {
 protected:
     const Date valuation{21, QuantLib::October, 2026};
@@ -958,6 +1066,159 @@ protected:
 };
 
 // Delta, gamma and vega of the one-asset digital coupon.
+// Vanilla repricing through the Monte Carlo on a constant-vol underlying
+// (exact lognormal steps, Mersenne Twister): every used quote, generated
+// as the exact Black price with a 1 % bid/ask on the flat market, is
+// reproduced within 3 SE; the expiry report carries the model forward and
+// the plain discount factor; the dropped lines carry their reasons; an
+// expiry beyond the note's maturity is accepted (the repricing grid
+// extends); the note walked on the repricing paths agrees with the
+// headline within the combined noise; and the 400 rows. The "inside the
+// bid/ask" count is reported, not required: at this path count the
+// standard error exceeds the half-spread.
+TEST_F(StructuredNoteDiagnosticsTest, VanillaRepricingReproducesBlackOnAConstantVol) {
+    NoteMarket m(valuation);
+    const double q = 0.01, vol = 0.25;
+    m.addUnderlying("IDX", kSpot, q, vol);
+    auto t = baseTrade({"IDX"}, "");
+    t.events.push_back(event(obs1y, pay1y, std::nullopt, 0.0, 0.05));
+    t.maturityPaymentDate = pay1y;
+    t.capital.barrier = 0.7;
+    t.monteCarlo.paths = 1 << 15;
+
+    const Date d6m = valuation + 182, d2y = valuation + 730;
+    auto blackQuote = [&](const Date& expiry, double K, bool call) {
+        const double T = m.t(expiry);
+        const double df = m.df(expiry);
+        const double F = kSpot * std::exp(-q * T) / df;
+        return QuantLib::blackFormula(
+            call ? QuantLib::Option::Call : QuantLib::Option::Put, K, F, vol * std::sqrt(T), df);
+    };
+    NoteRepricingSheet sheet;
+    sheet.sheetId = "IDX_SHEET";
+    sheet.underlyingId = "IDX";
+    sheet.path = "PriceStructuredNoteRequest.diagnostics.vanilla_repricing_sheets[0]";
+    std::size_t expected = 0;
+    for (const Date& expiry : {d6m, obs1y, d2y}) {
+        for (double K : {80.0, 90.0, 100.0, 110.0, 120.0}) {
+            OptionQuoteLine l;
+            l.expiry = expiry;
+            l.expiryIso = DateToIso(expiry);
+            l.strike = K;
+            const double c = blackQuote(expiry, K, true), p = blackQuote(expiry, K, false);
+            l.callBid = c * 0.995;
+            l.callAsk = c * 1.005;
+            l.putBid = p * 0.995;
+            l.putAsk = p * 1.005;
+            sheet.quotes.push_back(l);
+            ++expected;
+        }
+    }
+    {
+        OptionQuoteLine crossed = sheet.quotes.front();
+        crossed.strike = 85.0;
+        crossed.callBid = *crossed.callAsk * 1.1; // crossed: dropped by the filter
+        sheet.quotes.push_back(crossed);
+        OptionQuoteLine past = sheet.quotes.front();
+        past.expiry = valuation - 7;
+        past.expiryIso = DateToIso(past.expiry);
+        sheet.quotes.push_back(past);
+    }
+    NoteDiagnosticsRequest diag;
+    diag.vanillaRepricing = true;
+    diag.repricingSheets = {sheet};
+    diag.timing = true;
+    const NoteResultRow row = price(m, t, diag);
+    ASSERT_TRUE(row.vanillaRepricing.has_value());
+    const NoteVanillaRepricing& vr = *row.vanillaRepricing;
+    EXPECT_EQ(vr.paths, t.monteCarlo.paths);
+    EXPECT_EQ(vr.timeSteps, 3u); // 6m, 1y, 2y: exact steps, no refinement
+    ASSERT_EQ(vr.underlyings.size(), 1u);
+    const NoteRepricingUnderlying& ru = vr.underlyings.front();
+    EXPECT_EQ(ru.underlyingId, "IDX");
+    EXPECT_EQ(ru.sheetId, "IDX_SHEET");
+    EXPECT_EQ(ru.count, expected);
+    EXPECT_EQ(vr.count, expected);
+    ASSERT_EQ(ru.expiries.size(), 4u); // the past one first
+    EXPECT_EQ(ru.expiries[0].quotesUsed, 0u);
+    ASSERT_EQ(ru.expiries[0].dropped.size(), 1u);
+    EXPECT_EQ(ru.expiries[0].dropped[0].reason, "expiry not after as_of_date");
+    for (std::size_t i = 1; i < 4; ++i) {
+        const NoteRepricingExpiry& re = ru.expiries[i];
+        const Date expiry = DateToQL(re.expiry);
+        EXPECT_NEAR(re.time, m.t(expiry), 1.0e-15);
+        EXPECT_NEAR(re.discountFactor, m.df(expiry), 1.0e-15);
+        EXPECT_NEAR(re.forward, kSpot * std::exp(-q * m.t(expiry)) / m.df(expiry), 1.0e-9);
+        EXPECT_EQ(re.quotesUsed, 5u);
+    }
+    EXPECT_EQ(ru.expiries[1].dropped.size(), 1u); // the crossed 6m line
+    EXPECT_NE(ru.expiries[1].dropped[0].reason.find("crossed"), std::string::npos)
+        << ru.expiries[1].dropped[0].reason;
+    double worstZ = 0.0;
+    for (const NoteRepricedOption& o : ru.options) {
+        ASSERT_GT(o.standardError, 0.0);
+        const double z = std::fabs(o.modelPrice - o.mid) / o.standardError;
+        worstZ = std::max(worstZ, z);
+        EXPECT_LE(z, 3.5) << o.expiry << " K " << o.strike;
+        EXPECT_EQ(o.insideBidAsk, o.modelPrice >= o.bid && o.modelPrice <= o.ask);
+        EXPECT_NEAR(o.priceError, o.modelPrice - o.mid, 1.0e-12);
+        ASSERT_TRUE(o.marketVol.has_value());
+        EXPECT_NEAR(*o.marketVol, vol, 1.0e-6);
+        ASSERT_TRUE(o.modelVol.has_value());
+        EXPECT_NEAR(*o.volError, *o.modelVol - *o.marketVol, 1.0e-12);
+        EXPECT_EQ(o.isCall, o.strike >= 100.0 * std::exp(-q * o.time) / m.df(DateToQL(o.expiry)));
+    }
+    // "Inside the 1 % bid/ask" is a statement about the sampling: with
+    // 32,768 pseudo-random paths the standard error of the at-the-money
+    // options (~0.11) exceeds the half-spread (~0.05), so the count is
+    // reported, not required; the 3.5 SE agreement above is the test.
+    EXPECT_GE(vr.insideBidAsk, 1u);
+    EXPECT_GT(vr.maxStandardError, 0.0);
+    ASSERT_TRUE(vr.maxAbsVolError.has_value());
+    EXPECT_LT(*vr.maxAbsVolError, 0.01);
+    // The note on the repricing paths: the same model on a finer stream.
+    const double se = std::sqrt(
+        vr.noteStandardError * vr.noteStandardError + *row.standardError * *row.standardError);
+    EXPECT_LE(std::fabs(vr.noteNpv - row.npv), 3.0 * se);
+    ASSERT_TRUE(row.timing.has_value());
+    bool timed = false;
+    for (const auto& st : row.timing->stages)
+        timed = timed || st.stage == "vanilla_repricing";
+    EXPECT_TRUE(timed);
+    std::cout << "  vanilla repricing: " << vr.insideBidAsk << "/" << vr.count
+              << " inside the 1 % bid/ask, worst |model - mid| " << worstZ << " SE, max SE "
+              << vr.maxStandardError << ", max vol error " << *vr.maxAbsVolError
+              << ", note on repricing grid " << vr.noteNpv << " vs " << row.npv << std::endl;
+
+    // 400 rows.
+    auto expect400 = [&](const NoteDiagnosticsRequest& d, const char* needle) {
+        try {
+            price(m, t, d);
+            FAIL() << "expected a 400 containing '" << needle << "'";
+        } catch (const QuantraInvalidArgument& e) {
+            EXPECT_NE(std::string(e.what()).find(needle), std::string::npos) << e.what();
+        }
+    };
+    {
+        NoteDiagnosticsRequest d = diag;
+        d.repricingSheets[0].style = OptionSheetStyle::American;
+        expect400(d, "option_style must be European");
+    }
+    {
+        NoteDiagnosticsRequest d = diag;
+        d.repricingSheets[0].underlyingId = "OTHER";
+        expect400(d, "no sheet for any underlying of notes[0] [IDX]");
+    }
+    {
+        NoteDiagnosticsRequest d = diag;
+        for (auto& l : d.repricingSheets[0].quotes) {
+            l.expiry = valuation - 1;
+            l.expiryIso = DateToIso(l.expiry);
+        }
+        expect400(d, "no usable quote for underlying 'IDX' (expiry not after as_of_date)");
+    }
+}
+
 TEST_F(StructuredNoteGreeksTest, DeltaGammaVegaOfTheDigitalMatchTheAnalyticEngine) {
     std::cout << "\n=== Structured note Greeks: digital coupon vs AnalyticEuropeanEngine ==="
               << std::endl;

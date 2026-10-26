@@ -70,6 +70,14 @@ struct YoYOptionletVolSpec;
 struct YoYOptionletVolSpecBuilder;
 struct YoYOptionletVolSpecT;
 
+struct SviSlice;
+struct SviSliceBuilder;
+struct SviSliceT;
+
+struct SviVolSpec;
+struct SviVolSpecBuilder;
+struct SviVolSpecT;
+
 struct VolSurfaceSpec;
 struct VolSurfaceSpecBuilder;
 struct VolSurfaceSpecT;
@@ -247,35 +255,38 @@ enum VolPayload : uint8_t {
   VolPayload_SwaptionVolSpec = 2,
   VolPayload_BlackVolSpec = 3,
   VolPayload_YoYOptionletVolSpec = 4,
+  VolPayload_SviVolSpec = 5,
   VolPayload_MIN = VolPayload_NONE,
-  VolPayload_MAX = VolPayload_YoYOptionletVolSpec
+  VolPayload_MAX = VolPayload_SviVolSpec
 };
 
-inline const VolPayload (&EnumValuesVolPayload())[5] {
+inline const VolPayload (&EnumValuesVolPayload())[6] {
   static const VolPayload values[] = {
     VolPayload_NONE,
     VolPayload_OptionletVolSpec,
     VolPayload_SwaptionVolSpec,
     VolPayload_BlackVolSpec,
-    VolPayload_YoYOptionletVolSpec
+    VolPayload_YoYOptionletVolSpec,
+    VolPayload_SviVolSpec
   };
   return values;
 }
 
 inline const char * const *EnumNamesVolPayload() {
-  static const char * const names[6] = {
+  static const char * const names[7] = {
     "NONE",
     "OptionletVolSpec",
     "SwaptionVolSpec",
     "BlackVolSpec",
     "YoYOptionletVolSpec",
+    "SviVolSpec",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameVolPayload(VolPayload e) {
-  if (::flatbuffers::IsOutRange(e, VolPayload_NONE, VolPayload_YoYOptionletVolSpec)) return "";
+  if (::flatbuffers::IsOutRange(e, VolPayload_NONE, VolPayload_SviVolSpec)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesVolPayload()[index];
 }
@@ -300,6 +311,10 @@ template<> struct VolPayloadTraits<quantra::YoYOptionletVolSpec> {
   static const VolPayload enum_value = VolPayload_YoYOptionletVolSpec;
 };
 
+template<> struct VolPayloadTraits<quantra::SviVolSpec> {
+  static const VolPayload enum_value = VolPayload_SviVolSpec;
+};
+
 template<typename T> struct VolPayloadUnionTraits {
   static const VolPayload enum_value = VolPayload_NONE;
 };
@@ -318,6 +333,10 @@ template<> struct VolPayloadUnionTraits<quantra::BlackVolSpecT> {
 
 template<> struct VolPayloadUnionTraits<quantra::YoYOptionletVolSpecT> {
   static const VolPayload enum_value = VolPayload_YoYOptionletVolSpec;
+};
+
+template<> struct VolPayloadUnionTraits<quantra::SviVolSpecT> {
+  static const VolPayload enum_value = VolPayload_SviVolSpec;
 };
 
 struct VolPayloadUnion {
@@ -381,6 +400,14 @@ struct VolPayloadUnion {
   const quantra::YoYOptionletVolSpecT *AsYoYOptionletVolSpec() const {
     return type == VolPayload_YoYOptionletVolSpec ?
       reinterpret_cast<const quantra::YoYOptionletVolSpecT *>(value) : nullptr;
+  }
+  quantra::SviVolSpecT *AsSviVolSpec() {
+    return type == VolPayload_SviVolSpec ?
+      reinterpret_cast<quantra::SviVolSpecT *>(value) : nullptr;
+  }
+  const quantra::SviVolSpecT *AsSviVolSpec() const {
+    return type == VolPayload_SviVolSpec ?
+      reinterpret_cast<const quantra::SviVolSpecT *>(value) : nullptr;
   }
 };
 
@@ -1998,7 +2025,8 @@ struct BlackVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   bool allow_extrapolation() const {
     return GetField<uint8_t>(VT_ALLOW_EXTRAPOLATION, 0) != 0;
   }
-  /// 2D surface interpolator for strike/expiry surfaces.
+  /// Interpolation of a strike x expiry surface (see the enum): Bilinear
+  /// unless asked; `/calibrate-vol-surface` returns CubicStrikeLinearTime.
   quantra::enums::SurfaceInterpolator2D surface_interpolator() const {
     return static_cast<quantra::enums::SurfaceInterpolator2D>(GetField<int8_t>(VT_SURFACE_INTERPOLATOR, 0));
   }
@@ -2368,6 +2396,283 @@ inline ::flatbuffers::Offset<YoYOptionletVolSpec> CreateYoYOptionletVolSpec(
 
 ::flatbuffers::Offset<YoYOptionletVolSpec> CreateYoYOptionletVolSpec(::flatbuffers::FlatBufferBuilder &_fbb, const YoYOptionletVolSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct SviSliceT : public ::flatbuffers::NativeTable {
+  typedef SviSlice TableType;
+  std::string expiry{};
+  double forward = 0.0;
+  double a = 0.0;
+  double b = 0.0;
+  double sigma = 0.0;
+  double rho = 0.0;
+  double m = 0.0;
+};
+
+/// One expiry of an `SviVolSpec`: the raw SVI total variance
+/// w(k) = a + b (rho (k - m) + sqrt((k - m)^2 + sigma^2)), k = ln(K / forward)
+/// (Gatheral's raw parameterisation, QuantLib `SviSmileSection`), the Black
+/// vol being sqrt(w(k) / T) with T the base day counter's year fraction from
+/// the reference date to `expiry`. The formula is global in strike: no
+/// strike extrapolation exists or is needed.
+struct SviSlice FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SviSliceT NativeTableType;
+  typedef SviSliceBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_EXPIRY = 4,
+    VT_FORWARD = 6,
+    VT_A = 8,
+    VT_B = 10,
+    VT_SIGMA = 12,
+    VT_RHO = 14,
+    VT_M = 16
+  };
+  /// Expiry date (YYYY-MM-DD), strictly after the reference date; slices
+  /// must be strictly increasing.
+  const ::flatbuffers::String *expiry() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_EXPIRY);
+  }
+  /// The forward the slice is written against (the origin of k), > 0.
+  double forward() const {
+    return GetField<double>(VT_FORWARD, 0.0);
+  }
+  double a() const {
+    return GetField<double>(VT_A, 0.0);
+  }
+  /// b >= 0; the slice must satisfy a + b sigma sqrt(1 - rho^2) >= 0 so the
+  /// minimum total variance is not negative.
+  double b() const {
+    return GetField<double>(VT_B, 0.0);
+  }
+  /// sigma > 0.
+  double sigma() const {
+    return GetField<double>(VT_SIGMA, 0.0);
+  }
+  /// -1 < rho < 1.
+  double rho() const {
+    return GetField<double>(VT_RHO, 0.0);
+  }
+  double m() const {
+    return GetField<double>(VT_M, 0.0);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffsetRequired(verifier, VT_EXPIRY) &&
+           verifier.VerifyString(expiry()) &&
+           VerifyField<double>(verifier, VT_FORWARD, 8) &&
+           VerifyField<double>(verifier, VT_A, 8) &&
+           VerifyField<double>(verifier, VT_B, 8) &&
+           VerifyField<double>(verifier, VT_SIGMA, 8) &&
+           VerifyField<double>(verifier, VT_RHO, 8) &&
+           VerifyField<double>(verifier, VT_M, 8) &&
+           verifier.EndTable();
+  }
+  SviSliceT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SviSliceT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<SviSlice> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SviSliceT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct SviSliceBuilder {
+  typedef SviSlice Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_expiry(::flatbuffers::Offset<::flatbuffers::String> expiry) {
+    fbb_.AddOffset(SviSlice::VT_EXPIRY, expiry);
+  }
+  void add_forward(double forward) {
+    fbb_.AddElement<double>(SviSlice::VT_FORWARD, forward, 0.0);
+  }
+  void add_a(double a) {
+    fbb_.AddElement<double>(SviSlice::VT_A, a, 0.0);
+  }
+  void add_b(double b) {
+    fbb_.AddElement<double>(SviSlice::VT_B, b, 0.0);
+  }
+  void add_sigma(double sigma) {
+    fbb_.AddElement<double>(SviSlice::VT_SIGMA, sigma, 0.0);
+  }
+  void add_rho(double rho) {
+    fbb_.AddElement<double>(SviSlice::VT_RHO, rho, 0.0);
+  }
+  void add_m(double m) {
+    fbb_.AddElement<double>(SviSlice::VT_M, m, 0.0);
+  }
+  explicit SviSliceBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<SviSlice> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<SviSlice>(end);
+    fbb_.Required(o, SviSlice::VT_EXPIRY);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<SviSlice> CreateSviSlice(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> expiry = 0,
+    double forward = 0.0,
+    double a = 0.0,
+    double b = 0.0,
+    double sigma = 0.0,
+    double rho = 0.0,
+    double m = 0.0) {
+  SviSliceBuilder builder_(_fbb);
+  builder_.add_m(m);
+  builder_.add_rho(rho);
+  builder_.add_sigma(sigma);
+  builder_.add_b(b);
+  builder_.add_a(a);
+  builder_.add_forward(forward);
+  builder_.add_expiry(expiry);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<SviSlice> CreateSviSliceDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *expiry = nullptr,
+    double forward = 0.0,
+    double a = 0.0,
+    double b = 0.0,
+    double sigma = 0.0,
+    double rho = 0.0,
+    double m = 0.0) {
+  auto expiry__ = expiry ? _fbb.CreateString(expiry) : 0;
+  return quantra::CreateSviSlice(
+      _fbb,
+      expiry__,
+      forward,
+      a,
+      b,
+      sigma,
+      rho,
+      m);
+}
+
+::flatbuffers::Offset<SviSlice> CreateSviSlice(::flatbuffers::FlatBufferBuilder &_fbb, const SviSliceT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct SviVolSpecT : public ::flatbuffers::NativeTable {
+  typedef SviVolSpec TableType;
+  std::unique_ptr<quantra::BlackVolBaseSpecT> base{};
+  std::vector<std::unique_ptr<quantra::SviSliceT>> slices{};
+  quantra::enums::SviTimeInterpolation time_interpolation = quantra::enums::SviTimeInterpolation_LinearTotalVariance;
+  bool allow_extrapolation = false;
+  SviVolSpecT() = default;
+  SviVolSpecT(const SviVolSpecT &o);
+  SviVolSpecT(SviVolSpecT&&) FLATBUFFERS_NOEXCEPT = default;
+  SviVolSpecT &operator=(SviVolSpecT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// Black volatility as raw SVI slices (what `/calibrate-vol-surface` with
+/// `SviPerExpiry` returns as `vol_surface_spec_svi`): the smile of every
+/// quoted expiry with its exact curvature, so that a Dupire local vol
+/// derived from it reprices the quotes through a Monte Carlo (the grid of
+/// a `BlackVolSpec` loses that curvature between nodes unless it is
+/// interpolated with `CubicStrikeLinearTime`). Accepted wherever a Black
+/// vol is referenced (`price-equity-option` `volatility`, a structured
+/// note's `underlyings[].volatility_id`); strike-dependent, so a structured
+/// note simulates it as Dupire local vol with `monte_carlo.steps_per_year`.
+/// `base` carries the reference date, calendar, business-day convention and
+/// day counter only: `shape` must be left at its default, `constant_vol` and
+/// `quote_id` absent (400 otherwise).
+struct SviVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SviVolSpecT NativeTableType;
+  typedef SviVolSpecBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_BASE = 4,
+    VT_SLICES = 6,
+    VT_TIME_INTERPOLATION = 8,
+    VT_ALLOW_EXTRAPOLATION = 10
+  };
+  const quantra::BlackVolBaseSpec *base() const {
+    return GetPointer<const quantra::BlackVolBaseSpec *>(VT_BASE);
+  }
+  /// At least one slice, strictly increasing expiries.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SviSlice>> *slices() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SviSlice>> *>(VT_SLICES);
+  }
+  quantra::enums::SviTimeInterpolation time_interpolation() const {
+    return static_cast<quantra::enums::SviTimeInterpolation>(GetField<int8_t>(VT_TIME_INTERPOLATION, 0));
+  }
+  /// Whether an expiry beyond the last slice may be read at all (flat
+  /// implied vol); strikes need no flag, the formula is global.
+  bool allow_extrapolation() const {
+    return GetField<uint8_t>(VT_ALLOW_EXTRAPOLATION, 0) != 0;
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_BASE) &&
+           verifier.VerifyTable(base()) &&
+           VerifyOffsetRequired(verifier, VT_SLICES) &&
+           verifier.VerifyVector(slices()) &&
+           verifier.VerifyVectorOfTables(slices()) &&
+           VerifyField<int8_t>(verifier, VT_TIME_INTERPOLATION, 1) &&
+           VerifyField<uint8_t>(verifier, VT_ALLOW_EXTRAPOLATION, 1) &&
+           verifier.EndTable();
+  }
+  SviVolSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SviVolSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<SviVolSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SviVolSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct SviVolSpecBuilder {
+  typedef SviVolSpec Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_base(::flatbuffers::Offset<quantra::BlackVolBaseSpec> base) {
+    fbb_.AddOffset(SviVolSpec::VT_BASE, base);
+  }
+  void add_slices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SviSlice>>> slices) {
+    fbb_.AddOffset(SviVolSpec::VT_SLICES, slices);
+  }
+  void add_time_interpolation(quantra::enums::SviTimeInterpolation time_interpolation) {
+    fbb_.AddElement<int8_t>(SviVolSpec::VT_TIME_INTERPOLATION, static_cast<int8_t>(time_interpolation), 0);
+  }
+  void add_allow_extrapolation(bool allow_extrapolation) {
+    fbb_.AddElement<uint8_t>(SviVolSpec::VT_ALLOW_EXTRAPOLATION, static_cast<uint8_t>(allow_extrapolation), 0);
+  }
+  explicit SviVolSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<SviVolSpec> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<SviVolSpec>(end);
+    fbb_.Required(o, SviVolSpec::VT_SLICES);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<SviVolSpec> CreateSviVolSpec(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<quantra::BlackVolBaseSpec> base = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SviSlice>>> slices = 0,
+    quantra::enums::SviTimeInterpolation time_interpolation = quantra::enums::SviTimeInterpolation_LinearTotalVariance,
+    bool allow_extrapolation = false) {
+  SviVolSpecBuilder builder_(_fbb);
+  builder_.add_slices(slices);
+  builder_.add_base(base);
+  builder_.add_allow_extrapolation(allow_extrapolation);
+  builder_.add_time_interpolation(time_interpolation);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<SviVolSpec> CreateSviVolSpecDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<quantra::BlackVolBaseSpec> base = 0,
+    const std::vector<::flatbuffers::Offset<quantra::SviSlice>> *slices = nullptr,
+    quantra::enums::SviTimeInterpolation time_interpolation = quantra::enums::SviTimeInterpolation_LinearTotalVariance,
+    bool allow_extrapolation = false) {
+  auto slices__ = slices ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SviSlice>>(*slices) : 0;
+  return quantra::CreateSviVolSpec(
+      _fbb,
+      base,
+      slices__,
+      time_interpolation,
+      allow_extrapolation);
+}
+
+::flatbuffers::Offset<SviVolSpec> CreateSviVolSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SviVolSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct VolSurfaceSpecT : public ::flatbuffers::NativeTable {
   typedef VolSurfaceSpec TableType;
   std::string id{};
@@ -2405,6 +2710,9 @@ struct VolSurfaceSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::YoYOptionletVolSpec *payload_as_YoYOptionletVolSpec() const {
     return payload_type() == quantra::VolPayload_YoYOptionletVolSpec ? static_cast<const quantra::YoYOptionletVolSpec *>(payload()) : nullptr;
   }
+  const quantra::SviVolSpec *payload_as_SviVolSpec() const {
+    return payload_type() == quantra::VolPayload_SviVolSpec ? static_cast<const quantra::SviVolSpec *>(payload()) : nullptr;
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_ID) &&
@@ -2433,6 +2741,10 @@ template<> inline const quantra::BlackVolSpec *VolSurfaceSpec::payload_as<quantr
 
 template<> inline const quantra::YoYOptionletVolSpec *VolSurfaceSpec::payload_as<quantra::YoYOptionletVolSpec>() const {
   return payload_as_YoYOptionletVolSpec();
+}
+
+template<> inline const quantra::SviVolSpec *VolSurfaceSpec::payload_as<quantra::SviVolSpec>() const {
+  return payload_as_SviVolSpec();
 }
 
 struct VolSurfaceSpecBuilder {
@@ -3245,6 +3557,101 @@ inline ::flatbuffers::Offset<YoYOptionletVolSpec> CreateYoYOptionletVolSpec(::fl
       _observation_lag);
 }
 
+inline SviSliceT *SviSlice::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<SviSliceT>(new SviSliceT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void SviSlice::UnPackTo(SviSliceT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = expiry(); if (_e) _o->expiry = _e->str(); }
+  { auto _e = forward(); _o->forward = _e; }
+  { auto _e = a(); _o->a = _e; }
+  { auto _e = b(); _o->b = _e; }
+  { auto _e = sigma(); _o->sigma = _e; }
+  { auto _e = rho(); _o->rho = _e; }
+  { auto _e = m(); _o->m = _e; }
+}
+
+inline ::flatbuffers::Offset<SviSlice> SviSlice::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SviSliceT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateSviSlice(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<SviSlice> CreateSviSlice(::flatbuffers::FlatBufferBuilder &_fbb, const SviSliceT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SviSliceT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _expiry = _fbb.CreateString(_o->expiry);
+  auto _forward = _o->forward;
+  auto _a = _o->a;
+  auto _b = _o->b;
+  auto _sigma = _o->sigma;
+  auto _rho = _o->rho;
+  auto _m = _o->m;
+  return quantra::CreateSviSlice(
+      _fbb,
+      _expiry,
+      _forward,
+      _a,
+      _b,
+      _sigma,
+      _rho,
+      _m);
+}
+
+inline SviVolSpecT::SviVolSpecT(const SviVolSpecT &o)
+      : base((o.base) ? new quantra::BlackVolBaseSpecT(*o.base) : nullptr),
+        time_interpolation(o.time_interpolation),
+        allow_extrapolation(o.allow_extrapolation) {
+  slices.reserve(o.slices.size());
+  for (const auto &slices_ : o.slices) { slices.emplace_back((slices_) ? new quantra::SviSliceT(*slices_) : nullptr); }
+}
+
+inline SviVolSpecT &SviVolSpecT::operator=(SviVolSpecT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(base, o.base);
+  std::swap(slices, o.slices);
+  std::swap(time_interpolation, o.time_interpolation);
+  std::swap(allow_extrapolation, o.allow_extrapolation);
+  return *this;
+}
+
+inline SviVolSpecT *SviVolSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<SviVolSpecT>(new SviVolSpecT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void SviVolSpec::UnPackTo(SviVolSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = base(); if (_e) { if(_o->base) { _e->UnPackTo(_o->base.get(), _resolver); } else { _o->base = std::unique_ptr<quantra::BlackVolBaseSpecT>(_e->UnPack(_resolver)); } } else if (_o->base) { _o->base.reset(); } }
+  { auto _e = slices(); if (_e) { _o->slices.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->slices[_i]) { _e->Get(_i)->UnPackTo(_o->slices[_i].get(), _resolver); } else { _o->slices[_i] = std::unique_ptr<quantra::SviSliceT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->slices.resize(0); } }
+  { auto _e = time_interpolation(); _o->time_interpolation = _e; }
+  { auto _e = allow_extrapolation(); _o->allow_extrapolation = _e; }
+}
+
+inline ::flatbuffers::Offset<SviVolSpec> SviVolSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SviVolSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateSviVolSpec(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<SviVolSpec> CreateSviVolSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SviVolSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SviVolSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _base = _o->base ? CreateBlackVolBaseSpec(_fbb, _o->base.get(), _rehasher) : 0;
+  auto _slices = _fbb.CreateVector<::flatbuffers::Offset<quantra::SviSlice>> (_o->slices.size(), [](size_t i, _VectorArgs *__va) { return CreateSviSlice(*__va->__fbb, __va->__o->slices[i].get(), __va->__rehasher); }, &_va );
+  auto _time_interpolation = _o->time_interpolation;
+  auto _allow_extrapolation = _o->allow_extrapolation;
+  return quantra::CreateSviVolSpec(
+      _fbb,
+      _base,
+      _slices,
+      _time_interpolation,
+      _allow_extrapolation);
+}
+
 inline VolSurfaceSpecT *VolSurfaceSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<VolSurfaceSpecT>(new VolSurfaceSpecT());
   UnPackTo(_o.get(), _resolver);
@@ -3453,6 +3860,10 @@ inline bool VerifyVolPayload(::flatbuffers::Verifier &verifier, const void *obj,
       auto ptr = reinterpret_cast<const quantra::YoYOptionletVolSpec *>(obj);
       return verifier.VerifyTable(ptr);
     }
+    case VolPayload_SviVolSpec: {
+      auto ptr = reinterpret_cast<const quantra::SviVolSpec *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
     default: return true;
   }
 }
@@ -3488,6 +3899,10 @@ inline void *VolPayloadUnion::UnPack(const void *obj, VolPayload type, const ::f
       auto ptr = reinterpret_cast<const quantra::YoYOptionletVolSpec *>(obj);
       return ptr->UnPack(resolver);
     }
+    case VolPayload_SviVolSpec: {
+      auto ptr = reinterpret_cast<const quantra::SviVolSpec *>(obj);
+      return ptr->UnPack(resolver);
+    }
     default: return nullptr;
   }
 }
@@ -3511,6 +3926,10 @@ inline ::flatbuffers::Offset<void> VolPayloadUnion::Pack(::flatbuffers::FlatBuff
       auto ptr = reinterpret_cast<const quantra::YoYOptionletVolSpecT *>(value);
       return CreateYoYOptionletVolSpec(_fbb, ptr, _rehasher).Union();
     }
+    case VolPayload_SviVolSpec: {
+      auto ptr = reinterpret_cast<const quantra::SviVolSpecT *>(value);
+      return CreateSviVolSpec(_fbb, ptr, _rehasher).Union();
+    }
     default: return 0;
   }
 }
@@ -3531,6 +3950,10 @@ inline VolPayloadUnion::VolPayloadUnion(const VolPayloadUnion &u) : type(u.type)
     }
     case VolPayload_YoYOptionletVolSpec: {
       value = new quantra::YoYOptionletVolSpecT(*reinterpret_cast<quantra::YoYOptionletVolSpecT *>(u.value));
+      break;
+    }
+    case VolPayload_SviVolSpec: {
+      value = new quantra::SviVolSpecT(*reinterpret_cast<quantra::SviVolSpecT *>(u.value));
       break;
     }
     default:
@@ -3557,6 +3980,11 @@ inline void VolPayloadUnion::Reset() {
     }
     case VolPayload_YoYOptionletVolSpec: {
       auto ptr = reinterpret_cast<quantra::YoYOptionletVolSpecT *>(value);
+      delete ptr;
+      break;
+    }
+    case VolPayload_SviVolSpec: {
+      auto ptr = reinterpret_cast<quantra::SviVolSpecT *>(value);
       delete ptr;
       break;
     }

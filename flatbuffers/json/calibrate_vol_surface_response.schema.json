@@ -11,7 +11,11 @@
     },
     "quantra_enums_SurfaceInterpolator2D" : {
       "type" : "string",
-      "enum": ["Bilinear", "Bicubic"]
+      "enum": ["Bilinear", "Bicubic", "CubicStrikeLinearTime"]
+    },
+    "quantra_enums_SviTimeInterpolation" : {
+      "type" : "string",
+      "enum": ["LinearTotalVariance"]
     },
     "quantra_enums_BootstrapTrait" : {
       "type" : "string",
@@ -115,7 +119,7 @@
     },
     "quantra_enums_VolSurfaceShape" : {
       "type" : "string",
-      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate"]
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate", "SviSlices"]
     },
     "quantra_enums_YoYInflationCapFloorEngineType" : {
       "type" : "string",
@@ -215,7 +219,7 @@
     },
     "quantra_VolPayload" : {
       "type" : "string",
-      "enum": ["NONE", "OptionletVolSpec", "SwaptionVolSpec", "BlackVolSpec", "YoYOptionletVolSpec"]
+      "enum": ["NONE", "OptionletVolSpec", "SwaptionVolSpec", "BlackVolSpec", "YoYOptionletVolSpec", "SviVolSpec"]
     },
     "quantra_IndexType" : {
       "type" : "string",
@@ -702,7 +706,7 @@
               },
         "surface_interpolator" : {
                 "$ref" : "#/definitions/quantra_enums_SurfaceInterpolator2D",
-                "description" : "2D surface interpolator for strike/expiry surfaces."
+                "description" : "Interpolation of a strike x expiry surface (see the enum): Bilinear\nunless asked; `/calibrate-vol-surface` returns CubicStrikeLinearTime."
               },
         "expiry_interpolator" : {
                 "$ref" : "#/definitions/quantra_enums_Interpolator",
@@ -747,6 +751,62 @@
       "required" : ["observation_lag"],
       "additionalProperties" : false
     },
+    "quantra_SviSlice" : {
+      "type" : "object",
+      "description" : "One expiry of an `SviVolSpec`: the raw SVI total variance\nw(k) = a + b (rho (k - m) + sqrt((k - m)^2 + sigma^2)), k = ln(K / forward)\n(Gatheral's raw parameterisation, QuantLib `SviSmileSection`), the Black\nvol being sqrt(w(k) / T) with T the base day counter's year fraction from\nthe reference date to `expiry`. The formula is global in strike: no\nstrike extrapolation exists or is needed.",
+      "properties" : {
+        "expiry" : {
+                "type" : "string",
+                "description" : "Expiry date (YYYY-MM-DD), strictly after the reference date; slices\nmust be strictly increasing."
+              },
+        "forward" : {
+                "type" : "number",
+                "description" : "The forward the slice is written against (the origin of k), > 0."
+              },
+        "a" : {
+                "type" : "number"
+              },
+        "b" : {
+                "type" : "number",
+                "description" : "b >= 0; the slice must satisfy a + b sigma sqrt(1 - rho^2) >= 0 so the\nminimum total variance is not negative."
+              },
+        "sigma" : {
+                "type" : "number",
+                "description" : "sigma > 0."
+              },
+        "rho" : {
+                "type" : "number",
+                "description" : "-1 < rho < 1."
+              },
+        "m" : {
+                "type" : "number"
+              }
+      },
+      "required" : ["expiry"],
+      "additionalProperties" : false
+    },
+    "quantra_SviVolSpec" : {
+      "type" : "object",
+      "description" : "Black volatility as raw SVI slices (what `/calibrate-vol-surface` with\n`SviPerExpiry` returns as `vol_surface_spec_svi`): the smile of every\nquoted expiry with its exact curvature, so that a Dupire local vol\nderived from it reprices the quotes through a Monte Carlo (the grid of\na `BlackVolSpec` loses that curvature between nodes unless it is\ninterpolated with `CubicStrikeLinearTime`). Accepted wherever a Black\nvol is referenced (`price-equity-option` `volatility`, a structured\nnote's `underlyings[].volatility_id`); strike-dependent, so a structured\nnote simulates it as Dupire local vol with `monte_carlo.steps_per_year`.\n`base` carries the reference date, calendar, business-day convention and\nday counter only: `shape` must be left at its default, `constant_vol` and\n`quote_id` absent (400 otherwise).",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_BlackVolBaseSpec"
+              },
+        "slices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SviSlice"},
+                "description" : "At least one slice, strictly increasing expiries."
+              },
+        "time_interpolation" : {
+                "$ref" : "#/definitions/quantra_enums_SviTimeInterpolation"
+              },
+        "allow_extrapolation" : {
+                "type" : "boolean",
+                "description" : "Whether an expiry beyond the last slice may be read at all (flat\nimplied vol); strikes need no flag, the formula is global."
+              }
+      },
+      "required" : ["slices"],
+      "additionalProperties" : false
+    },
     "quantra_VolSurfaceSpec" : {
       "type" : "object",
       "description" : "Volatility surface specification referenced by id in trade requests.",
@@ -758,7 +818,7 @@
                 "$ref" : "#/definitions/quantra_VolPayload"
               },
         "payload" : {
-                "anyOf": [{ "$ref" : "#/definitions/quantra_OptionletVolSpec" },{ "$ref" : "#/definitions/quantra_SwaptionVolSpec" },{ "$ref" : "#/definitions/quantra_BlackVolSpec" },{ "$ref" : "#/definitions/quantra_YoYOptionletVolSpec" }]
+                "anyOf": [{ "$ref" : "#/definitions/quantra_OptionletVolSpec" },{ "$ref" : "#/definitions/quantra_SwaptionVolSpec" },{ "$ref" : "#/definitions/quantra_BlackVolSpec" },{ "$ref" : "#/definitions/quantra_YoYOptionletVolSpec" },{ "$ref" : "#/definitions/quantra_SviVolSpec" }]
               }
       },
       "required" : ["id"],
@@ -1881,7 +1941,7 @@
               },
         "model_vol" : {
                 "type" : "number",
-                "description" : "Black vol read off the returned surface (bilinear in total variance\non the grid, as the pricers read it) at this expiry and strike."
+                "description" : "Black vol read off the returned grid surface as the pricers read it\n(`vol_surface_spec`: CubicStrikeLinearTime, a natural cubic spline of\ntotal variance in log-strike per expiry) at this expiry and strike."
               },
         "model_price" : {
                 "type" : "number",
@@ -1976,10 +2036,19 @@
               },
         "vol_surface_spec" : {
                 "$ref" : "#/definitions/quantra_VolSurfaceSpec",
-                "description" : "Complete `VolSurfaceSpec` (BlackVolSpec, shape SmileCube3D,\nNullCalendar / Unadjusted / Actual365Fixed, expiries as calendar-day\nperiods from the as-of date, absolute strikes, bilinear,\nallow_extrapolation true) under the request's `vol_surface_id`."
+                "description" : "Complete `VolSurfaceSpec` (BlackVolSpec, shape SmileCube3D,\nNullCalendar / Unadjusted / Actual365Fixed, expiries as calendar-day\nperiods from the as-of date, absolute strikes, `surface_interpolator`\nCubicStrikeLinearTime, allow_extrapolation true) under the request's\n`vol_surface_id`."
+              },
+        "vol_surface_spec_svi" : {
+                "$ref" : "#/definitions/quantra_VolSurfaceSpec",
+                "description" : "`SviPerExpiry` only: the same surface as its fitted slices, an\n`SviVolSpec` payload (one `SviSlice` per fitted expiry with the\nforward used and the final a, b, sigma, rho, m; same base and id as\n`vol_surface_spec`, allow_extrapolation true), ready to paste in\nplace of the grid. The calendar clip of step 4 applies to the grid\nonly; the slices are reported as fitted (after the butterfly refit)."
+              },
+        "vol_surface_spec_svi_note" : {
+                "type" : "string",
+                "description" : "Present iff `vol_surface_spec_svi` is absent: why (the\nAndreasen-Huge method has no closed-form slice parameters)."
               },
         "vanilla_repricing" : {
-                "$ref" : "#/definitions/quantra_VanillaRepricing"
+                "$ref" : "#/definitions/quantra_VanillaRepricing",
+                "description" : "Every used quote repriced on `vol_surface_spec` (the grid)."
               }
       },
       "required" : ["sheet_id", "underlying_id", "forwards_source", "filter", "forwards", "expiries", "strikes_as_moneyness", "grid_strikes", "grid_expiries", "vol_surface_spec", "vanilla_repricing"],

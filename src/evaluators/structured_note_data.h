@@ -12,7 +12,8 @@
  * by field so the response builder is a straight copy.
  */
 
-#include "enum_convert.h" // quantra::enums::VolSurfaceShape for the model echo
+#include "enum_convert.h"               // quantra::enums::VolSurfaceShape for the model echo
+#include "implied_forwards_evaluator.h" // OptionQuoteLine, QuoteFilterData, DroppedQuoteData
 
 #include <ql/time/date.hpp>
 
@@ -122,6 +123,16 @@ struct StructuredNoteTrade {
     std::string path;
 };
 
+/// One `diagnostics.vanilla_repricing_sheets[]` entry as decoded.
+struct NoteRepricingSheet {
+    std::string sheetId;
+    std::string underlyingId;
+    OptionSheetStyle style = OptionSheetStyle::European;
+    std::vector<OptionQuoteLine> quotes;
+    /// `diagnostics.vanilla_repricing_sheets[<i>]`.
+    std::string path;
+};
+
 /// `PriceStructuredNoteRequest.diagnostics` (every flag false = no block).
 struct NoteDiagnosticsRequest {
     bool market = false;
@@ -131,8 +142,14 @@ struct NoteDiagnosticsRequest {
     bool timing = false;
     /// Individual paths returned with `distribution` (mapper: <= 100).
     unsigned int samplePaths = 0;
+    /// Vanilla repricing through the Monte Carlo (mapper: iff sheets).
+    bool vanillaRepricing = false;
+    std::vector<NoteRepricingSheet> repricingSheets;
+    QuoteFilterData repricingFilter;
 
-    bool any() const { return market || decomposition || checks || distribution || timing; }
+    bool any() const {
+        return market || decomposition || checks || distribution || timing || vanillaRepricing;
+    }
 };
 
 /// `PriceStructuredNoteRequest.greeks` (bump sizes; the mapper checks each is
@@ -390,6 +407,60 @@ struct NoteTimingDiagnostics {
     double totalMilliseconds = 0.0;
 };
 
+/// `StructuredNoteRepricedOption`.
+struct NoteRepricedOption {
+    std::string expiry;
+    double time = 0.0;
+    double strike = 0.0;
+    bool isCall = true;
+    double bid = 0.0, ask = 0.0, mid = 0.0;
+    double modelPrice = 0.0;
+    double standardError = 0.0;
+    bool insideBidAsk = false;
+    double priceError = 0.0;
+    std::optional<double> marketVol;
+    std::optional<double> modelVol;
+    std::optional<double> volError;
+};
+
+/// `StructuredNoteRepricingExpiry`.
+struct NoteRepricingExpiry {
+    std::string expiry;
+    double time = 0.0;
+    double forward = 0.0;
+    double discountFactor = 0.0;
+    unsigned int quotesUsed = 0;
+    std::vector<DroppedQuoteData> dropped;
+};
+
+/// `StructuredNoteVanillaRepricingUnderlying`.
+struct NoteRepricingUnderlying {
+    std::string underlyingId;
+    std::string sheetId;
+    double spot = 0.0;
+    std::vector<NoteRepricingExpiry> expiries;
+    unsigned int count = 0;
+    unsigned int insideBidAsk = 0;
+    double maxAbsPriceError = 0.0;
+    std::optional<double> maxAbsVolError;
+    double maxStandardError = 0.0;
+    std::vector<NoteRepricedOption> options;
+};
+
+/// `StructuredNoteVanillaRepricing`.
+struct NoteVanillaRepricing {
+    unsigned int paths = 0;
+    unsigned int timeSteps = 0;
+    double noteNpv = 0.0;
+    double noteStandardError = 0.0;
+    unsigned int count = 0;
+    unsigned int insideBidAsk = 0;
+    double maxAbsPriceError = 0.0;
+    std::optional<double> maxAbsVolError;
+    double maxStandardError = 0.0;
+    std::vector<NoteRepricingUnderlying> underlyings;
+};
+
 struct NoteResultRow {
     std::string tradeId;
     double npv = 0.0;
@@ -414,6 +485,7 @@ struct NoteResultRow {
     std::optional<NoteChecksDiagnostics> checks;
     std::optional<NoteDistributionDiagnostics> distribution;
     std::optional<NoteTimingDiagnostics> timing;
+    std::optional<NoteVanillaRepricing> vanillaRepricing;
 };
 
 struct NoteResult {

@@ -714,8 +714,9 @@ struct VanillaRepricePoint FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
   double market_vol() const {
     return GetField<double>(VT_MARKET_VOL, 0.0);
   }
-  /// Black vol read off the returned surface (bilinear in total variance
-  /// on the grid, as the pricers read it) at this expiry and strike.
+  /// Black vol read off the returned grid surface as the pricers read it
+  /// (`vol_surface_spec`: CubicStrikeLinearTime, a natural cubic spline of
+  /// total variance in log-strike per expiry) at this expiry and strike.
   double model_vol() const {
     return GetField<double>(VT_MODEL_VOL, 0.0);
   }
@@ -1010,6 +1011,8 @@ struct CalibrateVolSurfaceResponseT : public ::flatbuffers::NativeTable {
   std::vector<std::string> grid_expiries{};
   std::unique_ptr<quantra::AndreasenHugeCalibrationErrorT> andreasen_huge_error{};
   std::unique_ptr<quantra::VolSurfaceSpecT> vol_surface_spec{};
+  std::unique_ptr<quantra::VolSurfaceSpecT> vol_surface_spec_svi{};
+  std::string vol_surface_spec_svi_note{};
   std::unique_ptr<quantra::VanillaRepricingT> vanilla_repricing{};
   CalibrateVolSurfaceResponseT() = default;
   CalibrateVolSurfaceResponseT(const CalibrateVolSurfaceResponseT &o);
@@ -1035,7 +1038,9 @@ struct CalibrateVolSurfaceResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffe
     VT_GRID_EXPIRIES = 24,
     VT_ANDREASEN_HUGE_ERROR = 26,
     VT_VOL_SURFACE_SPEC = 28,
-    VT_VANILLA_REPRICING = 30
+    VT_VOL_SURFACE_SPEC_SVI = 30,
+    VT_VOL_SURFACE_SPEC_SVI_NOTE = 32,
+    VT_VANILLA_REPRICING = 34
   };
   const ::flatbuffers::String *sheet_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_SHEET_ID);
@@ -1083,11 +1088,27 @@ struct CalibrateVolSurfaceResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffe
   }
   /// Complete `VolSurfaceSpec` (BlackVolSpec, shape SmileCube3D,
   /// NullCalendar / Unadjusted / Actual365Fixed, expiries as calendar-day
-  /// periods from the as-of date, absolute strikes, bilinear,
-  /// allow_extrapolation true) under the request's `vol_surface_id`.
+  /// periods from the as-of date, absolute strikes, `surface_interpolator`
+  /// CubicStrikeLinearTime, allow_extrapolation true) under the request's
+  /// `vol_surface_id`.
   const quantra::VolSurfaceSpec *vol_surface_spec() const {
     return GetPointer<const quantra::VolSurfaceSpec *>(VT_VOL_SURFACE_SPEC);
   }
+  /// `SviPerExpiry` only: the same surface as its fitted slices, an
+  /// `SviVolSpec` payload (one `SviSlice` per fitted expiry with the
+  /// forward used and the final a, b, sigma, rho, m; same base and id as
+  /// `vol_surface_spec`, allow_extrapolation true), ready to paste in
+  /// place of the grid. The calendar clip of step 4 applies to the grid
+  /// only; the slices are reported as fitted (after the butterfly refit).
+  const quantra::VolSurfaceSpec *vol_surface_spec_svi() const {
+    return GetPointer<const quantra::VolSurfaceSpec *>(VT_VOL_SURFACE_SPEC_SVI);
+  }
+  /// Present iff `vol_surface_spec_svi` is absent: why (the
+  /// Andreasen-Huge method has no closed-form slice parameters).
+  const ::flatbuffers::String *vol_surface_spec_svi_note() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_VOL_SURFACE_SPEC_SVI_NOTE);
+  }
+  /// Every used quote repriced on `vol_surface_spec` (the grid).
   const quantra::VanillaRepricing *vanilla_repricing() const {
     return GetPointer<const quantra::VanillaRepricing *>(VT_VANILLA_REPRICING);
   }
@@ -1120,6 +1141,10 @@ struct CalibrateVolSurfaceResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffe
            verifier.VerifyTable(andreasen_huge_error()) &&
            VerifyOffsetRequired(verifier, VT_VOL_SURFACE_SPEC) &&
            verifier.VerifyTable(vol_surface_spec()) &&
+           VerifyOffset(verifier, VT_VOL_SURFACE_SPEC_SVI) &&
+           verifier.VerifyTable(vol_surface_spec_svi()) &&
+           VerifyOffset(verifier, VT_VOL_SURFACE_SPEC_SVI_NOTE) &&
+           verifier.VerifyString(vol_surface_spec_svi_note()) &&
            VerifyOffsetRequired(verifier, VT_VANILLA_REPRICING) &&
            verifier.VerifyTable(vanilla_repricing()) &&
            verifier.EndTable();
@@ -1172,6 +1197,12 @@ struct CalibrateVolSurfaceResponseBuilder {
   void add_vol_surface_spec(::flatbuffers::Offset<quantra::VolSurfaceSpec> vol_surface_spec) {
     fbb_.AddOffset(CalibrateVolSurfaceResponse::VT_VOL_SURFACE_SPEC, vol_surface_spec);
   }
+  void add_vol_surface_spec_svi(::flatbuffers::Offset<quantra::VolSurfaceSpec> vol_surface_spec_svi) {
+    fbb_.AddOffset(CalibrateVolSurfaceResponse::VT_VOL_SURFACE_SPEC_SVI, vol_surface_spec_svi);
+  }
+  void add_vol_surface_spec_svi_note(::flatbuffers::Offset<::flatbuffers::String> vol_surface_spec_svi_note) {
+    fbb_.AddOffset(CalibrateVolSurfaceResponse::VT_VOL_SURFACE_SPEC_SVI_NOTE, vol_surface_spec_svi_note);
+  }
   void add_vanilla_repricing(::flatbuffers::Offset<quantra::VanillaRepricing> vanilla_repricing) {
     fbb_.AddOffset(CalibrateVolSurfaceResponse::VT_VANILLA_REPRICING, vanilla_repricing);
   }
@@ -1212,10 +1243,14 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> grid_expiries = 0,
     ::flatbuffers::Offset<quantra::AndreasenHugeCalibrationError> andreasen_huge_error = 0,
     ::flatbuffers::Offset<quantra::VolSurfaceSpec> vol_surface_spec = 0,
+    ::flatbuffers::Offset<quantra::VolSurfaceSpec> vol_surface_spec_svi = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> vol_surface_spec_svi_note = 0,
     ::flatbuffers::Offset<quantra::VanillaRepricing> vanilla_repricing = 0) {
   CalibrateVolSurfaceResponseBuilder builder_(_fbb);
   builder_.add_spot(spot);
   builder_.add_vanilla_repricing(vanilla_repricing);
+  builder_.add_vol_surface_spec_svi_note(vol_surface_spec_svi_note);
+  builder_.add_vol_surface_spec_svi(vol_surface_spec_svi);
   builder_.add_vol_surface_spec(vol_surface_spec);
   builder_.add_andreasen_huge_error(andreasen_huge_error);
   builder_.add_grid_expiries(grid_expiries);
@@ -1246,6 +1281,8 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
     const std::vector<::flatbuffers::Offset<::flatbuffers::String>> *grid_expiries = nullptr,
     ::flatbuffers::Offset<quantra::AndreasenHugeCalibrationError> andreasen_huge_error = 0,
     ::flatbuffers::Offset<quantra::VolSurfaceSpec> vol_surface_spec = 0,
+    ::flatbuffers::Offset<quantra::VolSurfaceSpec> vol_surface_spec_svi = 0,
+    const char *vol_surface_spec_svi_note = nullptr,
     ::flatbuffers::Offset<quantra::VanillaRepricing> vanilla_repricing = 0) {
   auto sheet_id__ = sheet_id ? _fbb.CreateString(sheet_id) : 0;
   auto underlying_id__ = underlying_id ? _fbb.CreateString(underlying_id) : 0;
@@ -1255,6 +1292,7 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
   auto strikes_as_moneyness__ = strikes_as_moneyness ? _fbb.CreateVector<double>(*strikes_as_moneyness) : 0;
   auto grid_strikes__ = grid_strikes ? _fbb.CreateVector<double>(*grid_strikes) : 0;
   auto grid_expiries__ = grid_expiries ? _fbb.CreateVector<::flatbuffers::Offset<::flatbuffers::String>>(*grid_expiries) : 0;
+  auto vol_surface_spec_svi_note__ = vol_surface_spec_svi_note ? _fbb.CreateString(vol_surface_spec_svi_note) : 0;
   return quantra::CreateCalibrateVolSurfaceResponse(
       _fbb,
       sheet_id__,
@@ -1270,6 +1308,8 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
       grid_expiries__,
       andreasen_huge_error,
       vol_surface_spec,
+      vol_surface_spec_svi,
+      vol_surface_spec_svi_note__,
       vanilla_repricing);
 }
 
@@ -1633,6 +1673,8 @@ inline CalibrateVolSurfaceResponseT::CalibrateVolSurfaceResponseT(const Calibrat
         grid_expiries(o.grid_expiries),
         andreasen_huge_error((o.andreasen_huge_error) ? new quantra::AndreasenHugeCalibrationErrorT(*o.andreasen_huge_error) : nullptr),
         vol_surface_spec((o.vol_surface_spec) ? new quantra::VolSurfaceSpecT(*o.vol_surface_spec) : nullptr),
+        vol_surface_spec_svi((o.vol_surface_spec_svi) ? new quantra::VolSurfaceSpecT(*o.vol_surface_spec_svi) : nullptr),
+        vol_surface_spec_svi_note(o.vol_surface_spec_svi_note),
         vanilla_repricing((o.vanilla_repricing) ? new quantra::VanillaRepricingT(*o.vanilla_repricing) : nullptr) {
   forwards.reserve(o.forwards.size());
   for (const auto &forwards_ : o.forwards) { forwards.emplace_back((forwards_) ? new quantra::VolSurfaceForwardT(*forwards_) : nullptr); }
@@ -1654,6 +1696,8 @@ inline CalibrateVolSurfaceResponseT &CalibrateVolSurfaceResponseT::operator=(Cal
   std::swap(grid_expiries, o.grid_expiries);
   std::swap(andreasen_huge_error, o.andreasen_huge_error);
   std::swap(vol_surface_spec, o.vol_surface_spec);
+  std::swap(vol_surface_spec_svi, o.vol_surface_spec_svi);
+  std::swap(vol_surface_spec_svi_note, o.vol_surface_spec_svi_note);
   std::swap(vanilla_repricing, o.vanilla_repricing);
   return *this;
 }
@@ -1680,6 +1724,8 @@ inline void CalibrateVolSurfaceResponse::UnPackTo(CalibrateVolSurfaceResponseT *
   { auto _e = grid_expiries(); if (_e) { _o->grid_expiries.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->grid_expiries[_i] = _e->Get(_i)->str(); } } else { _o->grid_expiries.resize(0); } }
   { auto _e = andreasen_huge_error(); if (_e) { if(_o->andreasen_huge_error) { _e->UnPackTo(_o->andreasen_huge_error.get(), _resolver); } else { _o->andreasen_huge_error = std::unique_ptr<quantra::AndreasenHugeCalibrationErrorT>(_e->UnPack(_resolver)); } } else if (_o->andreasen_huge_error) { _o->andreasen_huge_error.reset(); } }
   { auto _e = vol_surface_spec(); if (_e) { if(_o->vol_surface_spec) { _e->UnPackTo(_o->vol_surface_spec.get(), _resolver); } else { _o->vol_surface_spec = std::unique_ptr<quantra::VolSurfaceSpecT>(_e->UnPack(_resolver)); } } else if (_o->vol_surface_spec) { _o->vol_surface_spec.reset(); } }
+  { auto _e = vol_surface_spec_svi(); if (_e) { if(_o->vol_surface_spec_svi) { _e->UnPackTo(_o->vol_surface_spec_svi.get(), _resolver); } else { _o->vol_surface_spec_svi = std::unique_ptr<quantra::VolSurfaceSpecT>(_e->UnPack(_resolver)); } } else if (_o->vol_surface_spec_svi) { _o->vol_surface_spec_svi.reset(); } }
+  { auto _e = vol_surface_spec_svi_note(); if (_e) _o->vol_surface_spec_svi_note = _e->str(); }
   { auto _e = vanilla_repricing(); if (_e) { if(_o->vanilla_repricing) { _e->UnPackTo(_o->vanilla_repricing.get(), _resolver); } else { _o->vanilla_repricing = std::unique_ptr<quantra::VanillaRepricingT>(_e->UnPack(_resolver)); } } else if (_o->vanilla_repricing) { _o->vanilla_repricing.reset(); } }
 }
 
@@ -1704,6 +1750,8 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
   auto _grid_expiries = _fbb.CreateVectorOfStrings(_o->grid_expiries);
   auto _andreasen_huge_error = _o->andreasen_huge_error ? CreateAndreasenHugeCalibrationError(_fbb, _o->andreasen_huge_error.get(), _rehasher) : 0;
   auto _vol_surface_spec = _o->vol_surface_spec ? CreateVolSurfaceSpec(_fbb, _o->vol_surface_spec.get(), _rehasher) : 0;
+  auto _vol_surface_spec_svi = _o->vol_surface_spec_svi ? CreateVolSurfaceSpec(_fbb, _o->vol_surface_spec_svi.get(), _rehasher) : 0;
+  auto _vol_surface_spec_svi_note = _o->vol_surface_spec_svi_note.empty() ? 0 : _fbb.CreateString(_o->vol_surface_spec_svi_note);
   auto _vanilla_repricing = _o->vanilla_repricing ? CreateVanillaRepricing(_fbb, _o->vanilla_repricing.get(), _rehasher) : 0;
   return quantra::CreateCalibrateVolSurfaceResponse(
       _fbb,
@@ -1720,6 +1768,8 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
       _grid_expiries,
       _andreasen_huge_error,
       _vol_surface_spec,
+      _vol_surface_spec_svi,
+      _vol_surface_spec_svi_note,
       _vanilla_repricing);
 }
 

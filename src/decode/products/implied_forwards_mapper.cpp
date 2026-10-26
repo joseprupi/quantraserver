@@ -13,6 +13,62 @@ std::optional<double> opt(const flatbuffers::Optional<double>& v) {
 
 } // namespace
 
+DecodedQuoteSheet decodeOptionQuoteSheet(
+    const quantra::OptionQuoteSheet* sheet, const std::string& path) {
+    if (!sheet) {
+        QUANTRA_INVALID_ARGUMENT(path + " is required");
+    }
+    if (!sheet->id() || sheet->id()->size() == 0) {
+        QUANTRA_INVALID_ARGUMENT(path + ".id is required");
+    }
+    if (!sheet->underlying_id() || sheet->underlying_id()->size() == 0) {
+        QUANTRA_INVALID_ARGUMENT(path + ".underlying_id is required");
+    }
+    if (!sheet->quotes() || sheet->quotes()->size() == 0) {
+        QUANTRA_INVALID_ARGUMENT(path + ".quotes must contain at least one quote");
+    }
+    DecodedQuoteSheet out;
+    out.sheetId = sheet->id()->str();
+    out.underlyingId = sheet->underlying_id()->str();
+    switch (sheet->option_style()) {
+        case quantra::enums::ExerciseType_European: out.style = OptionSheetStyle::European; break;
+        case quantra::enums::ExerciseType_Bermudan: out.style = OptionSheetStyle::Bermudan; break;
+        case quantra::enums::ExerciseType_American: out.style = OptionSheetStyle::American; break;
+        default: QUANTRA_INVALID_ARGUMENT(path + ".option_style is not a known ExerciseType");
+    }
+    out.quotes.reserve(sheet->quotes()->size());
+    for (flatbuffers::uoffset_t i = 0; i < sheet->quotes()->size(); ++i) {
+        const auto* q = sheet->quotes()->Get(i);
+        if (!q || !q->expiry() || q->expiry()->size() == 0) {
+            QUANTRA_INVALID_ARGUMENT(
+                path + ".quotes[" + std::to_string(i) + "].expiry is required");
+        }
+        OptionQuoteLine line;
+        line.expiryIso = q->expiry()->str();
+        line.expiry = DateToQL(line.expiryIso);
+        line.strike = opt(q->strike());
+        line.callBid = opt(q->call_bid());
+        line.callAsk = opt(q->call_ask());
+        line.putBid = opt(q->put_bid());
+        line.putAsk = opt(q->put_ask());
+        line.callOpenInterest = opt(q->call_open_interest());
+        line.putOpenInterest = opt(q->put_open_interest());
+        out.quotes.push_back(std::move(line));
+    }
+    return out;
+}
+
+QuoteFilterData decodeQuoteFilter(const quantra::QuoteFilter* f) {
+    QuoteFilterData flt;
+    if (f) {
+        flt.maxRelativeSpread = f->max_relative_spread();
+        flt.minQuotesPerExpiry = f->min_quotes_per_expiry();
+        flt.moneynessWindow = f->moneyness_window();
+        flt.minOpenInterest = opt(f->min_open_interest());
+    }
+    return flt;
+}
+
 ImpliedForwardsInputs ImpliedForwardsMapper::toInputs(
     const quantra::CalibrateImpliedForwardsRequest* req) const {
     if (!req || !req->pricing()) {
@@ -27,53 +83,16 @@ ImpliedForwardsInputs ImpliedForwardsMapper::toInputs(
     if (!req->dividend_curve_id() || req->dividend_curve_id()->size() == 0) {
         QUANTRA_INVALID_ARGUMENT("CalibrateImpliedForwardsRequest requires dividend_curve_id");
     }
-    const auto* sheet = req->sheet();
-    if (!sheet->id() || sheet->id()->size() == 0) {
-        QUANTRA_INVALID_ARGUMENT("sheet.id is required");
-    }
-    if (!sheet->underlying_id() || sheet->underlying_id()->size() == 0) {
-        QUANTRA_INVALID_ARGUMENT("sheet.underlying_id is required");
-    }
-    if (!sheet->quotes() || sheet->quotes()->size() == 0) {
-        QUANTRA_INVALID_ARGUMENT("sheet.quotes must contain at least one quote");
-    }
+    DecodedQuoteSheet sheet = decodeOptionQuoteSheet(req->sheet(), "sheet");
 
     ImpliedForwardsInputs in;
-    in.sheetId = sheet->id()->str();
-    in.underlyingId = sheet->underlying_id()->str();
+    in.sheetId = std::move(sheet.sheetId);
+    in.underlyingId = std::move(sheet.underlyingId);
+    in.style = sheet.style;
+    in.quotes = std::move(sheet.quotes);
     in.discountingCurveId = req->discounting_curve()->str();
     in.dividendCurveId = req->dividend_curve_id()->str();
-    switch (sheet->option_style()) {
-        case quantra::enums::ExerciseType_European: in.style = OptionSheetStyle::European; break;
-        case quantra::enums::ExerciseType_Bermudan: in.style = OptionSheetStyle::Bermudan; break;
-        case quantra::enums::ExerciseType_American: in.style = OptionSheetStyle::American; break;
-        default: QUANTRA_INVALID_ARGUMENT("sheet.option_style is not a known ExerciseType");
-    }
-    if (req->filter()) {
-        const auto* f = req->filter();
-        in.filter.maxRelativeSpread = f->max_relative_spread();
-        in.filter.minQuotesPerExpiry = f->min_quotes_per_expiry();
-        in.filter.moneynessWindow = f->moneyness_window();
-        in.filter.minOpenInterest = opt(f->min_open_interest());
-    }
-    in.quotes.reserve(sheet->quotes()->size());
-    for (flatbuffers::uoffset_t i = 0; i < sheet->quotes()->size(); ++i) {
-        const auto* q = sheet->quotes()->Get(i);
-        if (!q || !q->expiry() || q->expiry()->size() == 0) {
-            QUANTRA_INVALID_ARGUMENT("sheet.quotes[" + std::to_string(i) + "].expiry is required");
-        }
-        OptionQuoteLine line;
-        line.expiryIso = q->expiry()->str();
-        line.expiry = DateToQL(line.expiryIso);
-        line.strike = opt(q->strike());
-        line.callBid = opt(q->call_bid());
-        line.callAsk = opt(q->call_ask());
-        line.putBid = opt(q->put_bid());
-        line.putAsk = opt(q->put_ask());
-        line.callOpenInterest = opt(q->call_open_interest());
-        line.putOpenInterest = opt(q->put_open_interest());
-        in.quotes.push_back(std::move(line));
-    }
+    in.filter = decodeQuoteFilter(req->filter());
     return in;
 }
 

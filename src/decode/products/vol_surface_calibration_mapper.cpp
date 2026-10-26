@@ -2,15 +2,12 @@
 
 #include "date_convert.h"
 #include "error.h"
+#include "implied_forwards_mapper.h"
 #include "request_validation.h"
 
 namespace quantra {
 
 namespace {
-
-std::optional<double> opt(const flatbuffers::Optional<double>& v) {
-    return v.has_value() ? std::optional<double>(v.value()) : std::nullopt;
-}
 
 quantra::enums::VolSurfaceFitMethod toWire(VolSurfaceFitMethod m) {
     return m == VolSurfaceFitMethod::SviPerExpiry
@@ -60,54 +57,17 @@ VolSurfaceCalibrationInputs VolSurfaceCalibrationMapper::toInputs(
     if (!req->vol_surface_id() || req->vol_surface_id()->size() == 0) {
         QUANTRA_INVALID_ARGUMENT("CalibrateVolSurfaceRequest requires vol_surface_id");
     }
-    const auto* sheet = req->sheet();
-    if (!sheet->id() || sheet->id()->size() == 0) {
-        QUANTRA_INVALID_ARGUMENT("sheet.id is required");
-    }
-    if (!sheet->underlying_id() || sheet->underlying_id()->size() == 0) {
-        QUANTRA_INVALID_ARGUMENT("sheet.underlying_id is required");
-    }
-    if (!sheet->quotes() || sheet->quotes()->size() == 0) {
-        QUANTRA_INVALID_ARGUMENT("sheet.quotes must contain at least one quote");
-    }
+    DecodedQuoteSheet sheet = decodeOptionQuoteSheet(req->sheet(), "sheet");
 
     VolSurfaceCalibrationInputs in;
     ImpliedForwardsInputs& base = in.base;
-    base.sheetId = sheet->id()->str();
-    base.underlyingId = sheet->underlying_id()->str();
+    base.sheetId = std::move(sheet.sheetId);
+    base.underlyingId = std::move(sheet.underlyingId);
+    base.style = sheet.style;
+    base.quotes = std::move(sheet.quotes);
     base.discountingCurveId = req->discounting_curve()->str();
     base.dividendCurveId = "unused";
-    switch (sheet->option_style()) {
-        case quantra::enums::ExerciseType_European: base.style = OptionSheetStyle::European; break;
-        case quantra::enums::ExerciseType_Bermudan: base.style = OptionSheetStyle::Bermudan; break;
-        case quantra::enums::ExerciseType_American: base.style = OptionSheetStyle::American; break;
-        default: QUANTRA_INVALID_ARGUMENT("sheet.option_style is not a known ExerciseType");
-    }
-    if (req->filter()) {
-        const auto* f = req->filter();
-        base.filter.maxRelativeSpread = f->max_relative_spread();
-        base.filter.minQuotesPerExpiry = f->min_quotes_per_expiry();
-        base.filter.moneynessWindow = f->moneyness_window();
-        base.filter.minOpenInterest = opt(f->min_open_interest());
-    }
-    base.quotes.reserve(sheet->quotes()->size());
-    for (flatbuffers::uoffset_t i = 0; i < sheet->quotes()->size(); ++i) {
-        const auto* q = sheet->quotes()->Get(i);
-        if (!q || !q->expiry() || q->expiry()->size() == 0) {
-            QUANTRA_INVALID_ARGUMENT("sheet.quotes[" + std::to_string(i) + "].expiry is required");
-        }
-        OptionQuoteLine line;
-        line.expiryIso = q->expiry()->str();
-        line.expiry = DateToQL(line.expiryIso);
-        line.strike = opt(q->strike());
-        line.callBid = opt(q->call_bid());
-        line.callAsk = opt(q->call_ask());
-        line.putBid = opt(q->put_bid());
-        line.putAsk = opt(q->put_ask());
-        line.callOpenInterest = opt(q->call_open_interest());
-        line.putOpenInterest = opt(q->put_open_interest());
-        base.quotes.push_back(std::move(line));
-    }
+    base.filter = decodeQuoteFilter(req->filter());
 
     if (req->forwards()) {
         std::vector<VolSurfaceForwardInput> fwds;
@@ -257,7 +217,7 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
     vb.add_strikes(strikesOff);
     vb.add_surface_vols(matrixOff);
     vb.add_allow_extrapolation(true);
-    vb.add_surface_interpolator(quantra::enums::SurfaceInterpolator2D_Bilinear);
+    vb.add_surface_interpolator(quantra::enums::SurfaceInterpolator2D_CubicStrikeLinearTime);
     auto payloadOff = vb.Finish();
     auto specIdOff = b.CreateString(r.volSurfaceId);
     quantra::VolSurfaceSpecBuilder sb(b);
@@ -265,6 +225,51 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
     sb.add_payload_type(quantra::VolPayload_BlackVolSpec);
     sb.add_payload(payloadOff.Union());
     auto specOff = sb.Finish();
+
+    // The same surface as SVI slices (SviPerExpiry only): one slice per
+    // usable expiry with the forward used and the fitted parameters.
+    flatbuffers::Offset<quantra::VolSurfaceSpec> sviSpecOff;
+    flatbuffers::Offset<flatbuffers::String> sviNoteOff;
+    if (r.method == VolSurfaceFitMethod::SviPerExpiry) {
+        std::vector<flatbuffers::Offset<quantra::SviSlice>> slices;
+        for (const auto& e : r.expiries) {
+            if (!e.usable || !e.svi || !e.forward) continue;
+            auto expOff = b.CreateString(e.expiryIso);
+            quantra::SviSliceBuilder slb(b);
+            slb.add_expiry(expOff);
+            slb.add_forward(*e.forward);
+            slb.add_a(e.svi->a);
+            slb.add_b(e.svi->b);
+            slb.add_sigma(e.svi->sigma);
+            slb.add_rho(e.svi->rho);
+            slb.add_m(e.svi->m);
+            slices.push_back(slb.Finish());
+        }
+        auto slicesOff = b.CreateVector(slices);
+        auto sviRefDateOff = b.CreateString(r.asOfIso);
+        quantra::BlackVolBaseSpecBuilder sbb(b);
+        sbb.add_reference_date(sviRefDateOff);
+        sbb.add_calendar(quantra::enums::Calendar_NullCalendar);
+        sbb.add_business_day_convention(quantra::enums::BusinessDayConvention_Unadjusted);
+        sbb.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+        auto sviBaseOff = sbb.Finish();
+        quantra::SviVolSpecBuilder svb(b);
+        svb.add_base(sviBaseOff);
+        svb.add_slices(slicesOff);
+        svb.add_time_interpolation(quantra::enums::SviTimeInterpolation_LinearTotalVariance);
+        svb.add_allow_extrapolation(true);
+        auto sviPayloadOff = svb.Finish();
+        auto sviIdOff = b.CreateString(r.volSurfaceId);
+        quantra::VolSurfaceSpecBuilder ssb(b);
+        ssb.add_id(sviIdOff);
+        ssb.add_payload_type(quantra::VolPayload_SviVolSpec);
+        ssb.add_payload(sviPayloadOff.Union());
+        sviSpecOff = ssb.Finish();
+    } else {
+        sviNoteOff = b.CreateString(
+            "SVI parameters are not available for the AndreasenHuge method (a piecewise local "
+            "volatility, no closed-form slices); use method SviPerExpiry for vol_surface_spec_svi");
+    }
 
     // Vanilla repricing.
     std::vector<flatbuffers::Offset<quantra::VanillaRepricePoint>> pts;
@@ -315,6 +320,8 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
     ob.add_grid_expiries(gridExpiriesOff);
     if (r.andreasenHugeError) ob.add_andreasen_huge_error(ahOff);
     ob.add_vol_surface_spec(specOff);
+    if (!sviSpecOff.IsNull()) ob.add_vol_surface_spec_svi(sviSpecOff);
+    if (!sviNoteOff.IsNull()) ob.add_vol_surface_spec_svi_note(sviNoteOff);
     ob.add_vanilla_repricing(repricingOff);
     return ob.Finish();
 }

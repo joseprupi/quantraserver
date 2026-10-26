@@ -2,7 +2,22 @@
 
 # namespace: enums
 
-# 2D surface interpolation mode.
+# Interpolation of a strike x expiry Black surface (`BlackVolSpec`
+# `SmileCube3D` / `SurfaceFromPrices`), always in total variance.
+#   Bilinear: QuantLib `BlackVarianceSurface`, bilinear in (strike, time).
+#     The variance is linear between two grid strikes, so a Dupire local
+#     vol derived from it has no smile curvature inside a cell (it does not
+#     reprice the quotes through a Monte Carlo; see docs/http-api.md).
+#   Bicubic: QuantLib `BicubicSpline` on the whole grid (a spline in time
+#     too, through the zero-variance column at t = 0: the short end is
+#     distorted; costly per evaluation).
+#   CubicStrikeLinearTime: per expiry a natural cubic spline of total
+#     variance in log-strike (C2, so the local vol is continuous), linear
+#     in total variance between expiries at fixed strike (calendar-safe),
+#     constant beyond the first and last strike, flat implied vol beyond
+#     the last expiry. The default of the surfaces `/calibrate-vol-surface`
+#     returns; a supplied grid keeps Bilinear unless it says otherwise.
 class SurfaceInterpolator2D(object):
     Bilinear = 0
     Bicubic = 1
+    CubicStrikeLinearTime = 2

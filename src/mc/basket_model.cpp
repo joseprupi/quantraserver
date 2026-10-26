@@ -6,7 +6,9 @@
 #include <ql/processes/blackscholesprocess.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
+#include <ql/termstructures/volatility/equityfx/localvolsurface.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <set>
 #include <sstream>
@@ -44,6 +46,60 @@ BasketAsset MakeBasketAsset(
     asset.vol = vol;
     asset.exactStepCapable = IsExactStepCapable(vol);
     return asset;
+}
+
+EdgeClampedLocalVol::EdgeClampedLocalVol(
+    std::shared_ptr<QuantLib::LocalVolTermStructure> inner,
+    QuantLib::Real minStrike,
+    QuantLib::Real maxStrike)
+    : QuantLib::LocalVolTermStructure(inner->businessDayConvention(), inner->dayCounter()),
+      inner_(std::move(inner)), lower_(minStrike * std::exp(kEdgeMargin)),
+      upper_(maxStrike * std::exp(-kEdgeMargin)) {
+    if (!(lower_ < upper_)) {
+        // A strike range narrower than twice the margin (or unbounded on
+        // one side only): no interior to clamp to, evaluate as is.
+        lower_ = minStrike;
+        upper_ = maxStrike;
+    }
+    registerWith(inner_);
+}
+
+QuantLib::Real EdgeClampedLocalVol::clampedLevel(QuantLib::Real s) const {
+    return std::min(std::max(s, lower_), upper_);
+}
+
+QuantLib::Volatility EdgeClampedLocalVol::localVolImpl(QuantLib::Time t, QuantLib::Real s) const {
+    return inner_->localVol(t, clampedLevel(s), true);
+}
+
+void LocalVolCache::attach(BasketAsset& asset) {
+    if (asset.exactStepCapable) {
+        return;
+    }
+    if (asset.spot.empty() || asset.dividend.empty() || asset.riskFree.empty() ||
+        asset.vol.empty()) {
+        QUANTRA_ERROR(
+            "basket model: every spot, curve and vol handle must be linked for asset: " + asset.id);
+    }
+    const Key key{
+        asset.vol.currentLink().get(), asset.spot.currentLink().get(),
+        asset.dividend.currentLink().get(), asset.riskFree.currentLink().get()};
+    auto it = cache_.find(key);
+    if (it == cache_.end()) {
+        // The very object GeneralizedBlackScholesProcess::localVolatility()
+        // would build (ql/processes/blackscholesprocess.cpp): LocalVolSurface
+        // on the Black vol, the risk-free and dividend curves and the spot;
+        // read at the level clamped to the interior of the strike grid.
+        auto inner = std::make_shared<QuantLib::LocalVolSurface>(
+            asset.vol, asset.riskFree, asset.dividend, asset.spot);
+        it = cache_
+                 .emplace(
+                     key, QuantLib::Handle<QuantLib::LocalVolTermStructure>(
+                              std::make_shared<EdgeClampedLocalVol>(
+                                  inner, asset.vol->minStrike(), asset.vol->maxStrike())))
+                 .first;
+    }
+    asset.localVol = it->second;
 }
 
 bool BasketModel::allExactStepCapable(const std::vector<BasketAsset>& assets) {
@@ -147,9 +203,20 @@ std::shared_ptr<LognormalBasket> BasketModel::build(
             QUANTRA_ERROR(
                 "basket model: exactStepCapable does not match the vol type for asset: " + a.id);
         }
-        processes.push_back(
-            std::make_shared<QuantLib::GeneralizedBlackScholesProcess>(
-                a.spot, a.dividend, a.riskFree, a.vol));
+        if (a.localVol.empty()) {
+            processes.push_back(
+                std::make_shared<QuantLib::GeneralizedBlackScholesProcess>(
+                    a.spot, a.dividend, a.riskFree, a.vol));
+        } else {
+            if (a.exactStepCapable) {
+                QUANTRA_ERROR("basket model: a shared local vol on an exact-step asset: " + a.id);
+            }
+            // QuantLib's external-local-vol process: the same Euler step on
+            // the same LocalVolSurface arithmetic as the lazily derived one.
+            processes.push_back(
+                std::make_shared<QuantLib::GeneralizedBlackScholesProcess>(
+                    a.spot, a.dividend, a.riskFree, a.vol, a.localVol));
+        }
     }
     return std::make_shared<LognormalBasket>(assets, processes, correlation);
 }
