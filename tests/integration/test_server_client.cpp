@@ -2043,7 +2043,7 @@ TEST(RequestBudget, NoCeilingNoClientDeadlineIsUnlimited) {
 
 // =============================================================================
 // Non-finite scan of generated response text (gateway guard, see
-// client/cpp/src/non_finite_scan.cpp). FlatBuffers prints a non-finite double
+// clients/cpp/src/non_finite_scan.cpp). FlatBuffers prints a non-finite double
 // as a bare `inf` / `-inf` / `nan`; the gateway must turn that into a 500
 // naming the field, never ship it as a 200 body.
 // =============================================================================

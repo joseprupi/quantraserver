@@ -24,7 +24,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/quantra_build_info.cmake)
 
 # Global include directories
 include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}/grpc/
+    ${CMAKE_CURRENT_SOURCE_DIR}/flatbuffers/grpc/
     ${CMAKE_CURRENT_SOURCE_DIR}/flatbuffers/cpp
     ${DEPS_PREFIX}/include
 )
@@ -123,8 +123,8 @@ set(GRPC_ALL_LIBS
 # Subdirectories
 # =============================================================================
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/flatbuffers)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/grpc)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/client)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/flatbuffers/grpc)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/clients)
 # add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/examples)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/server)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/tests)

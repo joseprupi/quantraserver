@@ -33,7 +33,7 @@ from ql_reference import (
 
 def check_bootstrap_curves(client: ApiClient, data_dir: Path) -> dict:
     """Test bootstrap-curves endpoint against QuantLib."""
-    filepath = data_dir / "bootstrap_curves_tenor_grid.json"
+    filepath = data_dir / "curves/bootstrap_curves_tenor_grid.json"
     result = {
         "product": "bootstrap_curves",
         "file": str(filepath),

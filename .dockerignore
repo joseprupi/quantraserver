@@ -29,4 +29,4 @@ docs/
 *.pyc
 *.pyo
 *.pyd
-quantra-python/quantra.egg-info/*
+clients/python/quantra.egg-info/*

@@ -7,7 +7,7 @@ Uses identical bootstrapped curves for exact matching.
 This mirrors the C++ comparison tests in tests/quantra_comparison_test.cpp
 
 Usage:
-    PYTHONPATH=/workspace/quantra-python:/workspace/flatbuffers/python python3 tests/test_quantra_vs_quantlib.py
+    PYTHONPATH=/workspace/clients/python:/workspace/flatbuffers/python python3 tests/test_quantra_vs_quantlib.py
 """
 
 import sys
@@ -19,7 +19,7 @@ PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 
 # Add paths for imports
 sys.path.insert(0, os.path.join(PROJECT_ROOT, 'flatbuffers/python'))
-sys.path.insert(0, os.path.join(PROJECT_ROOT, 'quantra-python'))
+sys.path.insert(0, os.path.join(PROJECT_ROOT, 'clients', 'python'))
 
 import QuantLib as ql
 from quantra_client.client import (

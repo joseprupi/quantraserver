@@ -1,18 +1,19 @@
 # Server CMakeLists.txt
 include_directories(
-    ${CMAKE_SOURCE_DIR}/grpc
+    ${CMAKE_SOURCE_DIR}/flatbuffers/grpc
     ${CMAKE_SOURCE_DIR}/src/transport
-    ${CMAKE_SOURCE_DIR}/src/mappers
+    ${CMAKE_SOURCE_DIR}/src/mappers/market
+    ${CMAKE_SOURCE_DIR}/src/mappers/products
     ${CMAKE_SOURCE_DIR}/src/evaluators
-    ${CMAKE_SOURCE_DIR}/src/parsers
     ${CMAKE_SOURCE_DIR}/src/market
     ${CMAKE_SOURCE_DIR}/src/mc
     ${CMAKE_SOURCE_DIR}/src/domain
     ${CMAKE_SOURCE_DIR}/src/common
 )
 
-file(GLOB SYNC_SOURCES  ${CMAKE_SOURCE_DIR}/src/*/*.cpp
-                        ./*.cpp)
+file(GLOB_RECURSE SYNC_SOURCES ${CMAKE_SOURCE_DIR}/src/*.cpp)
+file(GLOB SERVER_SOURCES ./*.cpp)
+list(APPEND SYNC_SOURCES ${SERVER_SOURCES})
 
 add_executable(sync_server ${SYNC_SOURCES})
 

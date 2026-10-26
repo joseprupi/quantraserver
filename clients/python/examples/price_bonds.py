@@ -8,7 +8,7 @@ import argparse
 # example runs straight from a source checkout without installing anything.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(_REPO_ROOT, "flatbuffers", "python"))
-sys.path.insert(0, os.path.join(_REPO_ROOT, "quantra-python"))
+sys.path.insert(0, os.path.join(_REPO_ROOT, "clients", "python"))
 
 from quantra_client.client import Client
 

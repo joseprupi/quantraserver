@@ -30,7 +30,7 @@ def _calib_spec(req):
 
 
 def test_market_matrix_joint_fit_is_bounded_and_flagged(client, data_dir):
-    req = load_json(data_dir / "calibrate_swaption_model_request.json")
+    req = load_json(data_dir / "vol/calibrate_swaption_model_request.json")
     r = _post(client, "calibrate_swaption_model", req)
     assert r.status_code == 200, r.text[:300]
     out = r.json()
@@ -45,7 +45,7 @@ def test_market_matrix_joint_fit_is_bounded_and_flagged(client, data_dir):
 
 
 def test_bounds_override_through_request_calibration(client, data_dir):
-    req = load_json(data_dir / "calibrate_swaption_model_request.json")
+    req = load_json(data_dir / "vol/calibrate_swaption_model_request.json")
     req = copy.deepcopy(req)
     spec = copy.deepcopy(_calib_spec(req))
     spec["a_lower"] = 0.05
@@ -58,7 +58,7 @@ def test_bounds_override_through_request_calibration(client, data_dir):
 
 
 def test_invalid_bounds_are_400(client, data_dir):
-    req = load_json(data_dir / "calibrate_swaption_model_request.json")
+    req = load_json(data_dir / "vol/calibrate_swaption_model_request.json")
     for lower, upper, needle in ((0.0, 1.0, "a_lower"), (0.5, 0.1, "a_upper")):
         rr = copy.deepcopy(req)
         spec = copy.deepcopy(_calib_spec(rr))
@@ -70,7 +70,7 @@ def test_invalid_bounds_are_400(client, data_dir):
 
 
 def test_sigma_only_fit_has_no_flatness_fields_and_ignores_bounds(client, data_dir):
-    req = load_json(data_dir / "calibrate_swaption_model_request.json")
+    req = load_json(data_dir / "vol/calibrate_swaption_model_request.json")
     req = copy.deepcopy(req)
     spec = copy.deepcopy(_calib_spec(req))
     spec["calibrate_a"] = False
@@ -97,7 +97,7 @@ def test_well_identified_surface_is_not_flagged(client, data_dir):
 
 
 def test_inline_calibrated_swaption_carries_used_hw_flatness(client, data_dir):
-    req = load_json(data_dir / "swaption_bermudan_hw_calibrated.json")
+    req = load_json(data_dir / "swaption/swaption_bermudan_hw_calibrated.json")
     r = _post(client, "swaption", req)
     assert r.status_code == 200, r.text[:300]
     row = r.json()["swaptions"][0]

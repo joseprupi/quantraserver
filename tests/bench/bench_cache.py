@@ -108,7 +108,7 @@ SWAP_REQUEST = {
 }
 
 # --- HWCALIB: Hull-White swaption-model calibration ---
-# Derived from examples/data/calibrate_swaption_model_request.json but enriched
+# Derived from examples/data/vol/calibrate_swaption_model_request.json but enriched
 # so the calibration is representative rather than a trivial 2x2: the discount
 # curve carries 9 helpers (out to 30Y) and the ATM swaption vol surface is a
 # 6x4 grid (expiries 1/2/3/5/7/10Y x tenors 2/5/7/10Y) => 24 SwaptionHelpers.

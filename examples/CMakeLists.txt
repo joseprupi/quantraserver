@@ -1,50 +1,46 @@
 include_directories(
 	/root/grpc/install/include
-    ${CMAKE_SOURCE_DIR}/grpc
+    ${CMAKE_SOURCE_DIR}/flatbuffers/grpc
     ${CMAKE_SOURCE_DIR}/src/transport
-    ${CMAKE_SOURCE_DIR}/src/mappers
+    ${CMAKE_SOURCE_DIR}/src/mappers/market
+    ${CMAKE_SOURCE_DIR}/src/mappers/products
     ${CMAKE_SOURCE_DIR}/src/evaluators
-    ${CMAKE_SOURCE_DIR}/src/parsers
     ${CMAKE_SOURCE_DIR}/src/market
     ${CMAKE_SOURCE_DIR}/src/mc
     ${CMAKE_SOURCE_DIR}/src/domain
     ${CMAKE_SOURCE_DIR}/src/common
     ${CMAKE_SOURCE_DIR}/flatbuffers/fbs
-    ${CMAKE_SOURCE_DIR}/client/cpp
+    ${CMAKE_SOURCE_DIR}/clients/cpp
     data)
 
-file(GLOB ASYNC_SOURCES  
-    ${CMAKE_SOURCE_DIR}/src/*/*.cpp 
+file(GLOB_RECURSE ENGINE_SOURCES ${CMAKE_SOURCE_DIR}/src/*.cpp)
+
+file(GLOB ASYNC_SOURCES
     ./messages.cpp
     data/fixed_rate_bond_request_fbs.cpp
     ./async_client.cpp)
 
 file(GLOB JSON_SOURCES  
-    ${CMAKE_SOURCE_DIR}/src/*/*.cpp 
     ./messages.cpp
     data/fixed_rate_bond_request_fbs.cpp
     ./bond_request_to_json.cpp)
 
 file(GLOB SWAP_CLIENT_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/*/*.cpp
     ./messages.cpp
     data/vanilla_swap_request_fbs.cpp
     ./swap_client.cpp)
 
 file(GLOB FRA_CLIENT_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/*/*.cpp
     ./messages.cpp
     data/fra_request_fbs.cpp
     ./fra_client.cpp)
 
 file(GLOB CAP_FLOOR_CLIENT_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/*/*.cpp
     ./messages.cpp
     data/cap_floor_request_fbs.cpp
     ./cap_floor_client.cpp)
 
 file(GLOB SWAPTION_CLIENT_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/*/*.cpp
     ./messages.cpp
     data/swaption_request_fbs.cpp
     ./swaption_client.cpp)
@@ -67,12 +63,12 @@ set(ABSL_LIBS
     absl_throw_delegate
 )
 
-add_executable(async_client ${ASYNC_SOURCES})
-add_executable(bond_request_to_json ${JSON_SOURCES})
-add_executable(swap_client ${SWAP_CLIENT_SOURCES})
-add_executable(fra_client ${FRA_CLIENT_SOURCES})
-add_executable(cap_floor_client ${CAP_FLOOR_CLIENT_SOURCES})
-add_executable(swaption_client ${SWAPTION_CLIENT_SOURCES})
+add_executable(async_client ${ASYNC_SOURCES} ${ENGINE_SOURCES})
+add_executable(bond_request_to_json ${JSON_SOURCES} ${ENGINE_SOURCES})
+add_executable(swap_client ${SWAP_CLIENT_SOURCES} ${ENGINE_SOURCES})
+add_executable(fra_client ${FRA_CLIENT_SOURCES} ${ENGINE_SOURCES})
+add_executable(cap_floor_client ${CAP_FLOOR_CLIENT_SOURCES} ${ENGINE_SOURCES})
+add_executable(swaption_client ${SWAPTION_CLIENT_SOURCES} ${ENGINE_SOURCES})
 
 target_link_libraries(async_client gpr grpc grpc++ flatbuffers quantra_grpc QuantLib Threads::Threads ${ABSL_LIBS})
 target_link_libraries(bond_request_to_json gpr grpc grpc++ flatbuffers quantra_grpc QuantLib Threads::Threads ${ABSL_LIBS})

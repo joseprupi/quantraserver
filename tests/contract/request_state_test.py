@@ -47,7 +47,7 @@ def _swap_needing_fixing(data_dir):
     the 15th being the as-of date and the 16th now closed), so the floating
     leg needs a historical Euribor6M fixing. No index carries `fixings`.
     """
-    req = _load(data_dir, "vanilla_swap_multicurve_request.json")
+    req = _load(data_dir, "ir_swaps/vanilla_swap_multicurve_request.json")
     req["pricing"]["calendar_overrides"] = [
         {"calendar": "TARGET", "added_holidays": ["2024-01-16"]}
     ]
@@ -93,7 +93,7 @@ def test_fixings_do_not_leak_between_requests(client, data_dir):
 
 
 def _neg_index_fixing_days(data_dir):
-    req = _load(data_dir, "vanilla_swap_multicurve_request.json")
+    req = _load(data_dir, "ir_swaps/vanilla_swap_multicurve_request.json")
     for idx in req["pricing"]["rates"]["indices"]:
         if idx["id"] == "EUR_6M":
             idx["fixing_days"] = -1
@@ -101,13 +101,13 @@ def _neg_index_fixing_days(data_dir):
 
 
 def _neg_bond_settlement_days(data_dir):
-    req = _load(data_dir, "fixed_rate_bond_request.json")
+    req = _load(data_dir, "bonds/fixed_rate_bond_request.json")
     req["bonds"][0]["fixed_rate_bond"]["settlement_days"] = -1
     return "fixed_rate_bond", req, "FixedRateBond.settlement_days"
 
 
 def _neg_ois_helper_settlement_days(data_dir):
-    req = _load(data_dir, "vanilla_swap_multicurve_request.json")
+    req = _load(data_dir, "ir_swaps/vanilla_swap_multicurve_request.json")
     hit = False
     for curve in req["pricing"]["rates"]["curves"]:
         for p in curve.get("points", []):
@@ -119,7 +119,7 @@ def _neg_ois_helper_settlement_days(data_dir):
 
 
 def _neg_cds_cash_settlement_days(data_dir):
-    req = _load(data_dir, "cds_request.json")
+    req = _load(data_dir, "cds/cds_request.json")
     req["cds_list"][0]["cds"]["cash_settlement_days"] = -1
     return "cds", req, "CDS.cash_settlement_days"
 

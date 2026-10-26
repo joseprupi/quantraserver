@@ -5,7 +5,7 @@ Quantra JSON API concurrency / race test.
 Fires many identical requests at a single endpoint from many threads at once.
 The JSON gateway shares one flatbuffers::Parser per product across all Crow
 worker threads; if that parser is raced (the bug fixed in
-client/cpp/src/json_parser.cpp), concurrent requests to the same endpoint can
+clients/cpp/src/json_parser.cpp), concurrent requests to the same endpoint can
 return corrupted/failed responses or crash the gateway. With per-thread parsers,
 every identical request must return the same successful result.
 
@@ -47,7 +47,7 @@ def main() -> int:
     parser.add_argument("--url", default="http://localhost:8080")
     parser.add_argument("--data-dir", default="examples/data")
     parser.add_argument("--route", default="price-fixed-rate-bond")
-    parser.add_argument("--request-file", default="fixed_rate_bond_request.json")
+    parser.add_argument("--request-file", default="bonds/fixed_rate_bond_request.json")
     parser.add_argument("--requests", type=int, default=96)
     parser.add_argument("--workers", type=int, default=24)
     args = parser.parse_args()

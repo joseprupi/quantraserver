@@ -8,7 +8,7 @@ from ql_reference import api_npv, load_json, price_cap_floor_ql
 
 
 def test_cap_floor_parity(client, data_dir):
-    request = load_json(data_dir / "cap_floor_request.json")
+    request = load_json(data_dir / "cap_floor/cap_floor_request.json")
     response = client.price("cap_floor", request)
     quantra = api_npv(response, "cap_floors")
     quantlib = price_cap_floor_ql(request)

@@ -31,7 +31,7 @@ def bond_url(client):
 
 @pytest.fixture(scope="module")
 def bond_request(data_dir):
-    with open(data_dir / "fixed_rate_bond_request.json") as fh:
+    with open(data_dir / "bonds/fixed_rate_bond_request.json") as fh:
         return json.load(fh)
 
 

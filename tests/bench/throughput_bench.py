@@ -75,7 +75,7 @@ ADMIN_PORT = 9901    # Envoy admin
 HTTP_PORT = 8080     # json_server HTTP front
 QUANTRA = REPO / "scripts" / "quantra"
 JSON_SERVER = REPO / "build" / "jsonserver" / "json_server"
-SMILE_FILE = REPO / "examples" / "data" / "swaption_smile_cube_request.json"
+SMILE_FILE = REPO / "examples" / "data" / "swaption" / "swaption_smile_cube_request.json"
 
 
 # =============================================================================

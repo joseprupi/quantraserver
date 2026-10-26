@@ -19,7 +19,7 @@ GEN_PYTHON_DIR="$WORKSPACE/flatbuffers/python"
 GEN_CPP_DIR="$WORKSPACE/flatbuffers/cpp"
 GEN_JSON_DIR="$WORKSPACE/flatbuffers/json"
 OPENAPI_DIR="$WORKSPACE/jsonserver/openapi"
-TOOLS_DIR="$WORKSPACE/quantra-python/tools"
+TOOLS_DIR="$WORKSPACE/clients/python/tools"
 
 echo "========================================"
 echo "   Quantra Schema Generator"
@@ -55,7 +55,7 @@ flatc --cpp --gen-object-api -I "$FBS_DIR" -o "$GEN_CPP_DIR" "$FBS_DIR"/*.fbs
 
 # 2.5. Generate gRPC Service Code
 echo "[3/7] Generating gRPC service code..."
-GEN_GRPC_DIR="$WORKSPACE/grpc"
+GEN_GRPC_DIR="$WORKSPACE/flatbuffers/grpc"
 mkdir -p "$GEN_GRPC_DIR"
 flatc --grpc --cpp -I "$FBS_DIR" -o "$GEN_GRPC_DIR" "$GEN_GRPC_DIR/quantraserver.fbs"
 

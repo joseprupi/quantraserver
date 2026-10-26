@@ -40,7 +40,7 @@ CMS_KEYS = [
 
 def test_non_hw_swaption_omits_hw_diagnostics(client, data_dir):
     # The example swaption uses a Black model, so no Hull-White diagnostics apply.
-    request = load_json(data_dir / "swaption_request.json")
+    request = load_json(data_dir / "swaption/swaption_request.json")
     response = client.price("swaption", request)
     rows = response.get("swaptions")
     assert isinstance(rows, list) and rows, f"no swaptions in response: {response}"
@@ -52,7 +52,7 @@ def test_non_hw_swaption_omits_hw_diagnostics(client, data_dir):
 
 
 def test_plain_vanilla_swap_omits_cms_diagnostics(client, data_dir):
-    request = load_json(data_dir / "vanilla_swap_request.json")
+    request = load_json(data_dir / "ir_swaps/vanilla_swap_request.json")
     # Request per-leg flows so the coupon-level cms_swap_rate omission is exercised
     # too (a plain IBOR swap has no CMS coupons).
     request = json.loads(json.dumps(request))
@@ -86,7 +86,7 @@ def test_plain_vanilla_swap_omits_cms_diagnostics(client, data_dir):
 def test_basis_swap_solves_fair_spread_not_fair_rate(client, data_dir):
     """A float-vs-float basis swap carries `fair_spread` and no `fair_rate`;
     its `legs` list holds leg1 then leg2 (request order)."""
-    request = load_json(data_dir / "basis_swap_request.json")
+    request = load_json(data_dir / "ir_swaps/basis_swap_request.json")
     response = client.price("basis_swap", request)
     swaps = response.get("swaps")
     assert isinstance(swaps, list) and swaps, f"no swaps in response: {response}"

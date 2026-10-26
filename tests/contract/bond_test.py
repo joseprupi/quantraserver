@@ -11,8 +11,8 @@ from ql_reference import (
 
 # (product, request file, response list key, QuantLib reference pricer)
 BOND_CASES = [
-    ("fixed_rate_bond", "fixed_rate_bond_request.json", "bonds", price_fixed_rate_bond_ql),
-    ("floating_rate_bond", "floating_rate_bond_request.json", "bonds", price_floating_rate_bond_ql),
+    ("fixed_rate_bond", "bonds/fixed_rate_bond_request.json", "bonds", price_fixed_rate_bond_ql),
+    ("floating_rate_bond", "bonds/floating_rate_bond_request.json", "bonds", price_floating_rate_bond_ql),
 ]
 
 

@@ -11,10 +11,10 @@ import pytest
 from ql_reference import api_npv, load_json, price_swaption_ql
 
 SWAPTION_FILES = [
-    "swaption_request.json",
-    "swaption_ois_request.json",
-    "swaption_ois_bbg_zerorate_request.json",
-    "swaption_atm_matrix_request.json",
+    "swaption/swaption_request.json",
+    "swaption/swaption_ois_request.json",
+    "swaption/swaption_ois_bbg_zerorate_request.json",
+    "swaption/swaption_atm_matrix_request.json",
 ]
 
 
