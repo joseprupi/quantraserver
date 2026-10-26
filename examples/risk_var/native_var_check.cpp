@@ -14,8 +14,8 @@
 // QuantraServer engine does with the script's JSON:
 //   * curve:  PiecewiseYieldCurve<Discount, LogLinear>, reference date
 //             2025-01-15, Actual365Fixed, IterativeBootstrap tolerance 1e-15
-//             (src/mappers/market/term_structure_parser.cpp), no extrapolation.
-//   * pillar: OISRateHelper exactly as src/mappers/market/term_structure_point_parser.cpp
+//             (src/decode/market/term_structure_parser.cpp), no extrapolation.
+//   * pillar: OISRateHelper exactly as src/decode/market/term_structure_point_parser.cpp
 //             builds it — settlement days 2, payment lag 2, payment convention
 //             ModifiedFollowing, payment frequency Annual, payment calendar
 //             UnitedStates(GovernmentBond), spot start, zero overnight spread,
@@ -36,7 +36,7 @@
 //             calendar UnitedStates(GovernmentBond), telescopic value dates
 //             off, Compound averaging, lookback off, lockout 0, no observation
 //             shift, priced with DiscountingSwapEngine on the same curve
-//             (src/mappers/products/ois_swap_mapper.cpp + src/evaluators/ois_swap_evaluator.cpp).
+//             (src/decode/products/ois_swap_mapper.cpp + src/evaluators/ois_swap_evaluator.cpp).
 //
 // This file is a validation artifact: it is intentionally NOT part of the
 // repo's CMake build or test gate. Compile it inside the quantraserver:test
@@ -177,7 +177,7 @@ double priceBook(
     for (Size i = 0; i < pillarTenors.size(); ++i) {
         Handle<Quote> q(ext::make_shared<SimpleQuote>(quotes[i]));
         // Argument-for-argument the OISRateHelper call in
-        // src/mappers/market/term_structure_point_parser.cpp for the script's JSON.
+        // src/decode/market/term_structure_point_parser.cpp for the script's JSON.
         helpers.push_back(
             ext::make_shared<OISRateHelper>(
                 2,                            // settlement_days
@@ -217,7 +217,7 @@ double priceBook(
     double bookValue = 0.0;
     for (const auto& s : book) {
         const Date termination(17, January, 2025 + s.tenorYears);
-        // The script's schedule JSON, as src/mappers/market/schedule_parser.cpp
+        // The script's schedule JSON, as src/decode/market/schedule_parser.cpp
         // builds it (both legs share the same schedule definition).
         Schedule schedule(
             kSpotDate, termination, Period(Annual), cal, ModifiedFollowing, ModifiedFollowing,

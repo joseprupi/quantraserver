@@ -544,7 +544,7 @@ def _joint_calendar(names: list):
 
 def build_fx_spot(pricing: dict, spot_id: str, request_data: dict = None) -> dict:
     """Resolve an FxSpotSpec from pricing.fx.spots into the plain values the
-    engine derives from it (src/mappers/market/fx_spot_parser.cpp):
+    engine derives from it (src/decode/market/fx_spot_parser.cpp):
 
       {"base": str, "quote": str, "rate": float, "spot_days": int,
        "calendar": ql.Calendar (joint), "bdc": ql BusinessDayConvention}
@@ -700,7 +700,7 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
         
         elif point_type == "FutureHelper":
             # QuantLib FuturesRateHelper: quote is the futures PRICE, convexity
-            # is its own argument (mirrors src/mappers/market/term_structure_point_parser.cpp).
+            # is its own argument (mirrors src/decode/market/term_structure_point_parser.cpp).
             helper = ql.FuturesRateHelper(
                 ql.QuoteHandle(ql.SimpleQuote(resolve_future_price(point))),
                 parse_date(point["future_start_date"]),
@@ -779,7 +779,7 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
                 seen_pillars.add(pillar)
         
         elif point_type == "FxSwapHelper":
-            # Mirrors src/mappers/market/term_structure_point_parser.cpp: the spot
+            # Mirrors src/decode/market/term_structure_point_parser.cpp: the spot
             # supplies the pair, the spot rate, the lag (fixingDays), the joint
             # settlement calendar and the convention; the collateral currency's
             # discount curve is another curve of the same request, built here
@@ -822,7 +822,7 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
                 seen_pillars.add(pillar)
 
         elif point_type == "CrossCcyBasisHelper":
-            # Mirrors src/mappers/market/term_structure_point_parser.cpp: the spot
+            # Mirrors src/decode/market/term_structure_point_parser.cpp: the spot
             # names the pair and supplies the settlement lag (fixingDays) but
             # its rate never enters a constant-notional bootstrap; both legs'
             # forwarding curves and the collateral side's discount curve are
@@ -920,7 +920,7 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
         )
     
     # The server bootstraps every piecewise yield curve to an accuracy of
-    # 1e-15 (src/mappers/market/term_structure_parser.cpp, buildCurve); QuantLib's
+    # 1e-15 (src/decode/market/term_structure_parser.cpp, buildCurve); QuantLib's
     # default (1e-12) leaves the discount factors a few ulps apart, which
     # the structured-note standard errors amplify (a variance is a
     # difference of near-equal sums) to ~1e-11 relative.
@@ -1214,7 +1214,7 @@ def price_floating_rate_bond_ql(request: dict) -> float:
 # `payment_convention`, `payment_calendar`, `payment_lag`) sit on the leg
 # itself, as in FpML / ORE, and `coupons` (the `coupons_type` union member)
 # carries only the kind-specific ones. The reference reads each leg exactly
-# as the engine does (src/mappers/products/swap_leg_mapper.cpp decodeShared +
+# as the engine does (src/decode/products/swap_leg_mapper.cpp decodeShared +
 # decodeFixed/Ibor/Overnight/Cms, src/evaluators/swap_leg_pricer.cpp): the
 # side from `pay_receive`, the curves from the leg itself, the principal
 # exchanges from `initial_exchange` / `final_exchange`. No converter sits in
@@ -2980,10 +2980,10 @@ def price_cds_ql(request: dict) -> float:
 # =============================================================================
 #
 # These mirror the server's inflation stack field for field:
-#   * src/mappers/market/inflation_curve_parsers.cpp — the InflationIndexSpec /
+#   * src/decode/market/inflation_curve_parsers.cpp — the InflationIndexSpec /
 #     InflationCurveSpec builders (index construction, helper dates, base
 #     fixing, PiecewiseZero/YoYInflationCurve<Linear> bootstrap),
-#   * src/mappers/products/zero_coupon_inflation_swap_mapper.cpp and
+#   * src/decode/products/zero_coupon_inflation_swap_mapper.cpp and
 #     year_on_year_inflation_swap_mapper.cpp — the trade construction,
 #   * src/evaluators/*_inflation_swap_evaluator.cpp — engine selection
 #     (DiscountingSwapEngine on the trade's discounting curve; the YoY leg
@@ -4989,7 +4989,7 @@ def _sn_find(items, key, value, what):
 
 def _sn_black_vol(pricing: dict, vol_id: str, shift: float = 0.0):
     """The referenced BlackVolSpec as the server builds it
-    (src/mappers/market/vol_surface_parsers.cpp): Constant -> BlackConstantVol,
+    (src/decode/market/vol_surface_parsers.cpp): Constant -> BlackConstantVol,
     AtmMatrix2D -> BlackVarianceCurve (pillars = calendar.advance(reference,
     expiry, bdc), forceMonotoneVariance), SmileCube3D -> BlackVarianceSurface
     (rows = strikes, columns = expiries, bilinear or bicubic). `shift` is

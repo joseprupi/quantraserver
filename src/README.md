@@ -11,9 +11,9 @@ is in.
 
 The folders state the pipeline every request goes through:
 
-1. **FlatBuffers → C++ structs** — `mappers/`: `mappers/market/` decodes the
+1. **FlatBuffers → C++ structs** — `decode/`: `decode/market/` decodes the
    market-data tables (curves, vol surfaces, schedules, FX spots, …) and
-   `mappers/products/` decodes the per-product request tables into plain
+   `decode/products/` decodes the per-product request tables into plain
    `Inputs` structs (and encodes plain `Result` structs back into responses).
 2. **C++ structs → QuantLib objects** — `market/` (registries, bootstrapping,
    calibration caches, engines). The instrument builders still living in
@@ -27,8 +27,8 @@ The folders state the pipeline every request goes through:
 | Folder | Holds | FlatBuffers? |
 |---|---|---|
 | `transport/` | per-product `*_handler.h`, the generic `product_endpoint.h` glue, `call_data_base.h`, `quantra_request.h`, `product_registry.h`, `product_catalog.h` (endpoint registration) | yes (request/response types) |
-| `mappers/products/` | per-product `*_mapper.{h,cpp}` + flow builders | yes — FB↔domain for the product tables |
-| `mappers/market/` | FlatBuffers market-data tables → QuantLib objects (`term_structure_parser`, `vol_surface_parsers`, `schedule_parser`, `yield_parser`, per-product `*_parser`, …) | yes |
+| `decode/products/` | per-product `*_mapper.{h,cpp}` + flow builders | yes — FB↔domain for the product tables |
+| `decode/market/` | FlatBuffers market-data tables → QuantLib objects (`term_structure_parser`, `vol_surface_parsers`, `schedule_parser`, `yield_parser`, per-product `*_parser`, …) | yes |
 | `evaluators/` | per-product `*_evaluator.{h,cpp}` — the QuantLib pricing/compute | **no — boundary-enforced** |
 | `market/` | shared market-data assembly: `pricing_registry(+builder)`, `curve_bootstrapper`, `curve_cache`, the `*_registry` files, `sabr_calibrate_cache`, `swaption_vol_runtime`/`_diagnostics`/`_model_calibration`, `engine_factory`, `grid_utils` | yes |
 | `domain/` | plain C++ types, no QuantLib pricing logic: `*_domain.h`, `enums_domain.{h,cpp}`, `pricing_context.h`, `eval_date_guard.h`, `swaption_rebump.h` | no |
@@ -43,7 +43,7 @@ For a pricing request, `ProductEndpoint<Req, Resp, Mapper, Evaluator>::request()
 2. `mapper_.toInputs(req)` — FlatBuffers request → plain `Inputs` struct.
 3. `PricingRegistryBuilder{}.build(req->pricing())` — assemble market data
    (curves, indices, vol surfaces, models, credit curves) into a `PricingRegistry`,
-   plus a `PricingContext`. Uses `mappers/market/` and `market/`. Skipped for endpoints
+   plus a `PricingContext`. Uses `decode/market/` and `market/`. Skipped for endpoints
    with no `pricing` block (e.g. calendars).
 4. `evaluator_.evaluate(inputs, reg, ctx)` — **pure QuantLib**, returns a plain
    `Result`. No FlatBuffers here.

@@ -231,8 +231,8 @@ upgrade shipped in a release is documented in `docs/quantlib-upgrades/`
 ## Repository Map
 
 - `src/`: the pricing engine internals, in role-based folders — `transport/`
-  (per-product handlers, product catalog), `mappers/` (FlatBuffers → C++:
-  `mappers/market/` for the market-data tables, `mappers/products/` for the
+  (per-product handlers, product catalog), `decode/` (FlatBuffers → C++:
+  `decode/market/` for the market-data tables, `decode/products/` for the
   per-product request/response tables), `evaluators/` (pure QuantLib
   pricing), `market/` (curves, indices, vol surfaces, correlation matrices,
   quanto curves, caches), `mc/` (the shared Monte Carlo core: basket

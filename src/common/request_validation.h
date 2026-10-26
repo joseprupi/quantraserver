@@ -3,7 +3,7 @@
 
 /**
  * Shared validation for incoming request fields, decoded from the FlatBuffers
- * wire in the mappers layer (mappers/market, mappers/products). A bare wire field defaults to 0 / the first
+ * wire in the mappers layer (decode/market, decode/products). A bare wire field defaults to 0 / the first
  * enum / false / an empty vector when omitted, so a forgotten value would
  * silently price against that default; these helpers turn an omitted (or
  * otherwise invalid) value into a named 400 (QuantraInvalidArgument) and return
@@ -12,7 +12,7 @@
  * This is the home for reusable request-field validation: single-field presence
  * (scalars / enums / ints / bools), the `Period` sub-table, and the per-period
  * notionals vector. It is FlatBuffers-aware on purpose and must only ever be
- * included from mappers/market and mappers/products, never from the FlatBuffers-free evaluators.
+ * included from decode/market and decode/products, never from the FlatBuffers-free evaluators.
  *
  * Not covered here (they need a different check than single-field presence):
  * string identity fields, which also reject an empty string; and the

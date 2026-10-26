@@ -29,8 +29,8 @@ first release that promises wire stability.
 ## Unreleased
 
 - Repository layout tidy-up, paths only, no behaviour or wire change:
-  `src/parsers/` → `src/mappers/market/` and the per-product mappers →
-  `src/mappers/products/` (step 1 of the pipeline, FlatBuffers → C++, now in
+  `src/parsers/` → `src/decode/market/` and the per-product mappers →
+  `src/decode/products/` (step 1 of the pipeline, FlatBuffers → C++, now in
   one folder); `src/common/product_catalog.h` → `src/transport/`; `grpc/` →
   `flatbuffers/grpc/`; `client/cpp/` → `clients/cpp/` and `quantra-python/` →
   `clients/python/`; the loose `examples/data/*.json` requests → their product

@@ -2,8 +2,8 @@ include_directories(
 	/root/grpc/install/include
     ${CMAKE_SOURCE_DIR}/flatbuffers/grpc
     ${CMAKE_SOURCE_DIR}/src/transport
-    ${CMAKE_SOURCE_DIR}/src/mappers/market
-    ${CMAKE_SOURCE_DIR}/src/mappers/products
+    ${CMAKE_SOURCE_DIR}/src/decode/market
+    ${CMAKE_SOURCE_DIR}/src/decode/products
     ${CMAKE_SOURCE_DIR}/src/evaluators
     ${CMAKE_SOURCE_DIR}/src/market
     ${CMAKE_SOURCE_DIR}/src/mc
