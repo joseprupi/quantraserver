@@ -126,35 +126,83 @@ inline const char *EnumNameInterpolator(Interpolator e) {
   return EnumNamesInterpolator()[index];
 }
 
-/// 2D surface interpolation mode.
+/// Interpolation of a strike x expiry Black surface (`BlackVolSpec`
+/// `SmileCube3D` / `SurfaceFromPrices`), always in total variance.
+///   Bilinear: QuantLib `BlackVarianceSurface`, bilinear in (strike, time).
+///     The variance is linear between two grid strikes, so a Dupire local
+///     vol derived from it has no smile curvature inside a cell (it does not
+///     reprice the quotes through a Monte Carlo; see docs/http-api.md).
+///   Bicubic: QuantLib `BicubicSpline` on the whole grid (a spline in time
+///     too, through the zero-variance column at t = 0: the short end is
+///     distorted; costly per evaluation).
+///   CubicStrikeLinearTime: per expiry a natural cubic spline of total
+///     variance in log-strike (C2, so the local vol is continuous), linear
+///     in total variance between expiries at fixed strike (calendar-safe),
+///     constant beyond the first and last strike, flat implied vol beyond
+///     the last expiry. The default of the surfaces `/calibrate-vol-surface`
+///     returns; a supplied grid keeps Bilinear unless it says otherwise.
 enum SurfaceInterpolator2D : int8_t {
   SurfaceInterpolator2D_Bilinear = 0,
   SurfaceInterpolator2D_Bicubic = 1,
+  SurfaceInterpolator2D_CubicStrikeLinearTime = 2,
   SurfaceInterpolator2D_MIN = SurfaceInterpolator2D_Bilinear,
-  SurfaceInterpolator2D_MAX = SurfaceInterpolator2D_Bicubic
+  SurfaceInterpolator2D_MAX = SurfaceInterpolator2D_CubicStrikeLinearTime
 };
 
-inline const SurfaceInterpolator2D (&EnumValuesSurfaceInterpolator2D())[2] {
+inline const SurfaceInterpolator2D (&EnumValuesSurfaceInterpolator2D())[3] {
   static const SurfaceInterpolator2D values[] = {
     SurfaceInterpolator2D_Bilinear,
-    SurfaceInterpolator2D_Bicubic
+    SurfaceInterpolator2D_Bicubic,
+    SurfaceInterpolator2D_CubicStrikeLinearTime
   };
   return values;
 }
 
 inline const char * const *EnumNamesSurfaceInterpolator2D() {
-  static const char * const names[3] = {
+  static const char * const names[4] = {
     "Bilinear",
     "Bicubic",
+    "CubicStrikeLinearTime",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameSurfaceInterpolator2D(SurfaceInterpolator2D e) {
-  if (::flatbuffers::IsOutRange(e, SurfaceInterpolator2D_Bilinear, SurfaceInterpolator2D_Bicubic)) return "";
+  if (::flatbuffers::IsOutRange(e, SurfaceInterpolator2D_Bilinear, SurfaceInterpolator2D_CubicStrikeLinearTime)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesSurfaceInterpolator2D()[index];
+}
+
+/// How an `SviVolSpec` interpolates between its slices at a fixed strike.
+///   LinearTotalVariance: w(t, K) linear in t between the bracketing
+///     slices' total variances at K; before the first slice w(T1, K) t / T1
+///     and after the last w(Tn, K) t / Tn (flat implied vol on both ends).
+enum SviTimeInterpolation : int8_t {
+  SviTimeInterpolation_LinearTotalVariance = 0,
+  SviTimeInterpolation_MIN = SviTimeInterpolation_LinearTotalVariance,
+  SviTimeInterpolation_MAX = SviTimeInterpolation_LinearTotalVariance
+};
+
+inline const SviTimeInterpolation (&EnumValuesSviTimeInterpolation())[1] {
+  static const SviTimeInterpolation values[] = {
+    SviTimeInterpolation_LinearTotalVariance
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesSviTimeInterpolation() {
+  static const char * const names[2] = {
+    "LinearTotalVariance",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameSviTimeInterpolation(SviTimeInterpolation e) {
+  if (::flatbuffers::IsOutRange(e, SviTimeInterpolation_LinearTotalVariance, SviTimeInterpolation_LinearTotalVariance)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesSviTimeInterpolation()[index];
 }
 
 /// Bootstrap trait for curve construction.
@@ -1192,37 +1240,42 @@ enum VolSurfaceShape : int8_t {
   VolSurfaceShape_SurfaceFromPrices = 3,
   VolSurfaceShape_SabrParams = 4,
   VolSurfaceShape_SabrCalibrate = 5,
+  /// The shape an `SviVolSpec` payload reports (`vol_shape` echoes); not
+  /// a `BlackVolSpec.base.shape` value (400).
+  VolSurfaceShape_SviSlices = 6,
   VolSurfaceShape_MIN = VolSurfaceShape_Constant,
-  VolSurfaceShape_MAX = VolSurfaceShape_SabrCalibrate
+  VolSurfaceShape_MAX = VolSurfaceShape_SviSlices
 };
 
-inline const VolSurfaceShape (&EnumValuesVolSurfaceShape())[6] {
+inline const VolSurfaceShape (&EnumValuesVolSurfaceShape())[7] {
   static const VolSurfaceShape values[] = {
     VolSurfaceShape_Constant,
     VolSurfaceShape_AtmMatrix2D,
     VolSurfaceShape_SmileCube3D,
     VolSurfaceShape_SurfaceFromPrices,
     VolSurfaceShape_SabrParams,
-    VolSurfaceShape_SabrCalibrate
+    VolSurfaceShape_SabrCalibrate,
+    VolSurfaceShape_SviSlices
   };
   return values;
 }
 
 inline const char * const *EnumNamesVolSurfaceShape() {
-  static const char * const names[7] = {
+  static const char * const names[8] = {
     "Constant",
     "AtmMatrix2D",
     "SmileCube3D",
     "SurfaceFromPrices",
     "SabrParams",
     "SabrCalibrate",
+    "SviSlices",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameVolSurfaceShape(VolSurfaceShape e) {
-  if (::flatbuffers::IsOutRange(e, VolSurfaceShape_Constant, VolSurfaceShape_SabrCalibrate)) return "";
+  if (::flatbuffers::IsOutRange(e, VolSurfaceShape_Constant, VolSurfaceShape_SviSlices)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesVolSurfaceShape()[index];
 }

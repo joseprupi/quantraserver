@@ -185,7 +185,8 @@ table BlackVolSpec {
     flat_dividend_rate:double = 0.0;
     /// Default extrapolation mode for this surface when consumed by pricing endpoints.
     allow_extrapolation:bool = false;
-    /// 2D surface interpolator for strike/expiry surfaces.
+    /// Interpolation of a strike x expiry surface (see the enum): Bilinear
+    /// unless asked; `/calibrate-vol-surface` returns CubicStrikeLinearTime.
     surface_interpolator:enums.SurfaceInterpolator2D = Bilinear;
     /// Deprecated for BlackVolSpec surfaces; retained for backward compatibility.
     /// Mapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic.
@@ -221,8 +222,53 @@ table YoYOptionletVolSpec {
     observation_lag:Period (required);
 }
 
+/// One expiry of an `SviVolSpec`: the raw SVI total variance
+/// w(k) = a + b (rho (k - m) + sqrt((k - m)^2 + sigma^2)), k = ln(K / forward)
+/// (Gatheral's raw parameterisation, QuantLib `SviSmileSection`), the Black
+/// vol being sqrt(w(k) / T) with T the base day counter's year fraction from
+/// the reference date to `expiry`. The formula is global in strike: no
+/// strike extrapolation exists or is needed.
+table SviSlice {
+    /// Expiry date (YYYY-MM-DD), strictly after the reference date; slices
+    /// must be strictly increasing.
+    expiry:string (required);
+    /// The forward the slice is written against (the origin of k), > 0.
+    forward:double;
+    a:double;
+    /// b >= 0; the slice must satisfy a + b sigma sqrt(1 - rho^2) >= 0 so the
+    /// minimum total variance is not negative.
+    b:double;
+    /// sigma > 0.
+    sigma:double;
+    /// -1 < rho < 1.
+    rho:double;
+    m:double;
+}
+
+/// Black volatility as raw SVI slices (what `/calibrate-vol-surface` with
+/// `SviPerExpiry` returns as `vol_surface_spec_svi`): the smile of every
+/// quoted expiry with its exact curvature, so that a Dupire local vol
+/// derived from it reprices the quotes through a Monte Carlo (the grid of
+/// a `BlackVolSpec` loses that curvature between nodes unless it is
+/// interpolated with `CubicStrikeLinearTime`). Accepted wherever a Black
+/// vol is referenced (`price-equity-option` `volatility`, a structured
+/// note's `underlyings[].volatility_id`); strike-dependent, so a structured
+/// note simulates it as Dupire local vol with `monte_carlo.steps_per_year`.
+/// `base` carries the reference date, calendar, business-day convention and
+/// day counter only: `shape` must be left at its default, `constant_vol` and
+/// `quote_id` absent (400 otherwise).
+table SviVolSpec {
+    base:BlackVolBaseSpec;
+    /// At least one slice, strictly increasing expiries.
+    slices:[SviSlice] (required);
+    time_interpolation:enums.SviTimeInterpolation = LinearTotalVariance;
+    /// Whether an expiry beyond the last slice may be read at all (flat
+    /// implied vol); strikes need no flag, the formula is global.
+    allow_extrapolation:bool = false;
+}
+
 /// Union of all volatility types.
-union VolPayload { OptionletVolSpec, SwaptionVolSpec, BlackVolSpec, YoYOptionletVolSpec }
+union VolPayload { OptionletVolSpec, SwaptionVolSpec, BlackVolSpec, YoYOptionletVolSpec, SviVolSpec }
 
 /// Volatility surface specification referenced by id in trade requests.
 table VolSurfaceSpec {

@@ -87,8 +87,73 @@ class StructuredNoteDiagnosticsSpec(object):
             return self._tab.Get(flatbuffers.number_types.Uint32Flags, o + self._tab.Pos)
         return 0
 
+    # Vanilla repricing through the Monte Carlo, the acceptance check of
+    # the quotes -> surface -> simulation chain: every usable quote of
+    # `vanilla_repricing_sheets` is priced as a European option on
+    # simulated paths of the note's own model (same market, curves,
+    # correlation, random sequence, seed and path count; the time grid is
+    # the note's grid with the sheet expiries added as mandatory dates,
+    # refined by `steps_per_year` as usual) and compared with its bid/ask.
+    # It is a separate simulation: the headline and every other block are
+    # unchanged by this flag. Requires `vanilla_repricing_sheets`.
+    # Definitions: `StructuredNoteVanillaRepricing` in
+    # structured_note_response.fbs.
+    # StructuredNoteDiagnosticsSpec
+    def VanillaRepricing(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
+    # The listed-option quote sheets to reprice, at most one per
+    # underlying, matched to the notes' underlyings by
+    # `OptionQuoteSheet.underlying_id`; every sheet must belong to an
+    # underlying of some note and every note must have a sheet for at
+    # least one of its underlyings (400 otherwise). A sheet for a quanto
+    # underlying is a 400: the listed options live in the underlying's
+    # own measure, the note simulates the quanto-adjusted one. European
+    # style only. Requires `vanilla_repricing = true`.
+    # StructuredNoteDiagnosticsSpec
+    def VanillaRepricingSheets(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra.OptionQuoteSheet import OptionQuoteSheet
+            obj = OptionQuoteSheet()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # StructuredNoteDiagnosticsSpec
+    def VanillaRepricingSheetsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # StructuredNoteDiagnosticsSpec
+    def VanillaRepricingSheetsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        return o == 0
+
+    # Quote filter applied to the sheets, the same rules and defaults as
+    # `/calibrate-vol-surface` (`min_quotes_per_expiry` and
+    # `moneyness_window` are not used here: there is no parity fit).
+    # StructuredNoteDiagnosticsSpec
+    def VanillaRepricingFilter(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.QuoteFilter import QuoteFilter
+            obj = QuoteFilter()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
 def StructuredNoteDiagnosticsSpecStart(builder):
-    builder.StartObject(6)
+    builder.StartObject(9)
 
 def Start(builder):
     StructuredNoteDiagnosticsSpecStart(builder)
@@ -129,12 +194,40 @@ def StructuredNoteDiagnosticsSpecAddSamplePaths(builder, samplePaths):
 def AddSamplePaths(builder, samplePaths):
     StructuredNoteDiagnosticsSpecAddSamplePaths(builder, samplePaths)
 
+def StructuredNoteDiagnosticsSpecAddVanillaRepricing(builder, vanillaRepricing):
+    builder.PrependBoolSlot(6, vanillaRepricing, 0)
+
+def AddVanillaRepricing(builder, vanillaRepricing):
+    StructuredNoteDiagnosticsSpecAddVanillaRepricing(builder, vanillaRepricing)
+
+def StructuredNoteDiagnosticsSpecAddVanillaRepricingSheets(builder, vanillaRepricingSheets):
+    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(vanillaRepricingSheets), 0)
+
+def AddVanillaRepricingSheets(builder, vanillaRepricingSheets):
+    StructuredNoteDiagnosticsSpecAddVanillaRepricingSheets(builder, vanillaRepricingSheets)
+
+def StructuredNoteDiagnosticsSpecStartVanillaRepricingSheetsVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartVanillaRepricingSheetsVector(builder, numElems):
+    return StructuredNoteDiagnosticsSpecStartVanillaRepricingSheetsVector(builder, numElems)
+
+def StructuredNoteDiagnosticsSpecAddVanillaRepricingFilter(builder, vanillaRepricingFilter):
+    builder.PrependUOffsetTRelativeSlot(8, flatbuffers.number_types.UOffsetTFlags.py_type(vanillaRepricingFilter), 0)
+
+def AddVanillaRepricingFilter(builder, vanillaRepricingFilter):
+    StructuredNoteDiagnosticsSpecAddVanillaRepricingFilter(builder, vanillaRepricingFilter)
+
 def StructuredNoteDiagnosticsSpecEnd(builder):
     return builder.EndObject()
 
 def End(builder):
     return StructuredNoteDiagnosticsSpecEnd(builder)
 
+try:
+    from typing import List, Optional
+except:
+    pass
 
 class StructuredNoteDiagnosticsSpecT(object):
 
@@ -146,6 +239,9 @@ class StructuredNoteDiagnosticsSpecT(object):
         self.distribution = False  # type: bool
         self.timing = False  # type: bool
         self.samplePaths = 0  # type: int
+        self.vanillaRepricing = False  # type: bool
+        self.vanillaRepricingSheets = None  # type: List[OptionQuoteSheetT]
+        self.vanillaRepricingFilter = None  # type: Optional[QuoteFilterT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -174,9 +270,30 @@ class StructuredNoteDiagnosticsSpecT(object):
         self.distribution = structuredNoteDiagnosticsSpec.Distribution()
         self.timing = structuredNoteDiagnosticsSpec.Timing()
         self.samplePaths = structuredNoteDiagnosticsSpec.SamplePaths()
+        self.vanillaRepricing = structuredNoteDiagnosticsSpec.VanillaRepricing()
+        if not structuredNoteDiagnosticsSpec.VanillaRepricingSheetsIsNone():
+            self.vanillaRepricingSheets = []
+            for i in range(structuredNoteDiagnosticsSpec.VanillaRepricingSheetsLength()):
+                if structuredNoteDiagnosticsSpec.VanillaRepricingSheets(i) is None:
+                    self.vanillaRepricingSheets.append(None)
+                else:
+                    optionQuoteSheet_ = OptionQuoteSheetT.InitFromObj(structuredNoteDiagnosticsSpec.VanillaRepricingSheets(i))
+                    self.vanillaRepricingSheets.append(optionQuoteSheet_)
+        if structuredNoteDiagnosticsSpec.VanillaRepricingFilter() is not None:
+            self.vanillaRepricingFilter = QuoteFilterT.InitFromObj(structuredNoteDiagnosticsSpec.VanillaRepricingFilter())
 
     # StructuredNoteDiagnosticsSpecT
     def Pack(self, builder):
+        if self.vanillaRepricingSheets is not None:
+            vanillaRepricingSheetslist = []
+            for i in range(len(self.vanillaRepricingSheets)):
+                vanillaRepricingSheetslist.append(self.vanillaRepricingSheets[i].Pack(builder))
+            StructuredNoteDiagnosticsSpecStartVanillaRepricingSheetsVector(builder, len(self.vanillaRepricingSheets))
+            for i in reversed(range(len(self.vanillaRepricingSheets))):
+                builder.PrependUOffsetTRelative(vanillaRepricingSheetslist[i])
+            vanillaRepricingSheets = builder.EndVector()
+        if self.vanillaRepricingFilter is not None:
+            vanillaRepricingFilter = self.vanillaRepricingFilter.Pack(builder)
         StructuredNoteDiagnosticsSpecStart(builder)
         StructuredNoteDiagnosticsSpecAddMarket(builder, self.market)
         StructuredNoteDiagnosticsSpecAddDecomposition(builder, self.decomposition)
@@ -184,5 +301,10 @@ class StructuredNoteDiagnosticsSpecT(object):
         StructuredNoteDiagnosticsSpecAddDistribution(builder, self.distribution)
         StructuredNoteDiagnosticsSpecAddTiming(builder, self.timing)
         StructuredNoteDiagnosticsSpecAddSamplePaths(builder, self.samplePaths)
+        StructuredNoteDiagnosticsSpecAddVanillaRepricing(builder, self.vanillaRepricing)
+        if self.vanillaRepricingSheets is not None:
+            StructuredNoteDiagnosticsSpecAddVanillaRepricingSheets(builder, vanillaRepricingSheets)
+        if self.vanillaRepricingFilter is not None:
+            StructuredNoteDiagnosticsSpecAddVanillaRepricingFilter(builder, vanillaRepricingFilter)
         structuredNoteDiagnosticsSpec = StructuredNoteDiagnosticsSpecEnd(builder)
         return structuredNoteDiagnosticsSpec

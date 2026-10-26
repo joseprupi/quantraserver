@@ -29,9 +29,7 @@ class VolSurfaceOutputGrid(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # Strikes as multiples of the spot, strictly increasing, > 0.
-    # Default when absent or empty: 0.500, 0.525, ..., 1.500 (41 points;
-    # the surface is read bilinearly in total variance, and a coarser
-    # 0.05 step misses a 1 % bid/ask between its nodes on a skewed smile).
+    # Default when absent or empty: 0.500, 0.525, ..., 1.500 (41 points).
     # VolSurfaceOutputGrid
     def StrikesAsMoneyness(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))

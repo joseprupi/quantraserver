@@ -13,6 +13,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
+#include "calibrate_implied_forwards_response_generated.h"
 #include "common_generated.h"
 #include "enums_generated.h"
 
@@ -113,6 +114,22 @@ struct StructuredNoteTimingStageT;
 struct StructuredNoteTimingDiagnostics;
 struct StructuredNoteTimingDiagnosticsBuilder;
 struct StructuredNoteTimingDiagnosticsT;
+
+struct StructuredNoteRepricedOption;
+struct StructuredNoteRepricedOptionBuilder;
+struct StructuredNoteRepricedOptionT;
+
+struct StructuredNoteRepricingExpiry;
+struct StructuredNoteRepricingExpiryBuilder;
+struct StructuredNoteRepricingExpiryT;
+
+struct StructuredNoteVanillaRepricingUnderlying;
+struct StructuredNoteVanillaRepricingUnderlyingBuilder;
+struct StructuredNoteVanillaRepricingUnderlyingT;
+
+struct StructuredNoteVanillaRepricing;
+struct StructuredNoteVanillaRepricingBuilder;
+struct StructuredNoteVanillaRepricingT;
 
 struct StructuredNoteResult;
 struct StructuredNoteResultBuilder;
@@ -3743,6 +3760,819 @@ inline ::flatbuffers::Offset<StructuredNoteTimingDiagnostics> CreateStructuredNo
 
 ::flatbuffers::Offset<StructuredNoteTimingDiagnostics> CreateStructuredNoteTimingDiagnostics(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteTimingDiagnosticsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct StructuredNoteRepricedOptionT : public ::flatbuffers::NativeTable {
+  typedef StructuredNoteRepricedOption TableType;
+  std::string expiry{};
+  double time = 0.0;
+  double strike = 0.0;
+  ::flatbuffers::Optional<quantra::enums::EquityOptionType> option_type = ::flatbuffers::nullopt;
+  double bid = 0.0;
+  double ask = 0.0;
+  double mid = 0.0;
+  double model_price = 0.0;
+  double standard_error = 0.0;
+  bool inside_bid_ask = false;
+  double price_error = 0.0;
+  ::flatbuffers::Optional<double> market_vol = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> model_vol = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> vol_error = ::flatbuffers::nullopt;
+};
+
+/// One listed quote repriced on the simulated paths
+/// (`diagnostics.vanilla_repricing`).
+struct StructuredNoteRepricedOption FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef StructuredNoteRepricedOptionT NativeTableType;
+  typedef StructuredNoteRepricedOptionBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_EXPIRY = 4,
+    VT_TIME = 6,
+    VT_STRIKE = 8,
+    VT_OPTION_TYPE = 10,
+    VT_BID = 12,
+    VT_ASK = 14,
+    VT_MID = 16,
+    VT_MODEL_PRICE = 18,
+    VT_STANDARD_ERROR = 20,
+    VT_INSIDE_BID_ASK = 22,
+    VT_PRICE_ERROR = 24,
+    VT_MARKET_VOL = 26,
+    VT_MODEL_VOL = 28,
+    VT_VOL_ERROR = 30
+  };
+  /// Expiry date (YYYY-MM-DD), a point of the repricing time grid.
+  const ::flatbuffers::String *expiry() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_EXPIRY);
+  }
+  /// Actual/365 (Fixed) years from the valuation date.
+  double time() const {
+    return GetField<double>(VT_TIME, 0.0);
+  }
+  double strike() const {
+    return GetField<double>(VT_STRIKE, 0.0);
+  }
+  /// The side priced: the out-of-the-money one with respect to the model
+  /// forward (`Call` when strike >= forward, `Put` otherwise), as
+  /// `/calibrate-vol-surface` selects it.
+  ::flatbuffers::Optional<quantra::enums::EquityOptionType> option_type() const {
+    return GetOptional<int8_t, quantra::enums::EquityOptionType>(VT_OPTION_TYPE);
+  }
+  double bid() const {
+    return GetField<double>(VT_BID, 0.0);
+  }
+  double ask() const {
+    return GetField<double>(VT_ASK, 0.0);
+  }
+  double mid() const {
+    return GetField<double>(VT_MID, 0.0);
+  }
+  /// `discount_factor x mean of max(+/-(S_T - K), 0)` over the simulated
+  /// paths, `S_T` the simulated level at the expiry grid point and
+  /// `discount_factor` the note's discounting curve without the funding
+  /// spread (listed options are not note liabilities).
+  double model_price() const {
+    return GetField<double>(VT_MODEL_PRICE, 0.0);
+  }
+  /// Monte Carlo standard error of `model_price` (the path engine's
+  /// estimator, discounted).
+  double standard_error() const {
+    return GetField<double>(VT_STANDARD_ERROR, 0.0);
+  }
+  /// bid <= model_price <= ask.
+  bool inside_bid_ask() const {
+    return GetField<uint8_t>(VT_INSIDE_BID_ASK, 0) != 0;
+  }
+  /// model_price - mid.
+  double price_error() const {
+    return GetField<double>(VT_PRICE_ERROR, 0.0);
+  }
+  /// Black-76 implied vol of the mid on the model forward and discount
+  /// factor of the expiry; absent when the mid does not solve (outside
+  /// the Black bounds).
+  ::flatbuffers::Optional<double> market_vol() const {
+    return GetOptional<double, double>(VT_MARKET_VOL);
+  }
+  /// Black-76 implied vol of `model_price` on the same forward and
+  /// discount factor; absent when it does not solve.
+  ::flatbuffers::Optional<double> model_vol() const {
+    return GetOptional<double, double>(VT_MODEL_VOL);
+  }
+  /// model_vol - market_vol; absent when either is.
+  ::flatbuffers::Optional<double> vol_error() const {
+    return GetOptional<double, double>(VT_VOL_ERROR);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffsetRequired(verifier, VT_EXPIRY) &&
+           verifier.VerifyString(expiry()) &&
+           VerifyField<double>(verifier, VT_TIME, 8) &&
+           VerifyField<double>(verifier, VT_STRIKE, 8) &&
+           VerifyField<int8_t>(verifier, VT_OPTION_TYPE, 1) &&
+           VerifyField<double>(verifier, VT_BID, 8) &&
+           VerifyField<double>(verifier, VT_ASK, 8) &&
+           VerifyField<double>(verifier, VT_MID, 8) &&
+           VerifyField<double>(verifier, VT_MODEL_PRICE, 8) &&
+           VerifyField<double>(verifier, VT_STANDARD_ERROR, 8) &&
+           VerifyField<uint8_t>(verifier, VT_INSIDE_BID_ASK, 1) &&
+           VerifyField<double>(verifier, VT_PRICE_ERROR, 8) &&
+           VerifyField<double>(verifier, VT_MARKET_VOL, 8) &&
+           VerifyField<double>(verifier, VT_MODEL_VOL, 8) &&
+           VerifyField<double>(verifier, VT_VOL_ERROR, 8) &&
+           verifier.EndTable();
+  }
+  StructuredNoteRepricedOptionT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(StructuredNoteRepricedOptionT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<StructuredNoteRepricedOption> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteRepricedOptionT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct StructuredNoteRepricedOptionBuilder {
+  typedef StructuredNoteRepricedOption Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_expiry(::flatbuffers::Offset<::flatbuffers::String> expiry) {
+    fbb_.AddOffset(StructuredNoteRepricedOption::VT_EXPIRY, expiry);
+  }
+  void add_time(double time) {
+    fbb_.AddElement<double>(StructuredNoteRepricedOption::VT_TIME, time, 0.0);
+  }
+  void add_strike(double strike) {
+    fbb_.AddElement<double>(StructuredNoteRepricedOption::VT_STRIKE, strike, 0.0);
+  }
+  void add_option_type(quantra::enums::EquityOptionType option_type) {
+    fbb_.AddElement<int8_t>(StructuredNoteRepricedOption::VT_OPTION_TYPE, static_cast<int8_t>(option_type));
+  }
+  void add_bid(double bid) {
+    fbb_.AddElement<double>(StructuredNoteRepricedOption::VT_BID, bid, 0.0);
+  }
+  void add_ask(double ask) {
+    fbb_.AddElement<double>(StructuredNoteRepricedOption::VT_ASK, ask, 0.0);
+  }
+  void add_mid(double mid) {
+    fbb_.AddElement<double>(StructuredNoteRepricedOption::VT_MID, mid, 0.0);
+  }
+  void add_model_price(double model_price) {
+    fbb_.AddElement<double>(StructuredNoteRepricedOption::VT_MODEL_PRICE, model_price, 0.0);
+  }
+  void add_standard_error(double standard_error) {
+    fbb_.AddElement<double>(StructuredNoteRepricedOption::VT_STANDARD_ERROR, standard_error, 0.0);
+  }
+  void add_inside_bid_ask(bool inside_bid_ask) {
+    fbb_.AddElement<uint8_t>(StructuredNoteRepricedOption::VT_INSIDE_BID_ASK, static_cast<uint8_t>(inside_bid_ask), 0);
+  }
+  void add_price_error(double price_error) {
+    fbb_.AddElement<double>(StructuredNoteRepricedOption::VT_PRICE_ERROR, price_error, 0.0);
+  }
+  void add_market_vol(double market_vol) {
+    fbb_.AddElement<double>(StructuredNoteRepricedOption::VT_MARKET_VOL, market_vol);
+  }
+  void add_model_vol(double model_vol) {
+    fbb_.AddElement<double>(StructuredNoteRepricedOption::VT_MODEL_VOL, model_vol);
+  }
+  void add_vol_error(double vol_error) {
+    fbb_.AddElement<double>(StructuredNoteRepricedOption::VT_VOL_ERROR, vol_error);
+  }
+  explicit StructuredNoteRepricedOptionBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<StructuredNoteRepricedOption> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<StructuredNoteRepricedOption>(end);
+    fbb_.Required(o, StructuredNoteRepricedOption::VT_EXPIRY);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<StructuredNoteRepricedOption> CreateStructuredNoteRepricedOption(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> expiry = 0,
+    double time = 0.0,
+    double strike = 0.0,
+    ::flatbuffers::Optional<quantra::enums::EquityOptionType> option_type = ::flatbuffers::nullopt,
+    double bid = 0.0,
+    double ask = 0.0,
+    double mid = 0.0,
+    double model_price = 0.0,
+    double standard_error = 0.0,
+    bool inside_bid_ask = false,
+    double price_error = 0.0,
+    ::flatbuffers::Optional<double> market_vol = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> model_vol = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> vol_error = ::flatbuffers::nullopt) {
+  StructuredNoteRepricedOptionBuilder builder_(_fbb);
+  if(vol_error) { builder_.add_vol_error(*vol_error); }
+  if(model_vol) { builder_.add_model_vol(*model_vol); }
+  if(market_vol) { builder_.add_market_vol(*market_vol); }
+  builder_.add_price_error(price_error);
+  builder_.add_standard_error(standard_error);
+  builder_.add_model_price(model_price);
+  builder_.add_mid(mid);
+  builder_.add_ask(ask);
+  builder_.add_bid(bid);
+  builder_.add_strike(strike);
+  builder_.add_time(time);
+  builder_.add_expiry(expiry);
+  builder_.add_inside_bid_ask(inside_bid_ask);
+  if(option_type) { builder_.add_option_type(*option_type); }
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<StructuredNoteRepricedOption> CreateStructuredNoteRepricedOptionDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *expiry = nullptr,
+    double time = 0.0,
+    double strike = 0.0,
+    ::flatbuffers::Optional<quantra::enums::EquityOptionType> option_type = ::flatbuffers::nullopt,
+    double bid = 0.0,
+    double ask = 0.0,
+    double mid = 0.0,
+    double model_price = 0.0,
+    double standard_error = 0.0,
+    bool inside_bid_ask = false,
+    double price_error = 0.0,
+    ::flatbuffers::Optional<double> market_vol = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> model_vol = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> vol_error = ::flatbuffers::nullopt) {
+  auto expiry__ = expiry ? _fbb.CreateString(expiry) : 0;
+  return quantra::CreateStructuredNoteRepricedOption(
+      _fbb,
+      expiry__,
+      time,
+      strike,
+      option_type,
+      bid,
+      ask,
+      mid,
+      model_price,
+      standard_error,
+      inside_bid_ask,
+      price_error,
+      market_vol,
+      model_vol,
+      vol_error);
+}
+
+::flatbuffers::Offset<StructuredNoteRepricedOption> CreateStructuredNoteRepricedOption(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteRepricedOptionT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct StructuredNoteRepricingExpiryT : public ::flatbuffers::NativeTable {
+  typedef StructuredNoteRepricingExpiry TableType;
+  std::string expiry{};
+  double time = 0.0;
+  double forward = 0.0;
+  double discount_factor = 0.0;
+  uint32_t quotes_used = 0;
+  uint32_t quotes_dropped = 0;
+  std::vector<std::unique_ptr<quantra::DroppedQuoteT>> dropped{};
+  StructuredNoteRepricingExpiryT() = default;
+  StructuredNoteRepricingExpiryT(const StructuredNoteRepricingExpiryT &o);
+  StructuredNoteRepricingExpiryT(StructuredNoteRepricingExpiryT&&) FLATBUFFERS_NOEXCEPT = default;
+  StructuredNoteRepricingExpiryT &operator=(StructuredNoteRepricingExpiryT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// One sheet expiry as the repricing used it.
+struct StructuredNoteRepricingExpiry FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef StructuredNoteRepricingExpiryT NativeTableType;
+  typedef StructuredNoteRepricingExpiryBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_EXPIRY = 4,
+    VT_TIME = 6,
+    VT_FORWARD = 8,
+    VT_DISCOUNT_FACTOR = 10,
+    VT_QUOTES_USED = 12,
+    VT_QUOTES_DROPPED = 14,
+    VT_DROPPED = 16
+  };
+  const ::flatbuffers::String *expiry() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_EXPIRY);
+  }
+  double time() const {
+    return GetField<double>(VT_TIME, 0.0);
+  }
+  /// The model forward of the underlying at the expiry: spot x
+  /// D_div(T) / D_note(T) on the simulation's time axis (the forward the
+  /// process drifts along, quanto excluded).
+  double forward() const {
+    return GetField<double>(VT_FORWARD, 0.0);
+  }
+  /// D_note(T), the discounting curve without the funding spread.
+  double discount_factor() const {
+    return GetField<double>(VT_DISCOUNT_FACTOR, 0.0);
+  }
+  uint32_t quotes_used() const {
+    return GetField<uint32_t>(VT_QUOTES_USED, 0);
+  }
+  uint32_t quotes_dropped() const {
+    return GetField<uint32_t>(VT_QUOTES_DROPPED, 0);
+  }
+  /// Every line not used, with its reason (the per-line quality rules of
+  /// `/calibrate-implied-forwards`, then the out-of-the-money side's mid
+  /// not above intrinsic, below 1e-5 of the spot, or without an implied
+  /// vol).
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::DroppedQuote>> *dropped() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::DroppedQuote>> *>(VT_DROPPED);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffsetRequired(verifier, VT_EXPIRY) &&
+           verifier.VerifyString(expiry()) &&
+           VerifyField<double>(verifier, VT_TIME, 8) &&
+           VerifyField<double>(verifier, VT_FORWARD, 8) &&
+           VerifyField<double>(verifier, VT_DISCOUNT_FACTOR, 8) &&
+           VerifyField<uint32_t>(verifier, VT_QUOTES_USED, 4) &&
+           VerifyField<uint32_t>(verifier, VT_QUOTES_DROPPED, 4) &&
+           VerifyOffsetRequired(verifier, VT_DROPPED) &&
+           verifier.VerifyVector(dropped()) &&
+           verifier.VerifyVectorOfTables(dropped()) &&
+           verifier.EndTable();
+  }
+  StructuredNoteRepricingExpiryT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(StructuredNoteRepricingExpiryT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<StructuredNoteRepricingExpiry> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteRepricingExpiryT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct StructuredNoteRepricingExpiryBuilder {
+  typedef StructuredNoteRepricingExpiry Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_expiry(::flatbuffers::Offset<::flatbuffers::String> expiry) {
+    fbb_.AddOffset(StructuredNoteRepricingExpiry::VT_EXPIRY, expiry);
+  }
+  void add_time(double time) {
+    fbb_.AddElement<double>(StructuredNoteRepricingExpiry::VT_TIME, time, 0.0);
+  }
+  void add_forward(double forward) {
+    fbb_.AddElement<double>(StructuredNoteRepricingExpiry::VT_FORWARD, forward, 0.0);
+  }
+  void add_discount_factor(double discount_factor) {
+    fbb_.AddElement<double>(StructuredNoteRepricingExpiry::VT_DISCOUNT_FACTOR, discount_factor, 0.0);
+  }
+  void add_quotes_used(uint32_t quotes_used) {
+    fbb_.AddElement<uint32_t>(StructuredNoteRepricingExpiry::VT_QUOTES_USED, quotes_used, 0);
+  }
+  void add_quotes_dropped(uint32_t quotes_dropped) {
+    fbb_.AddElement<uint32_t>(StructuredNoteRepricingExpiry::VT_QUOTES_DROPPED, quotes_dropped, 0);
+  }
+  void add_dropped(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::DroppedQuote>>> dropped) {
+    fbb_.AddOffset(StructuredNoteRepricingExpiry::VT_DROPPED, dropped);
+  }
+  explicit StructuredNoteRepricingExpiryBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<StructuredNoteRepricingExpiry> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<StructuredNoteRepricingExpiry>(end);
+    fbb_.Required(o, StructuredNoteRepricingExpiry::VT_EXPIRY);
+    fbb_.Required(o, StructuredNoteRepricingExpiry::VT_DROPPED);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<StructuredNoteRepricingExpiry> CreateStructuredNoteRepricingExpiry(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> expiry = 0,
+    double time = 0.0,
+    double forward = 0.0,
+    double discount_factor = 0.0,
+    uint32_t quotes_used = 0,
+    uint32_t quotes_dropped = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::DroppedQuote>>> dropped = 0) {
+  StructuredNoteRepricingExpiryBuilder builder_(_fbb);
+  builder_.add_discount_factor(discount_factor);
+  builder_.add_forward(forward);
+  builder_.add_time(time);
+  builder_.add_dropped(dropped);
+  builder_.add_quotes_dropped(quotes_dropped);
+  builder_.add_quotes_used(quotes_used);
+  builder_.add_expiry(expiry);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<StructuredNoteRepricingExpiry> CreateStructuredNoteRepricingExpiryDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *expiry = nullptr,
+    double time = 0.0,
+    double forward = 0.0,
+    double discount_factor = 0.0,
+    uint32_t quotes_used = 0,
+    uint32_t quotes_dropped = 0,
+    const std::vector<::flatbuffers::Offset<quantra::DroppedQuote>> *dropped = nullptr) {
+  auto expiry__ = expiry ? _fbb.CreateString(expiry) : 0;
+  auto dropped__ = dropped ? _fbb.CreateVector<::flatbuffers::Offset<quantra::DroppedQuote>>(*dropped) : 0;
+  return quantra::CreateStructuredNoteRepricingExpiry(
+      _fbb,
+      expiry__,
+      time,
+      forward,
+      discount_factor,
+      quotes_used,
+      quotes_dropped,
+      dropped__);
+}
+
+::flatbuffers::Offset<StructuredNoteRepricingExpiry> CreateStructuredNoteRepricingExpiry(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteRepricingExpiryT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct StructuredNoteVanillaRepricingUnderlyingT : public ::flatbuffers::NativeTable {
+  typedef StructuredNoteVanillaRepricingUnderlying TableType;
+  std::string underlying_id{};
+  std::string sheet_id{};
+  double spot = 0.0;
+  std::vector<std::unique_ptr<quantra::StructuredNoteRepricingExpiryT>> expiries{};
+  uint32_t count = 0;
+  uint32_t inside_bid_ask = 0;
+  double max_abs_price_error = 0.0;
+  ::flatbuffers::Optional<double> max_abs_vol_error = ::flatbuffers::nullopt;
+  double max_standard_error = 0.0;
+  std::vector<std::unique_ptr<quantra::StructuredNoteRepricedOptionT>> options{};
+  StructuredNoteVanillaRepricingUnderlyingT() = default;
+  StructuredNoteVanillaRepricingUnderlyingT(const StructuredNoteVanillaRepricingUnderlyingT &o);
+  StructuredNoteVanillaRepricingUnderlyingT(StructuredNoteVanillaRepricingUnderlyingT&&) FLATBUFFERS_NOEXCEPT = default;
+  StructuredNoteVanillaRepricingUnderlyingT &operator=(StructuredNoteVanillaRepricingUnderlyingT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// The repricing of one sheet (one underlying).
+struct StructuredNoteVanillaRepricingUnderlying FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef StructuredNoteVanillaRepricingUnderlyingT NativeTableType;
+  typedef StructuredNoteVanillaRepricingUnderlyingBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_UNDERLYING_ID = 4,
+    VT_SHEET_ID = 6,
+    VT_SPOT = 8,
+    VT_EXPIRIES = 10,
+    VT_COUNT = 12,
+    VT_INSIDE_BID_ASK = 14,
+    VT_MAX_ABS_PRICE_ERROR = 16,
+    VT_MAX_ABS_VOL_ERROR = 18,
+    VT_MAX_STANDARD_ERROR = 20,
+    VT_OPTIONS = 22
+  };
+  const ::flatbuffers::String *underlying_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_UNDERLYING_ID);
+  }
+  const ::flatbuffers::String *sheet_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_SHEET_ID);
+  }
+  double spot() const {
+    return GetField<double>(VT_SPOT, 0.0);
+  }
+  /// Every sheet expiry in date order (an expiry on or before the
+  /// valuation date is reported with every line dropped).
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::StructuredNoteRepricingExpiry>> *expiries() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::StructuredNoteRepricingExpiry>> *>(VT_EXPIRIES);
+  }
+  uint32_t count() const {
+    return GetField<uint32_t>(VT_COUNT, 0);
+  }
+  uint32_t inside_bid_ask() const {
+    return GetField<uint32_t>(VT_INSIDE_BID_ASK, 0);
+  }
+  /// Largest |model_price - mid| over the used quotes (price units).
+  double max_abs_price_error() const {
+    return GetField<double>(VT_MAX_ABS_PRICE_ERROR, 0.0);
+  }
+  /// Largest |model_vol - market_vol| (vol units) over the used quotes
+  /// where both solve; absent when none does.
+  ::flatbuffers::Optional<double> max_abs_vol_error() const {
+    return GetOptional<double, double>(VT_MAX_ABS_VOL_ERROR);
+  }
+  /// Largest standard error over the used quotes, in price units.
+  double max_standard_error() const {
+    return GetField<double>(VT_MAX_STANDARD_ERROR, 0.0);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::StructuredNoteRepricedOption>> *options() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::StructuredNoteRepricedOption>> *>(VT_OPTIONS);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffsetRequired(verifier, VT_UNDERLYING_ID) &&
+           verifier.VerifyString(underlying_id()) &&
+           VerifyOffsetRequired(verifier, VT_SHEET_ID) &&
+           verifier.VerifyString(sheet_id()) &&
+           VerifyField<double>(verifier, VT_SPOT, 8) &&
+           VerifyOffsetRequired(verifier, VT_EXPIRIES) &&
+           verifier.VerifyVector(expiries()) &&
+           verifier.VerifyVectorOfTables(expiries()) &&
+           VerifyField<uint32_t>(verifier, VT_COUNT, 4) &&
+           VerifyField<uint32_t>(verifier, VT_INSIDE_BID_ASK, 4) &&
+           VerifyField<double>(verifier, VT_MAX_ABS_PRICE_ERROR, 8) &&
+           VerifyField<double>(verifier, VT_MAX_ABS_VOL_ERROR, 8) &&
+           VerifyField<double>(verifier, VT_MAX_STANDARD_ERROR, 8) &&
+           VerifyOffsetRequired(verifier, VT_OPTIONS) &&
+           verifier.VerifyVector(options()) &&
+           verifier.VerifyVectorOfTables(options()) &&
+           verifier.EndTable();
+  }
+  StructuredNoteVanillaRepricingUnderlyingT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(StructuredNoteVanillaRepricingUnderlyingT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<StructuredNoteVanillaRepricingUnderlying> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteVanillaRepricingUnderlyingT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct StructuredNoteVanillaRepricingUnderlyingBuilder {
+  typedef StructuredNoteVanillaRepricingUnderlying Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_underlying_id(::flatbuffers::Offset<::flatbuffers::String> underlying_id) {
+    fbb_.AddOffset(StructuredNoteVanillaRepricingUnderlying::VT_UNDERLYING_ID, underlying_id);
+  }
+  void add_sheet_id(::flatbuffers::Offset<::flatbuffers::String> sheet_id) {
+    fbb_.AddOffset(StructuredNoteVanillaRepricingUnderlying::VT_SHEET_ID, sheet_id);
+  }
+  void add_spot(double spot) {
+    fbb_.AddElement<double>(StructuredNoteVanillaRepricingUnderlying::VT_SPOT, spot, 0.0);
+  }
+  void add_expiries(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::StructuredNoteRepricingExpiry>>> expiries) {
+    fbb_.AddOffset(StructuredNoteVanillaRepricingUnderlying::VT_EXPIRIES, expiries);
+  }
+  void add_count(uint32_t count) {
+    fbb_.AddElement<uint32_t>(StructuredNoteVanillaRepricingUnderlying::VT_COUNT, count, 0);
+  }
+  void add_inside_bid_ask(uint32_t inside_bid_ask) {
+    fbb_.AddElement<uint32_t>(StructuredNoteVanillaRepricingUnderlying::VT_INSIDE_BID_ASK, inside_bid_ask, 0);
+  }
+  void add_max_abs_price_error(double max_abs_price_error) {
+    fbb_.AddElement<double>(StructuredNoteVanillaRepricingUnderlying::VT_MAX_ABS_PRICE_ERROR, max_abs_price_error, 0.0);
+  }
+  void add_max_abs_vol_error(double max_abs_vol_error) {
+    fbb_.AddElement<double>(StructuredNoteVanillaRepricingUnderlying::VT_MAX_ABS_VOL_ERROR, max_abs_vol_error);
+  }
+  void add_max_standard_error(double max_standard_error) {
+    fbb_.AddElement<double>(StructuredNoteVanillaRepricingUnderlying::VT_MAX_STANDARD_ERROR, max_standard_error, 0.0);
+  }
+  void add_options(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::StructuredNoteRepricedOption>>> options) {
+    fbb_.AddOffset(StructuredNoteVanillaRepricingUnderlying::VT_OPTIONS, options);
+  }
+  explicit StructuredNoteVanillaRepricingUnderlyingBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<StructuredNoteVanillaRepricingUnderlying> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<StructuredNoteVanillaRepricingUnderlying>(end);
+    fbb_.Required(o, StructuredNoteVanillaRepricingUnderlying::VT_UNDERLYING_ID);
+    fbb_.Required(o, StructuredNoteVanillaRepricingUnderlying::VT_SHEET_ID);
+    fbb_.Required(o, StructuredNoteVanillaRepricingUnderlying::VT_EXPIRIES);
+    fbb_.Required(o, StructuredNoteVanillaRepricingUnderlying::VT_OPTIONS);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<StructuredNoteVanillaRepricingUnderlying> CreateStructuredNoteVanillaRepricingUnderlying(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> underlying_id = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> sheet_id = 0,
+    double spot = 0.0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::StructuredNoteRepricingExpiry>>> expiries = 0,
+    uint32_t count = 0,
+    uint32_t inside_bid_ask = 0,
+    double max_abs_price_error = 0.0,
+    ::flatbuffers::Optional<double> max_abs_vol_error = ::flatbuffers::nullopt,
+    double max_standard_error = 0.0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::StructuredNoteRepricedOption>>> options = 0) {
+  StructuredNoteVanillaRepricingUnderlyingBuilder builder_(_fbb);
+  builder_.add_max_standard_error(max_standard_error);
+  if(max_abs_vol_error) { builder_.add_max_abs_vol_error(*max_abs_vol_error); }
+  builder_.add_max_abs_price_error(max_abs_price_error);
+  builder_.add_spot(spot);
+  builder_.add_options(options);
+  builder_.add_inside_bid_ask(inside_bid_ask);
+  builder_.add_count(count);
+  builder_.add_expiries(expiries);
+  builder_.add_sheet_id(sheet_id);
+  builder_.add_underlying_id(underlying_id);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<StructuredNoteVanillaRepricingUnderlying> CreateStructuredNoteVanillaRepricingUnderlyingDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *underlying_id = nullptr,
+    const char *sheet_id = nullptr,
+    double spot = 0.0,
+    const std::vector<::flatbuffers::Offset<quantra::StructuredNoteRepricingExpiry>> *expiries = nullptr,
+    uint32_t count = 0,
+    uint32_t inside_bid_ask = 0,
+    double max_abs_price_error = 0.0,
+    ::flatbuffers::Optional<double> max_abs_vol_error = ::flatbuffers::nullopt,
+    double max_standard_error = 0.0,
+    const std::vector<::flatbuffers::Offset<quantra::StructuredNoteRepricedOption>> *options = nullptr) {
+  auto underlying_id__ = underlying_id ? _fbb.CreateString(underlying_id) : 0;
+  auto sheet_id__ = sheet_id ? _fbb.CreateString(sheet_id) : 0;
+  auto expiries__ = expiries ? _fbb.CreateVector<::flatbuffers::Offset<quantra::StructuredNoteRepricingExpiry>>(*expiries) : 0;
+  auto options__ = options ? _fbb.CreateVector<::flatbuffers::Offset<quantra::StructuredNoteRepricedOption>>(*options) : 0;
+  return quantra::CreateStructuredNoteVanillaRepricingUnderlying(
+      _fbb,
+      underlying_id__,
+      sheet_id__,
+      spot,
+      expiries__,
+      count,
+      inside_bid_ask,
+      max_abs_price_error,
+      max_abs_vol_error,
+      max_standard_error,
+      options__);
+}
+
+::flatbuffers::Offset<StructuredNoteVanillaRepricingUnderlying> CreateStructuredNoteVanillaRepricingUnderlying(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteVanillaRepricingUnderlyingT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct StructuredNoteVanillaRepricingT : public ::flatbuffers::NativeTable {
+  typedef StructuredNoteVanillaRepricing TableType;
+  uint32_t paths = 0;
+  uint32_t time_steps = 0;
+  double note_npv = 0.0;
+  double note_standard_error = 0.0;
+  uint32_t count = 0;
+  uint32_t inside_bid_ask = 0;
+  double max_abs_price_error = 0.0;
+  ::flatbuffers::Optional<double> max_abs_vol_error = ::flatbuffers::nullopt;
+  double max_standard_error = 0.0;
+  std::vector<std::unique_ptr<quantra::StructuredNoteVanillaRepricingUnderlyingT>> underlyings{};
+  StructuredNoteVanillaRepricingT() = default;
+  StructuredNoteVanillaRepricingT(const StructuredNoteVanillaRepricingT &o);
+  StructuredNoteVanillaRepricingT(StructuredNoteVanillaRepricingT&&) FLATBUFFERS_NOEXCEPT = default;
+  StructuredNoteVanillaRepricingT &operator=(StructuredNoteVanillaRepricingT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// `diagnostics.vanilla_repricing`: every usable quote of the request's
+/// sheets priced as a European option on ONE extra simulation of the
+/// note's model (same market, correlation, sequence, seed and paths; the
+/// time grid is the note's grid with the sheet expiries added as mandatory
+/// dates), so that the quotes a surface was calibrated to are repriced
+/// through the very paths the note is priced on. The headline and every
+/// other block are computed on the note's own grid and are unchanged by
+/// this flag; `note_npv` is the note walked on the repricing grid so the
+/// effect of the extra grid points is visible (Monte Carlo noise: with
+/// `steps_per_year` the grid refinement differs where an expiry splits an
+/// interval, and without it the exact lognormal steps simply pass through
+/// more dates; both change the random stream, neither changes the model).
+struct StructuredNoteVanillaRepricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef StructuredNoteVanillaRepricingT NativeTableType;
+  typedef StructuredNoteVanillaRepricingBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_PATHS = 4,
+    VT_TIME_STEPS = 6,
+    VT_NOTE_NPV = 8,
+    VT_NOTE_STANDARD_ERROR = 10,
+    VT_COUNT = 12,
+    VT_INSIDE_BID_ASK = 14,
+    VT_MAX_ABS_PRICE_ERROR = 16,
+    VT_MAX_ABS_VOL_ERROR = 18,
+    VT_MAX_STANDARD_ERROR = 20,
+    VT_UNDERLYINGS = 22
+  };
+  /// Paths simulated (the note's `monte_carlo.paths`).
+  uint32_t paths() const {
+    return GetField<uint32_t>(VT_PATHS, 0);
+  }
+  /// Steps of the repricing grid (the note's grid plus the expiries).
+  uint32_t time_steps() const {
+    return GetField<uint32_t>(VT_TIME_STEPS, 0);
+  }
+  /// The note's NPV and standard error on the repricing paths.
+  double note_npv() const {
+    return GetField<double>(VT_NOTE_NPV, 0.0);
+  }
+  double note_standard_error() const {
+    return GetField<double>(VT_NOTE_STANDARD_ERROR, 0.0);
+  }
+  uint32_t count() const {
+    return GetField<uint32_t>(VT_COUNT, 0);
+  }
+  uint32_t inside_bid_ask() const {
+    return GetField<uint32_t>(VT_INSIDE_BID_ASK, 0);
+  }
+  double max_abs_price_error() const {
+    return GetField<double>(VT_MAX_ABS_PRICE_ERROR, 0.0);
+  }
+  ::flatbuffers::Optional<double> max_abs_vol_error() const {
+    return GetOptional<double, double>(VT_MAX_ABS_VOL_ERROR);
+  }
+  double max_standard_error() const {
+    return GetField<double>(VT_MAX_STANDARD_ERROR, 0.0);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::StructuredNoteVanillaRepricingUnderlying>> *underlyings() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::StructuredNoteVanillaRepricingUnderlying>> *>(VT_UNDERLYINGS);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint32_t>(verifier, VT_PATHS, 4) &&
+           VerifyField<uint32_t>(verifier, VT_TIME_STEPS, 4) &&
+           VerifyField<double>(verifier, VT_NOTE_NPV, 8) &&
+           VerifyField<double>(verifier, VT_NOTE_STANDARD_ERROR, 8) &&
+           VerifyField<uint32_t>(verifier, VT_COUNT, 4) &&
+           VerifyField<uint32_t>(verifier, VT_INSIDE_BID_ASK, 4) &&
+           VerifyField<double>(verifier, VT_MAX_ABS_PRICE_ERROR, 8) &&
+           VerifyField<double>(verifier, VT_MAX_ABS_VOL_ERROR, 8) &&
+           VerifyField<double>(verifier, VT_MAX_STANDARD_ERROR, 8) &&
+           VerifyOffsetRequired(verifier, VT_UNDERLYINGS) &&
+           verifier.VerifyVector(underlyings()) &&
+           verifier.VerifyVectorOfTables(underlyings()) &&
+           verifier.EndTable();
+  }
+  StructuredNoteVanillaRepricingT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(StructuredNoteVanillaRepricingT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<StructuredNoteVanillaRepricing> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteVanillaRepricingT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct StructuredNoteVanillaRepricingBuilder {
+  typedef StructuredNoteVanillaRepricing Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_paths(uint32_t paths) {
+    fbb_.AddElement<uint32_t>(StructuredNoteVanillaRepricing::VT_PATHS, paths, 0);
+  }
+  void add_time_steps(uint32_t time_steps) {
+    fbb_.AddElement<uint32_t>(StructuredNoteVanillaRepricing::VT_TIME_STEPS, time_steps, 0);
+  }
+  void add_note_npv(double note_npv) {
+    fbb_.AddElement<double>(StructuredNoteVanillaRepricing::VT_NOTE_NPV, note_npv, 0.0);
+  }
+  void add_note_standard_error(double note_standard_error) {
+    fbb_.AddElement<double>(StructuredNoteVanillaRepricing::VT_NOTE_STANDARD_ERROR, note_standard_error, 0.0);
+  }
+  void add_count(uint32_t count) {
+    fbb_.AddElement<uint32_t>(StructuredNoteVanillaRepricing::VT_COUNT, count, 0);
+  }
+  void add_inside_bid_ask(uint32_t inside_bid_ask) {
+    fbb_.AddElement<uint32_t>(StructuredNoteVanillaRepricing::VT_INSIDE_BID_ASK, inside_bid_ask, 0);
+  }
+  void add_max_abs_price_error(double max_abs_price_error) {
+    fbb_.AddElement<double>(StructuredNoteVanillaRepricing::VT_MAX_ABS_PRICE_ERROR, max_abs_price_error, 0.0);
+  }
+  void add_max_abs_vol_error(double max_abs_vol_error) {
+    fbb_.AddElement<double>(StructuredNoteVanillaRepricing::VT_MAX_ABS_VOL_ERROR, max_abs_vol_error);
+  }
+  void add_max_standard_error(double max_standard_error) {
+    fbb_.AddElement<double>(StructuredNoteVanillaRepricing::VT_MAX_STANDARD_ERROR, max_standard_error, 0.0);
+  }
+  void add_underlyings(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::StructuredNoteVanillaRepricingUnderlying>>> underlyings) {
+    fbb_.AddOffset(StructuredNoteVanillaRepricing::VT_UNDERLYINGS, underlyings);
+  }
+  explicit StructuredNoteVanillaRepricingBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<StructuredNoteVanillaRepricing> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<StructuredNoteVanillaRepricing>(end);
+    fbb_.Required(o, StructuredNoteVanillaRepricing::VT_UNDERLYINGS);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<StructuredNoteVanillaRepricing> CreateStructuredNoteVanillaRepricing(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t paths = 0,
+    uint32_t time_steps = 0,
+    double note_npv = 0.0,
+    double note_standard_error = 0.0,
+    uint32_t count = 0,
+    uint32_t inside_bid_ask = 0,
+    double max_abs_price_error = 0.0,
+    ::flatbuffers::Optional<double> max_abs_vol_error = ::flatbuffers::nullopt,
+    double max_standard_error = 0.0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::StructuredNoteVanillaRepricingUnderlying>>> underlyings = 0) {
+  StructuredNoteVanillaRepricingBuilder builder_(_fbb);
+  builder_.add_max_standard_error(max_standard_error);
+  if(max_abs_vol_error) { builder_.add_max_abs_vol_error(*max_abs_vol_error); }
+  builder_.add_max_abs_price_error(max_abs_price_error);
+  builder_.add_note_standard_error(note_standard_error);
+  builder_.add_note_npv(note_npv);
+  builder_.add_underlyings(underlyings);
+  builder_.add_inside_bid_ask(inside_bid_ask);
+  builder_.add_count(count);
+  builder_.add_time_steps(time_steps);
+  builder_.add_paths(paths);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<StructuredNoteVanillaRepricing> CreateStructuredNoteVanillaRepricingDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t paths = 0,
+    uint32_t time_steps = 0,
+    double note_npv = 0.0,
+    double note_standard_error = 0.0,
+    uint32_t count = 0,
+    uint32_t inside_bid_ask = 0,
+    double max_abs_price_error = 0.0,
+    ::flatbuffers::Optional<double> max_abs_vol_error = ::flatbuffers::nullopt,
+    double max_standard_error = 0.0,
+    const std::vector<::flatbuffers::Offset<quantra::StructuredNoteVanillaRepricingUnderlying>> *underlyings = nullptr) {
+  auto underlyings__ = underlyings ? _fbb.CreateVector<::flatbuffers::Offset<quantra::StructuredNoteVanillaRepricingUnderlying>>(*underlyings) : 0;
+  return quantra::CreateStructuredNoteVanillaRepricing(
+      _fbb,
+      paths,
+      time_steps,
+      note_npv,
+      note_standard_error,
+      count,
+      inside_bid_ask,
+      max_abs_price_error,
+      max_abs_vol_error,
+      max_standard_error,
+      underlyings__);
+}
+
+::flatbuffers::Offset<StructuredNoteVanillaRepricing> CreateStructuredNoteVanillaRepricing(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteVanillaRepricingT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct StructuredNoteResultT : public ::flatbuffers::NativeTable {
   typedef StructuredNoteResult TableType;
   std::string trade_id{};
@@ -3765,6 +4595,7 @@ struct StructuredNoteResultT : public ::flatbuffers::NativeTable {
   std::unique_ptr<quantra::StructuredNoteChecksDiagnosticsT> checks{};
   std::unique_ptr<quantra::StructuredNoteDistributionDiagnosticsT> distribution{};
   std::unique_ptr<quantra::StructuredNoteTimingDiagnosticsT> timing{};
+  std::unique_ptr<quantra::StructuredNoteVanillaRepricingT> vanilla_repricing{};
   StructuredNoteResultT() = default;
   StructuredNoteResultT(const StructuredNoteResultT &o);
   StructuredNoteResultT(StructuredNoteResultT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -3801,7 +4632,8 @@ struct StructuredNoteResult FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
     VT_DECOMPOSITION = 36,
     VT_CHECKS = 38,
     VT_DISTRIBUTION = 40,
-    VT_TIMING = 42
+    VT_TIMING = 42,
+    VT_VANILLA_REPRICING = 44
   };
   const ::flatbuffers::String *trade_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_TRADE_ID);
@@ -3879,6 +4711,11 @@ struct StructuredNoteResult FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
   const quantra::StructuredNoteTimingDiagnostics *timing() const {
     return GetPointer<const quantra::StructuredNoteTimingDiagnostics *>(VT_TIMING);
   }
+  /// Absent unless `diagnostics.vanilla_repricing` was set (or nothing
+  /// was simulated).
+  const quantra::StructuredNoteVanillaRepricing *vanilla_repricing() const {
+    return GetPointer<const quantra::StructuredNoteVanillaRepricing *>(VT_VANILLA_REPRICING);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_TRADE_ID) &&
@@ -3914,6 +4751,8 @@ struct StructuredNoteResult FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
            verifier.VerifyTable(distribution()) &&
            VerifyOffset(verifier, VT_TIMING) &&
            verifier.VerifyTable(timing()) &&
+           VerifyOffset(verifier, VT_VANILLA_REPRICING) &&
+           verifier.VerifyTable(vanilla_repricing()) &&
            verifier.EndTable();
   }
   StructuredNoteResultT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -3985,6 +4824,9 @@ struct StructuredNoteResultBuilder {
   void add_timing(::flatbuffers::Offset<quantra::StructuredNoteTimingDiagnostics> timing) {
     fbb_.AddOffset(StructuredNoteResult::VT_TIMING, timing);
   }
+  void add_vanilla_repricing(::flatbuffers::Offset<quantra::StructuredNoteVanillaRepricing> vanilla_repricing) {
+    fbb_.AddOffset(StructuredNoteResult::VT_VANILLA_REPRICING, vanilla_repricing);
+  }
   explicit StructuredNoteResultBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -4022,7 +4864,8 @@ inline ::flatbuffers::Offset<StructuredNoteResult> CreateStructuredNoteResult(
     ::flatbuffers::Offset<quantra::StructuredNoteDecompositionDiagnostics> decomposition = 0,
     ::flatbuffers::Offset<quantra::StructuredNoteChecksDiagnostics> checks = 0,
     ::flatbuffers::Offset<quantra::StructuredNoteDistributionDiagnostics> distribution = 0,
-    ::flatbuffers::Offset<quantra::StructuredNoteTimingDiagnostics> timing = 0) {
+    ::flatbuffers::Offset<quantra::StructuredNoteTimingDiagnostics> timing = 0,
+    ::flatbuffers::Offset<quantra::StructuredNoteVanillaRepricing> vanilla_repricing = 0) {
   StructuredNoteResultBuilder builder_(_fbb);
   if(expected_life_years) { builder_.add_expected_life_years(*expected_life_years); }
   if(p_barrier_breach) { builder_.add_p_barrier_breach(*p_barrier_breach); }
@@ -4030,6 +4873,7 @@ inline ::flatbuffers::Offset<StructuredNoteResult> CreateStructuredNoteResult(
   if(standard_error) { builder_.add_standard_error(*standard_error); }
   builder_.add_npv_pct_of_notional(npv_pct_of_notional);
   builder_.add_npv(npv);
+  builder_.add_vanilla_repricing(vanilla_repricing);
   builder_.add_timing(timing);
   builder_.add_distribution(distribution);
   builder_.add_checks(checks);
@@ -4068,7 +4912,8 @@ inline ::flatbuffers::Offset<StructuredNoteResult> CreateStructuredNoteResultDir
     ::flatbuffers::Offset<quantra::StructuredNoteDecompositionDiagnostics> decomposition = 0,
     ::flatbuffers::Offset<quantra::StructuredNoteChecksDiagnostics> checks = 0,
     ::flatbuffers::Offset<quantra::StructuredNoteDistributionDiagnostics> distribution = 0,
-    ::flatbuffers::Offset<quantra::StructuredNoteTimingDiagnostics> timing = 0) {
+    ::flatbuffers::Offset<quantra::StructuredNoteTimingDiagnostics> timing = 0,
+    ::flatbuffers::Offset<quantra::StructuredNoteVanillaRepricing> vanilla_repricing = 0) {
   auto trade_id__ = trade_id ? _fbb.CreateString(trade_id) : 0;
   auto event_probabilities__ = event_probabilities ? _fbb.CreateVector<::flatbuffers::Offset<quantra::StructuredNoteEventProbability>>(*event_probabilities) : 0;
   return quantra::CreateStructuredNoteResult(
@@ -4092,7 +4937,8 @@ inline ::flatbuffers::Offset<StructuredNoteResult> CreateStructuredNoteResultDir
       decomposition,
       checks,
       distribution,
-      timing);
+      timing,
+      vanilla_repricing);
 }
 
 ::flatbuffers::Offset<StructuredNoteResult> CreateStructuredNoteResult(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteResultT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -5437,6 +6283,300 @@ inline ::flatbuffers::Offset<StructuredNoteTimingDiagnostics> CreateStructuredNo
       _total_milliseconds);
 }
 
+inline StructuredNoteRepricedOptionT *StructuredNoteRepricedOption::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<StructuredNoteRepricedOptionT>(new StructuredNoteRepricedOptionT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void StructuredNoteRepricedOption::UnPackTo(StructuredNoteRepricedOptionT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = expiry(); if (_e) _o->expiry = _e->str(); }
+  { auto _e = time(); _o->time = _e; }
+  { auto _e = strike(); _o->strike = _e; }
+  { auto _e = option_type(); _o->option_type = _e; }
+  { auto _e = bid(); _o->bid = _e; }
+  { auto _e = ask(); _o->ask = _e; }
+  { auto _e = mid(); _o->mid = _e; }
+  { auto _e = model_price(); _o->model_price = _e; }
+  { auto _e = standard_error(); _o->standard_error = _e; }
+  { auto _e = inside_bid_ask(); _o->inside_bid_ask = _e; }
+  { auto _e = price_error(); _o->price_error = _e; }
+  { auto _e = market_vol(); _o->market_vol = _e; }
+  { auto _e = model_vol(); _o->model_vol = _e; }
+  { auto _e = vol_error(); _o->vol_error = _e; }
+}
+
+inline ::flatbuffers::Offset<StructuredNoteRepricedOption> StructuredNoteRepricedOption::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteRepricedOptionT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateStructuredNoteRepricedOption(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<StructuredNoteRepricedOption> CreateStructuredNoteRepricedOption(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteRepricedOptionT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const StructuredNoteRepricedOptionT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _expiry = _fbb.CreateString(_o->expiry);
+  auto _time = _o->time;
+  auto _strike = _o->strike;
+  auto _option_type = _o->option_type;
+  auto _bid = _o->bid;
+  auto _ask = _o->ask;
+  auto _mid = _o->mid;
+  auto _model_price = _o->model_price;
+  auto _standard_error = _o->standard_error;
+  auto _inside_bid_ask = _o->inside_bid_ask;
+  auto _price_error = _o->price_error;
+  auto _market_vol = _o->market_vol;
+  auto _model_vol = _o->model_vol;
+  auto _vol_error = _o->vol_error;
+  return quantra::CreateStructuredNoteRepricedOption(
+      _fbb,
+      _expiry,
+      _time,
+      _strike,
+      _option_type,
+      _bid,
+      _ask,
+      _mid,
+      _model_price,
+      _standard_error,
+      _inside_bid_ask,
+      _price_error,
+      _market_vol,
+      _model_vol,
+      _vol_error);
+}
+
+inline StructuredNoteRepricingExpiryT::StructuredNoteRepricingExpiryT(const StructuredNoteRepricingExpiryT &o)
+      : expiry(o.expiry),
+        time(o.time),
+        forward(o.forward),
+        discount_factor(o.discount_factor),
+        quotes_used(o.quotes_used),
+        quotes_dropped(o.quotes_dropped) {
+  dropped.reserve(o.dropped.size());
+  for (const auto &dropped_ : o.dropped) { dropped.emplace_back((dropped_) ? new quantra::DroppedQuoteT(*dropped_) : nullptr); }
+}
+
+inline StructuredNoteRepricingExpiryT &StructuredNoteRepricingExpiryT::operator=(StructuredNoteRepricingExpiryT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(expiry, o.expiry);
+  std::swap(time, o.time);
+  std::swap(forward, o.forward);
+  std::swap(discount_factor, o.discount_factor);
+  std::swap(quotes_used, o.quotes_used);
+  std::swap(quotes_dropped, o.quotes_dropped);
+  std::swap(dropped, o.dropped);
+  return *this;
+}
+
+inline StructuredNoteRepricingExpiryT *StructuredNoteRepricingExpiry::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<StructuredNoteRepricingExpiryT>(new StructuredNoteRepricingExpiryT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void StructuredNoteRepricingExpiry::UnPackTo(StructuredNoteRepricingExpiryT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = expiry(); if (_e) _o->expiry = _e->str(); }
+  { auto _e = time(); _o->time = _e; }
+  { auto _e = forward(); _o->forward = _e; }
+  { auto _e = discount_factor(); _o->discount_factor = _e; }
+  { auto _e = quotes_used(); _o->quotes_used = _e; }
+  { auto _e = quotes_dropped(); _o->quotes_dropped = _e; }
+  { auto _e = dropped(); if (_e) { _o->dropped.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->dropped[_i]) { _e->Get(_i)->UnPackTo(_o->dropped[_i].get(), _resolver); } else { _o->dropped[_i] = std::unique_ptr<quantra::DroppedQuoteT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->dropped.resize(0); } }
+}
+
+inline ::flatbuffers::Offset<StructuredNoteRepricingExpiry> StructuredNoteRepricingExpiry::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteRepricingExpiryT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateStructuredNoteRepricingExpiry(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<StructuredNoteRepricingExpiry> CreateStructuredNoteRepricingExpiry(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteRepricingExpiryT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const StructuredNoteRepricingExpiryT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _expiry = _fbb.CreateString(_o->expiry);
+  auto _time = _o->time;
+  auto _forward = _o->forward;
+  auto _discount_factor = _o->discount_factor;
+  auto _quotes_used = _o->quotes_used;
+  auto _quotes_dropped = _o->quotes_dropped;
+  auto _dropped = _fbb.CreateVector<::flatbuffers::Offset<quantra::DroppedQuote>> (_o->dropped.size(), [](size_t i, _VectorArgs *__va) { return CreateDroppedQuote(*__va->__fbb, __va->__o->dropped[i].get(), __va->__rehasher); }, &_va );
+  return quantra::CreateStructuredNoteRepricingExpiry(
+      _fbb,
+      _expiry,
+      _time,
+      _forward,
+      _discount_factor,
+      _quotes_used,
+      _quotes_dropped,
+      _dropped);
+}
+
+inline StructuredNoteVanillaRepricingUnderlyingT::StructuredNoteVanillaRepricingUnderlyingT(const StructuredNoteVanillaRepricingUnderlyingT &o)
+      : underlying_id(o.underlying_id),
+        sheet_id(o.sheet_id),
+        spot(o.spot),
+        count(o.count),
+        inside_bid_ask(o.inside_bid_ask),
+        max_abs_price_error(o.max_abs_price_error),
+        max_abs_vol_error(o.max_abs_vol_error),
+        max_standard_error(o.max_standard_error) {
+  expiries.reserve(o.expiries.size());
+  for (const auto &expiries_ : o.expiries) { expiries.emplace_back((expiries_) ? new quantra::StructuredNoteRepricingExpiryT(*expiries_) : nullptr); }
+  options.reserve(o.options.size());
+  for (const auto &options_ : o.options) { options.emplace_back((options_) ? new quantra::StructuredNoteRepricedOptionT(*options_) : nullptr); }
+}
+
+inline StructuredNoteVanillaRepricingUnderlyingT &StructuredNoteVanillaRepricingUnderlyingT::operator=(StructuredNoteVanillaRepricingUnderlyingT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(underlying_id, o.underlying_id);
+  std::swap(sheet_id, o.sheet_id);
+  std::swap(spot, o.spot);
+  std::swap(expiries, o.expiries);
+  std::swap(count, o.count);
+  std::swap(inside_bid_ask, o.inside_bid_ask);
+  std::swap(max_abs_price_error, o.max_abs_price_error);
+  std::swap(max_abs_vol_error, o.max_abs_vol_error);
+  std::swap(max_standard_error, o.max_standard_error);
+  std::swap(options, o.options);
+  return *this;
+}
+
+inline StructuredNoteVanillaRepricingUnderlyingT *StructuredNoteVanillaRepricingUnderlying::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<StructuredNoteVanillaRepricingUnderlyingT>(new StructuredNoteVanillaRepricingUnderlyingT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void StructuredNoteVanillaRepricingUnderlying::UnPackTo(StructuredNoteVanillaRepricingUnderlyingT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = underlying_id(); if (_e) _o->underlying_id = _e->str(); }
+  { auto _e = sheet_id(); if (_e) _o->sheet_id = _e->str(); }
+  { auto _e = spot(); _o->spot = _e; }
+  { auto _e = expiries(); if (_e) { _o->expiries.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->expiries[_i]) { _e->Get(_i)->UnPackTo(_o->expiries[_i].get(), _resolver); } else { _o->expiries[_i] = std::unique_ptr<quantra::StructuredNoteRepricingExpiryT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->expiries.resize(0); } }
+  { auto _e = count(); _o->count = _e; }
+  { auto _e = inside_bid_ask(); _o->inside_bid_ask = _e; }
+  { auto _e = max_abs_price_error(); _o->max_abs_price_error = _e; }
+  { auto _e = max_abs_vol_error(); _o->max_abs_vol_error = _e; }
+  { auto _e = max_standard_error(); _o->max_standard_error = _e; }
+  { auto _e = options(); if (_e) { _o->options.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->options[_i]) { _e->Get(_i)->UnPackTo(_o->options[_i].get(), _resolver); } else { _o->options[_i] = std::unique_ptr<quantra::StructuredNoteRepricedOptionT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->options.resize(0); } }
+}
+
+inline ::flatbuffers::Offset<StructuredNoteVanillaRepricingUnderlying> StructuredNoteVanillaRepricingUnderlying::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteVanillaRepricingUnderlyingT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateStructuredNoteVanillaRepricingUnderlying(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<StructuredNoteVanillaRepricingUnderlying> CreateStructuredNoteVanillaRepricingUnderlying(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteVanillaRepricingUnderlyingT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const StructuredNoteVanillaRepricingUnderlyingT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _underlying_id = _fbb.CreateString(_o->underlying_id);
+  auto _sheet_id = _fbb.CreateString(_o->sheet_id);
+  auto _spot = _o->spot;
+  auto _expiries = _fbb.CreateVector<::flatbuffers::Offset<quantra::StructuredNoteRepricingExpiry>> (_o->expiries.size(), [](size_t i, _VectorArgs *__va) { return CreateStructuredNoteRepricingExpiry(*__va->__fbb, __va->__o->expiries[i].get(), __va->__rehasher); }, &_va );
+  auto _count = _o->count;
+  auto _inside_bid_ask = _o->inside_bid_ask;
+  auto _max_abs_price_error = _o->max_abs_price_error;
+  auto _max_abs_vol_error = _o->max_abs_vol_error;
+  auto _max_standard_error = _o->max_standard_error;
+  auto _options = _fbb.CreateVector<::flatbuffers::Offset<quantra::StructuredNoteRepricedOption>> (_o->options.size(), [](size_t i, _VectorArgs *__va) { return CreateStructuredNoteRepricedOption(*__va->__fbb, __va->__o->options[i].get(), __va->__rehasher); }, &_va );
+  return quantra::CreateStructuredNoteVanillaRepricingUnderlying(
+      _fbb,
+      _underlying_id,
+      _sheet_id,
+      _spot,
+      _expiries,
+      _count,
+      _inside_bid_ask,
+      _max_abs_price_error,
+      _max_abs_vol_error,
+      _max_standard_error,
+      _options);
+}
+
+inline StructuredNoteVanillaRepricingT::StructuredNoteVanillaRepricingT(const StructuredNoteVanillaRepricingT &o)
+      : paths(o.paths),
+        time_steps(o.time_steps),
+        note_npv(o.note_npv),
+        note_standard_error(o.note_standard_error),
+        count(o.count),
+        inside_bid_ask(o.inside_bid_ask),
+        max_abs_price_error(o.max_abs_price_error),
+        max_abs_vol_error(o.max_abs_vol_error),
+        max_standard_error(o.max_standard_error) {
+  underlyings.reserve(o.underlyings.size());
+  for (const auto &underlyings_ : o.underlyings) { underlyings.emplace_back((underlyings_) ? new quantra::StructuredNoteVanillaRepricingUnderlyingT(*underlyings_) : nullptr); }
+}
+
+inline StructuredNoteVanillaRepricingT &StructuredNoteVanillaRepricingT::operator=(StructuredNoteVanillaRepricingT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(paths, o.paths);
+  std::swap(time_steps, o.time_steps);
+  std::swap(note_npv, o.note_npv);
+  std::swap(note_standard_error, o.note_standard_error);
+  std::swap(count, o.count);
+  std::swap(inside_bid_ask, o.inside_bid_ask);
+  std::swap(max_abs_price_error, o.max_abs_price_error);
+  std::swap(max_abs_vol_error, o.max_abs_vol_error);
+  std::swap(max_standard_error, o.max_standard_error);
+  std::swap(underlyings, o.underlyings);
+  return *this;
+}
+
+inline StructuredNoteVanillaRepricingT *StructuredNoteVanillaRepricing::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<StructuredNoteVanillaRepricingT>(new StructuredNoteVanillaRepricingT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void StructuredNoteVanillaRepricing::UnPackTo(StructuredNoteVanillaRepricingT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = paths(); _o->paths = _e; }
+  { auto _e = time_steps(); _o->time_steps = _e; }
+  { auto _e = note_npv(); _o->note_npv = _e; }
+  { auto _e = note_standard_error(); _o->note_standard_error = _e; }
+  { auto _e = count(); _o->count = _e; }
+  { auto _e = inside_bid_ask(); _o->inside_bid_ask = _e; }
+  { auto _e = max_abs_price_error(); _o->max_abs_price_error = _e; }
+  { auto _e = max_abs_vol_error(); _o->max_abs_vol_error = _e; }
+  { auto _e = max_standard_error(); _o->max_standard_error = _e; }
+  { auto _e = underlyings(); if (_e) { _o->underlyings.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->underlyings[_i]) { _e->Get(_i)->UnPackTo(_o->underlyings[_i].get(), _resolver); } else { _o->underlyings[_i] = std::unique_ptr<quantra::StructuredNoteVanillaRepricingUnderlyingT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->underlyings.resize(0); } }
+}
+
+inline ::flatbuffers::Offset<StructuredNoteVanillaRepricing> StructuredNoteVanillaRepricing::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteVanillaRepricingT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateStructuredNoteVanillaRepricing(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<StructuredNoteVanillaRepricing> CreateStructuredNoteVanillaRepricing(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteVanillaRepricingT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const StructuredNoteVanillaRepricingT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _paths = _o->paths;
+  auto _time_steps = _o->time_steps;
+  auto _note_npv = _o->note_npv;
+  auto _note_standard_error = _o->note_standard_error;
+  auto _count = _o->count;
+  auto _inside_bid_ask = _o->inside_bid_ask;
+  auto _max_abs_price_error = _o->max_abs_price_error;
+  auto _max_abs_vol_error = _o->max_abs_vol_error;
+  auto _max_standard_error = _o->max_standard_error;
+  auto _underlyings = _fbb.CreateVector<::flatbuffers::Offset<quantra::StructuredNoteVanillaRepricingUnderlying>> (_o->underlyings.size(), [](size_t i, _VectorArgs *__va) { return CreateStructuredNoteVanillaRepricingUnderlying(*__va->__fbb, __va->__o->underlyings[i].get(), __va->__rehasher); }, &_va );
+  return quantra::CreateStructuredNoteVanillaRepricing(
+      _fbb,
+      _paths,
+      _time_steps,
+      _note_npv,
+      _note_standard_error,
+      _count,
+      _inside_bid_ask,
+      _max_abs_price_error,
+      _max_abs_vol_error,
+      _max_standard_error,
+      _underlyings);
+}
+
 inline StructuredNoteResultT::StructuredNoteResultT(const StructuredNoteResultT &o)
       : trade_id(o.trade_id),
         npv(o.npv),
@@ -5456,7 +6596,8 @@ inline StructuredNoteResultT::StructuredNoteResultT(const StructuredNoteResultT 
         decomposition((o.decomposition) ? new quantra::StructuredNoteDecompositionDiagnosticsT(*o.decomposition) : nullptr),
         checks((o.checks) ? new quantra::StructuredNoteChecksDiagnosticsT(*o.checks) : nullptr),
         distribution((o.distribution) ? new quantra::StructuredNoteDistributionDiagnosticsT(*o.distribution) : nullptr),
-        timing((o.timing) ? new quantra::StructuredNoteTimingDiagnosticsT(*o.timing) : nullptr) {
+        timing((o.timing) ? new quantra::StructuredNoteTimingDiagnosticsT(*o.timing) : nullptr),
+        vanilla_repricing((o.vanilla_repricing) ? new quantra::StructuredNoteVanillaRepricingT(*o.vanilla_repricing) : nullptr) {
   event_probabilities.reserve(o.event_probabilities.size());
   for (const auto &event_probabilities_ : o.event_probabilities) { event_probabilities.emplace_back((event_probabilities_) ? new quantra::StructuredNoteEventProbabilityT(*event_probabilities_) : nullptr); }
 }
@@ -5482,6 +6623,7 @@ inline StructuredNoteResultT &StructuredNoteResultT::operator=(StructuredNoteRes
   std::swap(checks, o.checks);
   std::swap(distribution, o.distribution);
   std::swap(timing, o.timing);
+  std::swap(vanilla_repricing, o.vanilla_repricing);
   return *this;
 }
 
@@ -5514,6 +6656,7 @@ inline void StructuredNoteResult::UnPackTo(StructuredNoteResultT *_o, const ::fl
   { auto _e = checks(); if (_e) { if(_o->checks) { _e->UnPackTo(_o->checks.get(), _resolver); } else { _o->checks = std::unique_ptr<quantra::StructuredNoteChecksDiagnosticsT>(_e->UnPack(_resolver)); } } else if (_o->checks) { _o->checks.reset(); } }
   { auto _e = distribution(); if (_e) { if(_o->distribution) { _e->UnPackTo(_o->distribution.get(), _resolver); } else { _o->distribution = std::unique_ptr<quantra::StructuredNoteDistributionDiagnosticsT>(_e->UnPack(_resolver)); } } else if (_o->distribution) { _o->distribution.reset(); } }
   { auto _e = timing(); if (_e) { if(_o->timing) { _e->UnPackTo(_o->timing.get(), _resolver); } else { _o->timing = std::unique_ptr<quantra::StructuredNoteTimingDiagnosticsT>(_e->UnPack(_resolver)); } } else if (_o->timing) { _o->timing.reset(); } }
+  { auto _e = vanilla_repricing(); if (_e) { if(_o->vanilla_repricing) { _e->UnPackTo(_o->vanilla_repricing.get(), _resolver); } else { _o->vanilla_repricing = std::unique_ptr<quantra::StructuredNoteVanillaRepricingT>(_e->UnPack(_resolver)); } } else if (_o->vanilla_repricing) { _o->vanilla_repricing.reset(); } }
 }
 
 inline ::flatbuffers::Offset<StructuredNoteResult> StructuredNoteResult::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteResultT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -5544,6 +6687,7 @@ inline ::flatbuffers::Offset<StructuredNoteResult> CreateStructuredNoteResult(::
   auto _checks = _o->checks ? CreateStructuredNoteChecksDiagnostics(_fbb, _o->checks.get(), _rehasher) : 0;
   auto _distribution = _o->distribution ? CreateStructuredNoteDistributionDiagnostics(_fbb, _o->distribution.get(), _rehasher) : 0;
   auto _timing = _o->timing ? CreateStructuredNoteTimingDiagnostics(_fbb, _o->timing.get(), _rehasher) : 0;
+  auto _vanilla_repricing = _o->vanilla_repricing ? CreateStructuredNoteVanillaRepricing(_fbb, _o->vanilla_repricing.get(), _rehasher) : 0;
   return quantra::CreateStructuredNoteResult(
       _fbb,
       _trade_id,
@@ -5565,7 +6709,8 @@ inline ::flatbuffers::Offset<StructuredNoteResult> CreateStructuredNoteResult(::
       _decomposition,
       _checks,
       _distribution,
-      _timing);
+      _timing,
+      _vanilla_repricing);
 }
 
 inline PriceStructuredNoteResponseT::PriceStructuredNoteResponseT(const PriceStructuredNoteResponseT &o) {

@@ -255,12 +255,14 @@ def test_each_diagnostic_block_is_present_iff_its_flag_is_set(client, data_dir):
     with open(data_dir / EXAMPLES[0][0]) as fh:
         base = json.load(fh)
     plain = _price(client, base)
+    assert "vanilla_repricing" not in plain
     for block in BLOCKS:
         req = json.loads(json.dumps(base))
         req["diagnostics"] = {block: True}
         n = _price(client, req)
         for other in BLOCKS:
             assert (other in n) == (other == block), (block, other)
+        assert "vanilla_repricing" not in n  # needs its sheets (own suite)
         # the headline is the same run (same stream)
         assert n["npv"] == plain["npv"] and n["standard_error"] == plain["standard_error"]
     req = json.loads(json.dumps(base))

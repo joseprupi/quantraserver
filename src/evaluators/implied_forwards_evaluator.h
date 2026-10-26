@@ -69,6 +69,7 @@
 #include "pricing_registry.h"
 
 #include <ql/handle.hpp>
+#include <ql/option.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/time/date.hpp>
 
@@ -170,6 +171,48 @@ void validateQuoteFilter(const QuoteFilterData& flt);
 std::vector<FilteredQuote> filterExpiryLines(
     const std::vector<const OptionQuoteLine*>& lines,
     const QuoteFilterData& flt,
+    std::vector<DroppedQuoteData>& dropped);
+
+/// Quote resolution: an out-of-the-money price below this fraction of the
+/// spot (0.24 index points on a 24,000 index) carries no vol information.
+constexpr double kQuoteResolution = 1e-5;
+
+/// Black-76 implied vol of `price` on (forward, discountFactor, time):
+/// QuantLib's blackFormulaImpliedStdDev (accuracy 1e-12, 1000 iterations)
+/// divided by sqrt(time); nullopt when it does not solve (price outside the
+/// Black bounds) or is not finite and > 0.
+std::optional<double> impliedBlackVol(
+    QuantLib::Option::Type type,
+    double strike,
+    double forward,
+    double price,
+    double discountFactor,
+    double time);
+
+/// One out-of-the-money quote of an expiry with its implied vol: the side
+/// `/calibrate-vol-surface` fits and the structured-note vanilla repricing
+/// prices (call iff strike >= forward).
+struct OutOfTheMoneyQuote {
+    double strike = 0.0;
+    bool isCall = true;
+    double bid = 0.0, ask = 0.0, mid = 0.0;
+    double vol = 0.0;
+};
+
+/// The out-of-the-money side of every line of one expiry that passes the
+/// per-line rules (filterExpiryLines), kept when its mid is above the
+/// intrinsic value DF * max(+/-(F - K), 0), at least kQuoteResolution * spot,
+/// and has a Black-76 implied vol on (forward, discountFactor, time); every
+/// other line is appended to `dropped` with its reason. Survivors are
+/// returned sorted by strike.
+std::vector<OutOfTheMoneyQuote> selectOutOfTheMoneyQuotes(
+    const std::vector<const OptionQuoteLine*>& lines,
+    const QuoteFilterData& flt,
+    const std::string& expiryIso,
+    double spot,
+    double forward,
+    double discountFactor,
+    double time,
     std::vector<DroppedQuoteData>& dropped);
 
 /// Spot and discounting curve of a quote sheet, resolved from the registry

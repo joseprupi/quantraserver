@@ -14,6 +14,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
              "Non-compatible flatbuffers version included");
 
 #include "common_generated.h"
+#include "option_quotes_generated.h"
 #include "pricing_generated.h"
 #include "structured_note_generated.h"
 
@@ -159,6 +160,13 @@ struct StructuredNoteDiagnosticsSpecT : public ::flatbuffers::NativeTable {
   bool distribution = false;
   bool timing = false;
   uint32_t sample_paths = 0;
+  bool vanilla_repricing = false;
+  std::vector<std::unique_ptr<quantra::OptionQuoteSheetT>> vanilla_repricing_sheets{};
+  std::unique_ptr<quantra::QuoteFilterT> vanilla_repricing_filter{};
+  StructuredNoteDiagnosticsSpecT() = default;
+  StructuredNoteDiagnosticsSpecT(const StructuredNoteDiagnosticsSpecT &o);
+  StructuredNoteDiagnosticsSpecT(StructuredNoteDiagnosticsSpecT&&) FLATBUFFERS_NOEXCEPT = default;
+  StructuredNoteDiagnosticsSpecT &operator=(StructuredNoteDiagnosticsSpecT o) FLATBUFFERS_NOEXCEPT;
 };
 
 /// Opt-in diagnostic blocks, each computed from the SAME paths as the
@@ -174,7 +182,10 @@ struct StructuredNoteDiagnosticsSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuf
     VT_CHECKS = 8,
     VT_DISTRIBUTION = 10,
     VT_TIMING = 12,
-    VT_SAMPLE_PATHS = 14
+    VT_SAMPLE_PATHS = 14,
+    VT_VANILLA_REPRICING = 16,
+    VT_VANILLA_REPRICING_SHEETS = 18,
+    VT_VANILLA_REPRICING_FILTER = 20
   };
   /// Market as used: per underlying spot, forwards and vols at every
   /// observation date, quanto drift; discount factors at every payment
@@ -211,6 +222,37 @@ struct StructuredNoteDiagnosticsSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuf
   uint32_t sample_paths() const {
     return GetField<uint32_t>(VT_SAMPLE_PATHS, 0);
   }
+  /// Vanilla repricing through the Monte Carlo, the acceptance check of
+  /// the quotes -> surface -> simulation chain: every usable quote of
+  /// `vanilla_repricing_sheets` is priced as a European option on
+  /// simulated paths of the note's own model (same market, curves,
+  /// correlation, random sequence, seed and path count; the time grid is
+  /// the note's grid with the sheet expiries added as mandatory dates,
+  /// refined by `steps_per_year` as usual) and compared with its bid/ask.
+  /// It is a separate simulation: the headline and every other block are
+  /// unchanged by this flag. Requires `vanilla_repricing_sheets`.
+  /// Definitions: `StructuredNoteVanillaRepricing` in
+  /// structured_note_response.fbs.
+  bool vanilla_repricing() const {
+    return GetField<uint8_t>(VT_VANILLA_REPRICING, 0) != 0;
+  }
+  /// The listed-option quote sheets to reprice, at most one per
+  /// underlying, matched to the notes' underlyings by
+  /// `OptionQuoteSheet.underlying_id`; every sheet must belong to an
+  /// underlying of some note and every note must have a sheet for at
+  /// least one of its underlyings (400 otherwise). A sheet for a quanto
+  /// underlying is a 400: the listed options live in the underlying's
+  /// own measure, the note simulates the quanto-adjusted one. European
+  /// style only. Requires `vanilla_repricing = true`.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::OptionQuoteSheet>> *vanilla_repricing_sheets() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::OptionQuoteSheet>> *>(VT_VANILLA_REPRICING_SHEETS);
+  }
+  /// Quote filter applied to the sheets, the same rules and defaults as
+  /// `/calibrate-vol-surface` (`min_quotes_per_expiry` and
+  /// `moneyness_window` are not used here: there is no parity fit).
+  const quantra::QuoteFilter *vanilla_repricing_filter() const {
+    return GetPointer<const quantra::QuoteFilter *>(VT_VANILLA_REPRICING_FILTER);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint8_t>(verifier, VT_MARKET, 1) &&
@@ -219,6 +261,12 @@ struct StructuredNoteDiagnosticsSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuf
            VerifyField<uint8_t>(verifier, VT_DISTRIBUTION, 1) &&
            VerifyField<uint8_t>(verifier, VT_TIMING, 1) &&
            VerifyField<uint32_t>(verifier, VT_SAMPLE_PATHS, 4) &&
+           VerifyField<uint8_t>(verifier, VT_VANILLA_REPRICING, 1) &&
+           VerifyOffset(verifier, VT_VANILLA_REPRICING_SHEETS) &&
+           verifier.VerifyVector(vanilla_repricing_sheets()) &&
+           verifier.VerifyVectorOfTables(vanilla_repricing_sheets()) &&
+           VerifyOffset(verifier, VT_VANILLA_REPRICING_FILTER) &&
+           verifier.VerifyTable(vanilla_repricing_filter()) &&
            verifier.EndTable();
   }
   StructuredNoteDiagnosticsSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -248,6 +296,15 @@ struct StructuredNoteDiagnosticsSpecBuilder {
   void add_sample_paths(uint32_t sample_paths) {
     fbb_.AddElement<uint32_t>(StructuredNoteDiagnosticsSpec::VT_SAMPLE_PATHS, sample_paths, 0);
   }
+  void add_vanilla_repricing(bool vanilla_repricing) {
+    fbb_.AddElement<uint8_t>(StructuredNoteDiagnosticsSpec::VT_VANILLA_REPRICING, static_cast<uint8_t>(vanilla_repricing), 0);
+  }
+  void add_vanilla_repricing_sheets(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::OptionQuoteSheet>>> vanilla_repricing_sheets) {
+    fbb_.AddOffset(StructuredNoteDiagnosticsSpec::VT_VANILLA_REPRICING_SHEETS, vanilla_repricing_sheets);
+  }
+  void add_vanilla_repricing_filter(::flatbuffers::Offset<quantra::QuoteFilter> vanilla_repricing_filter) {
+    fbb_.AddOffset(StructuredNoteDiagnosticsSpec::VT_VANILLA_REPRICING_FILTER, vanilla_repricing_filter);
+  }
   explicit StructuredNoteDiagnosticsSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -266,15 +323,46 @@ inline ::flatbuffers::Offset<StructuredNoteDiagnosticsSpec> CreateStructuredNote
     bool checks = false,
     bool distribution = false,
     bool timing = false,
-    uint32_t sample_paths = 0) {
+    uint32_t sample_paths = 0,
+    bool vanilla_repricing = false,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::OptionQuoteSheet>>> vanilla_repricing_sheets = 0,
+    ::flatbuffers::Offset<quantra::QuoteFilter> vanilla_repricing_filter = 0) {
   StructuredNoteDiagnosticsSpecBuilder builder_(_fbb);
+  builder_.add_vanilla_repricing_filter(vanilla_repricing_filter);
+  builder_.add_vanilla_repricing_sheets(vanilla_repricing_sheets);
   builder_.add_sample_paths(sample_paths);
+  builder_.add_vanilla_repricing(vanilla_repricing);
   builder_.add_timing(timing);
   builder_.add_distribution(distribution);
   builder_.add_checks(checks);
   builder_.add_decomposition(decomposition);
   builder_.add_market(market);
   return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<StructuredNoteDiagnosticsSpec> CreateStructuredNoteDiagnosticsSpecDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    bool market = false,
+    bool decomposition = false,
+    bool checks = false,
+    bool distribution = false,
+    bool timing = false,
+    uint32_t sample_paths = 0,
+    bool vanilla_repricing = false,
+    const std::vector<::flatbuffers::Offset<quantra::OptionQuoteSheet>> *vanilla_repricing_sheets = nullptr,
+    ::flatbuffers::Offset<quantra::QuoteFilter> vanilla_repricing_filter = 0) {
+  auto vanilla_repricing_sheets__ = vanilla_repricing_sheets ? _fbb.CreateVector<::flatbuffers::Offset<quantra::OptionQuoteSheet>>(*vanilla_repricing_sheets) : 0;
+  return quantra::CreateStructuredNoteDiagnosticsSpec(
+      _fbb,
+      market,
+      decomposition,
+      checks,
+      distribution,
+      timing,
+      sample_paths,
+      vanilla_repricing,
+      vanilla_repricing_sheets__,
+      vanilla_repricing_filter);
 }
 
 ::flatbuffers::Offset<StructuredNoteDiagnosticsSpec> CreateStructuredNoteDiagnosticsSpec(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteDiagnosticsSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -432,6 +520,32 @@ inline ::flatbuffers::Offset<StructuredNoteGreeksSpec> CreateStructuredNoteGreek
       _rate_bump_bp);
 }
 
+inline StructuredNoteDiagnosticsSpecT::StructuredNoteDiagnosticsSpecT(const StructuredNoteDiagnosticsSpecT &o)
+      : market(o.market),
+        decomposition(o.decomposition),
+        checks(o.checks),
+        distribution(o.distribution),
+        timing(o.timing),
+        sample_paths(o.sample_paths),
+        vanilla_repricing(o.vanilla_repricing),
+        vanilla_repricing_filter((o.vanilla_repricing_filter) ? new quantra::QuoteFilterT(*o.vanilla_repricing_filter) : nullptr) {
+  vanilla_repricing_sheets.reserve(o.vanilla_repricing_sheets.size());
+  for (const auto &vanilla_repricing_sheets_ : o.vanilla_repricing_sheets) { vanilla_repricing_sheets.emplace_back((vanilla_repricing_sheets_) ? new quantra::OptionQuoteSheetT(*vanilla_repricing_sheets_) : nullptr); }
+}
+
+inline StructuredNoteDiagnosticsSpecT &StructuredNoteDiagnosticsSpecT::operator=(StructuredNoteDiagnosticsSpecT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(market, o.market);
+  std::swap(decomposition, o.decomposition);
+  std::swap(checks, o.checks);
+  std::swap(distribution, o.distribution);
+  std::swap(timing, o.timing);
+  std::swap(sample_paths, o.sample_paths);
+  std::swap(vanilla_repricing, o.vanilla_repricing);
+  std::swap(vanilla_repricing_sheets, o.vanilla_repricing_sheets);
+  std::swap(vanilla_repricing_filter, o.vanilla_repricing_filter);
+  return *this;
+}
+
 inline StructuredNoteDiagnosticsSpecT *StructuredNoteDiagnosticsSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<StructuredNoteDiagnosticsSpecT>(new StructuredNoteDiagnosticsSpecT());
   UnPackTo(_o.get(), _resolver);
@@ -447,6 +561,9 @@ inline void StructuredNoteDiagnosticsSpec::UnPackTo(StructuredNoteDiagnosticsSpe
   { auto _e = distribution(); _o->distribution = _e; }
   { auto _e = timing(); _o->timing = _e; }
   { auto _e = sample_paths(); _o->sample_paths = _e; }
+  { auto _e = vanilla_repricing(); _o->vanilla_repricing = _e; }
+  { auto _e = vanilla_repricing_sheets(); if (_e) { _o->vanilla_repricing_sheets.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->vanilla_repricing_sheets[_i]) { _e->Get(_i)->UnPackTo(_o->vanilla_repricing_sheets[_i].get(), _resolver); } else { _o->vanilla_repricing_sheets[_i] = std::unique_ptr<quantra::OptionQuoteSheetT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->vanilla_repricing_sheets.resize(0); } }
+  { auto _e = vanilla_repricing_filter(); if (_e) { if(_o->vanilla_repricing_filter) { _e->UnPackTo(_o->vanilla_repricing_filter.get(), _resolver); } else { _o->vanilla_repricing_filter = std::unique_ptr<quantra::QuoteFilterT>(_e->UnPack(_resolver)); } } else if (_o->vanilla_repricing_filter) { _o->vanilla_repricing_filter.reset(); } }
 }
 
 inline ::flatbuffers::Offset<StructuredNoteDiagnosticsSpec> StructuredNoteDiagnosticsSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteDiagnosticsSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -463,6 +580,9 @@ inline ::flatbuffers::Offset<StructuredNoteDiagnosticsSpec> CreateStructuredNote
   auto _distribution = _o->distribution;
   auto _timing = _o->timing;
   auto _sample_paths = _o->sample_paths;
+  auto _vanilla_repricing = _o->vanilla_repricing;
+  auto _vanilla_repricing_sheets = _o->vanilla_repricing_sheets.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::OptionQuoteSheet>> (_o->vanilla_repricing_sheets.size(), [](size_t i, _VectorArgs *__va) { return CreateOptionQuoteSheet(*__va->__fbb, __va->__o->vanilla_repricing_sheets[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _vanilla_repricing_filter = _o->vanilla_repricing_filter ? CreateQuoteFilter(_fbb, _o->vanilla_repricing_filter.get(), _rehasher) : 0;
   return quantra::CreateStructuredNoteDiagnosticsSpec(
       _fbb,
       _market,
@@ -470,7 +590,10 @@ inline ::flatbuffers::Offset<StructuredNoteDiagnosticsSpec> CreateStructuredNote
       _checks,
       _distribution,
       _timing,
-      _sample_paths);
+      _sample_paths,
+      _vanilla_repricing,
+      _vanilla_repricing_sheets,
+      _vanilla_repricing_filter);
 }
 
 inline PriceStructuredNoteRequestT::PriceStructuredNoteRequestT(const PriceStructuredNoteRequestT &o)

@@ -48,7 +48,7 @@ info:
     \ a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond\
     \ \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/bonds/fixed_rate_bond_request.json\n\
     ```\n"
-  version: 0.14.0
+  version: 0.15.0
   contact:
     name: Quantra API Support
     url: https://github.com/joseprupi/quantraserver
@@ -1384,6 +1384,11 @@ components:
       enum:
       - Bilinear
       - Bicubic
+      - CubicStrikeLinearTime
+    quantra_enums_SviTimeInterpolation:
+      type: string
+      enum:
+      - LinearTotalVariance
     quantra_enums_BootstrapTrait:
       type: string
       enum:
@@ -1599,6 +1604,7 @@ components:
       - SurfaceFromPrices
       - SabrParams
       - SabrCalibrate
+      - SviSlices
     quantra_enums_YoYInflationCapFloorEngineType:
       type: string
       enum:
@@ -2576,6 +2582,7 @@ components:
       - SwaptionVolSpec
       - BlackVolSpec
       - YoYOptionletVolSpec
+      - SviVolSpec
     quantra_QuoteKind:
       type: string
       enum:
@@ -3670,6 +3677,94 @@ components:
       required:
       - observation_lag
       additionalProperties: false
+    quantra_SviSlice:
+      type: object
+      description: 'One expiry of an `SviVolSpec`: the raw SVI total variance
+
+        w(k) = a + b (rho (k - m) + sqrt((k - m)^2 + sigma^2)), k = ln(K / forward)
+
+        (Gatheral''s raw parameterisation, QuantLib `SviSmileSection`), the Black
+
+        vol being sqrt(w(k) / T) with T the base day counter''s year fraction from
+
+        the reference date to `expiry`. The formula is global in strike: no
+
+        strike extrapolation exists or is needed.'
+      properties:
+        expiry:
+          type: string
+          description: 'Expiry date (YYYY-MM-DD), strictly after the reference date;
+            slices
+
+            must be strictly increasing.'
+        forward:
+          type: number
+          description: The forward the slice is written against (the origin of k),
+            > 0.
+        a:
+          type: number
+        b:
+          type: number
+          description: 'b >= 0; the slice must satisfy a + b sigma sqrt(1 - rho^2)
+            >= 0 so the
+
+            minimum total variance is not negative.'
+        sigma:
+          type: number
+          description: sigma > 0.
+        rho:
+          type: number
+          description: -1 < rho < 1.
+        m:
+          type: number
+      required:
+      - expiry
+      additionalProperties: false
+    quantra_SviVolSpec:
+      type: object
+      description: 'Black volatility as raw SVI slices (what `/calibrate-vol-surface`
+        with
+
+        `SviPerExpiry` returns as `vol_surface_spec_svi`): the smile of every
+
+        quoted expiry with its exact curvature, so that a Dupire local vol
+
+        derived from it reprices the quotes through a Monte Carlo (the grid of
+
+        a `BlackVolSpec` loses that curvature between nodes unless it is
+
+        interpolated with `CubicStrikeLinearTime`). Accepted wherever a Black
+
+        vol is referenced (`price-equity-option` `volatility`, a structured
+
+        note''s `underlyings[].volatility_id`); strike-dependent, so a structured
+
+        note simulates it as Dupire local vol with `monte_carlo.steps_per_year`.
+
+        `base` carries the reference date, calendar, business-day convention and
+
+        day counter only: `shape` must be left at its default, `constant_vol` and
+
+        `quote_id` absent (400 otherwise).'
+      properties:
+        base:
+          $ref: '#/components/schemas/quantra_BlackVolBaseSpec'
+        slices:
+          type: array
+          description: At least one slice, strictly increasing expiries.
+          items:
+            $ref: '#/components/schemas/quantra_SviSlice'
+        time_interpolation:
+          $ref: '#/components/schemas/quantra_enums_SviTimeInterpolation'
+        allow_extrapolation:
+          type: boolean
+          description: 'Whether an expiry beyond the last slice may be read at all
+            (flat
+
+            implied vol); strikes need no flag, the formula is global.'
+      required:
+      - slices
+      additionalProperties: false
     quantra_VolSurfaceSpec:
       type: object
       description: Volatility surface specification referenced by id in trade requests.
@@ -3684,6 +3779,7 @@ components:
           - $ref: '#/components/schemas/quantra_SwaptionVolSpec'
           - $ref: '#/components/schemas/quantra_BlackVolSpec'
           - $ref: '#/components/schemas/quantra_YoYOptionletVolSpec'
+          - $ref: '#/components/schemas/quantra_SviVolSpec'
       required:
       - id
       additionalProperties: false
@@ -5742,11 +5838,7 @@ components:
           type: array
           description: 'Strikes as multiples of the spot, strictly increasing, > 0.
 
-            Default when absent or empty: 0.500, 0.525, ..., 1.500 (41 points;
-
-            the surface is read bilinearly in total variance, and a coarser
-
-            0.05 step misses a 1 % bid/ask between its nodes on a skewed smile).'
+            Default when absent or empty: 0.500, 0.525, ..., 1.500 (41 points).'
           items:
             type: number
         expiries:
@@ -5997,10 +6089,12 @@ components:
             discount factor).'
         model_vol:
           type: number
-          description: 'Black vol read off the returned surface (bilinear in total
-            variance
+          description: 'Black vol read off the returned grid surface as the pricers
+            read it
 
-            on the grid, as the pricers read it) at this expiry and strike.'
+            (`vol_surface_spec`: CubicStrikeLinearTime, a natural cubic spline of
+
+            total variance in log-strike per expiry) at this expiry and strike.'
         model_price:
           type: number
           description: Black price at `model_vol` on the same forward and discount
@@ -6091,6 +6185,13 @@ components:
           $ref: '#/components/schemas/quantra_AndreasenHugeCalibrationError'
         vol_surface_spec:
           $ref: '#/components/schemas/quantra_VolSurfaceSpec'
+        vol_surface_spec_svi:
+          $ref: '#/components/schemas/quantra_VolSurfaceSpec'
+        vol_surface_spec_svi_note:
+          type: string
+          description: 'Present iff `vol_surface_spec_svi` is absent: why (the
+
+            Andreasen-Huge method has no closed-form slice parameters).'
         vanilla_repricing:
           $ref: '#/components/schemas/quantra_VanillaRepricing'
       required:
@@ -8139,6 +8240,51 @@ components:
             Raw underlying levels are never returned.'
           minimum: 0
           maximum: 4294967295
+        vanilla_repricing:
+          type: boolean
+          description: 'Vanilla repricing through the Monte Carlo, the acceptance
+            check of
+
+            the quotes -> surface -> simulation chain: every usable quote of
+
+            `vanilla_repricing_sheets` is priced as a European option on
+
+            simulated paths of the note''s own model (same market, curves,
+
+            correlation, random sequence, seed and path count; the time grid is
+
+            the note''s grid with the sheet expiries added as mandatory dates,
+
+            refined by `steps_per_year` as usual) and compared with its bid/ask.
+
+            It is a separate simulation: the headline and every other block are
+
+            unchanged by this flag. Requires `vanilla_repricing_sheets`.
+
+            Definitions: `StructuredNoteVanillaRepricing` in
+
+            structured_note_response.fbs.'
+        vanilla_repricing_sheets:
+          type: array
+          description: 'The listed-option quote sheets to reprice, at most one per
+
+            underlying, matched to the notes'' underlyings by
+
+            `OptionQuoteSheet.underlying_id`; every sheet must belong to an
+
+            underlying of some note and every note must have a sheet for at
+
+            least one of its underlyings (400 otherwise). A sheet for a quanto
+
+            underlying is a 400: the listed options live in the underlying''s
+
+            own measure, the note simulates the quanto-adjusted one. European
+
+            style only. Requires `vanilla_repricing = true`.'
+          items:
+            $ref: '#/components/schemas/quantra_OptionQuoteSheet'
+        vanilla_repricing_filter:
+          $ref: '#/components/schemas/quantra_QuoteFilter'
       additionalProperties: false
     quantra_PriceStructuredNoteRequest:
       type: object
@@ -9906,6 +10052,219 @@ components:
       required:
       - stages
       additionalProperties: false
+    quantra_StructuredNoteRepricedOption:
+      type: object
+      description: 'One listed quote repriced on the simulated paths
+
+        (`diagnostics.vanilla_repricing`).'
+      properties:
+        expiry:
+          type: string
+          description: Expiry date (YYYY-MM-DD), a point of the repricing time grid.
+        time:
+          type: number
+          description: Actual/365 (Fixed) years from the valuation date.
+        strike:
+          type: number
+        option_type:
+          $ref: '#/components/schemas/quantra_enums_EquityOptionType'
+        bid:
+          type: number
+        ask:
+          type: number
+        mid:
+          type: number
+        model_price:
+          type: number
+          description: '`discount_factor x mean of max(+/-(S_T - K), 0)` over the
+            simulated
+
+            paths, `S_T` the simulated level at the expiry grid point and
+
+            `discount_factor` the note''s discounting curve without the funding
+
+            spread (listed options are not note liabilities).'
+        standard_error:
+          type: number
+          description: 'Monte Carlo standard error of `model_price` (the path engine''s
+
+            estimator, discounted).'
+        inside_bid_ask:
+          type: boolean
+          description: bid <= model_price <= ask.
+        price_error:
+          type: number
+          description: model_price - mid.
+        market_vol:
+          type: number
+          description: 'Black-76 implied vol of the mid on the model forward and discount
+
+            factor of the expiry; absent when the mid does not solve (outside
+
+            the Black bounds).'
+        model_vol:
+          type: number
+          description: 'Black-76 implied vol of `model_price` on the same forward
+            and
+
+            discount factor; absent when it does not solve.'
+        vol_error:
+          type: number
+          description: model_vol - market_vol; absent when either is.
+      required:
+      - expiry
+      additionalProperties: false
+    quantra_StructuredNoteRepricingExpiry:
+      type: object
+      description: One sheet expiry as the repricing used it.
+      properties:
+        expiry:
+          type: string
+        time:
+          type: number
+        forward:
+          type: number
+          description: 'The model forward of the underlying at the expiry: spot x
+
+            D_div(T) / D_note(T) on the simulation''s time axis (the forward the
+
+            process drifts along, quanto excluded).'
+        discount_factor:
+          type: number
+          description: D_note(T), the discounting curve without the funding spread.
+        quotes_used:
+          type: integer
+          minimum: 0
+          maximum: 4294967295
+        quotes_dropped:
+          type: integer
+          minimum: 0
+          maximum: 4294967295
+        dropped:
+          type: array
+          description: 'Every line not used, with its reason (the per-line quality
+            rules of
+
+            `/calibrate-implied-forwards`, then the out-of-the-money side''s mid
+
+            not above intrinsic, below 1e-5 of the spot, or without an implied
+
+            vol).'
+          items:
+            $ref: '#/components/schemas/quantra_DroppedQuote'
+      required:
+      - expiry
+      - dropped
+      additionalProperties: false
+    quantra_StructuredNoteVanillaRepricingUnderlying:
+      type: object
+      description: The repricing of one sheet (one underlying).
+      properties:
+        underlying_id:
+          type: string
+        sheet_id:
+          type: string
+        spot:
+          type: number
+        expiries:
+          type: array
+          description: 'Every sheet expiry in date order (an expiry on or before the
+
+            valuation date is reported with every line dropped).'
+          items:
+            $ref: '#/components/schemas/quantra_StructuredNoteRepricingExpiry'
+        count:
+          type: integer
+          minimum: 0
+          maximum: 4294967295
+        inside_bid_ask:
+          type: integer
+          minimum: 0
+          maximum: 4294967295
+        max_abs_price_error:
+          type: number
+          description: Largest |model_price - mid| over the used quotes (price units).
+        max_abs_vol_error:
+          type: number
+          description: 'Largest |model_vol - market_vol| (vol units) over the used
+            quotes
+
+            where both solve; absent when none does.'
+        max_standard_error:
+          type: number
+          description: Largest standard error over the used quotes, in price units.
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_StructuredNoteRepricedOption'
+      required:
+      - underlying_id
+      - sheet_id
+      - expiries
+      - options
+      additionalProperties: false
+    quantra_StructuredNoteVanillaRepricing:
+      type: object
+      description: '`diagnostics.vanilla_repricing`: every usable quote of the request''s
+
+        sheets priced as a European option on ONE extra simulation of the
+
+        note''s model (same market, correlation, sequence, seed and paths; the
+
+        time grid is the note''s grid with the sheet expiries added as mandatory
+
+        dates), so that the quotes a surface was calibrated to are repriced
+
+        through the very paths the note is priced on. The headline and every
+
+        other block are computed on the note''s own grid and are unchanged by
+
+        this flag; `note_npv` is the note walked on the repricing grid so the
+
+        effect of the extra grid points is visible (Monte Carlo noise: with
+
+        `steps_per_year` the grid refinement differs where an expiry splits an
+
+        interval, and without it the exact lognormal steps simply pass through
+
+        more dates; both change the random stream, neither changes the model).'
+      properties:
+        paths:
+          type: integer
+          description: Paths simulated (the note's `monte_carlo.paths`).
+          minimum: 0
+          maximum: 4294967295
+        time_steps:
+          type: integer
+          description: Steps of the repricing grid (the note's grid plus the expiries).
+          minimum: 0
+          maximum: 4294967295
+        note_npv:
+          type: number
+          description: The note's NPV and standard error on the repricing paths.
+        note_standard_error:
+          type: number
+        count:
+          type: integer
+          minimum: 0
+          maximum: 4294967295
+        inside_bid_ask:
+          type: integer
+          minimum: 0
+          maximum: 4294967295
+        max_abs_price_error:
+          type: number
+        max_abs_vol_error:
+          type: number
+        max_standard_error:
+          type: number
+        underlyings:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_StructuredNoteVanillaRepricingUnderlying'
+      required:
+      - underlyings
+      additionalProperties: false
     quantra_StructuredNoteResult:
       type: object
       description: 'Pricing result of one structured note. The headline is `npv` with
@@ -9986,6 +10345,8 @@ components:
           $ref: '#/components/schemas/quantra_StructuredNoteDistributionDiagnostics'
         timing:
           $ref: '#/components/schemas/quantra_StructuredNoteTimingDiagnostics'
+        vanilla_repricing:
+          $ref: '#/components/schemas/quantra_StructuredNoteVanillaRepricing'
       required:
       - trade_id
       - event_probabilities

@@ -9,12 +9,16 @@
  * Supported types:
  *   - OptionletVolSpec  -> ConstantOptionletVolatility (caps/floors)
  *   - SwaptionVolSpec   -> ConstantSwaptionVolatility (swaptions)
- *   - BlackVolSpec      -> BlackConstantVol (equity/FX options)
+ *   - BlackVolSpec      -> BlackConstantVol / BlackVarianceCurve /
+ *                          BlackVarianceSurface (Bilinear, Bicubic) or
+ *                          SmileSliceVolSurface (CubicStrikeLinearTime)
+ *   - SviVolSpec        -> SmileSliceVolSurface of SVI slices
  */
 
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "quote_registry.h"
+#include "smile_slice_vol_surface.h"
 
 #include "volatility_generated.h"
 
@@ -100,12 +104,16 @@ struct SwaptionVolEntry {
     int nStrikes = 0;
 };
 
+/// Reading of a strike x expiry Black vol grid (enums::SurfaceInterpolator2D).
+enum class BlackSurfaceInterpolation { Bilinear, Bicubic, CubicStrikeLinearTime };
+
 struct BlackVolEntry {
     QuantLib::Handle<QuantLib::BlackVolTermStructure> handle;
     /// The vol of a Constant spec (quote resolved); NaN for the other shapes.
     double constantVol;
     /// Shape of the spec the handle was built from (Constant, AtmMatrix2D =
-    /// term, SmileCube3D / SurfaceFromPrices = strike x expiry surface).
+    /// term, SmileCube3D / SurfaceFromPrices = strike x expiry surface,
+    /// SviSlices = an SviVolSpec payload).
     quantra::enums::VolSurfaceShape shapeFb = quantra::enums::VolSurfaceShape_Constant;
     QuantLib::Date referenceDate;
     QuantLib::Calendar calendar;
@@ -125,18 +133,22 @@ struct BlackVolEntry {
     std::vector<QuantLib::Volatility> termVols;
     std::vector<QuantLib::Real> strikes;
     QuantLib::Matrix surfaceVols;
-    bool bicubic = false;
+    BlackSurfaceInterpolation surfaceInterpolation = BlackSurfaceInterpolation::Bilinear;
     bool allowExtrapolation = false;
 };
 
 /**
  * Rebuild `entry`'s vol with every Black vol shifted by `shift` (absolute,
  * vol units): BlackConstantVol(vol + shift), BlackVarianceCurve(every node
- * + shift, forceMonotoneVariance), BlackVarianceSurface(every entry + shift,
- * same interpolation), with the entry's reference date, calendar, day
- * counter and extrapolation flag. The object is new (the entry's handle is
- * untouched). 400 when a shifted vol is not > 0; 500 when the entry carries
- * no inputs for its shape (an entry built outside parseBlackVol).
+ * + shift, forceMonotoneVariance), the grid surface rebuilt from every
+ * entry + shift with the same interpolation, and for SviSlices a
+ * ShiftedBlackVolSurface over the entry's handle (a uniformly shifted SVI
+ * smile is not an SVI slice: the shift is applied at every read), with the
+ * entry's reference date, calendar, day counter and extrapolation flag. The
+ * object is new (the entry's handle is untouched). 400 when a shifted vol
+ * is not > 0 (for SviSlices: at the first read that finds one); 500 when
+ * the entry carries no inputs for its shape (an entry built outside
+ * parseBlackVol).
  */
 QuantLib::Handle<QuantLib::BlackVolTermStructure> shiftedBlackVol(
     const BlackVolEntry& entry, double shift);
@@ -241,6 +253,16 @@ BlackVolEntry parseBlackVol(
     const std::
         map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>>*
             curves = nullptr);
+
+/**
+ * Parse an SviVolSpec payload into a BlackVolEntry (shapeFb SviSlices, the
+ * handle a SmileSliceVolSurface of SVI slices). 400 naming the field for a
+ * missing base convention, a base `shape` / `constant_vol` / `quote_id`
+ * (not part of this payload), no slices, an expiry not after the reference
+ * date or not increasing, a non-positive forward, or an inadmissible slice
+ * (b < 0, sigma <= 0, |rho| >= 1, negative minimum variance).
+ */
+BlackVolEntry parseSviVol(const quantra::VolSurfaceSpec* spec);
 
 /**
  * Parse YoYOptionletVolSpec from FlatBuffers into a plain YoYOptionletVolEntry.

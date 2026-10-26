@@ -77,8 +77,9 @@ class VanillaRepricePoint(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Black vol read off the returned surface (bilinear in total variance
-    # on the grid, as the pricers read it) at this expiry and strike.
+    # Black vol read off the returned grid surface as the pricers read it
+    # (`vol_surface_spec`: CubicStrikeLinearTime, a natural cubic spline of
+    # total variance in log-strike per expiry) at this expiry and strike.
     # VanillaRepricePoint
     def ModelVol(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))

@@ -254,7 +254,8 @@ class BlackVolSpec(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
-    # 2D surface interpolator for strike/expiry surfaces.
+    # Interpolation of a strike x expiry surface (see the enum): Bilinear
+    # unless asked; `/calibrate-vol-surface` returns CubicStrikeLinearTime.
     # BlackVolSpec
     def SurfaceInterpolator(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(40))

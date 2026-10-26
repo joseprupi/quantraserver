@@ -85,8 +85,9 @@ table VanillaRepricePoint {
     /// Implied vol of the mid (Black-76 on the fitted forward and implied
     /// discount factor).
     market_vol:double;
-    /// Black vol read off the returned surface (bilinear in total variance
-    /// on the grid, as the pricers read it) at this expiry and strike.
+    /// Black vol read off the returned grid surface as the pricers read it
+    /// (`vol_surface_spec`: CubicStrikeLinearTime, a natural cubic spline of
+    /// total variance in log-strike per expiry) at this expiry and strike.
     model_vol:double;
     /// Black price at `model_vol` on the same forward and discount factor.
     model_price:double;
@@ -133,9 +134,21 @@ table CalibrateVolSurfaceResponse {
     andreasen_huge_error:AndreasenHugeCalibrationError;
     /// Complete `VolSurfaceSpec` (BlackVolSpec, shape SmileCube3D,
     /// NullCalendar / Unadjusted / Actual365Fixed, expiries as calendar-day
-    /// periods from the as-of date, absolute strikes, bilinear,
-    /// allow_extrapolation true) under the request's `vol_surface_id`.
+    /// periods from the as-of date, absolute strikes, `surface_interpolator`
+    /// CubicStrikeLinearTime, allow_extrapolation true) under the request's
+    /// `vol_surface_id`.
     vol_surface_spec:VolSurfaceSpec (required);
+    /// `SviPerExpiry` only: the same surface as its fitted slices, an
+    /// `SviVolSpec` payload (one `SviSlice` per fitted expiry with the
+    /// forward used and the final a, b, sigma, rho, m; same base and id as
+    /// `vol_surface_spec`, allow_extrapolation true), ready to paste in
+    /// place of the grid. The calendar clip of step 4 applies to the grid
+    /// only; the slices are reported as fitted (after the butterfly refit).
+    vol_surface_spec_svi:VolSurfaceSpec;
+    /// Present iff `vol_surface_spec_svi` is absent: why (the
+    /// Andreasen-Huge method has no closed-form slice parameters).
+    vol_surface_spec_svi_note:string;
+    /// Every used quote repriced on `vol_surface_spec` (the grid).
     vanilla_repricing:VanillaRepricing (required);
 }
 

@@ -150,7 +150,8 @@ void validateBlackVolBase(const quantra::BlackVolBaseSpec* b, const std::string&
         case quantra::enums::VolSurfaceShape_SurfaceFromPrices: break;
         default:
             QUANTRA_INVALID_ARGUMENT(
-                "BlackVolSpec supports shape=Constant, AtmMatrix2D, SmileCube3D, SurfaceFromPrices for vol id: " +
+                "BlackVolSpec supports shape=Constant, AtmMatrix2D, SmileCube3D, SurfaceFromPrices "
+                "(SVI slices are an SviVolSpec payload) for vol id: " +
                 id);
     }
 }
@@ -827,7 +828,7 @@ bool hasNonEmptyString(const flatbuffers::String* s) {
     return s && !s->str().empty();
 }
 
-enum class SurfaceInterpolationMode { Bilinear, Bicubic };
+using SurfaceInterpolationMode = BlackSurfaceInterpolation;
 
 SurfaceInterpolationMode resolveBlackSurfaceInterpolation(
     const quantra::BlackVolSpec* payload, const std::string& id) {
@@ -856,9 +857,52 @@ SurfaceInterpolationMode resolveBlackSurfaceInterpolation(
             return SurfaceInterpolationMode::Bilinear;
         case quantra::enums::SurfaceInterpolator2D_Bicubic:
             return SurfaceInterpolationMode::Bicubic;
+        case quantra::enums::SurfaceInterpolator2D_CubicStrikeLinearTime:
+            return SurfaceInterpolationMode::CubicStrikeLinearTime;
         default: QUANTRA_INVALID_ARGUMENT("Unsupported surface_interpolator for vol id: " + id);
     }
     return SurfaceInterpolationMode::Bilinear;
+}
+
+/// The strike x expiry grid (`blackVols` is strikes x expiries) as the
+/// requested interpolation reads it. Strike extrapolation: constant (the
+/// edge strike's vol on both sides) -- a simulated level or a far strike
+/// reads the nearest quoted vol, never a linear continuation of the
+/// variance that can turn negative. Time beyond the last expiry: the last
+/// expiry's total variance scaled linearly in t (flat implied vol), QuantLib's
+/// rule for the BlackVarianceSurface and the SmileSliceVolSurface's too.
+std::shared_ptr<QuantLib::BlackVolTermStructure> buildGridSurface(
+    SurfaceInterpolationMode mode,
+    const QuantLib::Date& ref,
+    const QuantLib::Calendar& cal,
+    QuantLib::BusinessDayConvention bdc,
+    const std::vector<QuantLib::Date>& dates,
+    const std::vector<QuantLib::Real>& strikes,
+    const QuantLib::Matrix& blackVols,
+    const QuantLib::DayCounter& dc,
+    const std::string& id) {
+    if (mode == SurfaceInterpolationMode::CubicStrikeLinearTime) {
+        if (strikes.size() < 2) {
+            QUANTRA_INVALID_ARGUMENT(
+                "surface_interpolator CubicStrikeLinearTime needs at least 2 strikes for vol id: " +
+                id);
+        }
+        std::vector<std::vector<double>> rows(dates.size(), std::vector<double>(strikes.size()));
+        for (std::size_t i = 0; i < dates.size(); ++i)
+            for (std::size_t j = 0; j < strikes.size(); ++j)
+                rows[i][j] = blackVols[j][i];
+        return makeCubicStrikeLinearTimeSurface(ref, cal, bdc, dc, dates, strikes, rows);
+    }
+    auto surface = std::make_shared<QuantLib::BlackVarianceSurface>(
+        ref, cal, dates, strikes, blackVols, dc,
+        QuantLib::BlackVarianceSurface::ConstantExtrapolation,
+        QuantLib::BlackVarianceSurface::ConstantExtrapolation);
+    if (mode == SurfaceInterpolationMode::Bicubic) {
+        surface->setInterpolation<QuantLib::Bicubic>();
+    } else {
+        surface->setInterpolation<QuantLib::Bilinear>();
+    }
+    return surface;
 }
 
 QuantLib::Option::Type toQlEquityOptionType(
@@ -1709,17 +1753,12 @@ BlackVolEntry parseBlackVol(
                     }
                 }
 
-                auto qlVol = std::make_shared<QuantLib::BlackVarianceSurface>(
-                    ref, cal, dates, strikes, blackVolMatrix, dc);
-                if (surfaceInterp == SurfaceInterpolationMode::Bicubic) {
-                    qlVol->setInterpolation<QuantLib::Bicubic>();
-                } else {
-                    qlVol->setInterpolation<QuantLib::Bilinear>();
-                }
+                auto qlVol = buildGridSurface(
+                    surfaceInterp, ref, cal, bdc, dates, strikes, blackVolMatrix, dc, id);
                 retained.pillarDates = dates;
                 retained.strikes = strikes;
                 retained.surfaceVols = blackVolMatrix;
-                retained.bicubic = surfaceInterp == SurfaceInterpolationMode::Bicubic;
+                retained.surfaceInterpolation = surfaceInterp;
                 return {
                     QuantLib::Handle<QuantLib::BlackVolTermStructure>(qlVol),
                     std::numeric_limits<double>::quiet_NaN()};
@@ -1911,17 +1950,12 @@ BlackVolEntry parseBlackVol(
                     }
                 }
 
-                auto qlVol = std::make_shared<QuantLib::BlackVarianceSurface>(
-                    ref, cal, dates, strikes, blackVolMatrix, dc);
-                if (surfaceInterp == SurfaceInterpolationMode::Bicubic) {
-                    qlVol->setInterpolation<QuantLib::Bicubic>();
-                } else {
-                    qlVol->setInterpolation<QuantLib::Bilinear>();
-                }
+                auto qlVol = buildGridSurface(
+                    surfaceInterp, ref, cal, bdc, dates, strikes, blackVolMatrix, dc, id);
                 retained.pillarDates = dates;
                 retained.strikes = strikes;
                 retained.surfaceVols = blackVolMatrix;
-                retained.bicubic = surfaceInterp == SurfaceInterpolationMode::Bicubic;
+                retained.surfaceInterpolation = surfaceInterp;
                 return {
                     QuantLib::Handle<QuantLib::BlackVolTermStructure>(qlVol),
                     std::numeric_limits<double>::quiet_NaN()};
@@ -2004,15 +2038,17 @@ QuantLib::Handle<QuantLib::BlackVolTermStructure> shiftedBlackVol(
                     checkPositive(m[i][j]);
                 }
             }
-            auto surface = std::make_shared<QuantLib::BlackVarianceSurface>(
-                entry.referenceDate, entry.calendar, entry.pillarDates, entry.strikes, m,
-                entry.dayCounter);
-            if (entry.bicubic) {
-                surface->setInterpolation<QuantLib::Bicubic>();
-            } else {
-                surface->setInterpolation<QuantLib::Bilinear>();
+            ts = buildGridSurface(
+                entry.surfaceInterpolation, entry.referenceDate, entry.calendar,
+                entry.businessDayConvention, entry.pillarDates, entry.strikes, m, entry.dayCounter,
+                "(shifted)");
+            break;
+        }
+        case quantra::enums::VolSurfaceShape_SviSlices: {
+            if (entry.handle.empty()) {
+                QUANTRA_ERROR("Black vol entry has no SVI surface to shift");
             }
-            ts = surface;
+            ts = std::make_shared<ShiftedBlackVolSurface>(entry.handle.currentLink(), shift);
             break;
         }
         default: QUANTRA_ERROR("Black vol entry has an unsupported shape to shift");
@@ -2023,6 +2059,116 @@ QuantLib::Handle<QuantLib::BlackVolTermStructure> shiftedBlackVol(
         ts->disableExtrapolation();
     }
     return QuantLib::Handle<QuantLib::BlackVolTermStructure>(ts);
+}
+
+BlackVolEntry parseSviVol(const quantra::VolSurfaceSpec* spec) {
+    if (!spec || !spec->id()) {
+        QUANTRA_INVALID_ARGUMENT("VolSurfaceSpec or id is null");
+    }
+    const std::string id = spec->id()->str();
+    const auto* payload = spec->payload_as_SviVolSpec();
+    if (!payload) {
+        QUANTRA_INVALID_ARGUMENT("SviVolSpec payload missing for vol id: " + id);
+    }
+    const auto* b = payload->base();
+    if (!b) {
+        QUANTRA_INVALID_ARGUMENT("SviVolSpec.base is required for vol id: " + id);
+    }
+    validateBlackVolBase(b, id);
+    if (b->shape() != quantra::enums::VolSurfaceShape_Constant) {
+        QUANTRA_INVALID_ARGUMENT(
+            "SviVolSpec.base.shape must be absent (the payload is the shape) for vol id: " + id);
+    }
+    if (b->constant_vol() != 0.0 || hasNonEmptyString(b->quote_id())) {
+        QUANTRA_INVALID_ARGUMENT(
+            "SviVolSpec.base.constant_vol / quote_id are not part of an SVI payload for vol id: " +
+            id);
+    }
+    if (payload->time_interpolation() != quantra::enums::SviTimeInterpolation_LinearTotalVariance) {
+        QUANTRA_INVALID_ARGUMENT("SviVolSpec.time_interpolation is not known for vol id: " + id);
+    }
+    if (!payload->slices() || payload->slices()->size() == 0) {
+        QUANTRA_INVALID_ARGUMENT(
+            "SviVolSpec.slices must contain at least one slice for vol id: " + id);
+    }
+    const QuantLib::Date ref = applyRollOffset(DateToQL(b->reference_date()->str()));
+    const QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
+    const QuantLib::BusinessDayConvention bdc =
+        ConventionToQL(b->business_day_convention().value());
+    const QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
+
+    std::vector<QuantLib::Date> dates;
+    std::vector<SviSliceParams> params;
+    for (flatbuffers::uoffset_t i = 0; i < payload->slices()->size(); ++i) {
+        const auto* sl = payload->slices()->Get(i);
+        const std::string path = "SviVolSpec.slices[" + std::to_string(i) + "]";
+        if (!sl || !sl->expiry() || sl->expiry()->size() == 0) {
+            QUANTRA_INVALID_ARGUMENT(path + ".expiry is required for vol id: " + id);
+        }
+        const QuantLib::Date d = DateToQL(sl->expiry()->str());
+        if (d <= ref) {
+            QUANTRA_INVALID_ARGUMENT(
+                path + ".expiry must be after reference_date for vol id: " + id);
+        }
+        if (!dates.empty() && d <= dates.back()) {
+            QUANTRA_INVALID_ARGUMENT(
+                path + ".expiry: slices must be strictly increasing for vol id: " + id);
+        }
+        SviSliceParams p;
+        p.forward = sl->forward();
+        p.a = sl->a();
+        p.b = sl->b();
+        p.sigma = sl->sigma();
+        p.rho = sl->rho();
+        p.m = sl->m();
+        for (double v : {p.forward, p.a, p.b, p.sigma, p.rho, p.m}) {
+            if (!std::isfinite(v)) {
+                QUANTRA_INVALID_ARGUMENT(
+                    path + ": every parameter must be finite for vol id: " + id);
+            }
+        }
+        if (!(p.forward > 0.0)) {
+            QUANTRA_INVALID_ARGUMENT(path + ".forward must be > 0 for vol id: " + id);
+        }
+        if (p.b < 0.0) {
+            QUANTRA_INVALID_ARGUMENT(path + ".b must be >= 0 for vol id: " + id);
+        }
+        if (!(p.sigma > 0.0)) {
+            QUANTRA_INVALID_ARGUMENT(path + ".sigma must be > 0 for vol id: " + id);
+        }
+        if (!(std::fabs(p.rho) < 1.0)) {
+            QUANTRA_INVALID_ARGUMENT(path + ".rho must be in (-1, 1) for vol id: " + id);
+        }
+        if (p.a + p.b * p.sigma * std::sqrt(1.0 - p.rho * p.rho) < 0.0) {
+            QUANTRA_INVALID_ARGUMENT(
+                path +
+                ": a + b sigma sqrt(1 - rho^2) must be >= 0 (the minimum total variance "
+                "is negative) for vol id: " +
+                id);
+        }
+        dates.push_back(d);
+        params.push_back(p);
+    }
+
+    BlackVolEntry entry;
+    entry.handle = QuantLib::Handle<QuantLib::BlackVolTermStructure>(
+        makeSviSurface(ref, cal, bdc, dc, dates, params));
+    entry.constantVol = std::numeric_limits<double>::quiet_NaN();
+    entry.shapeFb = quantra::enums::VolSurfaceShape_SviSlices;
+    entry.referenceDate = ref;
+    entry.calendar = cal;
+    entry.calendarFb = b->calendar().value();
+    entry.businessDayConvention = bdc;
+    entry.businessDayConventionFb = b->business_day_convention().value();
+    entry.dayCounter = dc;
+    entry.pillarDates = dates;
+    entry.allowExtrapolation = payload->allow_extrapolation();
+    if (payload->allow_extrapolation()) {
+        entry.handle->enableExtrapolation();
+    } else {
+        entry.handle->disableExtrapolation();
+    }
+    return entry;
 }
 
 SwaptionVolEntry bumpSwaptionVolEntry(const SwaptionVolEntry& base, double volBump, int rollDays) {

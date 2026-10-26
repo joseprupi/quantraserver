@@ -3,7 +3,14 @@
 // Relocated verbatim from tests/test_quantra_vs_quantlib.cpp (refactor 6a).
 // Shares QuantraComparisonTest from parity_fixture.h; built into the single
 // test_quantra_vs_quantlib gtest binary.
+#include "basket_model.h"
 #include "parity_fixture.h"
+
+#include <ql/experimental/volatility/svismilesection.hpp>
+#include <ql/termstructures/volatility/equityfx/localvolsurface.hpp>
+#include <ql/termstructures/yield/flatforward.hpp>
+
+#include <functional>
 
 namespace quantra { namespace testing {
 
@@ -1101,6 +1108,49 @@ TEST_F(QuantraComparisonTest, BlackVolSurface_NodeOrientationMatchesInput) {
     EXPECT_NEAR(entry.handle->blackVol(d2M, 100.0), 0.21, 1.0e-12);
 }
 
+// Strike extrapolation of a parsed strike x expiry surface is constant: a
+// strike beyond the grid reads the edge strike's vol on both sides (also
+// after the vega shift rebuild), and beyond the last expiry the implied vol
+// is flat (QuantLib scales the last total variance linearly in time). The
+// 80 / 100 / 120 grid with vols 0.50 / 0.35 / 0.20 is a skew whose linear
+// continuation of the variance would turn negative above ~133.
+TEST_F(QuantraComparisonTest, BlackVolSurface_StrikeExtrapolationIsConstant) {
+    flatbuffers::grpc::MessageBuilder b;
+    auto volSurface = buildBlackVolSurfaceGrid(
+        b, "eq_black_edge",
+        {QuantLib::Period(1, QuantLib::Months), QuantLib::Period(2, QuantLib::Months)},
+        {80.0, 100.0, 120.0}, {0.50, 0.35, 0.20, 0.50, 0.35, 0.20}, "2026-01-02");
+    b.Finish(volSurface);
+    auto spec = flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer());
+    auto entry = parseBlackVol(spec, nullptr);
+    ASSERT_FALSE(entry.handle.empty());
+
+    const QuantLib::Date ref(2, QuantLib::January, 2026);
+    const QuantLib::Calendar cal = QuantLib::TARGET();
+    const QuantLib::BusinessDayConvention bdc = QuantLib::ModifiedFollowing;
+    const QuantLib::Date d1M = cal.advance(ref, QuantLib::Period(1, QuantLib::Months), bdc);
+    const QuantLib::Date d2M = cal.advance(ref, QuantLib::Period(2, QuantLib::Months), bdc);
+    const QuantLib::Date d6M = cal.advance(ref, QuantLib::Period(6, QuantLib::Months), bdc);
+    const auto& h = entry.handle;
+    EXPECT_NEAR(h->minStrike(), 80.0, 0.0);
+    EXPECT_NEAR(h->maxStrike(), 120.0, 0.0);
+    EXPECT_NEAR(h->blackVol(d1M, 50.0, true), 0.50, 1.0e-12);
+    EXPECT_NEAR(h->blackVol(d1M, 1.0, true), 0.50, 1.0e-12);
+    EXPECT_NEAR(h->blackVol(d1M, 160.0, true), 0.20, 1.0e-12);
+    EXPECT_NEAR(h->blackVol(d2M, 1000.0, true), 0.20, 1.0e-12);
+    EXPECT_EQ(h->blackVariance(d1M, 160.0, true), h->blackVariance(d1M, 120.0, true));
+    EXPECT_NEAR(
+        h->blackVol(d1M, 110.0, true), std::sqrt(0.5 * (0.35 * 0.35 + 0.20 * 0.20)),
+        1.0e-12); // bilinear in variance inside the grid, as before
+    // Beyond the last expiry: the same implied vol as at the last expiry.
+    EXPECT_NEAR(h->blackVol(d6M, 100.0, true), h->blackVol(d2M, 100.0, true), 1.0e-12);
+    EXPECT_NEAR(h->blackVol(d6M, 50.0, true), 0.50, 1.0e-12);
+    // The vega-shift rebuild keeps the policy.
+    const auto shifted = shiftedBlackVol(entry, 0.01);
+    EXPECT_NEAR(shifted->blackVol(d1M, 50.0, true), 0.51, 1.0e-12);
+    EXPECT_NEAR(shifted->blackVol(d1M, 160.0, true), 0.21, 1.0e-12);
+}
+
 TEST_F(QuantraComparisonTest, SampleVolSurfaces_EquityBlackRejectsSmileSlice) {
     flatbuffers::grpc::MessageBuilder b;
     auto volSurface = buildBlackVolSurface(b, "eq_black_const", 0.20);
@@ -1373,6 +1423,295 @@ TEST_F(QuantraComparisonTest, SampleVolSurfaces_NoExtrapolationGuard) {
         flatbuffers::GetRoot<quantra::SampleVolSurfacesResponse>(outBuilder->GetBufferPointer());
     ASSERT_EQ(resp->results()->size(), 1u);
     ASSERT_NE(resp->results()->Get(0)->error(), nullptr);
+}
+
+// ---------------------------------------------------------------------------
+// CubicStrikeLinearTime grids and SviVolSpec payloads
+// (src/market/smile_slice_vol_surface.h through vol_surface_parsers).
+// ---------------------------------------------------------------------------
+
+namespace {
+
+// Raw SVI slice used to write the test grids and the SVI payloads: a
+// 16-day and a 1-year smile with the SSVI shape of the synthetic sheets.
+struct TestSlice {
+    std::string expiryIso;
+    double T, F, a, b, sigma, rho, m;
+    double vol(double K) const {
+        return std::sqrt(quantra::sviRawTotalVariance(a, b, sigma, rho, m, std::log(K / F)) / T);
+    }
+};
+
+std::vector<TestSlice> testSlices() {
+    return {
+        {"2026-10-16", 16.0 / 365.0, 100.5, 0.000591, 0.024078, 0.034390, -0.7, 0.033709},
+        {"2027-09-30", 365.0 / 365.0, 103.0, 0.011246, 0.105000, 0.150000, -0.7, 0.147000}};
+}
+
+flatbuffers::Offset<quantra::BlackVolBaseSpec> testVolBase(
+    flatbuffers::grpc::MessageBuilder& b, bool withShape) {
+    auto ref = b.CreateString("2026-09-30");
+    quantra::BlackVolBaseSpecBuilder bb(b);
+    bb.add_reference_date(ref);
+    bb.add_calendar(quantra::enums::Calendar_NullCalendar);
+    bb.add_business_day_convention(quantra::enums::BusinessDayConvention_Unadjusted);
+    bb.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    if (withShape) bb.add_shape(quantra::enums::VolSurfaceShape_SmileCube3D);
+    return bb.Finish();
+}
+
+flatbuffers::Offset<quantra::VolSurfaceSpec> testGridSpec(
+    flatbuffers::grpc::MessageBuilder& b,
+    const std::vector<double>& strikes,
+    quantra::enums::SurfaceInterpolator2D interp) {
+    const auto slices = testSlices();
+    std::vector<flatbuffers::Offset<quantra::Period>> periods;
+    std::vector<double> vols;
+    for (const auto& sl : slices) {
+        quantra::PeriodBuilder pb(b);
+        pb.add_n(static_cast<int>(std::lround(sl.T * 365.0)));
+        pb.add_unit(quantra::enums::TimeUnit_Days);
+        periods.push_back(pb.Finish());
+        for (double K : strikes)
+            vols.push_back(sl.vol(K));
+    }
+    auto base = testVolBase(b, true);
+    auto periodsOff = b.CreateVector(periods);
+    auto strikesOff = b.CreateVector(strikes);
+    auto valuesOff = b.CreateVector(vols);
+    quantra::QuoteMatrix2DBuilder mb(b);
+    mb.add_n_rows(static_cast<int>(slices.size()));
+    mb.add_n_cols(static_cast<int>(strikes.size()));
+    mb.add_values(valuesOff);
+    auto matrix = mb.Finish();
+    quantra::BlackVolSpecBuilder vb(b);
+    vb.add_base(base);
+    vb.add_expiries(periodsOff);
+    vb.add_strikes(strikesOff);
+    vb.add_surface_vols(matrix);
+    vb.add_allow_extrapolation(true);
+    vb.add_surface_interpolator(interp);
+    auto payload = vb.Finish();
+    auto id = b.CreateString("grid");
+    quantra::VolSurfaceSpecBuilder sb(b);
+    sb.add_id(id);
+    sb.add_payload_type(quantra::VolPayload_BlackVolSpec);
+    sb.add_payload(payload.Union());
+    return sb.Finish();
+}
+
+flatbuffers::Offset<quantra::VolSurfaceSpec> testSviSpec(
+    flatbuffers::grpc::MessageBuilder& b,
+    const std::function<void(std::vector<TestSlice>&)>& edit) {
+    auto slices = testSlices();
+    edit(slices);
+    std::vector<flatbuffers::Offset<quantra::SviSlice>> offs;
+    for (const auto& sl : slices) {
+        auto exp = b.CreateString(sl.expiryIso);
+        quantra::SviSliceBuilder slb(b);
+        slb.add_expiry(exp);
+        slb.add_forward(sl.F);
+        slb.add_a(sl.a);
+        slb.add_b(sl.b);
+        slb.add_sigma(sl.sigma);
+        slb.add_rho(sl.rho);
+        slb.add_m(sl.m);
+        offs.push_back(slb.Finish());
+    }
+    auto base = testVolBase(b, false);
+    auto slicesOff = b.CreateVector(offs);
+    quantra::SviVolSpecBuilder svb(b);
+    svb.add_base(base);
+    svb.add_slices(slicesOff);
+    svb.add_allow_extrapolation(true);
+    auto payload = svb.Finish();
+    auto id = b.CreateString("svi");
+    quantra::VolSurfaceSpecBuilder sb(b);
+    sb.add_id(id);
+    sb.add_payload_type(quantra::VolPayload_SviVolSpec);
+    sb.add_payload(payload.Union());
+    return sb.Finish();
+}
+
+} // namespace
+
+TEST_F(QuantraComparisonTest, BlackVolSurface_CubicStrikeLinearTimeKeepsTheSmileBetweenNodes) {
+    std::vector<double> strikes;
+    for (int j = 0; j <= 20; ++j)
+        strikes.push_back(50.0 + 5.0 * j); // 50 .. 150 every 5
+    const auto slices = testSlices();
+    const QuantLib::Date ref(30, QuantLib::September, 2026);
+    const QuantLib::Date d16 = ref + 16, d1y = ref + 365, dMid = ref + 100, dFar = ref + 800;
+
+    auto parse = [&](quantra::enums::SurfaceInterpolator2D interp) {
+        flatbuffers::grpc::MessageBuilder b;
+        b.Finish(testGridSpec(b, strikes, interp));
+        auto spec = flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer());
+        return parseBlackVol(spec, nullptr);
+    };
+    const auto cubic = parse(quantra::enums::SurfaceInterpolator2D_CubicStrikeLinearTime);
+    const auto bilinear = parse(quantra::enums::SurfaceInterpolator2D_Bilinear);
+    ASSERT_EQ(cubic.surfaceInterpolation, BlackSurfaceInterpolation::CubicStrikeLinearTime);
+    EXPECT_FALSE(mc::IsExactStepCapable(cubic.handle));
+    EXPECT_NEAR(cubic.handle->minStrike(), 50.0, 0.0);
+    EXPECT_NEAR(cubic.handle->maxStrike(), 150.0, 0.0);
+
+    // Every node is reproduced; the mid-nodes sit on the generating smile
+    // (natural cubic spline of total variance in log-strike) where the
+    // bilinear reading is off by up to half a vol point on the short wing.
+    double worstNode = 0.0, worstCubic = 0.0, worstBilinear = 0.0;
+    for (std::size_t i = 0; i < slices.size(); ++i) {
+        const QuantLib::Date d = i == 0 ? d16 : d1y;
+        for (std::size_t j = 0; j < strikes.size(); ++j) {
+            worstNode = std::max(
+                worstNode,
+                std::fabs(cubic.handle->blackVol(d, strikes[j], true) - slices[i].vol(strikes[j])));
+            if (j + 1 < strikes.size()) {
+                const double K = 0.5 * (strikes[j] + strikes[j + 1]);
+                worstCubic = std::max(
+                    worstCubic, std::fabs(cubic.handle->blackVol(d, K, true) - slices[i].vol(K)));
+                worstBilinear = std::max(
+                    worstBilinear,
+                    std::fabs(bilinear.handle->blackVol(d, K, true) - slices[i].vol(K)));
+            }
+        }
+    }
+    EXPECT_LT(worstNode, 1.0e-13);
+    EXPECT_LT(worstCubic, 2.0e-3);
+    EXPECT_GT(worstBilinear, 4.0e-3);
+    std::cout << "  cubic grid: node error " << worstNode << ", mid-node error cubic " << worstCubic
+              << " vs bilinear " << worstBilinear << std::endl;
+
+    // Constant beyond the strike edges, linear in total variance between
+    // the expiries at fixed strike, flat implied vol beyond the last.
+    EXPECT_EQ(
+        cubic.handle->blackVariance(d16, 10.0, true), cubic.handle->blackVariance(d16, 50.0, true));
+    EXPECT_EQ(
+        cubic.handle->blackVariance(d1y, 900.0, true),
+        cubic.handle->blackVariance(d1y, 150.0, true));
+    const double K = 92.5, t16 = 16.0 / 365.0, t1y = 1.0, tMid = 100.0 / 365.0;
+    const double w16 = cubic.handle->blackVariance(d16, K, true);
+    const double w1y = cubic.handle->blackVariance(d1y, K, true);
+    EXPECT_NEAR(
+        cubic.handle->blackVariance(dMid, K, true), w16 + (w1y - w16) * (tMid - t16) / (t1y - t16),
+        1.0e-15);
+    EXPECT_NEAR(cubic.handle->blackVariance(ref + 8, K, true), w16 * (8.0 / 365.0) / t16, 1.0e-15);
+    EXPECT_NEAR(
+        cubic.handle->blackVol(dFar, K, true), cubic.handle->blackVol(d1y, K, true), 1.0e-14);
+
+    // The vega-shift rebuild keeps the interpolation: +1 vol point at the nodes.
+    const auto shifted = shiftedBlackVol(cubic, 0.01);
+    EXPECT_NEAR(
+        shifted->blackVol(d1y, 100.0, true), cubic.handle->blackVol(d1y, 100.0, true) + 0.01,
+        1.0e-13);
+    EXPECT_NEAR(
+        shifted->blackVol(d16, 55.0, true), cubic.handle->blackVol(d16, 55.0, true) + 0.01,
+        1.0e-13);
+
+    // Dupire's local vol over it is finite and positive inside the grid
+    // (the bilinear reading has no curvature inside a cell: the local vol
+    // there is that of a flat-in-strike variance, wrong but finite too).
+    QuantLib::Handle<QuantLib::YieldTermStructure> flat(
+        std::make_shared<QuantLib::FlatForward>(ref, 0.03, QuantLib::Actual365Fixed()));
+    QuantLib::Handle<QuantLib::YieldTermStructure> zero(
+        std::make_shared<QuantLib::FlatForward>(ref, 0.0, QuantLib::Actual365Fixed()));
+    QuantLib::Handle<QuantLib::Quote> spot(std::make_shared<QuantLib::SimpleQuote>(100.0));
+    QuantLib::LocalVolSurface lv(cubic.handle, flat, zero, spot);
+    for (double level : {60.0, 80.0, 92.5, 100.0, 107.5, 120.0, 140.0}) {
+        const double v = lv.localVol(0.5, level, true);
+        EXPECT_TRUE(std::isfinite(v) && v > 0.0) << level;
+    }
+
+    // One strike cannot be read cubic.
+    {
+        flatbuffers::grpc::MessageBuilder b;
+        b.Finish(
+            testGridSpec(b, {100.0}, quantra::enums::SurfaceInterpolator2D_CubicStrikeLinearTime));
+        auto spec = flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer());
+        EXPECT_THROW(parseBlackVol(spec, nullptr), QuantraInvalidArgument);
+    }
+}
+
+TEST_F(QuantraComparisonTest, SviVolSpec_EvaluatesTheSlicesAndInterpolatesTotalVariance) {
+    const auto slices = testSlices();
+    const QuantLib::Date ref(30, QuantLib::September, 2026);
+    const QuantLib::Date d16 = ref + 16, d1y = ref + 365, dMid = ref + 100, dFar = ref + 800;
+    flatbuffers::grpc::MessageBuilder b;
+    b.Finish(testSviSpec(b, [](std::vector<TestSlice>&) {}));
+    auto spec = flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer());
+    const auto entry = parseSviVol(spec);
+    ASSERT_FALSE(entry.handle.empty());
+    EXPECT_EQ(entry.shapeFb, quantra::enums::VolSurfaceShape_SviSlices);
+    EXPECT_FALSE(mc::IsExactStepCapable(entry.handle));
+    EXPECT_EQ(entry.handle->minStrike(), 0.0);
+    EXPECT_EQ(entry.handle->maxStrike(), QL_MAX_REAL);
+    EXPECT_EQ(entry.handle->maxDate(), d1y);
+
+    // At a slice's expiry the vol is the slice's SVI vol (QuantLib's
+    // SviSmileSection agrees); between slices linear in total variance;
+    // before the first w1 t / T1; beyond the last flat implied vol.
+    for (double K : {40.0, 70.0, 90.0, 100.0, 110.0, 130.0, 250.0}) {
+        EXPECT_NEAR(entry.handle->blackVol(d16, K, true), slices[0].vol(K), 1.0e-14) << K;
+        EXPECT_NEAR(entry.handle->blackVol(d1y, K, true), slices[1].vol(K), 1.0e-14) << K;
+        QuantLib::SviSmileSection section(
+            slices[1].T, slices[1].F,
+            {slices[1].a, slices[1].b, slices[1].sigma, slices[1].rho, slices[1].m});
+        EXPECT_NEAR(entry.handle->blackVol(d1y, K, true), section.volatility(K), 1.0e-14) << K;
+        const double w16 = entry.handle->blackVariance(d16, K, true);
+        const double w1y = entry.handle->blackVariance(d1y, K, true);
+        const double t16 = 16.0 / 365.0, tMid = 100.0 / 365.0;
+        EXPECT_NEAR(
+            entry.handle->blackVariance(dMid, K, true),
+            w16 + (w1y - w16) * (tMid - t16) / (1.0 - t16), 1.0e-15);
+        EXPECT_NEAR(
+            entry.handle->blackVariance(ref + 4, K, true), w16 * (4.0 / 365.0) / t16, 1.0e-16);
+        EXPECT_NEAR(entry.handle->blackVol(dFar, K, true), slices[1].vol(K), 1.0e-14);
+    }
+    // The shift adds the bump to every vol, at every read.
+    const auto shifted = shiftedBlackVol(entry, 0.02);
+    EXPECT_NEAR(shifted->blackVol(d1y, 85.0, true), slices[1].vol(85.0) + 0.02, 1.0e-14);
+    EXPECT_NEAR(
+        shifted->blackVol(dMid, 115.0, true), entry.handle->blackVol(dMid, 115.0, true) + 0.02,
+        1.0e-14);
+    EXPECT_THROW(shiftedBlackVol(entry, -0.5)->blackVol(d1y, 100.0, true), QuantLib::Error);
+
+    // Dupire's local vol over the slices: finite, positive, no edge.
+    QuantLib::Handle<QuantLib::YieldTermStructure> flat(
+        std::make_shared<QuantLib::FlatForward>(ref, 0.03, QuantLib::Actual365Fixed()));
+    QuantLib::Handle<QuantLib::YieldTermStructure> zero(
+        std::make_shared<QuantLib::FlatForward>(ref, 0.0, QuantLib::Actual365Fixed()));
+    QuantLib::Handle<QuantLib::Quote> spot(std::make_shared<QuantLib::SimpleQuote>(100.0));
+    QuantLib::LocalVolSurface lv(entry.handle, flat, zero, spot);
+    for (double level : {30.0, 60.0, 100.0, 140.0, 300.0}) {
+        const double v = lv.localVol(0.5, level, true);
+        EXPECT_TRUE(std::isfinite(v) && v > 0.0) << level;
+    }
+
+    // Rejected slices, each naming the field.
+    auto rejects = [&](const std::function<void(std::vector<TestSlice>&)>& edit,
+                       const std::string& needle) {
+        flatbuffers::grpc::MessageBuilder bb;
+        bb.Finish(testSviSpec(bb, edit));
+        auto bad = flatbuffers::GetRoot<quantra::VolSurfaceSpec>(bb.GetBufferPointer());
+        try {
+            parseSviVol(bad);
+            FAIL() << needle;
+        } catch (const QuantraInvalidArgument& e) {
+            EXPECT_NE(std::string(e.what()).find(needle), std::string::npos) << e.what();
+        }
+    };
+    rejects([](std::vector<TestSlice>& s) { s[1].b = -0.1; }, "slices[1].b must be >= 0");
+    rejects([](std::vector<TestSlice>& s) { s[0].sigma = 0.0; }, "slices[0].sigma must be > 0");
+    rejects([](std::vector<TestSlice>& s) { s[0].rho = -1.0; }, "slices[0].rho must be in (-1, 1)");
+    rejects([](std::vector<TestSlice>& s) { s[1].F = 0.0; }, "slices[1].forward must be > 0");
+    rejects(
+        [](std::vector<TestSlice>& s) { s[1].a = -1.0; },
+        "a + b sigma sqrt(1 - rho^2) must be >= 0");
+    rejects(
+        [](std::vector<TestSlice>& s) { s[1].expiryIso = "2026-10-16"; }, "strictly increasing");
+    rejects(
+        [](std::vector<TestSlice>& s) { s[0].expiryIso = "2026-09-30"; },
+        "must be after reference_date");
 }
 
 }} // namespace quantra::testing

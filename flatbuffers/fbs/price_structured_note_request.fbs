@@ -1,4 +1,5 @@
 include "common.fbs";
+include "option_quotes.fbs";
 include "pricing.fbs";
 include "structured_note.fbs";
 
@@ -64,6 +65,31 @@ table StructuredNoteDiagnosticsSpec {
     /// performance per event, payout, call date), capped at 100; 0 = none.
     /// Raw underlying levels are never returned.
     sample_paths:uint = 0;
+    /// Vanilla repricing through the Monte Carlo, the acceptance check of
+    /// the quotes -> surface -> simulation chain: every usable quote of
+    /// `vanilla_repricing_sheets` is priced as a European option on
+    /// simulated paths of the note's own model (same market, curves,
+    /// correlation, random sequence, seed and path count; the time grid is
+    /// the note's grid with the sheet expiries added as mandatory dates,
+    /// refined by `steps_per_year` as usual) and compared with its bid/ask.
+    /// It is a separate simulation: the headline and every other block are
+    /// unchanged by this flag. Requires `vanilla_repricing_sheets`.
+    /// Definitions: `StructuredNoteVanillaRepricing` in
+    /// structured_note_response.fbs.
+    vanilla_repricing:bool = false;
+    /// The listed-option quote sheets to reprice, at most one per
+    /// underlying, matched to the notes' underlyings by
+    /// `OptionQuoteSheet.underlying_id`; every sheet must belong to an
+    /// underlying of some note and every note must have a sheet for at
+    /// least one of its underlyings (400 otherwise). A sheet for a quanto
+    /// underlying is a 400: the listed options live in the underlying's
+    /// own measure, the note simulates the quanto-adjusted one. European
+    /// style only. Requires `vanilla_repricing = true`.
+    vanilla_repricing_sheets:[OptionQuoteSheet];
+    /// Quote filter applied to the sheets, the same rules and defaults as
+    /// `/calibrate-vol-surface` (`min_quotes_per_expiry` and
+    /// `moneyness_window` are not used here: there is no parity fit).
+    vanilla_repricing_filter:QuoteFilter;
 }
 
 /// Request to price one or more structured notes against one market. Each

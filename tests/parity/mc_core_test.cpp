@@ -52,6 +52,7 @@
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvariancesurface.hpp>
+#include <ql/termstructures/volatility/equityfx/localvolsurface.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/termstructures/yield/oisratehelper.hpp>
 #include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
@@ -718,6 +719,130 @@ TEST(McCoreTest, ExactStepTableReproducesQuantLibPathsBitForBit) {
 }
 
 // h. Time grid.
+// The shared, edge-clamped local vol of LocalVolCache: inside the strike
+// grid every level of every path is bit-identical to QuantLib's lazily
+// derived LocalVolSurface (the same object, the same Euler step); beyond
+// the grid the lazy one fails on the extrapolation kink (constant strike
+// extrapolation makes the total variance concave at the edge of a skewed
+// wing, the Dupire denominator turns negative) while the clamped one holds
+// the edge local vol. One LocalVolSurface per distinct market; an
+// exact-step asset gets none.
+TEST(McCoreTest, SharedLocalVolIsBitIdenticalInsideTheGridAndHoldsTheEdgeOutside) {
+    McMarket m;
+    const Real S = 100.0, r = 0.03, q = 0.01;
+    const std::vector<Date> dates = {m.plusDays(182), m.plusDays(365), m.plusDays(730)};
+    auto makeSurface = [&](const std::vector<Real>& strikes, const std::vector<Real>& volsAtK) {
+        QuantLib::Matrix vols(strikes.size(), dates.size());
+        for (Size i = 0; i < strikes.size(); ++i)
+            for (Size j = 0; j < dates.size(); ++j)
+                vols[i][j] = volsAtK[i];
+        auto surface = std::make_shared<QuantLib::BlackVarianceSurface>(
+            m.valuation, m.cal, dates, strikes, vols, m.dc,
+            QuantLib::BlackVarianceSurface::ConstantExtrapolation,
+            QuantLib::BlackVarianceSurface::ConstantExtrapolation);
+        surface->setInterpolation<QuantLib::Bilinear>();
+        surface->enableExtrapolation();
+        return Handle<QuantLib::BlackVolTermStructure>(surface);
+    };
+
+    // a. A wide, mild surface: no path leaves the grid at 1y / 20 % vol, so
+    //    the shared local vol must reproduce the lazy paths bit for bit.
+    {
+        const auto wide = makeSurface({20, 60, 100, 140, 180}, {0.26, 0.23, 0.20, 0.19, 0.18});
+        const auto lazy = mc::MakeBasketAsset("A", m.spot(S), m.flat(q), m.flat(r), wide);
+        auto shared = lazy;
+        mc::LocalVolCache cache;
+        cache.attach(shared);
+        ASSERT_FALSE(shared.localVol.empty());
+        EXPECT_TRUE(lazy.localVol.empty());
+        EXPECT_EQ(cache.size(), 1u);
+        auto again = lazy;
+        cache.attach(again);
+        EXPECT_EQ(cache.size(), 1u);
+        EXPECT_EQ(again.localVol.currentLink().get(), shared.localVol.currentLink().get());
+        const auto* clamped =
+            dynamic_cast<const mc::EdgeClampedLocalVol*>(shared.localVol.currentLink().get());
+        ASSERT_NE(clamped, nullptr);
+        EXPECT_EQ(
+            clamped->clampedLevel(10.0), 20.0 * std::exp(mc::EdgeClampedLocalVol::kEdgeMargin));
+        EXPECT_EQ(clamped->clampedLevel(100.0), 100.0);
+        EXPECT_EQ(
+            clamped->clampedLevel(500.0), 180.0 * std::exp(-mc::EdgeClampedLocalVol::kEdgeMargin));
+
+        const auto grid = mc::BuildSimulationGrid(m.valuation, {m.plusDays(365)}, Size(52));
+        auto cfg = config(1024, kSobol, true, true);
+        cfg.samplePaths = 16;
+        const mc::PathFunctor terminal = [&](const QuantLib::MultiPath& path,
+                                             std::vector<Real>& acc) { acc[0] = path[0].back(); };
+        const auto a =
+            mc::RunPaths(mc::BasketModel::build({lazy}, identity(1)), grid.grid, cfg, 1, terminal);
+        const auto b = mc::RunPaths(
+            mc::BasketModel::build({shared}, identity(1)), grid.grid, cfg, 1, terminal);
+        EXPECT_EQ(a.mean[0], b.mean[0]);
+        EXPECT_EQ(a.standardError[0], b.standardError[0]);
+        ASSERT_EQ(a.samplePaths.size(), b.samplePaths.size());
+        Size compared = 0;
+        for (Size p = 0; p < a.samplePaths.size(); ++p) {
+            for (Size j = 0; j < a.samplePaths[p][0].size(); ++j) {
+                EXPECT_EQ(a.samplePaths[p][0][j], b.samplePaths[p][0][j])
+                    << "path " << p << " point " << j;
+                ++compared;
+            }
+        }
+        EXPECT_EQ(compared, 16u * 53u);
+        std::cout << "  shared local vol: " << compared << " levels bit-identical, mean "
+                  << b.mean[0] << std::endl;
+    }
+
+    // b. A narrow, skewed grid (80..120, 45 % -> 36 %; a steeper skew would
+    //    be butterfly-arbitrageable inside the first cell, where the
+    //    piecewise-linear variance is concave in log-strike) at ~45 % vol
+    //    over one year: paths reach 50 and 160. QuantLib's own
+    //    LocalVolSurface fails on a level just inside the lower edge (its
+    //    stencil straddles the extrapolation kink of the put wing: a concave
+    //    corner, negative local variance); the clamped one evaluates there
+    //    and beyond, the paths price, and a level beyond the grid reads the
+    //    edge local vol.
+    {
+        const auto narrow = makeSurface({80, 90, 100, 110, 120}, {0.45, 0.42, 0.40, 0.38, 0.36});
+        const auto lazy = mc::MakeBasketAsset("B", m.spot(S), m.flat(q), m.flat(r), narrow);
+        auto shared = lazy;
+        mc::LocalVolCache cache;
+        cache.attach(shared);
+        QuantLib::LocalVolSurface lazyLocalVol(narrow, lazy.riskFree, lazy.dividend, lazy.spot);
+        EXPECT_THROW(lazyLocalVol.localVol(0.5, 80.0005, true), std::exception);
+        EXPECT_NO_THROW(shared.localVol->localVol(0.5, 80.0005, true));
+        EXPECT_NO_THROW(shared.localVol->localVol(0.5, 40.0, true));
+        const auto grid = mc::BuildSimulationGrid(m.valuation, {m.plusDays(365)}, Size(52));
+        const auto cfg = config(2048, kSobol, true, true);
+        Real lo = S, hi = S;
+        const mc::PathFunctor range = [&](const QuantLib::MultiPath& path, std::vector<Real>& acc) {
+            acc[0] = path[0].back();
+            lo = std::min(lo, path[0].back());
+            hi = std::max(hi, path[0].back());
+        };
+        const auto res =
+            mc::RunPaths(mc::BasketModel::build({shared}, identity(1)), grid.grid, cfg, 1, range);
+        EXPECT_TRUE(std::isfinite(res.mean[0]));
+        EXPECT_LT(lo, 50.0);
+        EXPECT_GT(hi, 160.0);
+        const QuantLib::LocalVolTermStructure& lv = *shared.localVol.currentLink();
+        EXPECT_EQ(lv.localVol(0.5, 40.0, true), lv.localVol(0.5, 80.0 * std::exp(1.0e-3), true));
+        EXPECT_EQ(lv.localVol(0.5, 170.0, true), lv.localVol(0.5, 120.0 * std::exp(-1.0e-3), true));
+        std::cout << "  narrow grid: paths spanned [" << lo << ", " << hi << "], mean "
+                  << res.mean[0] << std::endl;
+    }
+
+    // c. An exact-step asset gets no shared local vol; wiring one is a server error.
+    {
+        auto asset = mc::MakeBasketAsset("C", m.spot(S), m.flat(q), m.flat(r), m.constVol(0.2));
+        mc::LocalVolCache cache;
+        cache.attach(asset);
+        EXPECT_TRUE(asset.localVol.empty());
+        EXPECT_EQ(cache.size(), 0u);
+    }
+}
+
 TEST(McCoreTest, TimeGridMandatoryOnlyAndRefined) {
     McMarket m;
     const Date d1 = m.plusDays(182), d2 = m.plusDays(365);

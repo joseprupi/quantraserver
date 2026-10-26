@@ -2,7 +2,8 @@
 
 #include "date_convert.h"
 #include "error.h"
-#include "fx_spot_parser.h" // RequireIsoCurrency
+#include "fx_spot_parser.h"          // RequireIsoCurrency
+#include "implied_forwards_mapper.h" // decodeOptionQuoteSheet, decodeQuoteFilter
 
 #include <cmath>
 #include <set>
@@ -801,12 +802,131 @@ StructuredNoteInputs StructuredNoteMapper::toInputs(
                 "PriceStructuredNoteRequest.diagnostics.sample_paths: requires distribution = "
                 "true (the paths are returned in the distribution block)");
         }
+        g.vanillaRepricing = d->vanilla_repricing();
+        const auto* sheets = d->vanilla_repricing_sheets();
+        const bool hasSheets = sheets && sheets->size() > 0;
+        if (g.vanillaRepricing && !hasSheets) {
+            QUANTRA_INVALID_ARGUMENT(
+                "PriceStructuredNoteRequest.diagnostics.vanilla_repricing_sheets: required with "
+                "vanilla_repricing = true (the listed-option quotes to reprice through the "
+                "simulation)");
+        }
+        if (!g.vanillaRepricing && (hasSheets || d->vanilla_repricing_filter())) {
+            QUANTRA_INVALID_ARGUMENT(
+                "PriceStructuredNoteRequest.diagnostics.vanilla_repricing_sheets: requires "
+                "vanilla_repricing = true");
+        }
+        if (g.vanillaRepricing) {
+            std::set<std::string> seen;
+            for (unsigned int i = 0; i < sheets->size(); ++i) {
+                const std::string path =
+                    "PriceStructuredNoteRequest.diagnostics.vanilla_repricing_sheets[" +
+                    std::to_string(i) + "]";
+                DecodedQuoteSheet decoded = decodeOptionQuoteSheet(sheets->Get(i), path);
+                if (!seen.insert(decoded.underlyingId).second) {
+                    QUANTRA_INVALID_ARGUMENT(
+                        path + ".underlying_id: '" + decoded.underlyingId +
+                        "' already has a sheet (one sheet per underlying)");
+                }
+                NoteRepricingSheet sheet;
+                sheet.sheetId = std::move(decoded.sheetId);
+                sheet.underlyingId = std::move(decoded.underlyingId);
+                sheet.style = decoded.style;
+                sheet.quotes = std::move(decoded.quotes);
+                sheet.path = path;
+                g.repricingSheets.push_back(std::move(sheet));
+            }
+            g.repricingFilter = decodeQuoteFilter(d->vanilla_repricing_filter());
+            validateQuoteFilter(g.repricingFilter);
+        }
     }
     inputs.notes.reserve(req->notes()->size());
     for (unsigned int i = 0; i < req->notes()->size(); ++i) {
         inputs.notes.push_back(decodeNote(req->notes()->Get(i), i));
     }
     return inputs;
+}
+
+flatbuffers::Offset<quantra::StructuredNoteVanillaRepricing> serializeVanillaRepricing(
+    flatbuffers::grpc::MessageBuilder& b, const NoteVanillaRepricing& v) {
+    std::vector<flatbuffers::Offset<quantra::StructuredNoteVanillaRepricingUnderlying>> unds;
+    for (const auto& u : v.underlyings) {
+        std::vector<flatbuffers::Offset<quantra::StructuredNoteRepricingExpiry>> exps;
+        for (const auto& e : u.expiries) {
+            std::vector<flatbuffers::Offset<quantra::DroppedQuote>> dropped;
+            for (const auto& d : e.dropped) {
+                auto exp = b.CreateString(d.expiryIso);
+                auto reason = b.CreateString(d.reason);
+                quantra::DroppedQuoteBuilder db(b);
+                db.add_expiry(exp);
+                if (d.strike) db.add_strike(*d.strike);
+                db.add_reason(reason);
+                dropped.push_back(db.Finish());
+            }
+            auto droppedVec = b.CreateVector(dropped);
+            auto exp = b.CreateString(e.expiry);
+            quantra::StructuredNoteRepricingExpiryBuilder eb(b);
+            eb.add_expiry(exp);
+            eb.add_time(e.time);
+            eb.add_forward(e.forward);
+            eb.add_discount_factor(e.discountFactor);
+            eb.add_quotes_used(e.quotesUsed);
+            eb.add_quotes_dropped(static_cast<unsigned int>(e.dropped.size()));
+            eb.add_dropped(droppedVec);
+            exps.push_back(eb.Finish());
+        }
+        std::vector<flatbuffers::Offset<quantra::StructuredNoteRepricedOption>> opts;
+        for (const auto& o : u.options) {
+            auto exp = b.CreateString(o.expiry);
+            quantra::StructuredNoteRepricedOptionBuilder ob(b);
+            ob.add_expiry(exp);
+            ob.add_time(o.time);
+            ob.add_strike(o.strike);
+            ob.add_option_type(
+                o.isCall ? quantra::enums::EquityOptionType_Call
+                         : quantra::enums::EquityOptionType_Put);
+            ob.add_bid(o.bid);
+            ob.add_ask(o.ask);
+            ob.add_mid(o.mid);
+            ob.add_model_price(o.modelPrice);
+            ob.add_standard_error(o.standardError);
+            ob.add_inside_bid_ask(o.insideBidAsk);
+            ob.add_price_error(o.priceError);
+            if (o.marketVol) ob.add_market_vol(*o.marketVol);
+            if (o.modelVol) ob.add_model_vol(*o.modelVol);
+            if (o.volError) ob.add_vol_error(*o.volError);
+            opts.push_back(ob.Finish());
+        }
+        auto expsVec = b.CreateVector(exps);
+        auto optsVec = b.CreateVector(opts);
+        auto id = b.CreateString(u.underlyingId);
+        auto sheetId = b.CreateString(u.sheetId);
+        quantra::StructuredNoteVanillaRepricingUnderlyingBuilder ub(b);
+        ub.add_underlying_id(id);
+        ub.add_sheet_id(sheetId);
+        ub.add_spot(u.spot);
+        ub.add_expiries(expsVec);
+        ub.add_count(u.count);
+        ub.add_inside_bid_ask(u.insideBidAsk);
+        ub.add_max_abs_price_error(u.maxAbsPriceError);
+        if (u.maxAbsVolError) ub.add_max_abs_vol_error(*u.maxAbsVolError);
+        ub.add_max_standard_error(u.maxStandardError);
+        ub.add_options(optsVec);
+        unds.push_back(ub.Finish());
+    }
+    auto undsVec = b.CreateVector(unds);
+    quantra::StructuredNoteVanillaRepricingBuilder vb(b);
+    vb.add_paths(v.paths);
+    vb.add_time_steps(v.timeSteps);
+    vb.add_note_npv(v.noteNpv);
+    vb.add_note_standard_error(v.noteStandardError);
+    vb.add_count(v.count);
+    vb.add_inside_bid_ask(v.insideBidAsk);
+    vb.add_max_abs_price_error(v.maxAbsPriceError);
+    if (v.maxAbsVolError) vb.add_max_abs_vol_error(*v.maxAbsVolError);
+    vb.add_max_standard_error(v.maxStandardError);
+    vb.add_underlyings(undsVec);
+    return vb.Finish();
 }
 
 flatbuffers::Offset<quantra::PriceStructuredNoteResponse> StructuredNoteMapper::toResponse(
@@ -848,6 +968,8 @@ flatbuffers::Offset<quantra::PriceStructuredNoteResponse> StructuredNoteMapper::
         if (r.timing) timing = serializeTiming(b, *r.timing);
         flatbuffers::Offset<quantra::StructuredNoteGreeks> greeks;
         if (r.greeks) greeks = serializeGreeks(b, *r.greeks);
+        flatbuffers::Offset<quantra::StructuredNoteVanillaRepricing> repricing;
+        if (r.vanillaRepricing) repricing = serializeVanillaRepricing(b, *r.vanillaRepricing);
 
         quantra::StructuredNoteResultBuilder rb(b);
         rb.add_trade_id(tradeId);
@@ -870,6 +992,7 @@ flatbuffers::Offset<quantra::PriceStructuredNoteResponse> StructuredNoteMapper::
         if (r.checks) rb.add_checks(checks);
         if (r.distribution) rb.add_distribution(distribution);
         if (r.timing) rb.add_timing(timing);
+        if (r.vanillaRepricing) rb.add_vanilla_repricing(repricing);
         rows.push_back(rb.Finish());
     }
     auto rowsVec = b.CreateVector(rows);

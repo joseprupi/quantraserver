@@ -17,8 +17,17 @@ through the JSON gateway these tests pin:
   * acceptance: the returned vol_surface_spec pasted into a
     price-equity-option request, next to the implied dividend curve,
     reprices the used quotes inside their bid/ask;
-  * the pasted surface prices a structured note with steps_per_year;
-  * the 400s.
+  * the returned grid is read with CubicStrikeLinearTime: it reproduces its
+    own nodes exactly and sits within 0.05 vol points of the generating SVI
+    between them (a bilinear reading of the same grid is 0.4 vol points off
+    on the short wing), sampled through /sample-vol-surfaces;
+  * SviPerExpiry also returns `vol_surface_spec_svi` (the fitted slices as
+    an SviVolSpec payload): a European option priced on it equals the Black
+    price at the slice's vol (the same market under a Constant vol) to
+    1e-10; AndreasenHuge returns the note instead;
+  * the pasted surface (grid or SVI payload) prices a structured note with
+    steps_per_year;
+  * the 400s, the SviVolSpec payload's included.
 """
 
 import copy
@@ -38,6 +47,7 @@ import make_synthetic_quote_sheet as gen  # noqa: E402
 AH_EXAMPLE = "vol_surface/synthetic_svi_sheet_2026-09-30_andreasen_huge.json"
 SVI_EXAMPLE = "vol_surface/synthetic_svi_sheet_2026-09-30_svi.json"
 NOTE_EXAMPLE = "structured_note/scotia_autocallable_trigger_ndx_rty_us06419jme72_with_synthetic_surface.json"
+NOTE_SVI_EXAMPLE = "structured_note/scotia_autocallable_trigger_ndx_rty_us06419jme72_with_synthetic_svi.json"
 
 
 def _post(client, request, product="calibrate_vol_surface"):
@@ -116,6 +126,7 @@ def test_response_shape_and_spec(client, data_dir):
                     "business_day_convention": "Unadjusted", "day_counter": "Actual365Fixed",
                     "shape": "SmileCube3D"}
     assert spec["payload"]["allow_extrapolation"] is True
+    assert spec["payload"]["surface_interpolator"] == "CubicStrikeLinearTime"
     assert spec["payload"]["expiries"] == [{"n": 16, "unit": "Days"}, {"n": 51, "unit": "Days"},
                                            {"n": 79, "unit": "Days"}, {"n": 107, "unit": "Days"},
                                            {"n": 170, "unit": "Days"}, {"n": 261, "unit": "Days"},
@@ -135,6 +146,148 @@ def test_response_shape_and_spec(client, data_dir):
     assert rp["count"] == used and rp["inside_bid_ask"] == used
     assert len(rp["quotes"]) == used
     assert rp["max_abs_vol_error"] < 1e-6
+    # The same surface as SVI slices, ready to paste: one slice per fitted
+    # expiry with the forward used and the parameters of the report.
+    svi = out["vol_surface_spec_svi"]
+    assert "vol_surface_spec_svi_note" not in out
+    assert svi["id"] == spec["id"] and svi["payload_type"] == "SviVolSpec"
+    assert svi["payload"]["base"] == {"reference_date": "2026-09-30", "calendar": "NullCalendar",
+                                      "business_day_convention": "Unadjusted",
+                                      "day_counter": "Actual365Fixed"}
+    assert svi["payload"]["allow_extrapolation"] is True
+    assert svi["payload"]["time_interpolation"] == "LinearTotalVariance"
+    slices = svi["payload"]["slices"]
+    assert [sl["expiry"] for sl in slices] == out["grid_expiries"]
+    for sl, e, f in zip(slices, out["expiries"], out["forwards"]):
+        assert sl["forward"] == f["forward"]
+        assert {k: sl[k] for k in ("a", "b", "sigma", "rho", "m")} == e["svi"]
+
+
+def test_andreasen_huge_has_no_svi_spec(client, data_dir):
+    out = _ok(client, load_json(data_dir / AH_EXAMPLE))
+    assert "vol_surface_spec_svi" not in out
+    assert "not available for the AndreasenHuge method" in out["vol_surface_spec_svi_note"]
+    assert out["vol_surface_spec"]["payload"]["surface_interpolator"] == "CubicStrikeLinearTime"
+
+
+def _sample(client, pricing, vol_id, days, strikes):
+    """Black vols of `vol_id` at the as-of date + `days` calendar days (the
+    spec's NullCalendar / Unadjusted periods) and `strikes`, as the pricers
+    read them, through /sample-vol-surfaces; {(expiry, strike): vol}."""
+    r = _ok(client, {
+        "pricing": pricing,
+        "queries": [{
+            "vol_id": vol_id, "surface_type": "EquityBlack",
+            "expiry_grid": {"grid_type": "TenorGrid",
+                            "grid": {"tenors": [{"n": d, "unit": "Days"} for d in days],
+                                     "calendar": "NullCalendar",
+                                     "business_day_convention": "Unadjusted"}},
+            "strike_grid": {"axis": "AbsoluteStrike", "strikes": strikes},
+            "output_mode": "Cube",
+            "options": {"allow_extrapolation": True, "max_points": 100000, "strict": True},
+        }]}, "sample_vol_surfaces")["results"][0]
+    assert "error" not in r, r
+    n_k = len(strikes)
+    return {(e, k): r["vols"][i * n_k + j]
+            for i, e in enumerate(r["expiries"]) for j, k in enumerate(strikes)}
+
+
+def test_cubic_grid_reproduces_its_nodes_and_the_smile_between_them(client, data_dir):
+    """The returned grid read as the pricers read it (CubicStrikeLinearTime):
+    every node to 1e-12, the mid-nodes within 0.05 vol points of the
+    generating SVI at every expiry (wings included); the same grid read
+    bilinearly misses by 0.4 vol points on the 16-day put wing."""
+    request = load_json(data_dir / SVI_EXAMPLE)
+    out = _ok(client, request)
+    spec = out["vol_surface_spec"]
+    pricing = copy.deepcopy(request["pricing"])
+    pricing["volatility"] = {"vol_surfaces": [spec]}
+    strikes = spec["payload"]["strikes"]
+    mids = [0.5 * (a + b) for a, b in zip(strikes[:-1], strikes[1:])]
+    days = [p["n"] for p in spec["payload"]["expiries"]]
+    grid = _grid(out)
+    preset = gen.SYNTHETIC_SVI_NDX_LIKE
+    nodes = _sample(client, pricing, spec["id"], days, strikes)
+    worst_node = max(abs(v - grid[key]) for key, v in nodes.items())
+    assert worst_node < 1e-12, worst_node
+    between = _sample(client, pricing, spec["id"], days, mids)
+    worst_cubic = max(abs(v - _truth_vol(preset, e, k)) for (e, k), v in between.items())
+    assert worst_cubic < 5e-4, worst_cubic
+    bilinear = copy.deepcopy(spec)
+    bilinear["payload"]["surface_interpolator"] = "Bilinear"
+    pricing["volatility"] = {"vol_surfaces": [bilinear]}
+    between_bilinear = _sample(client, pricing, spec["id"], days, mids)
+    worst_bilinear = max(abs(v - _truth_vol(preset, e, k))
+                         for (e, k), v in between_bilinear.items())
+    assert worst_bilinear > 3e-3, worst_bilinear
+    # And a point between two expiries: linear in total variance at fixed
+    # strike, the two bracketing slices read at that strike.
+    t16, t51 = 16.0 / 365.0, 51.0 / 365.0
+    k = strikes[20]
+    mid = _sample(client, pricing, spec["id"], [30], [k])[("2026-10-30", k)]
+    w16, w51 = grid[("2026-10-16", k)] ** 2 * t16, grid[("2026-11-20", k)] ** 2 * t51
+    t30 = 30.0 / 365.0
+    assert abs(mid - math.sqrt((w16 + (w51 - w16) * (t30 - t16) / (t51 - t16)) / t30)) < 1e-12
+
+
+def test_svi_payload_prices_a_european_option_at_the_svi_vol(client, data_dir):
+    """A European option on `vol_surface_spec_svi` is the Black price at the
+    slice's vol: the same option on a Constant vol equal to
+    sqrt(w(ln K/F) / T) of the fitted slice prices identically (same spot,
+    curves and engine; the forward is the slice's to 1e-9 through the
+    implied dividend curve, and the vol is read at the option's strike)."""
+    request = load_json(data_dir / SVI_EXAMPLE)
+    out = _ok(client, request)
+    svi = out["vol_surface_spec_svi"]
+    forwards = _ok(client, gen.build_request(gen.SYNTHETIC_SVI_NDX_LIKE),
+                   "calibrate_implied_forwards")
+    pricing = copy.deepcopy(request["pricing"])
+    pricing["rates"]["curves"].append(forwards["dividend_curve_spec"])
+    pricing["equity"]["equity_underlyings"][0]["dividend_yield_curve_id"] = \
+        forwards["dividend_curve_spec"]["id"]
+    models = [{"id": "bs", "payload_type": "EquityVanillaModelSpec",
+               "payload": {"model_type": "BlackScholesAnalytic"}}]
+    cases = []
+    for sl in svi["payload"]["slices"][::2]:
+        t = (parse_iso(sl["expiry"]) - parse_iso("2026-09-30")).days / 365.0
+        for moneyness in (0.7, 0.9, 1.0, 1.1, 1.3):
+            strike = round(sl["forward"] * moneyness, 4)
+            k = math.log(strike / sl["forward"])
+            d = k - sl["m"]
+            w = sl["a"] + sl["b"] * (sl["rho"] * d + math.sqrt(d * d + sl["sigma"] ** 2))
+            cases.append((sl["expiry"], strike, math.sqrt(w / t), "Call" if moneyness >= 1 else "Put"))
+    constants = [{"id": f"c{n}", "payload_type": "BlackVolSpec",
+                  "payload": {"base": {"reference_date": "2026-09-30", "calendar": "NullCalendar",
+                                       "business_day_convention": "Unadjusted",
+                                       "day_counter": "Actual365Fixed", "shape": "Constant",
+                                       "constant_vol": vol}}}
+                 for n, (_e, _k, vol, _t) in enumerate(cases)]
+    pricing["volatility"] = {"vol_surfaces": [svi] + constants, "models": models}
+
+    def option(n, expiry, strike, opt_type, vol_id):
+        return {"option": {"trade_id": f"o{n}", "underlying_id": "NDX_SYN", "quantity": 1.0,
+                           "settlement": "Physical", "payoff_type": "EquityPlainVanillaPayoff",
+                           "payoff": {"option_type": opt_type, "strike": strike},
+                           "exercise_type": "EquityEuropeanExercise",
+                           "exercise": {"expiry_date": expiry}},
+                "discounting_curve": request["discounting_curve"], "volatility": vol_id,
+                "model": "bs"}
+    on_svi = client.price("equity_option", {
+        "pricing": pricing,
+        "options": [option(n, e, k, t, svi["id"]) for n, (e, k, _v, t) in enumerate(cases)]})
+    on_const = client.price("equity_option", {
+        "pricing": pricing,
+        "options": [option(n, e, k, t, f"c{n}") for n, (e, k, _v, t) in enumerate(cases)]})
+    assert len(on_svi["options"]) == len(cases) == 20
+    for a, b, c in zip(on_svi["options"], on_const["options"], cases):
+        assert a["npv"] > 0.0
+        assert abs(a["npv"] - b["npv"]) <= 1e-10 * max(1.0, b["npv"]), (c, a["npv"], b["npv"])
+        assert abs(a["vega"] - b["vega"]) <= 1e-8 * max(1.0, abs(b["vega"]))
+
+
+def parse_iso(s):
+    import datetime
+    return datetime.date.fromisoformat(s)
 
 
 def test_svi_recovers_the_generating_surface(client, data_dir):
@@ -303,16 +456,103 @@ def test_pasted_surface_reprices_the_quotes_through_price_equity_option(client, 
 
 
 def test_pasted_surface_prices_a_structured_note(client, data_dir):
-    """The committed Scotia request with synthetic surfaces for NDX and RTY
-    prices under Dupire local vol (steps_per_year present)."""
+    """The committed Scotia requests with synthetic surfaces for NDX and RTY
+    (the grid, read CubicStrikeLinearTime; the SVI payload) price under
+    Dupire local vol (steps_per_year present)."""
     request = load_json(data_dir / NOTE_EXAMPLE)
     for vs in request["pricing"]["volatility"]["vol_surfaces"]:
         assert vs["payload"]["base"]["shape"] == "SmileCube3D"
+        assert vs["payload"]["surface_interpolator"] == "CubicStrikeLinearTime"
     assert request["notes"][0]["monte_carlo"]["steps_per_year"] == 252
+    request["notes"][0]["monte_carlo"]["paths"] = 512
+    del request["diagnostics"]
     out = client.price("structured_note", request)
     note = out["notes"][0]
     assert math.isfinite(note["npv"]) and 500.0 < note["npv"] < 1200.0
     assert note["model"]["underlyings"][0]["vol_shape"] == "SmileCube3D"
+    assert note["model"]["underlyings"][0]["local_vol"] is True
+
+    request = load_json(data_dir / NOTE_SVI_EXAMPLE)
+    for vs in request["pricing"]["volatility"]["vol_surfaces"]:
+        assert vs["payload_type"] == "SviVolSpec" and len(vs["payload"]["slices"]) == 8
+    request["notes"][0]["monte_carlo"]["paths"] = 512
+    del request["diagnostics"]
+    note = client.price("structured_note", request)["notes"][0]
+    assert math.isfinite(note["npv"]) and 500.0 < note["npv"] < 1200.0
+    assert note["model"]["underlyings"][0]["vol_shape"] == "SviSlices"
+    assert note["model"]["underlyings"][0]["local_vol"] is True
+    # Without steps_per_year the payload is refused like any surface.
+    del request["notes"][0]["monte_carlo"]["steps_per_year"]
+    r = _post(client, request, "structured_note")
+    assert r.status_code == 400 and "steps_per_year: required" in r.text
+
+
+def test_svi_payload_rejected_requests(client, data_dir):
+    """The SviVolSpec payload's 400s, each naming the field, through a
+    price-equity-option request on the SVI example's market."""
+    request = load_json(data_dir / SVI_EXAMPLE)
+    svi = _ok(client, request)["vol_surface_spec_svi"]
+    pricing = copy.deepcopy(request["pricing"])
+    pricing["volatility"] = {"models": [{"id": "bs", "payload_type": "EquityVanillaModelSpec",
+                                         "payload": {"model_type": "BlackScholesAnalytic"}}]}
+    option = {"option": {"trade_id": "o", "underlying_id": "NDX_SYN", "quantity": 1.0,
+                         "settlement": "Physical", "payoff_type": "EquityPlainVanillaPayoff",
+                         "payoff": {"option_type": "Call", "strike": 24000.0},
+                         "exercise_type": "EquityEuropeanExercise",
+                         "exercise": {"expiry_date": "2027-03-19"}},
+              "discounting_curve": request["discounting_curve"], "volatility": svi["id"],
+              "model": "bs"}
+
+    def attempt(mutate, needle, status=400):
+        spec = copy.deepcopy(svi)
+        mutate(spec["payload"])
+        p = copy.deepcopy(pricing)
+        p["volatility"]["vol_surfaces"] = [spec]
+        r = _post(client, {"pricing": p, "options": [option]}, "equity_option")
+        assert r.status_code == status, (needle, r.status_code, r.text[:300])
+        assert needle in r.text, (needle, r.text[:400])
+
+    def set_slice(i, **kw):
+        def f(payload):
+            payload["slices"][i].update(kw)
+        return f
+
+    attempt(lambda p: p.__setitem__("slices", []), "slices must contain at least one slice")
+    attempt(lambda p: p["base"].__setitem__("shape", "SmileCube3D"), "base.shape must be absent")
+    attempt(lambda p: p["base"].__setitem__("constant_vol", 0.2), "constant_vol / quote_id")
+    attempt(lambda p: p["base"].pop("day_counter"), "day_counter is required")
+    attempt(set_slice(0, expiry="2026-09-30"), "slices[0].expiry must be after reference_date")
+    attempt(set_slice(1, expiry="2026-10-16"), "slices[1].expiry: slices must be strictly increasing")
+    attempt(set_slice(2, forward=0.0), "slices[2].forward must be > 0")
+    attempt(set_slice(3, b=-0.1), "slices[3].b must be >= 0")
+    attempt(set_slice(4, sigma=0.0), "slices[4].sigma must be > 0")
+    attempt(set_slice(5, rho=1.0), "slices[5].rho must be in (-1, 1)")
+    attempt(set_slice(6, a=-10.0), "slices[6]: a + b sigma sqrt(1 - rho^2) must be >= 0")
+    # Reading beyond the last slice needs the flag; the strike never does.
+    attempt(lambda p: p.__setitem__("allow_extrapolation", False), "", 200)
+    far = copy.deepcopy(option)
+    far["option"]["exercise"]["expiry_date"] = "2029-01-19"
+    spec = copy.deepcopy(svi)
+    spec["payload"]["allow_extrapolation"] = False
+    p = copy.deepcopy(pricing)
+    p["volatility"]["vol_surfaces"] = [spec]
+    r = _post(client, {"pricing": p, "options": [far]}, "equity_option")
+    assert r.status_code != 200 or "error" in r.text, r.text[:300]
+    far["option"]["payoff"]["strike"] = 1.0
+    far["option"]["exercise"]["expiry_date"] = "2027-03-19"
+    r = _post(client, {"pricing": p, "options": [far]}, "equity_option")
+    assert r.status_code == 200 and "error" not in r.text, r.text[:300]
+    # A BlackVolSpec grid with one strike cannot be read cubic.
+    grid = copy.deepcopy(_ok(client, request)["vol_surface_spec"])
+    grid["payload"]["strikes"] = [24000.0]
+    vals = grid["payload"]["surface_vols"]
+    vals["n_cols"] = 1
+    vals["values"] = [0.2] * 8
+    p = copy.deepcopy(pricing)
+    p["volatility"]["vol_surfaces"] = [grid]
+    r = _post(client, {"pricing": p, "options": [{**option, "volatility": grid["id"]}]},
+              "equity_option")
+    assert r.status_code == 400 and "CubicStrikeLinearTime needs at least 2 strikes" in r.text
 
 
 def test_rejected_requests(client, data_dir):
