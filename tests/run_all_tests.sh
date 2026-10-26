@@ -382,7 +382,7 @@ if [ -f "$PYTHON_TEST" ]; then
         "4. Python gRPC Client" \
         "Client binding usability with representative pricing scenarios" \
         python \
-        "cd /tmp && PYTHONPATH=${WORKSPACE}/quantra-python:${WORKSPACE}/flatbuffers/python python3 ${PYTHON_TEST}"
+        "cd /tmp && PYTHONPATH=${WORKSPACE}/clients/python:${WORKSPACE}/flatbuffers/python python3 ${PYTHON_TEST}"
 else
     skip_test 4 \
         "4. Python gRPC Client" \

@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 API_URL = "http://localhost:8080/price-swaption"
-REQUEST_PATH = Path(__file__).resolve().parent / "data" / "swaption_ois_bbg_zerorate_request.json"
+REQUEST_PATH = Path(__file__).resolve().parent / "data" / "swaption" / "swaption_ois_bbg_zerorate_request.json"
 TARGET_NPV = 10359.49
 
 

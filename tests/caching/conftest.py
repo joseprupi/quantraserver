@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 # Reuse the contract suite's ApiClient (it parses the product->route catalog
-# from common/product_catalog.h) and its load_json helper rather than
+# from transport/product_catalog.h) and its load_json helper rather than
 # duplicating that machinery here.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "contract"))
 from ql_reference import ApiClient, load_json  # noqa: E402,F401  (re-exported)

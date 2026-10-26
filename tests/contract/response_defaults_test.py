@@ -28,7 +28,7 @@ def test_fixed_rate_bond_zero_accrued_is_present(client, data_dir):
     # Settle exactly on a coupon date (2009-05-15, a Friday; T+3 from
     # 2009-05-12 on the US government bond calendar) so the accrued amount and
     # accrued days are exactly 0.0.
-    request = copy.deepcopy(load_json(data_dir / "fixed_rate_bond_request.json"))
+    request = copy.deepcopy(load_json(data_dir / "bonds/fixed_rate_bond_request.json"))
     request["pricing"]["as_of_date"] = "2009-05-12"
     response = client.price("fixed_rate_bond", request)
     rows = response.get("fixed_rate_bonds") or response.get("bonds")
@@ -42,7 +42,7 @@ def test_fixed_rate_bond_zero_accrued_is_present(client, data_dir):
 
 
 def test_swaption_default_enum_is_present(client, data_dir):
-    request = copy.deepcopy(load_json(data_dir / "swaption_request.json"))
+    request = copy.deepcopy(load_json(data_dir / "swaption/swaption_request.json"))
     request["pricing"].setdefault("options", {})["swaption_pricing_details"] = True
     response = client.price("swaption", request)
     row = response["swaptions"][0]
@@ -58,7 +58,7 @@ def test_swaption_conditional_scalars_follow_the_flags(client, data_dir):
     """Scalars the engine computes only under a flag are `= null` optionals:
     present exactly when computed. Always-computed scalars keep their value,
     including an exact 0.0."""
-    base = copy.deepcopy(load_json(data_dir / "swaption_request.json"))
+    base = copy.deepcopy(load_json(data_dir / "swaption/swaption_request.json"))
     base["pricing"].pop("options", None)
     analytic_only = ("delta", "atm_forward", "annuity")
     either_flag = ("vega", "gamma", "theta", "dv01")

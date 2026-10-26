@@ -33,7 +33,7 @@ from collections import OrderedDict
 WORKSPACE = Path(__file__).parent.parent
 JSON_SCHEMA_DIR = WORKSPACE / "flatbuffers" / "json"
 OUTPUT_DIR = WORKSPACE / "jsonserver" / "openapi"
-PRODUCT_CATALOG_HEADER = WORKSPACE / "src" / "common" / "product_catalog.h"
+PRODUCT_CATALOG_HEADER = WORKSPACE / "src" / "transport" / "product_catalog.h"
 VERSION_FILE = WORKSPACE / "VERSION"
 
 # Single source of truth for the API version: the top-level VERSION file. The
@@ -95,7 +95,7 @@ curl http://localhost:8080/health
 # Price a fixed rate bond
 curl -X POST http://localhost:8080/price-fixed-rate-bond \\
   -H "Content-Type: application/json" \\
-  -d @examples/data/fixed_rate_bond_request.json
+  -d @examples/data/bonds/fixed_rate_bond_request.json
 ```
 """,
     "version": API_VERSION,
@@ -106,7 +106,7 @@ curl -X POST http://localhost:8080/price-fixed-rate-bond \\
     }
 }
 
-# Endpoint metadata keyed by the stable product key from src/common/product_catalog.h.
+# Endpoint metadata keyed by the stable product key from src/transport/product_catalog.h.
 ENDPOINT_METADATA = {
     "fixed_rate_bond": {
         "summary": "Price Fixed Rate Bond",

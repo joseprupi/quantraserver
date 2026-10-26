@@ -12,8 +12,8 @@ QuantLib is powerful, but it is not naturally suited to high-concurrency service
 - A gRPC API using FlatBuffers messages, plus a `Meta` RPC and the standard
   `grpc.health.v1.Health` service
 - A JSON/HTTP gateway in `jsonserver/`
-- A C++ client in `client/`
-- A Python client package in `quantra-python/`
+- A C++ client in `clients/cpp/`
+- A Python client package in `clients/python/`
 
 ## Supported Pricing Coverage
 
@@ -164,7 +164,7 @@ You can then call the HTTP API with sample requests from `examples/data/`:
 ```bash
 curl -X POST http://localhost:8080/price-fixed-rate-bond \
   -H "Content-Type: application/json" \
-  -d @examples/data/fixed_rate_bond_request.json
+  -d @examples/data/bonds/fixed_rate_bond_request.json
 ```
 
 The generated OpenAPI files live in `jsonserver/openapi/`.
@@ -231,20 +231,22 @@ upgrade shipped in a release is documented in `docs/quantlib-upgrades/`
 ## Repository Map
 
 - `src/`: the pricing engine internals, in role-based folders — `transport/`
-  (per-product handlers), `mappers/` (FlatBuffers ↔ plain C++), `evaluators/`
-  (pure QuantLib pricing), `parsers/` (schema tables → QuantLib objects),
-  `market/` (curves, indices, vol surfaces, correlation matrices, quanto
-  curves, caches), `mc/` (the shared Monte Carlo core: basket processes,
-  time grids, the path engine), `domain/` (plain types), `common/` (enums,
-  dates, errors, product catalog). See `src/README.md`.
+  (per-product handlers, product catalog), `decode/` (FlatBuffers → C++:
+  `decode/market/` for the market-data tables, `decode/products/` for the
+  per-product request/response tables), `evaluators/` (pure QuantLib
+  pricing), `market/` (curves, indices, vol surfaces, correlation matrices,
+  quanto curves, caches), `mc/` (the shared Monte Carlo core: basket
+  processes, time grids, the path engine), `domain/` (plain types), `common/`
+  (enums, dates, errors). See `src/README.md`.
 - `server/`: gRPC pricing server executable
 - `jsonserver/`: HTTP/JSON gateway and generated OpenAPI docs
-- `client/`: C++ client library
-- `quantra-python/`: Python client package
-- `flatbuffers/`: schema sources plus generated C++, Python, and JSON artifacts
-- `grpc/`: gRPC service definitions and generated service bindings
-- `examples/data/`: example JSON requests (`structured_note/` holds the two
-  factsheet transcriptions with placeholder market data and their README)
+- `clients/cpp/`: C++ client library
+- `clients/python/`: Python client package
+- `flatbuffers/`: schema sources plus generated C++, Python, and JSON artifacts;
+  `flatbuffers/grpc/` holds the gRPC service definition and its generated bindings
+- `examples/data/`: example JSON requests, one folder per product family
+  (`structured_note/` holds the two factsheet transcriptions with placeholder
+  market data and their README)
 - `tests/`: parity, integration, and client tests
 - `scripts/`: build, code generation, and runtime helpers
 - `tools/quantra-manager/`: packaged process-manager implementation

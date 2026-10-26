@@ -23,26 +23,26 @@ endif()
 # Include directories
 # =============================================================================
 include_directories(
-   ${CMAKE_SOURCE_DIR}/grpc
+   ${CMAKE_SOURCE_DIR}/flatbuffers/grpc
    ${CMAKE_SOURCE_DIR}/src/transport
-   ${CMAKE_SOURCE_DIR}/src/mappers
+   ${CMAKE_SOURCE_DIR}/src/decode/market
+   ${CMAKE_SOURCE_DIR}/src/decode/products
    ${CMAKE_SOURCE_DIR}/src/evaluators
-   ${CMAKE_SOURCE_DIR}/src/parsers
    ${CMAKE_SOURCE_DIR}/src/market
    ${CMAKE_SOURCE_DIR}/src/mc
    ${CMAKE_SOURCE_DIR}/src/domain
    ${CMAKE_SOURCE_DIR}/src/common
    ${CMAKE_SOURCE_DIR}/flatbuffers/fbs
    ${CMAKE_SOURCE_DIR}/flatbuffers/cpp
-   ${CMAKE_SOURCE_DIR}/client/cpp
-   ${CMAKE_SOURCE_DIR}/client/cpp/include
+   ${CMAKE_SOURCE_DIR}/clients/cpp
+   ${CMAKE_SOURCE_DIR}/clients/cpp/include
    ${CMAKE_SOURCE_DIR}/examples
 )
 
 # =============================================================================
 # Collect sources (needed for unit tests)
 # =============================================================================
-file(GLOB SRC_SOURCES ${CMAKE_SOURCE_DIR}/src/*/*.cpp)
+file(GLOB_RECURSE SRC_SOURCES ${CMAKE_SOURCE_DIR}/src/*.cpp)
 
 # =============================================================================
 # Test: Quantra vs QuantLib Comparison (Unit Tests)

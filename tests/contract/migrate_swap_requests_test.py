@@ -599,10 +599,10 @@ def test_inline_xccy_hoists_shared_fields_onto_the_legs():
 
 
 def test_detect_endpoint_old_and_new_shapes():
-    for name, expected in (("vanilla_swap_request.json", "vanilla_swap"),
-                           ("ois_swap_request.json", "ois_swap"),
-                           ("basis_swap_request.json", "basis_swap"),
-                           ("swaption_request.json", "swaption"),
+    for name, expected in (("ir_swaps/vanilla_swap_request.json", "vanilla_swap"),
+                           ("ir_swaps/ois_swap_request.json", "ois_swap"),
+                           ("ir_swaps/basis_swap_request.json", "basis_swap"),
+                           ("swaption/swaption_request.json", "swaption"),
                            ("cross_currency_swap/xccy_eur_fixed_vs_usd_sofr_5y_payer_eur.json",
                             "cross_currency_swap")):
         assert msr.detect_endpoint(_old_fixture(name)) == expected
@@ -711,7 +711,7 @@ def test_basis_forwarding_curves_per_leg():
 
 
 def test_swaption_underlying_takes_the_wrapper_curves():
-    req = _old_fixture("swaption_request.json")
+    req = _old_fixture("swaption/swaption_request.json")
     item = req["swaptions"][0]
     out = msr.convert_request(req)["swaptions"][0]
     assert list(out.keys()) == ["swaption", "volatility", "model"]
@@ -721,14 +721,14 @@ def test_swaption_underlying_takes_the_wrapper_curves():
     assert legs["fixed_leg"]["discounting_curve"] == item["discounting_curve"]
     assert legs["floating_leg"]["forwarding_curve"] == item["forwarding_curve"]
     assert legs["floating_leg"]["coupons_type"] == "IborCoupons"
-    req = _old_fixture("swaption_ois_request.json")
+    req = _old_fixture("swaption/swaption_ois_request.json")
     item = req["swaptions"][0]
     legs = msr.convert_request(req)["swaptions"][0]["swaption"]["underlying"]
     assert legs["overnight_leg"]["coupons_type"] == "OvernightCoupons"
     assert legs["fixed_leg"]["payment_lag"] == \
         item["swaption"]["underlying"]["overnight_leg"]["payment_lag"]
     assert legs["fixed_leg"]["currency"] == "USD"
-    req = _old_fixture("swaption_bermudan_hw_calibrated.json")
+    req = _old_fixture("swaption/swaption_bermudan_hw_calibrated.json")
     out = msr.convert_request(req)["swaptions"][0]["swaption"]
     assert out["exercise_dates"] == req["swaptions"][0]["swaption"]["exercise_dates"]
 
@@ -782,7 +782,7 @@ def test_nested_intermediate_shape_is_rejected_for_single_currency_swaps():
     """A vanilla / OIS / basis / swaption leg with `coupons` carrying shared
     fields (the nested form that never shipped) is an error naming the
     field, never hoisted."""
-    new = _fixture("vanilla_swap_request.json")
+    new = _fixture("ir_swaps/vanilla_swap_request.json")
     bad = copy.deepcopy(new)
     leg = bad["swaps"][0]["vanilla_swap"]["fixed_leg"]
     leg["coupons"]["notional"] = leg.pop("notional")
@@ -792,14 +792,14 @@ def test_nested_intermediate_shape_is_rejected_for_single_currency_swaps():
     leg["coupons"] = {**{k: leg.pop(k) for k in ("notional", "schedule")}, **leg["coupons"]}
     assert _err(bad).field == "swaps[0].vanilla_swap.floating_leg.coupons.notional"
     # Fully nested legs (every shared field under coupons), every kind.
-    for name in ("ois_swap_request.json", "basis_swap_request.json"):
+    for name in ("ir_swaps/ois_swap_request.json", "ir_swaps/basis_swap_request.json"):
         bad = _fixture(name)
         endpoint = msr.detect_endpoint(bad)
         table = bad["swaps"][0][endpoint]
         role = _ROLES[endpoint][1]
         table[role] = _nest_xccy_leg(table[role])
         assert _err(bad).field.startswith(f"swaps[0].{endpoint}.{role}.coupons.")
-    bad = _fixture("swaption_request.json")
+    bad = _fixture("swaption/swaption_request.json")
     legs = bad["swaptions"][0]["swaption"]["underlying"]
     legs["fixed_leg"] = _nest_xccy_leg(legs["fixed_leg"])
     assert _err(bad).field == "swaptions[0].swaption.underlying.fixed_leg.coupons.notional"
@@ -835,16 +835,16 @@ def test_xccy_mixed_levels_and_unknown_fields_are_errors():
 
 
 def test_unknown_coupons_field_on_a_flat_leg_is_an_error():
-    new = _fixture("ois_swap_request.json")
+    new = _fixture("ir_swaps/ois_swap_request.json")
     new["swaps"][0]["ois_swap"]["overnight_leg"]["coupons"]["in_arrears"] = True
     assert _err(new).field == "swaps[0].ois_swap.overnight_leg.coupons.in_arrears"
-    new = _fixture("ois_swap_request.json")
+    new = _fixture("ir_swaps/ois_swap_request.json")
     new["swaps"][0]["ois_swap"]["fixed_leg"]["extra"] = 1
     assert _err(new).field == "swaps[0].ois_swap.fixed_leg.extra"
 
 
 def test_missing_index_currency_is_an_error_naming_the_index():
-    req = _old_fixture("vanilla_swap_request.json")
+    req = _old_fixture("ir_swaps/vanilla_swap_request.json")
     idx = req["swaps"][0]["vanilla_swap"]["floating_leg"]["index"]["id"]
     for d in req["pricing"]["rates"]["indices"]:
         d.pop("currency", None)
@@ -864,13 +864,13 @@ def test_missing_swap_index_currency_path_for_cms():
 
 
 def test_unknown_index_is_an_error():
-    req = _old_fixture("vanilla_swap_request.json")
+    req = _old_fixture("ir_swaps/vanilla_swap_request.json")
     req["swaps"][0]["vanilla_swap"]["floating_leg"]["index"]["id"] = "NO_SUCH"
     assert _err(req).field == "swaps[0].vanilla_swap.floating_leg.index.id"
 
 
 def test_other_products_are_not_swap_requests():
-    for name in ("zero_coupon_swap_request.json", "fixed_rate_bond_request.json",
+    for name in ("zero_coupon_swap/zero_coupon_swap_request.json", "bonds/fixed_rate_bond_request.json",
                  "fx_forward/fx_forward_eurusd_6m_buy_eur.json"):
         with pytest.raises(msr.NotASwapRequest):
             msr.detect_endpoint(_fixture(name))
@@ -883,8 +883,8 @@ def test_other_products_are_not_swap_requests():
 
 
 def test_mixed_swap_kinds_in_one_list_is_an_error():
-    a = _old_fixture("vanilla_swap_request.json")
-    b = _old_fixture("ois_swap_request.json")
+    a = _old_fixture("ir_swaps/vanilla_swap_request.json")
+    b = _old_fixture("ir_swaps/ois_swap_request.json")
     a["swaps"].append(b["swaps"][0])
     with pytest.raises(msr.ConversionError):
         msr.detect_endpoint(a)
@@ -895,37 +895,37 @@ def test_mixed_swap_kinds_in_one_list_is_an_error():
 
 
 def test_leftover_unknown_field_on_wrapper_is_an_error():
-    req = _old_fixture("vanilla_swap_request.json")
+    req = _old_fixture("ir_swaps/vanilla_swap_request.json")
     req["swaps"][0]["extra_thing"] = 1
     assert _err(req).field == "swaps[0].extra_thing"
 
 
 def test_unknown_field_on_swap_table_is_an_error():
-    req = _old_fixture("ois_swap_request.json")
+    req = _old_fixture("ir_swaps/ois_swap_request.json")
     req["swaps"][0]["ois_swap"]["spread_leg"] = {}
     assert _err(req).field == "swaps[0].ois_swap.spread_leg"
-    req = _fixture("ois_swap_request.json")      # same on a 0.10.0 table
+    req = _fixture("ir_swaps/ois_swap_request.json")      # same on a 0.10.0 table
     req["swaps"][0]["ois_swap"]["spread_leg"] = {}
     assert _err(req).field == "swaps[0].ois_swap.spread_leg"
 
 
 def test_missing_or_invalid_swap_type():
-    req = _old_fixture("basis_swap_request.json")
+    req = _old_fixture("ir_swaps/basis_swap_request.json")
     del req["swaps"][0]["basis_swap"]["swap_type"]
     assert _err(req).field == "swaps[0].basis_swap.swap_type"
-    req = _old_fixture("basis_swap_request.json")
+    req = _old_fixture("ir_swaps/basis_swap_request.json")
     req["swaps"][0]["basis_swap"]["swap_type"] = "Long"
     assert _err(req).field == "swaps[0].basis_swap.swap_type"
 
 
 def test_missing_wrapper_curve_is_an_error():
-    req = _old_fixture("vanilla_swap_request.json")
+    req = _old_fixture("ir_swaps/vanilla_swap_request.json")
     del req["swaps"][0]["forwarding_curve"]
     assert _err(req).field == "swaps[0].forwarding_curve"
-    req = _old_fixture("swaption_request.json")
+    req = _old_fixture("swaption/swaption_request.json")
     del req["swaptions"][0]["discounting_curve"]
     assert _err(req).field == "swaptions[0].discounting_curve"
-    req = _old_fixture("basis_swap_request.json")
+    req = _old_fixture("ir_swaps/basis_swap_request.json")
     req["swaps"][0]["forwarding_curve_leg2"] = ""
     assert _err(req).field == "swaps[0].forwarding_curve_leg2"
 
@@ -933,15 +933,15 @@ def test_missing_wrapper_curve_is_an_error():
 def test_both_floating_and_cms_leg_is_an_error():
     req = _old_fixture("ir_swaps/cms_eur_5y_payer_cms10y_vs_fixed_lineartsr.json")
     req["swaps"][0]["vanilla_swap"]["floating_leg"] = \
-        _old_fixture("vanilla_swap_request.json")["swaps"][0]["vanilla_swap"]["floating_leg"]
+        _old_fixture("ir_swaps/vanilla_swap_request.json")["swaps"][0]["vanilla_swap"]["floating_leg"]
     assert _err(req).field == "swaps[0].vanilla_swap.cms_leg"
-    req = _old_fixture("vanilla_swap_request.json")
+    req = _old_fixture("ir_swaps/vanilla_swap_request.json")
     del req["swaps"][0]["vanilla_swap"]["floating_leg"]
     assert _err(req).field == "swaps[0].vanilla_swap.floating_leg"
 
 
 def test_mixed_old_and_new_shape_is_an_error():
-    new = _fixture("vanilla_swap_request.json")
+    new = _fixture("ir_swaps/vanilla_swap_request.json")
     bad = copy.deepcopy(new)
     bad["swaps"][0]["vanilla_swap"]["swap_type"] = "Payer"
     assert _err(bad).field == "swaps[0].vanilla_swap.swap_type"
@@ -955,14 +955,14 @@ def test_mixed_old_and_new_shape_is_an_error():
     bad["swaps"][0]["vanilla_swap"]["floating_leg"] = \
         OLD_VANILLA_0_9_0["swaps"][0]["vanilla_swap"]["floating_leg"]
     assert _err(bad).field == "swaps[0].vanilla_swap.floating_leg"
-    new_sw = _fixture("swaption_request.json")
+    new_sw = _fixture("swaption/swaption_request.json")
     bad = copy.deepcopy(new_sw)
     bad["swaptions"][0]["forwarding_curve"] = "discount"
     assert _err(bad).field == "swaptions[0].forwarding_curve"
 
 
 def test_ois_fixed_leg_with_its_own_lag_in_the_old_shape_is_an_error():
-    req = _old_fixture("ois_swap_request.json")
+    req = _old_fixture("ir_swaps/ois_swap_request.json")
     req["swaps"][0]["ois_swap"]["fixed_leg"]["payment_lag"] = 1
     assert _err(req).field == "swaps[0].ois_swap.fixed_leg.payment_lag"
     req = copy.deepcopy(OLD_SWAPTION_OIS_0_9_0)
@@ -971,13 +971,13 @@ def test_ois_fixed_leg_with_its_own_lag_in_the_old_shape_is_an_error():
 
 
 def test_bad_swaption_underlying_type():
-    req = _old_fixture("swaption_request.json")
+    req = _old_fixture("swaption/swaption_request.json")
     req["swaptions"][0]["swaption"]["underlying_type"] = "BasisSwap"
     assert _err(req).field == "swaptions[0].swaption.underlying_type"
 
 
 def test_basis_legs_in_different_currencies_is_an_error():
-    req = _old_fixture("basis_swap_request.json")
+    req = _old_fixture("ir_swaps/basis_swap_request.json")
     leg2_idx = req["swaps"][0]["basis_swap"]["leg2"]["index"]["id"]
     for d in req["pricing"]["rates"]["indices"]:
         if d["id"] == leg2_idx:
@@ -994,9 +994,9 @@ def _problems(req: dict) -> str:
 
 
 def test_validator_flags_old_shape_and_bad_unions():
-    old = _old_fixture("vanilla_swap_request.json")
+    old = _old_fixture("ir_swaps/vanilla_swap_request.json")
     assert msr.validate_converted(old)
-    new = _fixture("vanilla_swap_request.json")
+    new = _fixture("ir_swaps/vanilla_swap_request.json")
     assert msr.validate_converted(new) == []
     bad = copy.deepcopy(new)
     bad["swaps"][0]["vanilla_swap"]["floating_leg"]["coupons_type"] = "OvernightCoupons"
@@ -1013,14 +1013,14 @@ def test_validator_flags_old_shape_and_bad_unions():
     bad = copy.deepcopy(new)
     bad["swaps"][0]["vanilla_swap"]["fixed_leg"]["currency"] = "eur"
     assert "currency" in _problems(bad)
-    ois = _fixture("ois_swap_request.json")
+    ois = _fixture("ir_swaps/ois_swap_request.json")
     bad = copy.deepcopy(ois)
     bad["swaps"][0]["ois_swap"]["overnight_leg"]["coupons_type"] = "IborCoupons"
     assert "coupons_type" in _problems(bad)
 
 
 def test_validator_checks_the_flat_structure():
-    new = _fixture("vanilla_swap_request.json")
+    new = _fixture("ir_swaps/vanilla_swap_request.json")
     leg = new["swaps"][0]["vanilla_swap"]["fixed_leg"]
     bad = copy.deepcopy(new)
     b = bad["swaps"][0]["vanilla_swap"]["fixed_leg"]
@@ -1040,7 +1040,7 @@ def test_validator_checks_the_flat_structure():
     bad["swaps"][0]["vanilla_swap"]["fixed_leg"]["coupons"] = {}
     assert "coupons.rate: missing" in _problems(bad)
     assert "notional" in leg and "schedule" in leg     # the fixture itself is flat
-    ois = _fixture("ois_swap_request.json")
+    ois = _fixture("ir_swaps/ois_swap_request.json")
     bad = copy.deepcopy(ois)
     del bad["swaps"][0]["ois_swap"]["fixed_leg"]["payment_lag"]
     assert "fixed_leg.payment_lag: missing (presence-required on both OIS legs)" in _problems(bad)
@@ -1051,7 +1051,7 @@ def test_validator_checks_the_flat_structure():
     bad = copy.deepcopy(cms)
     bad["swaps"][0]["vanilla_swap"]["floating_leg"]["payment_lag"] = 0
     assert "payment_lag: not accepted on a CMS leg" in _problems(bad)
-    sw = _fixture("swaption_request.json")
+    sw = _fixture("swaption/swaption_request.json")
     bad = copy.deepcopy(sw)
     bad["swaptions"][0]["swaption"]["underlying"]["fixed_leg"]["notionals"] = [1.0]
     assert "notionals: only accepted on price-vanilla-swap" in _problems(bad)
@@ -1087,7 +1087,7 @@ def test_cli_out_dir_writes_converted_files_and_skips_others(tmp_path, capsys):
     (src / "sub").mkdir(parents=True)
     (src / "sub" / "v.json").write_text(json.dumps(OLD_VANILLA_0_9_0))
     (src / "x.json").write_text(json.dumps(OLD_XCCY_0_9_0))
-    (src / "bond.json").write_text(json.dumps(_fixture("fixed_rate_bond_request.json")))
+    (src / "bond.json").write_text(json.dumps(_fixture("bonds/fixed_rate_bond_request.json")))
     out = tmp_path / "out"
     rc = msr.main([str(src), "--out", str(out)])
     text = capsys.readouterr().out
@@ -1128,7 +1128,7 @@ def test_cli_error_names_file_and_field(tmp_path, capsys):
     f = tmp_path / "bad.json"
     f.write_text(json.dumps(req))
     nested = tmp_path / "nested.json"
-    doc = _fixture("vanilla_swap_request.json")
+    doc = _fixture("ir_swaps/vanilla_swap_request.json")
     doc["swaps"][0]["vanilla_swap"]["fixed_leg"] = \
         _nest_xccy_leg(doc["swaps"][0]["vanilla_swap"]["fixed_leg"])
     nested.write_text(json.dumps(doc))
@@ -1216,7 +1216,7 @@ def test_check_matching_responses_pass(tmp_path, fake_servers, capsys):
         "npv": 1234.5 + 1e-6, "fair_rate": 0.0312, "fair_spread": 0.0011,
         "legs": [{"npv": -5000.25}, {"npv": 6234.75}]}]}})
     f = tmp_path / "v.json"
-    f.write_text(json.dumps(_old_fixture("vanilla_swap_request.json")))
+    f.write_text(json.dumps(_old_fixture("ir_swaps/vanilla_swap_request.json")))
     rc = msr.main([str(f), "--check", old.url, new.url])
     text = capsys.readouterr().out
     assert rc == 0, text
@@ -1234,7 +1234,7 @@ def test_check_mismatch_fails_and_prints_table(tmp_path, fake_servers, capsys):
         "npv": 100.5, "fair_rate": 0.03, "fair_spread": 0.0,
         "legs": [{"npv": -10.0}, {"npv": 110.5}]}]}})
     f = tmp_path / "o.json"
-    f.write_text(json.dumps(_old_fixture("ois_swap_request.json")))
+    f.write_text(json.dumps(_old_fixture("ir_swaps/ois_swap_request.json")))
     rc = msr.main([str(f), "--check", old.url, new.url])
     text = capsys.readouterr().out
     assert rc == 1
@@ -1263,9 +1263,9 @@ def test_check_http_error_and_already_converted(tmp_path, fake_servers, capsys):
     old = fake_servers({})
     new = fake_servers({})
     f = tmp_path / "v.json"
-    f.write_text(json.dumps(_old_fixture("vanilla_swap_request.json")))
+    f.write_text(json.dumps(_old_fixture("ir_swaps/vanilla_swap_request.json")))
     g = tmp_path / "already.json"
-    g.write_text(json.dumps(_fixture("vanilla_swap_request.json")))
+    g.write_text(json.dumps(_fixture("ir_swaps/vanilla_swap_request.json")))
     rc = msr.main([str(f), str(g), "--check", old.url, new.url])
     text = capsys.readouterr().out
     assert rc == 1
@@ -1287,7 +1287,7 @@ def test_compare_responses_basis_swaption_xccy_and_tolerance():
     rows = msr.compare_responses("basis_swap", basis, old, new)
     assert [r for r in rows if "fair_spread" in r[0]][0][3] is False
 
-    sw = _fixture("swaption_request.json")
+    sw = _fixture("swaption/swaption_request.json")
     rows = msr.compare_responses("swaption", sw, {"swaptions": [{"npv": 5.0}]},
                                  {"swaptions": [{"npv": 5.0}]})
     assert rows == [("swaptions[0].npv", 5.0, 5.0, True)]
@@ -1302,7 +1302,7 @@ def test_compare_responses_basis_swaption_xccy_and_tolerance():
     assert not all(r[3] for r in msr.compare_responses("cross_currency_swap", xccy, a, b))
 
     # Money tolerance scales with the leg-level notional (1e6 here -> 1e-3 abs).
-    van = _fixture("vanilla_swap_request.json")
+    van = _fixture("ir_swaps/vanilla_swap_request.json")
     notional = van["swaps"][0]["vanilla_swap"]["fixed_leg"]["notional"]
     base = {"npv": 1.0, "fair_rate": 0.03, "fair_spread": 0.0}
     ok = dict(base, npv=1.0 + 0.5e-9 * notional)

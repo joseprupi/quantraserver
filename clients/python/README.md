@@ -39,7 +39,7 @@ and the calendar utilities — has no wrapper here. Use one of:
 From a source checkout:
 
 ```bash
-pip install -e quantra-python
+pip install -e clients/python
 ```
 
 The generated `quantra` FlatBuffers package is not installed by `setup.py`; put
@@ -75,7 +75,7 @@ helpers, a bootstrapped curve, and a fixed-rate bond — and times repeated
 pricing calls:
 
 ```bash
-python3 quantra-python/examples/price_bonds.py 10 100 1
+python3 clients/python/examples/price_bonds.py 10 100 1
 ```
 
 The arguments are bonds per request, number of requests, and whether to share

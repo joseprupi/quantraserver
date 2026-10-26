@@ -263,7 +263,7 @@ yet; they are deliberately not half-implemented:
 * **Cross-currency swaps** — no product endpoint yet.
 * **Exogenous-discounting bootstrap (`deps.discount_curve`) parity** — the
   server bootstraps projection curves discounted on another curve (see
-  `examples/data/vanilla_swap_multicurve_request.json`), but
+  `examples/data/ir_swaps/vanilla_swap_multicurve_request.json`), but
   `build_curve_from_json` in the Python reference ignores `deps`, so such
   requests cannot be reference-priced yet. The multicurve cases here use
   independently bootstrapped curves instead.

@@ -25,7 +25,7 @@ FIXTURES = [
     # Same market, every curve pillar written with quote_id instead of an
     # inline rate: the rebump greeks must not depend on the spelling.
     ("swaption/swpt_eur_1y5y_payer_near_atm_physical_quote_ids.json", "Lognormal"),
-    ("swaption_ois_bbg_zerorate_request.json", "Normal"),
+    ("swaption/swaption_ois_bbg_zerorate_request.json", "Normal"),
 ]
 
 GREEKS = ("delta", "gamma", "vega", "theta", "dv01")

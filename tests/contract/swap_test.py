@@ -14,9 +14,9 @@ from ql_reference import (
 
 # (product, request file, response list key, QuantLib reference pricer)
 SWAP_CASES = [
-    ("vanilla_swap", "vanilla_swap_request.json", "swaps", price_vanilla_swap_ql),
-    ("ois_swap", "ois_swap_request.json", "swaps", price_ois_swap_ql),
-    ("basis_swap", "basis_swap_request.json", "swaps", price_basis_swap_ql),
+    ("vanilla_swap", "ir_swaps/vanilla_swap_request.json", "swaps", price_vanilla_swap_ql),
+    ("ois_swap", "ir_swaps/ois_swap_request.json", "swaps", price_ois_swap_ql),
+    ("basis_swap", "ir_swaps/basis_swap_request.json", "swaps", price_basis_swap_ql),
 ]
 
 

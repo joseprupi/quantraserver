@@ -1,6 +1,6 @@
 # C++ Client
 
-The C++ client library lives in `client/` and exposes two ways to talk to the Quantra gRPC service:
+The C++ client library lives in `clients/cpp/` and exposes two ways to talk to the Quantra gRPC service:
 
 - a JSON convenience layer for quick integration
 - a native FlatBuffers API for lower-overhead calls
@@ -9,11 +9,11 @@ The C++ client library lives in `client/` and exposes two ways to talk to the Qu
 
 Key files:
 
-- `client/CMakeLists.txt`
-- `client/cpp/include/quantra_client.h`
-- `client/cpp/src/quantra_client.cpp`
-- `client/cpp/src/json_parser.cpp`
-- `src/common/product_catalog.h`
+- `clients/CMakeLists.txt`
+- `clients/cpp/include/quantra_client.h`
+- `clients/cpp/src/quantra_client.cpp`
+- `clients/cpp/src/json_parser.cpp`
+- `src/transport/product_catalog.h`
 
 ## Usage Modes
 
@@ -37,7 +37,7 @@ quantra::QuantraClient client("localhost:50051");
 grpc::Status status = client.PriceFixedRateBond(request, &response);
 ```
 
-The public API is declared in `client/cpp/include/quantra_client.h`.
+The public API is declared in `clients/cpp/include/quantra_client.h`.
 
 ## Supported Client Methods
 
@@ -66,7 +66,7 @@ Utility:
 - calendar business days, calendar holidays, calendar advance
 - calibrate swaption model (Hull-White), calibrate swaption vol (SABR)
 
-This mirrors the served endpoints in `src/common/product_catalog.h`; when that
+This mirrors the served endpoints in `src/transport/product_catalog.h`; when that
 catalog gains an entry, the client header gains the matching pair (see
 "Extending the Client For A New Product").
 
@@ -124,7 +124,7 @@ To build just the client target after configuring the main build:
 cmake --build build --target quantra_client
 ```
 
-There is no standalone `client/cpp` CMake project; the canonical build entrypoint is the repository root.
+There is no standalone `clients/cpp` CMake project; the canonical build entrypoint is the repository root.
 
 ## Configuration
 
@@ -139,11 +139,11 @@ If `QUANTRA_FBS_INCLUDE_DIR` is unset, it defaults to the same location as `QUAN
 
 Adding a new product usually requires coordinated changes in:
 
-1. `src/common/product_catalog.h`
-2. `client/cpp/include/quantra_client.h`
-3. `client/cpp/src/quantra_client.cpp`
+1. `src/transport/product_catalog.h`
+2. `clients/cpp/include/quantra_client.h`
+3. `clients/cpp/src/quantra_client.cpp`
 4. FlatBuffers request/response schema files
-5. `grpc/` service definitions
+5. `flatbuffers/grpc/` service definitions
 6. server-side request handlers
 
 After schema or RPC changes, regenerate code and rebuild:

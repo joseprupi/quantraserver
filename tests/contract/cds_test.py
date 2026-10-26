@@ -5,8 +5,8 @@ import pytest
 from ql_reference import api_npv, load_json, price_cds_ql
 
 CDS_FILES = [
-    "cds_request.json",
-    "cds_complex_request.json",
+    "cds/cds_request.json",
+    "cds/cds_complex_request.json",
 ]
 
 

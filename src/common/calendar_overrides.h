@@ -15,7 +15,7 @@
  * thread cannot clear it or report its fingerprint.
  *
  * This module is FlatBuffers-free; the wire -> HolidayOverride translation lives
- * in src/parsers/calendar_override_parser.
+ * in src/decode/market/calendar_override_parser.
  */
 
 #include <ql/time/calendar.hpp>

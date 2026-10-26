@@ -26,6 +26,19 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Unreleased
+
+- Repository layout tidy-up, paths only, no behaviour or wire change:
+  `src/parsers/` → `src/decode/market/` and the per-product mappers →
+  `src/decode/products/` (step 1 of the pipeline, FlatBuffers → C++, now in
+  one folder); `src/common/product_catalog.h` → `src/transport/`; `grpc/` →
+  `flatbuffers/grpc/`; `client/cpp/` → `clients/cpp/` and `quantra-python/` →
+  `clients/python/`; the loose `examples/data/*.json` requests → their product
+  folders (`bonds/`, `ir_swaps/`, `swaption/`, …); `docs/*.jpg` → `docs/img/`.
+  Every example, test, catalog row and generated artefact is unchanged in
+  content. Scripts that set `PYTHONPATH` to `quantra-python` or `pip install`
+  it need the new `clients/python` path.
+
 ## Version 0.14.0 (October 2026) — Option quotes to implied forwards and a volatility surface
 
 `v0.14.0` is a MINOR, additive release: two calibration endpoints, one

@@ -11,7 +11,7 @@ an independent QuantLib reference" case. The same list drives:
 Field reference (all keys required unless noted):
 
   id          Stable, unique, kebab/snake identifier. Used as the pytest id.
-  product     Product key from src/common/product_catalog.h (picks the HTTP
+  product     Product key from src/transport/product_catalog.h (picks the HTTP
               route, e.g. "vanilla_swap" -> POST /vanilla-swap).
   family      Catalog grouping, e.g. "IR Swaps". New families just work.
   title       One-line human name shown in the catalog.

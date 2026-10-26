@@ -79,7 +79,7 @@ public:
 
         // RPC method names: the actual registered async handlers, which are
         // registered under their gRPC method names (see REGISTER_PRODUCT calls),
-        // i.e. exactly the rpc_service methods in grpc/quantraserver.fbs,
+        // i.e. exactly the rpc_service methods in flatbuffers/grpc/quantraserver.fbs,
         // including Meta itself.
         std::vector<flatbuffers::Offset<flatbuffers::String>> method_offsets;
         for (const auto& name : ProductRegistry::instance().getNames()) {

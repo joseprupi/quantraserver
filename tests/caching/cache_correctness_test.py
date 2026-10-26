@@ -41,43 +41,43 @@ Case = namedtuple("Case", "id product filename npv_key")
 
 CASES = [
     Case("fixed_rate_bond", "fixed_rate_bond",
-         "fixed_rate_bond_request.json", "bonds"),
+         "bonds/fixed_rate_bond_request.json", "bonds"),
     # ForwardFlat discount curve: the frozen L1 reconstruction must use the
     # same inter-pillar interpolation as the live curve. The bond's semiannual
     # May/Nov-15 coupons fall between the curve's pillars, where a wrong
     # interpolator drifts even though the pillar DFs match exactly.
     Case("fixed_rate_bond_forwardflat", "fixed_rate_bond",
-         "fixed_rate_bond_forwardflat_request.json", "bonds"),
+         "bonds/fixed_rate_bond_forwardflat_request.json", "bonds"),
     Case("vanilla_swap_multicurve", "vanilla_swap",
-         "vanilla_swap_multicurve_request.json", "swaps"),
+         "ir_swaps/vanilla_swap_multicurve_request.json", "swaps"),
     Case("swaption", "swaption",
-         "swaption_request.json", "swaptions"),
+         "swaption/swaption_request.json", "swaptions"),
     Case("swaption_smile_cube", "swaption",
-         "swaption_smile_cube_request.json", "swaptions"),
+         "swaption/swaption_smile_cube_request.json", "swaptions"),
     Case("swaption_sabr_calibrate", "swaption",
-         "swaption_sabr_calibrate_request.json", "swaptions"),
+         "vol/swaption_sabr_calibrate_request.json", "swaptions"),
     # Hull-White swaption-model calibration cache. The calibrate endpoint runs
     # a Levenberg-Marquardt fit and returns (a, sigma, rmse); the cache must
     # reproduce those bit-for-bit on a hit. npv_key is None: the response is a
     # calibration result, not a priced instrument.
     Case("calibrate_swaption_model", "calibrate_swaption_model",
-         "calibrate_swaption_model_request.json", None),
+         "vol/calibrate_swaption_model_request.json", None),
     # A swaption priced with an HW-calibrated model exercises the same
     # cross-request calibration cache through the pricing path (the evaluator
     # calls the shared calibration helper).
     Case("swaption_bermudan_hw_calibrated", "swaption",
-         "swaption_bermudan_hw_calibrated.json", "swaptions"),
+         "swaption/swaption_bermudan_hw_calibrated.json", "swaptions"),
     Case("cds", "cds",
-         "cds_request.json", "cds_list"),
+         "cds/cds_request.json", "cds_list"),
     Case("bootstrap_curves_forward", "bootstrap_curves",
-         "bootstrap_curves_forward.json", None),
+         "curves/bootstrap_curves_forward.json", None),
     # ZeroRatePoint discount curve: built as an InterpolatedZeroCurve,
     # NOT a PiecewiseYieldCurve, so the freeze path cannot extract exact pillars.
     # A cache hit must serve the LIVE curve — never a weekly-resampled
     # reconstruction — or the bond's semiannual coupons (which fall between the
     # user's zero nodes and off the weekly resample grid) drift on a hit.
     Case("fixed_rate_bond_zerorate", "fixed_rate_bond",
-         "fixed_rate_bond_zerorate_request.json", "bonds"),
+         "bonds/fixed_rate_bond_zerorate_request.json", "bonds"),
     # FX-implied curve: FxSwapHelper pillars on an FX spot + a collateral
     # curve. The curve's key must carry the spot's full content (see the
     # test_fx_spot_* cases below) and the collateral curve's own key.
@@ -160,7 +160,7 @@ def test_cache_transparency(case, nocache_client, cache_client, data_dir):
     print(f"[cache] {case.id}: {detail}")
 
 
-REBUMP_FIXTURE = "swaption_ois_bbg_zerorate_request.json"
+REBUMP_FIXTURE = "swaption/swaption_ois_bbg_zerorate_request.json"
 
 
 def _rebump_request(data_dir):
@@ -227,7 +227,7 @@ def test_cache_transparency_beyond_pillar_error(nocache_client, cache_client,
     L1 reconstruction must preserve that: if it (re-)enabled extrapolation,
     the cache hit would silently turn the error into an extrapolated number.
     """
-    request = load_json(data_dir / "fixed_rate_bond_beyond_pillar_request.json")
+    request = load_json(data_dir / "bonds/fixed_rate_bond_beyond_pillar_request.json")
 
     off = _post_raw(nocache_client, "fixed_rate_bond", request)   # reference
     warm = _post_raw(cache_client, "fixed_rate_bond", request)    # populates L1
@@ -267,7 +267,7 @@ def test_bogus_quote_id_not_masked_by_warm_cache(nocache_client, cache_client,
     404. The key builder must instead refuse to key the curve (leaving it
     uncached), letting the parser report the unknown id.
     """
-    valid = load_json(data_dir / "fixed_rate_bond_request.json")
+    valid = load_json(data_dir / "bonds/fixed_rate_bond_request.json")
 
     # Warm the cache-ON server with the valid inline-value request so that a
     # key collision with the bogus request below would actually serve a hit.
@@ -552,15 +552,15 @@ OverrideCase = namedtuple("OverrideCase", "id product filename added_holiday cac
 
 OVERRIDE_CASES = [
     OverrideCase("vanilla_swap_multicurve", "vanilla_swap",
-                 "vanilla_swap_multicurve_request.json", "2024-07-17", "curve"),
+                 "ir_swaps/vanilla_swap_multicurve_request.json", "2024-07-17", "curve"),
     OverrideCase("bootstrap_curves_forward", "bootstrap_curves",
-                 "bootstrap_curves_forward.json", "2025-06-17", "curve"),
+                 "curves/bootstrap_curves_forward.json", "2025-06-17", "curve"),
     OverrideCase("swaption_sabr_calibrate", "swaption",
-                 "swaption_sabr_calibrate_request.json", "2026-01-19", "sabr"),
+                 "vol/swaption_sabr_calibrate_request.json", "2026-01-19", "sabr"),
     OverrideCase("calibrate_swaption_model", "calibrate_swaption_model",
-                 "calibrate_swaption_model_request.json", "2026-01-15", "hw"),
+                 "vol/calibrate_swaption_model_request.json", "2026-01-15", "hw"),
     OverrideCase("swaption_bermudan_hw_calibrated", "swaption",
-                 "swaption_bermudan_hw_calibrated.json", "2026-01-15", "hw"),
+                 "swaption/swaption_bermudan_hw_calibrated.json", "2026-01-15", "hw"),
 ]
 OVERRIDE_IDS = [c.id for c in OVERRIDE_CASES]
 

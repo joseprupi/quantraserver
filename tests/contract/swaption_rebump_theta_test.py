@@ -27,7 +27,7 @@ from ql_reference import load_json
 
 FIXTURES = [
     "swaption/swpt_eur_1y5y_payer_near_atm_physical.json",
-    "swaption_ois_bbg_zerorate_request.json",
+    "swaption/swaption_ois_bbg_zerorate_request.json",
 ]
 VALUE_CURVE_FIXTURE = FIXTURES[1]
 ABS_TOL = 1e-6

@@ -23,7 +23,7 @@ import json
 
 import pytest
 
-CARRIER = "vanilla_swap_request.json"
+CARRIER = "ir_swaps/vanilla_swap_request.json"
 PRODUCT = "vanilla_swap"
 
 QUAD_LABELS = ["SMI", "SPX", "SX5E", "NKY"]

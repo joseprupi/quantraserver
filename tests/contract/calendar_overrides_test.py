@@ -18,8 +18,8 @@ _ENUMS_FBS = Path(__file__).resolve().parents[2] / "flatbuffers" / "fbs" / "enum
 # The calendars QuantLib gives per-instance state; an override would be inert.
 INERT_CALENDARS = {"BespokeCalendar", "NullCalendar"}
 
-SWAP_FILE = "vanilla_swap_multicurve_request.json"       # as_of 2024-01-15, TARGET
-BOOTSTRAP_FILE = "bootstrap_curves_tenor_grid.json"      # as_of 2025-01-15, TARGET
+SWAP_FILE = "ir_swaps/vanilla_swap_multicurve_request.json"       # as_of 2024-01-15, TARGET
+BOOTSTRAP_FILE = "curves/bootstrap_curves_tenor_grid.json"      # as_of 2025-01-15, TARGET
 # Holidays on coupon roll dates (swap) and on the spot date (curves), so
 # payment dates and curve pillars move. The swap override leaves the first
 # fixing date alone: moving it before the as-of date would need a past fixing.

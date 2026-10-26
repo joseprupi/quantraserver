@@ -420,11 +420,11 @@ def load_catalog(repo_root):
     """Corpus from the repository's functional catalog manifest.
 
     Reads ``tests/functional/manifest.py`` (plain data, imported by path) and
-    the product -> route table in ``src/common/product_catalog.h``.
+    the product -> route table in ``src/transport/product_catalog.h``.
     """
     repo_root = Path(repo_root)
     manifest_path = repo_root / "tests" / "functional" / "manifest.py"
-    header = repo_root / "src" / "common" / "product_catalog.h"
+    header = repo_root / "src" / "transport" / "product_catalog.h"
     for needed in (manifest_path, header):
         if not needed.is_file():
             raise SystemExit(f"--catalog: {needed} not found (is {repo_root} "

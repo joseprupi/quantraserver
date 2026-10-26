@@ -40,9 +40,9 @@ LEG_ROLES = {
 }
 
 FIXTURES = {
-    "vanilla_swap": "vanilla_swap_request.json",
-    "ois_swap": "ois_swap_request.json",
-    "basis_swap": "basis_swap_request.json",
+    "vanilla_swap": "ir_swaps/vanilla_swap_request.json",
+    "ois_swap": "ir_swaps/ois_swap_request.json",
+    "basis_swap": "ir_swaps/basis_swap_request.json",
 }
 
 # The fair values each endpoint reports (fair_rate iff exactly one leg is
@@ -231,7 +231,7 @@ def test_vanilla_fixed_leg_exchanges_match_quantlib_and_are_flagged(client, data
     frame), priced like every other flow of the leg: the API matches a
     QuantLib reference (coupons + SimpleCashFlows discounted on the leg's
     curve) and the flows carry `kind == "NotionalExchange"` entries."""
-    plain = load_json(data_dir / "vanilla_swap_request.json")
+    plain = load_json(data_dir / "ir_swaps/vanilla_swap_request.json")
     request = copy.deepcopy(plain)
     request["include_flows"] = True
     fixed = _swap(request, "vanilla_swap")["fixed_leg"]
@@ -277,7 +277,7 @@ def test_ibor_leg_payment_lag_and_calendar_match_quantlib(client, data_dir):
     date moves later than on the plain swap while its accrual and amount
     stay, and the swap matches the QuantLib reference (IborLeg with the same
     payment calendar and lag, through the engine's leg algebra)."""
-    plain = load_json(data_dir / "vanilla_swap_request.json")
+    plain = load_json(data_dir / "ir_swaps/vanilla_swap_request.json")
     request = copy.deepcopy(plain)
     request["include_flows"] = True
     plain["include_flows"] = True
@@ -316,7 +316,7 @@ def test_ibor_leg_payment_lag_and_calendar_match_quantlib(client, data_dir):
 def _estr_index_def(data_dir):
     """The ESTR overnight IndexDef of the OIS fixture, to plant an overnight
     index into another request."""
-    ois = load_json(data_dir / "ois_swap_request.json")
+    ois = load_json(data_dir / "ir_swaps/ois_swap_request.json")
     return next(i for i in ois["pricing"]["rates"]["indices"] if i["id"] == "ESTR")
 
 
@@ -399,27 +399,27 @@ def _swaption_underlying_with_exchange(req, data_dir):
 
 # (id, product, fixture, mutation, substrings the 400 message must contain)
 REJECTIONS = [
-    ("ibor_coupons_on_fixed_leg", "vanilla_swap", "vanilla_swap_request.json",
+    ("ibor_coupons_on_fixed_leg", "vanilla_swap", "ir_swaps/vanilla_swap_request.json",
      _ibor_on_fixed_leg,
      ["VanillaSwap.fixed_leg.coupons must be FixedCoupons", "got IborCoupons"]),
-    ("both_legs_pay", "vanilla_swap", "vanilla_swap_request.json",
+    ("both_legs_pay", "vanilla_swap", "ir_swaps/vanilla_swap_request.json",
      _both_pay,
      ["VanillaSwap.fixed_leg.pay_receive", "VanillaSwap.floating_leg.pay_receive",
       "both Pay"]),
-    ("two_currencies_on_vanilla", "vanilla_swap", "vanilla_swap_request.json",
+    ("two_currencies_on_vanilla", "vanilla_swap", "ir_swaps/vanilla_swap_request.json",
      _two_currencies,
      ["VanillaSwap.fixed_leg.currency", "VanillaSwap.floating_leg.currency",
       "must be equal on price-vanilla-swap"]),
-    ("forwarding_curve_on_fixed_leg", "vanilla_swap", "vanilla_swap_request.json",
+    ("forwarding_curve_on_fixed_leg", "vanilla_swap", "ir_swaps/vanilla_swap_request.json",
      _forwarding_on_fixed,
      ["VanillaSwap.fixed_leg.forwarding_curve must be absent with FixedCoupons"]),
     ("missing_forwarding_curve_on_floating_leg", "vanilla_swap",
-     "vanilla_swap_request.json", _no_forwarding_on_floating,
+     "ir_swaps/vanilla_swap_request.json", _no_forwarding_on_floating,
      ["VanillaSwap.floating_leg.forwarding_curve is required with IborCoupons"]),
-    ("ibor_coupons_on_overnight_index", "vanilla_swap", "vanilla_swap_request.json",
+    ("ibor_coupons_on_overnight_index", "vanilla_swap", "ir_swaps/vanilla_swap_request.json",
      _ibor_coupons_on_overnight_index,
      ["VanillaSwap.floating_leg.coupons is IborCoupons", "ESTR", "OvernightCoupons"]),
-    ("notionals_on_ois_leg", "ois_swap", "ois_swap_request.json",
+    ("notionals_on_ois_leg", "ois_swap", "ir_swaps/ois_swap_request.json",
      _notionals_on_ois,
      ["OisSwap.fixed_leg.notionals (price-ois-swap)"]),
     ("payment_lag_on_cms_leg", "vanilla_swap",
@@ -428,16 +428,16 @@ REJECTIONS = [
     ("payment_calendar_on_cms_leg", "vanilla_swap",
      "ir_swaps/cms_eur_5y_payer_cms10y_vs_fixed_lineartsr.json", _payment_calendar_on_cms_leg,
      ["VanillaSwap.floating_leg.payment_calendar is not supported with CmsCoupons"]),
-    ("ois_fixed_leg_without_payment_lag", "ois_swap", "ois_swap_request.json",
+    ("ois_fixed_leg_without_payment_lag", "ois_swap", "ir_swaps/ois_swap_request.json",
      _ois_fixed_leg_without_payment_lag,
      ["OisSwap.fixed_leg.payment_lag is required"]),
-    ("ois_overnight_leg_without_payment_calendar", "ois_swap", "ois_swap_request.json",
+    ("ois_overnight_leg_without_payment_calendar", "ois_swap", "ir_swaps/ois_swap_request.json",
      _ois_overnight_leg_without_payment_calendar,
      ["OisSwap.overnight_leg.payment_calendar is required"]),
-    ("swaption_legs_on_two_discount_curves", "swaption", "swaption_request.json",
+    ("swaption_legs_on_two_discount_curves", "swaption", "swaption/swaption_request.json",
      _swaption_legs_on_two_discount_curves,
      ["Swaption.underlying.fixed_leg.discounting_curve", "must be equal"]),
-    ("swaption_underlying_initial_exchange", "swaption", "swaption_request.json",
+    ("swaption_underlying_initial_exchange", "swaption", "swaption/swaption_request.json",
      _swaption_underlying_with_exchange,
      ["Swaption.underlying.fixed_leg.initial_exchange must be absent or false"]),
 ]

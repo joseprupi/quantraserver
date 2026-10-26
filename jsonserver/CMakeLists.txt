@@ -2,11 +2,12 @@
 # Builds the HTTP/JSON API server that fronts the gRPC pricing engine
 
 include_directories(
-    ${CMAKE_SOURCE_DIR}/grpc
+    ${CMAKE_SOURCE_DIR}/flatbuffers/grpc
     ${CMAKE_SOURCE_DIR}/src/common
+    ${CMAKE_SOURCE_DIR}/src/transport
     ${CMAKE_SOURCE_DIR}/flatbuffers/fbs
     ${CMAKE_SOURCE_DIR}/flatbuffers/cpp
-    ${CMAKE_SOURCE_DIR}/client/cpp/include
+    ${CMAKE_SOURCE_DIR}/clients/cpp/include
 )
 
 find_package(Boost COMPONENTS system REQUIRED)
