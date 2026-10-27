@@ -10,7 +10,9 @@
 #include <filesystem>
 #include <iostream>
 #include <map>
+#include <optional>
 #include <stdexcept>
+#include <string>
 
 namespace quantra {
 
@@ -22,6 +24,69 @@ std::string ResolveEnvOrDefault(const char* env_name, const std::string& fallbac
         return value;
     }
     return fallback;
+}
+
+std::string LineColumn(const std::string& text, std::size_t pos) {
+    std::size_t line = 1;
+    std::size_t column = 1;
+    for (std::size_t i = 0; i < pos && i < text.size(); ++i) {
+        if (text[i] == '\n') {
+            ++line;
+            column = 1;
+        } else {
+            ++column;
+        }
+    }
+    return "line " + std::to_string(line) + ", column " + std::to_string(column);
+}
+
+// A request body must be one JSON object. The flatc parser is more lenient:
+// it reads schema statements (include, namespace, table, root_type,
+// attribute, ...) before the object and skips comments anywhere. Returns why
+// the body breaks the rule, or std::nullopt. With '{' as the first token,
+// Parse() reads nothing but the object; text after it is rejected by the
+// parser itself.
+std::optional<std::string> CheckSingleJsonObject(const std::string& text) {
+    const std::size_t n = text.size();
+    const auto comment_at = [&](std::size_t pos) {
+        return text[pos] == '/' && pos + 1 < n && (text[pos + 1] == '/' || text[pos + 1] == '*');
+    };
+    const auto comment_error = [&](std::size_t pos) {
+        return "comment at " + LineColumn(text, pos) + " (comments are not JSON)";
+    };
+
+    std::size_t i = 0;
+    // A leading UTF-8 byte order mark is skipped, as the parser does.
+    if (text.compare(0, 3, "\xEF\xBB\xBF") == 0) {
+        i = 3;
+    }
+    while (i < n && (text[i] == ' ' || text[i] == '\t' || text[i] == '\n' || text[i] == '\r')) {
+        ++i;
+    }
+    if (i < n && comment_at(i)) {
+        return comment_error(i);
+    }
+    if (i == n || text[i] != '{') {
+        return "expected '{' at " + LineColumn(text, i);
+    }
+    // Strings are delimited as the parser's tokenizer does: by the quote that
+    // opened them (" or '), with backslash escapes.
+    char quote = 0;
+    for (; i < n; ++i) {
+        const char c = text[i];
+        if (quote != 0) {
+            if (c == '\\') {
+                ++i;
+            } else if (c == quote) {
+                quote = 0;
+            }
+        } else if (c == '"' || c == '\'') {
+            quote = c;
+        } else if (comment_at(i)) {
+            return comment_error(i);
+        }
+    }
+    return std::nullopt;
 }
 
 } // namespace
@@ -60,6 +125,11 @@ public:
             throw JsonParseException(
                 "request body contains a NUL byte (bodies must be NUL-free JSON text)");
         }
+        // Schema statements would otherwise be applied to this thread's
+        // long-lived parser and change how later bodies are decoded.
+        if (auto problem = CheckSingleJsonObject(json)) {
+            throw JsonParseException("request body must be a single JSON object: " + *problem);
+        }
 
         auto& parser = EnsureThreadParsers().request_parsers.at(type);
 
@@ -67,10 +137,21 @@ public:
         // misleading ("unknown field ...", spurious "required" complaints,
         // "input file is empty" for wrong-shape bodies). The wording comes from
         // the vendored FlatBuffers parser internals — out of scope to fix here.
+        //
+        // Parse() rather than ParseJson(): ParseJson() skips the reset of the
+        // parser's per-parse state, so every failed body would leave its
+        // partly parsed values behind in this long-lived parser.
         if (!parser->Parse(json.c_str(), include_dirs_)) {
             throw JsonParseException(
                 "JSON parse error for " + std::string(ProductTypeToString(type)) + ": " +
                 parser->error_);
+        }
+        // A parse that read no object leaves no finished buffer; releasing it
+        // would abort.
+        if (parser->builder_.GetSize() == 0) {
+            throw JsonParseException(
+                "JSON parse error for " + std::string(ProductTypeToString(type)) +
+                ": no JSON object in the request body");
         }
 
         return std::make_shared<flatbuffers::grpc::MessageBuilder>(std::move(parser->builder_));
