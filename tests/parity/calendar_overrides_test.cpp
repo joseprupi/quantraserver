@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <functional>
 #include <memory>
+#include <utility>
 
 namespace quantra { namespace testing {
 
@@ -372,6 +373,88 @@ TEST_F(CalendarOverridesTest, EndpointRejectsMalformedOverrides) {
         },
         "calendar_overrides[0].calendar");
     expectTargetClean();
+}
+
+// Business/252 counts Brazil business days. QuantLib caches the counts of
+// whole months and whole years per calendar name for the life of the
+// process, so a count taken under a Brazil override must not be served
+// without it, nor the other way round. Each test uses its own dates (the
+// cache outlives the test): the first span covers a whole month, the second
+// a whole year, and each override date falls in that month or that year.
+namespace {
+
+using Span = std::pair<QuantLib::Date, QuantLib::Date>;
+
+QuantLib::Date::serial_type brazilBusinessDays(const Span& s) {
+    const QuantLib::Calendar brazil = QuantLib::Brazil();
+    QuantLib::Date::serial_type n = 0;
+    for (QuantLib::Date d = s.first; d < s.second; ++d) {
+        if (brazil.isBusinessDay(d)) ++n;
+    }
+    return n;
+}
+
+// The Business/252 year fraction equals the business days counted one by one
+// on the calendar as it stands, over 252.
+void expectBusiness252(const std::vector<Span>& spans, const std::string& when) {
+    for (const auto& s : spans) {
+        EXPECT_EQ(
+            DayCounterToQL(quantra::enums::DayCounter_Business252).yearFraction(s.first, s.second),
+            brazilBusinessDays(s) / 252.0)
+            << when << ": " << DateToIso(s.first) << " -> " << DateToIso(s.second);
+    }
+}
+
+std::vector<QuantLib::Date::serial_type> counts(const std::vector<Span>& spans) {
+    std::vector<QuantLib::Date::serial_type> out;
+    for (const auto& s : spans)
+        out.push_back(brazilBusinessDays(s));
+    return out;
+}
+
+} // namespace
+
+TEST_F(CalendarOverridesTest, Business252FollowsOverridesPlainFirst) {
+    const std::vector<Span> spans = {
+        {QuantLib::Date(14, QuantLib::February, 2025), QuantLib::Date(15, QuantLib::April, 2025)},
+        {QuantLib::Date(14, QuantLib::November, 2025),
+         QuantLib::Date(15, QuantLib::February, 2027)}};
+    const std::vector<HolidayOverride> overrides = {
+        make(QuantLib::Brazil(), {"2025-03-11", "2026-03-11"}, {})};
+
+    const auto plain = counts(spans);
+    expectBusiness252(spans, "plain");
+
+    applyCalendarOverrides(overrides);
+    const auto overridden = counts(spans);
+    for (std::size_t i = 0; i < spans.size(); ++i)
+        ASSERT_EQ(overridden[i], plain[i] - 1);
+    expectBusiness252(spans, "overridden");
+
+    resetCalendarOverrides();
+    expectBusiness252(spans, "plain again");
+}
+
+TEST_F(CalendarOverridesTest, Business252FollowsOverridesOverriddenFirst) {
+    const std::vector<Span> spans = {
+        {QuantLib::Date(14, QuantLib::February, 2029), QuantLib::Date(15, QuantLib::April, 2029)},
+        {QuantLib::Date(14, QuantLib::November, 2029),
+         QuantLib::Date(15, QuantLib::February, 2031)}};
+    const std::vector<HolidayOverride> overrides = {
+        make(QuantLib::Brazil(), {"2029-03-13", "2030-03-12"}, {})};
+
+    applyCalendarOverrides(overrides);
+    const auto overridden = counts(spans);
+    expectBusiness252(spans, "overridden");
+
+    resetCalendarOverrides();
+    const auto plain = counts(spans);
+    for (std::size_t i = 0; i < spans.size(); ++i)
+        ASSERT_EQ(overridden[i], plain[i] - 1);
+    expectBusiness252(spans, "plain");
+
+    applyCalendarOverrides(overrides);
+    expectBusiness252(spans, "overridden again");
 }
 
 }} // namespace quantra::testing

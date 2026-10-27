@@ -1,9 +1,55 @@
 #include "enum_convert.h"
 
+#include "calendar_overrides.h"
+
 #include <ql/quantlib.hpp>
+
+#include <string>
+#include <utility>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wreturn-type"
+
+namespace {
+
+// A calendar that answers like `base` (holiday overrides included) under
+// another name.
+class RenamedCalendar : public QuantLib::Calendar {
+    class Impl final : public QuantLib::Calendar::Impl {
+    public:
+        Impl(QuantLib::Calendar base, std::string name)
+            : base_(std::move(base)), name_(std::move(name)) {}
+        std::string name() const override { return name_; }
+        bool isBusinessDay(const QuantLib::Date& d) const override {
+            return base_.isBusinessDay(d);
+        }
+        bool isWeekend(QuantLib::Weekday w) const override { return base_.isWeekend(w); }
+
+    private:
+        QuantLib::Calendar base_;
+        std::string name_;
+    };
+
+public:
+    RenamedCalendar(const QuantLib::Calendar& base, const std::string& name) {
+        impl_ = QuantLib::ext::make_shared<Impl>(base, name);
+    }
+};
+
+// QuantLib's Business/252 caches business-day counts per calendar name for the
+// life of the process. While a request's holiday overrides change Brazil, its
+// counts go under a name of their own, so they never mix with the plain ones.
+QuantLib::DayCounter business252() {
+    const QuantLib::Calendar brazil = QuantLib::Brazil();
+    if (brazil.addedHolidays().empty() && brazil.removedHolidays().empty()) {
+        return QuantLib::Business252();
+    }
+    return QuantLib::Business252(RenamedCalendar(
+        brazil,
+        brazil.name() + " [overrides:" + quantra::activeCalendarOverridesFingerprint() + "]"));
+}
+
+} // namespace
 
 QuantLib::TimeUnit TimeUnitToQL(const quantra::enums::TimeUnit timeUnit) {
 
@@ -122,7 +168,7 @@ QuantLib::DayCounter DayCounterToQL(const quantra::enums::DayCounter dayCounter)
             return QuantLib::ActualActual(QuantLib::ActualActual::AFB);
         case quantra::enums::DayCounter_ActualActualEuro:
             return QuantLib::ActualActual(QuantLib::ActualActual::Euro);
-        case quantra::enums::DayCounter_Business252: return QuantLib::Business252();
+        case quantra::enums::DayCounter_Business252: return business252();
         case quantra::enums::DayCounter_One: return QuantLib::OneDayCounter();
         case quantra::enums::DayCounter_Simple: return QuantLib::SimpleDayCounter();
         case quantra::enums::DayCounter_Thirty360:
