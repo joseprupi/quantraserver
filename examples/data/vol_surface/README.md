@@ -12,8 +12,9 @@ this shape.
 |---|---|
 | `synthetic_svi_sheet_2026-09-30_andreasen_huge.json` | The SVI sheet, `method: AndreasenHuge` (default grid, forwards fitted internally). |
 | `synthetic_svi_sheet_2026-09-30_svi.json` | The same sheet, `method: SviPerExpiry` (butterfly and calendar enforcement on). |
+| `synthetic_scotia_ndx_sheet.json`, `synthetic_scotia_rty_sheet.json` | The two quote sheets of the Scotia structured-note example as files (`{as_of_date, spot, sheet}`, the shape `tools/option_quotes/cboe_eod_to_quote_sheet.py` writes): the `svi_scotia_ndx` / `svi_scotia_rty` presets, read by `examples/structured_note_workflow/price_note_from_quotes.py`. |
 
-Both are produced by
+The first two are produced by
 
 ```bash
 python3 tests/tools/make_synthetic_quote_sheet.py --preset svi --endpoint vol-surface \
@@ -94,7 +95,9 @@ python3 tests/tools/make_synthetic_quote_sheet.py --preset svi_scotia_ndx --endp
 python3 tests/tools/make_synthetic_quote_sheet.py --preset svi_scotia_rty --endpoint vol-surface --method SviPerExpiry
 ```
 
-each POSTed to `/calibrate-vol-surface`; the returned `vol_surface_spec`s
+each POSTed to `/calibrate-vol-surface` (`synthetic_scotia_{ndx,rty}_sheet.json`
+are those two sheets as files, and `examples/structured_note_workflow/` runs the
+whole chain on them); the returned `vol_surface_spec`s
 (grid file) or `vol_surface_spec_svi`s (SVI file) are the note's
 `vol_surfaces`, the requests' `sheet`s are its
 `diagnostics.vanilla_repricing_sheets` (step 4: `vanilla_repricing: true`

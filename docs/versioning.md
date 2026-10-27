@@ -26,6 +26,16 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Unreleased
+
+- Docs and examples only: `examples/structured_note_workflow/` walks through
+  pricing a structured note at three levels of market data (flat vols;
+  option quotes → `/calibrate-implied-forwards` → `/calibrate-vol-surface` →
+  `/price-structured-note` with the repricing diagnostic, as a runnable
+  Python script and its curl equivalent; pasted surfaces, forwards,
+  correlation and funding). The two synthetic Scotia quote sheets are now
+  files under `examples/data/vol_surface/`; a contract test runs the script.
+
 ## Version 0.15.0 (October 2026) — surfaces that the simulation can trust
 
 `v0.15.0` is a backward-compatible MINOR release. No existing request changes
