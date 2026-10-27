@@ -209,6 +209,18 @@
       "type" : "string",
       "enum": ["Alive", "Called", "Matured"]
     },
+    "quantra_enums_ReturnType" : {
+      "type" : "string",
+      "enum": ["Log", "Simple"]
+    },
+    "quantra_enums_ReturnFrequency" : {
+      "type" : "string",
+      "enum": ["Daily", "Weekly"]
+    },
+    "quantra_enums_CorrelationShrinkage" : {
+      "type" : "string",
+      "enum": ["None", "LedoitWolf", "Fixed"]
+    },
     "quantra_EquityOptionResponse" : {
       "type" : "object",
       "description" : "Equity option pricing result.",

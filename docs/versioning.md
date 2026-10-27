@@ -26,15 +26,51 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
-## Unreleased
+## Version 0.16.0 (October 2026) — correlation as an input you can reproduce
 
-- Docs and examples only: `examples/structured_note_workflow/` walks through
+`v0.16.0` is a backward-compatible MINOR release. No existing request
+changes shape or value unless it opts in. It closes the market-data chain
+for basket products: the correlation matrix a structured note runs on can
+now be estimated by the engine from price histories, reproducibly, and
+shifted on the note by the desk.
+
+- `POST /calibrate-correlation` (additive): a `CorrelationMatrixSpec` from
+  the closes of two or more underlyings (`PriceSeries` of `{date, value}`;
+  the engine fetches nothing). Dates aligned by inner join inside a window
+  (`window_days` back from `as_of_date`, an explicit `start_date` /
+  `end_date`, or every common date), `Daily` or `Weekly` sampling, `Log` or
+  `Simple` returns, the sample correlation, shrinkage toward the
+  constant-correlation target (`LedoitWolf` default with the Ledoit-Wolf
+  2004 intensity clipped to `[0, 1]`, `Fixed`, or `None`), and an
+  eigenvalue floor (`SymmetricSchurDecomposition`, clipped and rescaled,
+  reported when applied). The response carries the spec, the unshrunk
+  `sample_correlation`, the target and intensity, the smallest eigenvalue
+  before and after, the observations and dates used, per-series closes
+  supplied / dropped / realised vol (Act/252), and `estimator_echo`, the
+  settings as resolved, which reproduce the response when posted back.
+  New enums `ReturnType`, `ReturnFrequency`, `CorrelationShrinkage`. Python
+  reference `calibrate_correlation_ql` (bit-level to `1e-12`), gtests,
+  contract tests, two catalog rows on public index closes
+  (`examples/data/correlation/`: the NDX / RTY year that reproduces the
+  Scotia example's 0.747, and NDX / RTY / SPX with Ledoit-Wolf).
+- `StructuredNote.correlation_markup` (additive, optional): a uniform shift
+  of every off-diagonal entry of the note's correlation matrix before
+  pricing, clipped to `[-1, 1]`, repaired like the Greeks' bump when the
+  shift breaks positive semi-definiteness; `terms` echoes
+  `correlation_markup` and `correlation_markup_repaired`, the `market`
+  diagnostic gains `correlation_base` and `correlation_markup` next to the
+  matrix used. The Greeks' correlation bump and the limit checks start from
+  the marked-up matrix. `400` outside `[-1, 1]` or on a single-underlying
+  note. A request without the field is unchanged.
+- Docs and examples: `examples/structured_note_workflow/` walks through
   pricing a structured note at three levels of market data (flat vols;
-  option quotes → `/calibrate-implied-forwards` → `/calibrate-vol-surface` →
+  price histories → `/calibrate-correlation`, option quotes →
+  `/calibrate-implied-forwards` → `/calibrate-vol-surface` →
   `/price-structured-note` with the repricing diagnostic, as a runnable
-  Python script and its curl equivalent; pasted surfaces, forwards,
-  correlation and funding). The two synthetic Scotia quote sheets are now
-  files under `examples/data/vol_surface/`; a contract test runs the script.
+  Python script with `--closes` and its curl equivalent; pasted surfaces,
+  forwards, correlation and funding). The two synthetic Scotia quote sheets
+  are files under `examples/data/vol_surface/`; a contract test runs the
+  script. `docs/http-api.md` gains "Correlation from price histories".
 
 ## Version 0.15.0 (October 2026) — surfaces that the simulation can trust
 

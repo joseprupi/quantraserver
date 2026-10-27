@@ -5484,6 +5484,17 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
         for a, ia in enumerate(ids):
             for b, ib in enumerate(ids):
                 correlation[a][b] = float(flat[labels.index(ia) * n_lab + labels.index(ib)])
+    # The desk's uniform mark-up: every off-diagonal entry shifted, clipped
+    # and repaired exactly as the Greeks' bump (the engine applies
+    # bumpCorrelation to the supplied matrix before anything is simulated).
+    correlation_base = correlation
+    correlation_markup = note.get("correlation_markup")
+    correlation_markup_repaired = False
+    if correlation_markup is not None:
+        if n_u == 1:
+            raise ValueError("correlation_markup must be absent with a single underlying")
+        correlation, correlation_markup_repaired = _sn_bump_correlation(
+            correlation, float(correlation_markup))
 
     def make_asset(spot_handle, dividend, risk_free, vol, exact):
         """One simulated asset: the GeneralizedBlackScholesProcess(spot,
@@ -5987,6 +5998,10 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
         market["discount_factors_with_funding"] = [df(d) for d in pay_dates]
         market["correlation_labels"] = list(ids)
         market["correlation"] = [correlation[i][j] for i in range(n_u) for j in range(n_u)]
+        if correlation_markup is not None:
+            market["correlation_base"] = [correlation_base[i][j]
+                                          for i in range(n_u) for j in range(n_u)]
+            market["correlation_markup"] = float(correlation_markup)
         result["market"] = market
 
     if want_decomposition:
@@ -6935,6 +6950,255 @@ def applied_calendar_overrides(request: dict):
                 calendar.removeHoliday(d)
             else:
                 calendar.addHoliday(d)
+
+
+# ---------------------------------------------------------------------------
+# Correlation from price histories (/calibrate-correlation)
+# ---------------------------------------------------------------------------
+
+def _corr_floor_eigenvalues(c, floor: float):
+    """The engine's floorEigenvalues: V diag(max(lambda, floor)) V^T rescaled
+    to unit diagonal when the smallest eigenvalue is below -1e-10 (the
+    registry's tolerance), upper triangle computed and mirrored, sums in
+    the engine's order. Returns (matrix, applied, smallest_before,
+    smallest_after)."""
+    n = c.rows()
+    schur = ql.SymmetricSchurDecomposition(c)
+    ev = schur.eigenvalues()
+    smallest = ev[0]
+    for l in range(1, n):
+        smallest = min(smallest, ev[l])
+    if smallest >= -1.0e-10:
+        return c, False, smallest, smallest
+    v = schur.eigenvectors()
+    r = [[0.0] * n for _ in range(n)]
+    for i in range(n):
+        for j in range(i, n):
+            total = 0.0
+            for l in range(n):
+                total += v[i][l] * max(ev[l], floor) * v[j][l]
+            r[i][j] = total
+            r[j][i] = total
+    out = ql.Matrix(n, n)
+    for i in range(n):
+        out[i][i] = 1.0
+        for j in range(i + 1, n):
+            out[i][j] = r[i][j] / math.sqrt(r[i][i] * r[j][j])
+            out[j][i] = out[i][j]
+    ev2 = ql.SymmetricSchurDecomposition(out).eigenvalues()
+    after = ev2[0]
+    for l in range(1, n):
+        after = min(after, ev2[l])
+    return out, True, smallest, after
+
+
+def calibrate_correlation_ql(request: dict) -> dict:
+    """Independent re-run of the engine's historical correlation estimator.
+
+    Mirrors src/evaluators/correlation_calibration_evaluator.{h,cpp} step
+    by step in plain Python (no numpy): the window ([as_of - window_days,
+    as_of], the explicit [start_date, end_date], or unbounded), the inner
+    join on dates, the Weekly sampling (every fifth common observation
+    counted back from the last), log or simple returns, the 1/T covariance
+    and the sample correlation, the Ledoit-Wolf (2004) constant-correlation
+    intensity (formula in the evaluator header; 0 for two series), the
+    shrunk matrix delta x target + (1 - delta) x sample, the eigenvalue
+    floor through QuantLib's SymmetricSchurDecomposition, and the Act/252
+    realised vols. Every sum runs in the engine's order so the two agree to
+    1e-12.
+
+    Returns {dotted.response.path: value} for every numeric field of the
+    response (the spec's values, the sample correlation, the shrinkage and
+    eigenvalue report, the counts, per-series observations / dropped /
+    annualised_volatility, the numeric estimator echo), so the functional
+    catalog's "fields" compare and the contract test check the whole
+    response; the contract test checks the string fields (labels, dates,
+    the echoed enums) from the request. The engine's 400s raise ValueError.
+    """
+    series = request["series"]
+    if len(series) < 2:
+        raise ValueError("series: at least two price series are needed")
+    ids = [s["underlying_id"] for s in series]
+    if len(set(ids)) != len(ids):
+        raise ValueError("series: duplicate underlying_id")
+    est = dict(request.get("estimator") or {})
+    window_days = est.get("window_days")
+    start_date = est.get("start_date") or None
+    end_date = est.get("end_date") or None
+    if window_days is not None and (start_date or end_date):
+        raise ValueError("estimator.window_days: give either window_days or start/end")
+    returns_kind = est.get("returns", "Log")
+    frequency = est.get("frequency", "Daily")
+    shrinkage = est.get("shrinkage", "LedoitWolf")
+    intensity = est.get("shrinkage_intensity")
+    if shrinkage == "Fixed":
+        if intensity is None:
+            raise ValueError("estimator.shrinkage_intensity is required with Fixed")
+        if not 0.0 <= float(intensity) <= 1.0:
+            raise ValueError("estimator.shrinkage_intensity must be in [0, 1]")
+    elif intensity is not None:
+        raise ValueError("estimator.shrinkage_intensity is only read with Fixed")
+    min_overlap = int(est.get("min_overlap", 60))
+    if min_overlap < 3:
+        raise ValueError("estimator.min_overlap must be >= 3")
+    floor = float(est.get("eigenvalue_floor", 1e-8))
+    if not 0.0 <= floor < 1.0:
+        raise ValueError("estimator.eigenvalue_floor must be in [0, 1)")
+
+    as_of = parse_date(request["as_of_date"])
+    lo = parse_date(start_date) if start_date else None
+    hi = parse_date(end_date) if end_date else None
+    if window_days is not None:
+        if int(window_days) <= 0:
+            raise ValueError("estimator.window_days must be > 0")
+        lo = as_of - ql.Period(int(window_days), ql.Days)
+        hi = as_of
+    if lo is not None and hi is not None and lo > hi:
+        raise ValueError("estimator.start_date is after end_date")
+
+    # Per series: strictly increasing dates, positive closes, the window.
+    by_date = []
+    for k, s in enumerate(series):
+        closes = s["closes"]
+        if not closes:
+            raise ValueError(f"series[{k}].closes must contain at least one close")
+        prev = None
+        m = {}
+        for c in closes:
+            d = parse_date(c["date"])
+            v = float(c["value"])
+            if not v > 0.0 or math.isinf(v) or math.isnan(v):
+                raise ValueError(f"series[{k}].closes value must be > 0")
+            if prev is not None and not d > prev:
+                raise ValueError(f"series[{k}].closes dates must be strictly increasing")
+            prev = d
+            if lo is not None and d < lo:
+                continue
+            if hi is not None and d > hi:
+                continue
+            m[d.serialNumber()] = (d, v)
+        by_date.append(m)
+    common = sorted(set.intersection(*(set(m) for m in by_date)))
+    if not common:
+        raise ValueError("estimator window contains no date common to every series")
+    if len(common) < min_overlap:
+        raise ValueError(f"overlap of {len(common)} common dates is below min_overlap")
+    step = 5 if frequency == "Weekly" else 1
+    used = []
+    k = len(common)
+    while k >= 1:
+        used.append(common[k - 1])
+        if k - 1 < step:
+            break
+        k -= step
+    used.reverse()
+    if len(used) < 3:
+        raise ValueError("fewer than 3 observations after the sampling")
+    big_t = len(used) - 1
+
+    # Returns, demeaned, series order.
+    n = len(series)
+    y = []
+    for i in range(n):
+        x = []
+        for t in range(big_t):
+            p0 = by_date[i][used[t]][1]
+            p1 = by_date[i][used[t + 1]][1]
+            x.append(math.log(p1 / p0) if returns_kind == "Log" else p1 / p0 - 1.0)
+        total = 0.0
+        for t in range(big_t):
+            total += x[t]
+        mean = total / float(big_t)
+        y.append([x[t] - mean for t in range(big_t)])
+
+    # 1/T covariance and the sample correlation.
+    cov = [[0.0] * n for _ in range(n)]
+    for i in range(n):
+        for j in range(n):
+            total = 0.0
+            for t in range(big_t):
+                total += y[i][t] * y[j][t]
+            cov[i][j] = total / float(big_t)
+    corr = [[1.0] * n for _ in range(n)]
+    for i in range(n):
+        for j in range(n):
+            if i != j:
+                corr[i][j] = cov[i][j] / math.sqrt(cov[i][i] * cov[j][j])
+
+    # Ledoit-Wolf toward the constant-correlation target.
+    rsum = 0.0
+    for i in range(n):
+        for j in range(i + 1, n):
+            rsum += corr[i][j]
+    target = rsum * 2.0 / (float(n) * float(n - 1))
+    lw_delta = 0.0
+    if n > 2:
+        td = float(big_t)
+        pi = 0.0
+        rho = 0.0
+        gamma = 0.0
+        for i in range(n):
+            for j in range(n):
+                pij = 0.0
+                for t in range(big_t):
+                    d = y[i][t] * y[j][t] - cov[i][j]
+                    pij += d * d
+                pij /= td
+                pi += pij
+                if i == j:
+                    rho += pij
+                else:
+                    theta_ii = 0.0
+                    theta_jj = 0.0
+                    for t in range(big_t):
+                        d = y[i][t] * y[j][t] - cov[i][j]
+                        theta_ii += (y[i][t] * y[i][t] - cov[i][i]) * d
+                        theta_jj += (y[j][t] * y[j][t] - cov[j][j]) * d
+                    theta_ii /= td
+                    theta_jj /= td
+                    rho += (target / 2.0) * (math.sqrt(cov[j][j] / cov[i][i]) * theta_ii
+                                             + math.sqrt(cov[i][i] / cov[j][j]) * theta_jj)
+                    f = target * math.sqrt(cov[i][i] * cov[j][j])
+                    gamma += (f - cov[i][j]) * (f - cov[i][j])
+        if gamma > 0.0:
+            kappa = (pi - rho) / gamma
+            lw_delta = max(0.0, min(1.0, kappa / td))
+    delta = {"None": 0.0, "LedoitWolf": lw_delta}.get(shrinkage)
+    if shrinkage == "Fixed":
+        delta = float(intensity)
+    shrunk = ql.Matrix(n, n)
+    for i in range(n):
+        for j in range(n):
+            shrunk[i][j] = 1.0 if i == j else delta * target + (1.0 - delta) * corr[i][j]
+    floored, applied, before, after = _corr_floor_eigenvalues(shrunk, floor)
+
+    # Output order.
+    labels = request.get("labels") or ids
+    if sorted(labels) != sorted(ids) or len(labels) != len(ids):
+        raise ValueError("labels must be a permutation of the series ids")
+    order = [ids.index(l) for l in labels]
+    fields = {}
+    fields["correlation_spec.values.n_rows"] = n
+    fields["correlation_spec.values.n_cols"] = n
+    fields["correlation_spec.values.values"] = [floored[a][b] for a in order for b in order]
+    fields["sample_correlation"] = [corr[a][b] for a in order for b in order]
+    fields["shrinkage_target"] = target
+    fields["shrinkage_intensity_used"] = delta
+    fields["eigenvalue_floor_applied"] = applied
+    fields["smallest_eigenvalue_before"] = before
+    fields["smallest_eigenvalue_after"] = after
+    fields["observations_used"] = len(used)
+    fields["returns_used"] = big_t
+    annualisation = 252.0 / float(step) * float(big_t) / float(big_t - 1)
+    for pos, i in enumerate(order):
+        fields[f"series.{pos}.observations"] = len(series[i]["closes"])
+        fields[f"series.{pos}.dropped"] = len(series[i]["closes"]) - len(used)
+        fields[f"series.{pos}.annualised_volatility"] = math.sqrt(cov[i][i] * annualisation)
+    if shrinkage == "Fixed":
+        fields["estimator_echo.shrinkage_intensity"] = float(intensity)
+    fields["estimator_echo.min_overlap"] = min_overlap
+    fields["estimator_echo.eigenvalue_floor"] = floor
+    return fields
 
 
 def _with_calendar_overrides(pricer):

@@ -11,6 +11,7 @@
 #include "calendar_advance_handler.h"
 #include "calendar_business_days_handler.h"
 #include "calendar_holidays_handler.h"
+#include "calibrate_correlation_handler.h"
 #include "calibrate_implied_forwards_handler.h"
 #include "calibrate_swaption_model_handler.h"
 #include "calibrate_swaption_vol_handler.h"

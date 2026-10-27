@@ -1,0 +1,70 @@
+include "correlation.fbs";
+include "calibrate_correlation_request.fbs";
+
+namespace quantra;
+
+/// Per-series report of `/calibrate-correlation`, in the output label
+/// order.
+table CorrelationSeriesReport {
+    underlying_id:string (required);
+    /// Closes supplied for this series.
+    observations:uint;
+    /// Closes not used: outside the window, on a date some other series
+    /// lacks, or skipped by the Weekly sampling. `observations - dropped`
+    /// is `observations_used` for every series.
+    dropped:uint;
+    /// Realised volatility of the returns used, annualised on an Act/252
+    /// basis: sqrt(unbiased variance x 252 / step) with step 1 (Daily) or 5
+    /// (Weekly). A by-product; not what pricing should use for a vol.
+    annualised_volatility:double;
+}
+
+/// Response of `/calibrate-correlation`.
+table CalibrateCorrelationResponse {
+    /// The estimated matrix under the request's `correlation_id`, labels in
+    /// the output order, values row-major: ready to paste under
+    /// `pricing.correlations.matrices` and reference from a trade.
+    correlation_spec:CorrelationMatrixSpec (required);
+    /// The sample correlation before shrinkage and before the eigenvalue
+    /// floor, row-major in the same label order.
+    sample_correlation:[double] (required);
+    /// The constant-correlation target: the average of the off-diagonal
+    /// sample correlations.
+    shrinkage_target:double;
+    /// Intensity applied: 0 for None, the Ledoit-Wolf value (clipped to
+    /// [0, 1]) for LedoitWolf, the request's value for Fixed. Off-diagonal
+    /// entries of the result are `intensity x target + (1 - intensity) x
+    /// sample` before the eigenvalue floor. With exactly two series the
+    /// target equals the sample correlation and the intensity is reported
+    /// as 0 (there is nothing to shrink).
+    shrinkage_intensity_used:double;
+    /// True when the shrunk matrix was not positive semi-definite to the
+    /// registry's tolerance (smallest eigenvalue below -1e-10) and was
+    /// repaired (eigenvalues clipped to `eigenvalue_floor`, rescaled to
+    /// unit diagonal).
+    eigenvalue_floor_applied:bool;
+    /// Smallest eigenvalue of the shrunk matrix before the floor.
+    smallest_eigenvalue_before:double;
+    /// Smallest eigenvalue of the returned matrix (equal to `before` when
+    /// the floor was not applied).
+    smallest_eigenvalue_after:double;
+    /// Price observations that entered the returns (after the window, the
+    /// alignment and the frequency sampling); the same for every series.
+    observations_used:uint;
+    /// `observations_used - 1`.
+    returns_used:uint;
+    /// First and last observation dates used.
+    first_date:string (required);
+    last_date:string (required);
+    /// One entry per series, in the output label order.
+    series:[CorrelationSeriesReport] (required);
+    /// The estimator settings as resolved: the explicit window actually
+    /// applied (`start_date` / `end_date`, never `window_days`), the
+    /// returns, frequency and shrinkage used, `shrinkage_intensity` present
+    /// iff the shrinkage is Fixed, `min_overlap` and `eigenvalue_floor`.
+    /// Posting the same series with this block as `estimator` reproduces
+    /// the response.
+    estimator_echo:CorrelationEstimator (required);
+}
+
+root_type CalibrateCorrelationResponse;

@@ -52,7 +52,7 @@ bash tests/run_all_tests.sh
 | --- | --- |
 | `build.md` | Docker, devcontainer, local dependencies, build commands, troubleshooting |
 | `configuration.md` | Runtime environment variables: workers, ports, request budget, caches |
-| `http-api.md` | Cross-product HTTP contract: presence rules, dates, status codes, headers, calendar holiday overrides; product sections incl. "Structured notes", "Implied forwards and dividends from option quotes" and "Volatility surface from option quotes" |
+| `http-api.md` | Cross-product HTTP contract: presence rules, dates, status codes, headers, calendar holiday overrides; product sections incl. "Structured notes", "Implied forwards and dividends from option quotes", "Volatility surface from option quotes" and "Correlation from price histories" |
 | `scripts.md` | `generate_schemas.sh`, `generate_openapi.py`, `build.sh`, `scripts/quantra`, `envoy_config.py` |
 | `testing.md` | Full suite behavior, direct test entrypoints, CI expectations |
 | `process-manager.md` | Envoy-backed runtime model and installable process manager tooling |

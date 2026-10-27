@@ -209,6 +209,18 @@
       "type" : "string",
       "enum": ["Alive", "Called", "Matured"]
     },
+    "quantra_enums_ReturnType" : {
+      "type" : "string",
+      "enum": ["Log", "Simple"]
+    },
+    "quantra_enums_ReturnFrequency" : {
+      "type" : "string",
+      "enum": ["Daily", "Weekly"]
+    },
+    "quantra_enums_CorrelationShrinkage" : {
+      "type" : "string",
+      "enum": ["None", "LedoitWolf", "Fixed"]
+    },
     "quantra_Flow" : {
       "type" : "string",
       "enum": ["NONE", "FlowInterest", "FlowPastInterest", "FlowNotional"]
@@ -1436,6 +1448,14 @@
                 "type" : "string",
                 "description" : "Absent for a single-underlying note (simulated on a 1 x 1 unit\nmatrix)."
               },
+        "correlation_markup" : {
+                "type" : "number",
+                "description" : "The request's `correlation_markup`; absent when none was given."
+              },
+        "correlation_markup_repaired" : {
+                "type" : "boolean",
+                "description" : "True when the marked-up matrix was not positive semi-definite and\nwas repaired before pricing (see `StructuredNote.correlation_markup`).\nFalse without a mark-up."
+              },
         "paths" : {
                 "type" : "integer", "minimum" : 0, "maximum" : 4294967295,
                 "description" : "Paths requested (the number actually simulated is on the result)."
@@ -1806,7 +1826,15 @@
               },
         "correlation" : {
                 "type" : "array", "items" : {"type" : "number"},
-                "description" : "The correlation matrix as used, row-major n x n, permuted to the\nnote's underlying order; the 1 x 1 unit matrix for a single\nunderlying. No repair is ever applied (a matrix that is not positive\nsemi-definite is a 400)."
+                "description" : "The correlation matrix as used, row-major n x n, permuted to the\nnote's underlying order; the 1 x 1 unit matrix for a single\nunderlying. The supplied matrix is never repaired (one that is not\npositive semi-definite is a 400); with a `correlation_markup` this is\nthe shifted (and, when needed, repaired) matrix the simulation ran on."
+              },
+        "correlation_base" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "With a `correlation_markup`: the matrix as supplied, before the\nshift, same order. Absent otherwise."
+              },
+        "correlation_markup" : {
+                "type" : "number",
+                "description" : "The request's `correlation_markup`; absent when none was given."
               }
       },
       "required" : ["observation_dates", "underlyings", "payment_dates", "discount_factors", "discount_factors_with_funding", "correlation_labels", "correlation"],

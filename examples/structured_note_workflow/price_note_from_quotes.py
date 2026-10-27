@@ -2,8 +2,12 @@
 """Price a structured note from listed option quotes (level 2 of
 examples/structured_note_workflow/README.md).
 
-Three calls per underlying, then one per surface payload:
+Three calibration calls (one for the basket, two per underlying), then
+one pricing per surface payload:
 
+  0. POST /calibrate-correlation        (with --closes) price histories ->
+                                        the correlation matrix spec, sample
+                                        and shrunk, pasted into the note
   1. POST /calibrate-implied-forwards   quote sheet -> forwards, implied
                                         dividend yields, a dividend curve spec
   2. POST /calibrate-vol-surface        quote sheet + forwards -> the Black
@@ -23,7 +27,10 @@ worst-of) and the two SYNTHETIC quote sheets under examples/data/vol_surface/
 market; nothing in them is market data, so the prices are not valuations of
 the note). Point --sheet-ndx / --sheet-rty at sheets of your own, for
 instance the output of tools/option_quotes/cboe_eod_to_quote_sheet.py, and
---note at any note whose underlyings the sheets cover.
+--note at any note whose underlyings the sheets cover. `--closes` (with no
+path: the shipped NDX / RTY closes under examples/data/correlation/, public
+index closes) replaces the note's booked correlation matrix by the one
+estimated from the histories; without it the matrix stays as booked.
 
 Python 3 standard library plus `requests`. Every request body it sends and
 every response it gets back are written to --out-dir so they can be
@@ -50,6 +57,8 @@ DEFAULT_SHEETS = {
     "NDX": REPO / "examples" / "data" / "vol_surface" / "synthetic_scotia_ndx_sheet.json",
     "RTY": REPO / "examples" / "data" / "vol_surface" / "synthetic_scotia_rty_sheet.json",
 }
+DEFAULT_CLOSES = REPO / "examples" / "data" / "correlation" / \
+    "ndx_rut_closes_2025-09-29_to_2026-09-30.json"
 # The filter of both calibrations and of the repricing diagnostic: the
 # engine's defaults, written out so that the request files show them.
 FILTER = {"max_relative_spread": 0.05, "min_quotes_per_expiry": 4, "moneyness_window": 0.25}
@@ -212,7 +221,49 @@ def step_a_load(args) -> tuple[dict, dict]:
     return note_req, sheets
 
 
-def step_b_forwards(engine: Engine, note_req: dict, sheets: dict) -> dict:
+def step_b_correlation(engine: Engine, note_req: dict, closes_path: str | None) -> dict | None:
+    """With --closes: POST /calibrate-correlation on the price-history file
+    (a calibrate-correlation request whose series are the note's
+    underlyings), print the sample and the shrunk matrix, and paste the
+    returned spec into the note under its own correlation_id. Returns the
+    response, or None when no closes were given."""
+    note = note_req["notes"][0]
+    ids = [u["underlying_id"] for u in note["underlyings"]]
+    if closes_path is None:
+        matrix = find(note_req["pricing"]["correlations"]["matrices"], "id", note["correlation_id"])
+        print(f"(b) correlation {note['correlation_id']} as booked (no --closes): labels "
+              f"{matrix['labels']}, values {matrix['values']['values']}")
+        return None
+    body = json.loads(Path(closes_path).read_text())
+    series_ids = [s["underlying_id"] for s in body.get("series", [])]
+    if sorted(series_ids) != sorted(ids):
+        raise SystemExit(f"{closes_path}: series {series_ids} are not the note's underlyings {ids}")
+    body["correlation_id"] = note["correlation_id"]
+    body["labels"] = ids
+    resp = engine.post("calibrate-correlation", body, "correlation")
+    spec = resp["correlation_spec"]
+    note_req["pricing"]["correlations"]["matrices"] = [
+        m for m in note_req["pricing"]["correlations"]["matrices"] if m["id"] != spec["id"]] + [spec]
+    echo = resp["estimator_echo"]
+    n = len(ids)
+    print(f"(b) correlation {spec['id']} from {closes_path}: {resp['observations_used']} common closes "
+          f"{resp['first_date']} to {resp['last_date']}, {echo['returns']} returns, {echo['frequency']}, "
+          f"shrinkage {echo['shrinkage']} (intensity {resp['shrinkage_intensity_used']:.4f}, "
+          f"target {resp['shrinkage_target']:.4f})"
+          + (f"; eigenvalue floor applied ({resp['smallest_eigenvalue_before']:.2e} -> "
+             f"{resp['smallest_eigenvalue_after']:.2e})" if resp["eigenvalue_floor_applied"] else ""))
+    print("      " + " " * 8 + "".join(f"{l:>12s}" for l in ids) + "      (sample)")
+    for i, l in enumerate(ids):
+        used = "".join(f"{spec['values']['values'][i * n + j]:12.6f}" for j in range(n))
+        sample = "".join(f"{resp['sample_correlation'][i * n + j]:10.6f}" for j in range(n))
+        print(f"      {l:8s}{used}     {sample}")
+    for srs in resp["series"]:
+        print(f"      {srs['underlying_id']}: {srs['observations']} closes, {srs['dropped']} dropped, "
+              f"realised vol {srs['annualised_volatility'] * 100:.2f}% (Act/252)")
+    return resp
+
+
+def step_c_forwards(engine: Engine, note_req: dict, sheets: dict) -> dict:
     note = note_req["notes"][0]
     out = {}
     for uid, loaded in sheets.items():
@@ -225,7 +276,7 @@ def step_b_forwards(engine: Engine, note_req: dict, sheets: dict) -> dict:
         usable = [e for e in resp["expiries"] if e["usable"]]
         dropped = sum(e["quotes_dropped"] for e in resp["expiries"])
         used = sum(e["quotes_used"] for e in resp["expiries"])
-        print(f"(b) {uid}: {len(usable)}/{len(resp['expiries'])} expiries usable, "
+        print(f"(c) {uid}: {len(usable)}/{len(resp['expiries'])} expiries usable, "
               f"{used} quotes used, {dropped} dropped; dividend curve {resp['dividend_curve_spec']['id']} "
               f"({len(resp['dividend_curve_spec']['points'])} points)")
         print("      expiry        T     forward   div yield  impl DF  curve DF  funding bp  used  rmse")
@@ -240,7 +291,7 @@ def step_b_forwards(engine: Engine, note_req: dict, sheets: dict) -> dict:
     return out
 
 
-def step_c_surfaces(engine: Engine, note_req: dict, sheets: dict, forwards: dict, method: str) -> dict:
+def step_d_surfaces(engine: Engine, note_req: dict, sheets: dict, forwards: dict, method: str) -> dict:
     note = note_req["notes"][0]
     out = {}
     for uid, loaded in sheets.items():
@@ -254,7 +305,7 @@ def step_c_surfaces(engine: Engine, note_req: dict, sheets: dict, forwards: dict
         resp = engine.post("calibrate-vol-surface", body, f"vol_surface_{uid}")
         vr = resp["vanilla_repricing"]
         grid = resp["vol_surface_spec"]["payload"]
-        print(f"(c) {uid}: {resp['method']}, forwards {resp['forwards_source']}; grid "
+        print(f"(d) {uid}: {resp['method']}, forwards {resp['forwards_source']}; grid "
               f"{len(resp['grid_expiries'])} expiries x {len(resp['grid_strikes'])} strikes "
               f"({grid.get('surface_interpolator')}); repricing on the grid: "
               f"{vr['inside_bid_ask']}/{vr['count']} inside bid/ask, max vol error "
@@ -375,7 +426,7 @@ def summarise(note: dict) -> dict:
 
 
 def print_table(rows: dict) -> None:
-    print("(f)")
+    print("(g)")
     print("    run    price      +/- SE   status  p_call  p_breach      bond   coupons   cap.loss"
           "  repricing inside/within noise/total  max vol err")
     for name, r in rows.items():
@@ -401,6 +452,10 @@ def main() -> int:
     ap.add_argument("--note", default=str(DEFAULT_NOTE),
                     help="price-structured-note request whose vols and dividend curves are replaced "
                          "(default: the Scotia note)")
+    ap.add_argument("--closes", nargs="?", const=str(DEFAULT_CLOSES), default=None, metavar="FILE",
+                    help="also calibrate the correlation matrix from this price-history file (a "
+                         "calibrate-correlation request on the note's underlyings) and paste it into "
+                         "the note; without a FILE, the shipped NDX / RTY closes")
     ap.add_argument("--paths", type=int, default=2048,
                     help="Monte Carlo paths (default %(default)s; the local-vol run and its repricing run "
                          "cost about 1 s per 1,000 paths each, against the JSON gateway's 10 s RPC deadline)")
@@ -423,8 +478,9 @@ def main() -> int:
     try:
         note_req, sheets = step_a_load(args)
         as_of = note_req["pricing"]["as_of_date"]
-        forwards = step_b_forwards(engine, note_req, sheets)
-        surfaces = step_c_surfaces(engine, note_req, sheets, forwards, args.method)
+        step_b_correlation(engine, note_req, args.closes)
+        forwards = step_c_forwards(engine, note_req, sheets)
+        surfaces = step_d_surfaces(engine, note_req, sheets, forwards, args.method)
 
         runs = {"grid": {uid: s["vol_surface_spec"] for uid, s in surfaces.items()}}
         if all("vol_surface_spec_svi" in s for s in surfaces.values()):
@@ -436,7 +492,7 @@ def main() -> int:
             resp = engine.post("price-structured-note", body, f"price_note_{name}")
             note = resp["notes"][0]
             rows[name] = r = summarise(note)
-            print(f"(d) {name}: {' / '.join(r['vol_shapes'])}, {r['time_steps']} time steps, {args.paths} paths: "
+            print(f"(e) {name}: {' / '.join(r['vol_shapes'])}, {r['time_steps']} time steps, {args.paths} paths: "
                   f"{r['npv']:.2f} +/- {r['se']:.2f} per {note_req['notes'][0]['notional']:g}"
                   + (f"; repriced on its own paths {r['rp_note_npv']:.2f} +/- {r['rp_note_se']:.2f}; "
                      f"{r['rp_count']} quotes, max SE {r['rp_max_se']:.3f}" if "rp_count" in r else "")
@@ -445,13 +501,13 @@ def main() -> int:
             specs = {}
             for uid, loaded in sheets.items():
                 expiry, strike, vol = one_year_atm_vol(as_of, loaded["sheet"], forwards[uid])
-                print(f"(e) {uid}: flat vol {vol * 100:.2f}% = the {expiry} ATM quote (strike {strike:,.2f})")
+                print(f"(f) {uid}: flat vol {vol * 100:.2f}% = the {expiry} ATM quote (strike {strike:,.2f})")
                 specs[uid] = flat_vol_spec(as_of, vol)
             body = note_request(note_req, sheets, forwards, specs, args.paths, None,
                                 repricing=not args.no_repricing)
             note = engine.post("price-structured-note", body, "price_note_flat")["notes"][0]
             rows["flat"] = r = summarise(note)
-            print(f"(e) flat: {' / '.join(r['vol_shapes'])}, {r['time_steps']} time steps: "
+            print(f"(f) flat: {' / '.join(r['vol_shapes'])}, {r['time_steps']} time steps: "
                   f"{r['npv']:.2f} +/- {r['se']:.2f}; engine {r['ms'] / 1000:.1f} s")
         print_table(rows)
         print(f"request and response bodies: {out_dir}")

@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# The three calls of examples/structured_note_workflow/README.md (level 2) as
-# raw HTTP: curl + jq, nothing else.
+# The calls of examples/structured_note_workflow/README.md (level 2) as raw
+# HTTP: curl + jq, nothing else.
 #
 #   price_note_from_quotes.sh [REQUEST_DIR] [URL]
 #
 # REQUEST_DIR holds the request bodies price_note_from_quotes.py writes
-# (implied_forwards_<ID>_request.json, vol_surface_<ID>_request.json,
+# (correlation_request.json when it ran with --closes,
+# implied_forwards_<ID>_request.json, vol_surface_<ID>_request.json,
 # price_note_grid_request.json, price_note_svi_request.json). Without it the
-# shipped example requests are used instead: the synthetic NDX-like sheet of
+# shipped example requests are used instead: the NDX / RTY closes of
+# examples/data/correlation/, the synthetic NDX-like sheet of
 # examples/data/implied_forwards/ and examples/data/vol_surface/, and the
 # Scotia note with its synthetic surfaces already pasted in
 # (examples/data/structured_note/..._with_synthetic_surface.json), so the
@@ -34,15 +36,28 @@ post() {  # post <endpoint> <request file> -> response on stdout, non-zero on HT
 }
 
 if [ -z "$REQ_DIR" ]; then
+    CORR=("$REPO/examples/data/correlation/ndx_rut_closes_2025-09-29_to_2026-09-30.json")
     FWD=("$REPO/examples/data/implied_forwards/synthetic_ndx_like_2026-09-30.json")
     VOL=("$REPO/examples/data/vol_surface/synthetic_svi_sheet_2026-09-30_svi.json")
     NOTE=("$REPO/examples/data/structured_note/scotia_autocallable_trigger_ndx_rty_us06419jme72_with_synthetic_surface.json"
           "$REPO/examples/data/structured_note/scotia_autocallable_trigger_ndx_rty_us06419jme72_with_synthetic_svi.json")
 else
+    CORR=()
+    [ -f "$REQ_DIR/correlation_request.json" ] && CORR=("$REQ_DIR/correlation_request.json")
     FWD=("$REQ_DIR"/implied_forwards_*_request.json)
     VOL=("$REQ_DIR"/vol_surface_*_request.json)
     NOTE=("$REQ_DIR"/price_note_*_request.json)
 fi
+
+# 0. Correlation from price histories: the matrix used, the sample next to it.
+for f in "${CORR[@]}"; do
+    echo "== calibrate-correlation  $(basename "$f")"
+    post calibrate-correlation "$f" | jq -r '
+        "\(.correlation_spec.id) \(.correlation_spec.labels | join("/")): \(.observations_used) closes \(.first_date) to \(.last_date), \(.estimator_echo.returns) \(.estimator_echo.frequency), shrinkage \(.estimator_echo.shrinkage) intensity \(.shrinkage_intensity_used | . * 10000 | round / 10000)",
+        "  used   \(.correlation_spec.values.values | map(. * 1000000 | round / 1000000) | join("  "))",
+        "  sample \(.sample_correlation | map(. * 1000000 | round / 1000000) | join("  "))",
+        (.series[] | "  \(.underlying_id): \(.observations) closes, \(.dropped) dropped, realised vol \(.annualised_volatility * 100 | . * 100 | round / 100)%")'
+done
 
 # 1. Implied forwards: forward, implied dividend yield, discount factors per expiry.
 for f in "${FWD[@]}"; do

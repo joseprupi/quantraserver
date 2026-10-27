@@ -178,38 +178,56 @@ class StructuredNoteTermsEcho(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # The request's `correlation_markup`; absent when none was given.
+    # StructuredNoteTermsEcho
+    def CorrelationMarkup(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(36))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
+    # True when the marked-up matrix was not positive semi-definite and
+    # was repaired before pricing (see `StructuredNote.correlation_markup`).
+    # False without a mark-up.
+    # StructuredNoteTermsEcho
+    def CorrelationMarkupRepaired(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(38))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
     # Paths requested (the number actually simulated is on the result).
     # StructuredNoteTermsEcho
     def Paths(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(36))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(40))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Uint32Flags, o + self._tab.Pos)
         return 0
 
     # StructuredNoteTermsEcho
     def Seed(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(38))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(42))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Uint64Flags, o + self._tab.Pos)
         return 0
 
     # StructuredNoteTermsEcho
     def Sequence(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(40))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(44))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
     # StructuredNoteTermsEcho
     def Antithetic(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(42))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(46))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
     # StructuredNoteTermsEcho
     def BrownianBridge(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(44))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(48))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
@@ -217,13 +235,13 @@ class StructuredNoteTermsEcho(object):
     # Absent when the grid is the observation dates only.
     # StructuredNoteTermsEcho
     def StepsPerYear(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(46))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(50))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Uint32Flags, o + self._tab.Pos)
         return None
 
 def StructuredNoteTermsEchoStart(builder):
-    builder.StartObject(22)
+    builder.StartObject(24)
 
 def Start(builder):
     StructuredNoteTermsEchoStart(builder)
@@ -336,38 +354,50 @@ def StructuredNoteTermsEchoAddCorrelationId(builder, correlationId):
 def AddCorrelationId(builder, correlationId):
     StructuredNoteTermsEchoAddCorrelationId(builder, correlationId)
 
+def StructuredNoteTermsEchoAddCorrelationMarkup(builder, correlationMarkup):
+    builder.PrependFloat64Slot(16, correlationMarkup, None)
+
+def AddCorrelationMarkup(builder, correlationMarkup):
+    StructuredNoteTermsEchoAddCorrelationMarkup(builder, correlationMarkup)
+
+def StructuredNoteTermsEchoAddCorrelationMarkupRepaired(builder, correlationMarkupRepaired):
+    builder.PrependBoolSlot(17, correlationMarkupRepaired, 0)
+
+def AddCorrelationMarkupRepaired(builder, correlationMarkupRepaired):
+    StructuredNoteTermsEchoAddCorrelationMarkupRepaired(builder, correlationMarkupRepaired)
+
 def StructuredNoteTermsEchoAddPaths(builder, paths):
-    builder.PrependUint32Slot(16, paths, 0)
+    builder.PrependUint32Slot(18, paths, 0)
 
 def AddPaths(builder, paths):
     StructuredNoteTermsEchoAddPaths(builder, paths)
 
 def StructuredNoteTermsEchoAddSeed(builder, seed):
-    builder.PrependUint64Slot(17, seed, 0)
+    builder.PrependUint64Slot(19, seed, 0)
 
 def AddSeed(builder, seed):
     StructuredNoteTermsEchoAddSeed(builder, seed)
 
 def StructuredNoteTermsEchoAddSequence(builder, sequence):
-    builder.PrependInt8Slot(18, sequence, 0)
+    builder.PrependInt8Slot(20, sequence, 0)
 
 def AddSequence(builder, sequence):
     StructuredNoteTermsEchoAddSequence(builder, sequence)
 
 def StructuredNoteTermsEchoAddAntithetic(builder, antithetic):
-    builder.PrependBoolSlot(19, antithetic, 0)
+    builder.PrependBoolSlot(21, antithetic, 0)
 
 def AddAntithetic(builder, antithetic):
     StructuredNoteTermsEchoAddAntithetic(builder, antithetic)
 
 def StructuredNoteTermsEchoAddBrownianBridge(builder, brownianBridge):
-    builder.PrependBoolSlot(20, brownianBridge, 0)
+    builder.PrependBoolSlot(22, brownianBridge, 0)
 
 def AddBrownianBridge(builder, brownianBridge):
     StructuredNoteTermsEchoAddBrownianBridge(builder, brownianBridge)
 
 def StructuredNoteTermsEchoAddStepsPerYear(builder, stepsPerYear):
-    builder.PrependUint32Slot(21, stepsPerYear, None)
+    builder.PrependUint32Slot(23, stepsPerYear, None)
 
 def AddStepsPerYear(builder, stepsPerYear):
     StructuredNoteTermsEchoAddStepsPerYear(builder, stepsPerYear)
@@ -403,6 +433,8 @@ class StructuredNoteTermsEchoT(object):
         self.discountingCurve = None  # type: str
         self.fundingSpreadBp = 0.0  # type: float
         self.correlationId = None  # type: str
+        self.correlationMarkup = None  # type: Optional[float]
+        self.correlationMarkupRepaired = False  # type: bool
         self.paths = 0  # type: int
         self.seed = 0  # type: int
         self.sequence = 0  # type: int
@@ -461,6 +493,8 @@ class StructuredNoteTermsEchoT(object):
         self.discountingCurve = structuredNoteTermsEcho.DiscountingCurve()
         self.fundingSpreadBp = structuredNoteTermsEcho.FundingSpreadBp()
         self.correlationId = structuredNoteTermsEcho.CorrelationId()
+        self.correlationMarkup = structuredNoteTermsEcho.CorrelationMarkup()
+        self.correlationMarkupRepaired = structuredNoteTermsEcho.CorrelationMarkupRepaired()
         self.paths = structuredNoteTermsEcho.Paths()
         self.seed = structuredNoteTermsEcho.Seed()
         self.sequence = structuredNoteTermsEcho.Sequence()
@@ -520,6 +554,8 @@ class StructuredNoteTermsEchoT(object):
         StructuredNoteTermsEchoAddFundingSpreadBp(builder, self.fundingSpreadBp)
         if self.correlationId is not None:
             StructuredNoteTermsEchoAddCorrelationId(builder, correlationId)
+        StructuredNoteTermsEchoAddCorrelationMarkup(builder, self.correlationMarkup)
+        StructuredNoteTermsEchoAddCorrelationMarkupRepaired(builder, self.correlationMarkupRepaired)
         StructuredNoteTermsEchoAddPaths(builder, self.paths)
         StructuredNoteTermsEchoAddSeed(builder, self.seed)
         StructuredNoteTermsEchoAddSequence(builder, self.sequence)

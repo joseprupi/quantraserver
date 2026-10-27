@@ -56,6 +56,8 @@ include "../fbs/calibrate_implied_forwards_request.fbs";
 include "../fbs/calibrate_implied_forwards_response.fbs";
 include "../fbs/calibrate_vol_surface_request.fbs";
 include "../fbs/calibrate_vol_surface_response.fbs";
+include "../fbs/calibrate_correlation_request.fbs";
+include "../fbs/calibrate_correlation_response.fbs";
 include "../fbs/meta_request.fbs";
 include "../fbs/meta_response.fbs";
 
@@ -91,5 +93,6 @@ rpc_service QuantraServer {
   PriceStructuredNote(PriceStructuredNoteRequest):PriceStructuredNoteResponse;
   CalibrateImpliedForwards(CalibrateImpliedForwardsRequest):CalibrateImpliedForwardsResponse;
   CalibrateVolSurface(CalibrateVolSurfaceRequest):CalibrateVolSurfaceResponse;
+  CalibrateCorrelation(CalibrateCorrelationRequest):CalibrateCorrelationResponse;
   Meta(MetaRequest):MetaResponse;
 }

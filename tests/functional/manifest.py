@@ -115,6 +115,7 @@ CALIBRATION_TOLERANCE = 1e-7
 # 1e-6 absolute is 5e-11 relative on a forward and far below any economic
 # meaning (1e-6 in a yield is a hundredth of a basis point).
 IMPLIED_FORWARDS_TOLERANCE = 1e-6
+CORRELATION_TOLERANCE = 1e-10
 # Vol-surface cases compare the forwards used, the per-expiry fit errors and
 # SVI parameters, the grid strikes, every grid vol of the returned
 # BlackVolSpec and the per-quote repricing (model vol and model price) with
@@ -3680,6 +3681,55 @@ CASES = [
         "compare": "fields",
         "exercises": ["vol surface", "SVI", "butterfly arbitrage check",
                       "calendar arbitrage check", "implied vol", "vanilla repricing"],
+    },
+    # ------------------------------------------------------------------
+    # Correlation / Calibration — correlation matrices from price histories
+    # (compare="fields": the matrix, the sample correlation, the shrinkage
+    # and eigenvalue report, the counts and the realised vols)
+    # ------------------------------------------------------------------
+    {
+        "id": "corr_ndx_rty_one_year_daily_log_no_shrinkage",
+        "product": "calibrate_correlation",
+        "family": "Correlation / Calibration",
+        "title": "NDX / RTY correlation from one year of daily closes, no shrinkage",
+        "description": (
+            "Historical correlation of the Nasdaq-100 and the Russell 2000 "
+            "from 253 daily closes (2025-09-29 to 2026-09-30, index closes "
+            "from Yahoo Finance history pages): inner join on dates, daily "
+            "log returns, sample correlation (the 0.747 the Scotia "
+            "structured-note example is booked with), no shrinkage, "
+            "eigenvalue floor not needed. Compares the returned "
+            "CorrelationMatrixSpec values, the sample correlation, the "
+            "shrinkage target and intensity, the smallest eigenvalues, the "
+            "observation counts and the Act/252 realised volatilities."
+        ),
+        "request": "correlation/ndx_rut_closes_2025-09-29_to_2026-09-30.json",
+        "ql_pricer": "calibrate_correlation_ql",
+        "tolerance": CORRELATION_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["historical correlation", "log returns", "date alignment",
+                      "realised volatility", "correlation spec"],
+    },
+    {
+        "id": "corr_ndx_rty_spx_one_year_ledoit_wolf",
+        "product": "calibrate_correlation",
+        "family": "Correlation / Calibration",
+        "title": "NDX / RTY / SPX correlation with Ledoit-Wolf shrinkage",
+        "description": (
+            "Three index series (Nasdaq-100, Russell 2000, S&P 500) over a "
+            "365-calendar-day window back from 2026-10-19 (251 common "
+            "closes), daily log returns, Ledoit-Wolf (2004) shrinkage toward "
+            "the constant-correlation target. Compares the shrunk matrix, "
+            "the unshrunk sample correlation, the target and the intensity, "
+            "the eigenvalue report, the counts (closes outside the window "
+            "dropped per series) and the realised volatilities."
+        ),
+        "request": "correlation/ndx_rty_spx_closes_2025-10-17_to_2026-10-19.json",
+        "ql_pricer": "calibrate_correlation_ql",
+        "tolerance": CORRELATION_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["historical correlation", "Ledoit-Wolf shrinkage",
+                      "constant-correlation target", "window", "correlation spec"],
     },
     {
         "id": "sabrcal_eur_2x2_beta_fixed_exact_fit",

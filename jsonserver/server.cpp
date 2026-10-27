@@ -827,6 +827,15 @@ int main(int argc, char** argv) {
                     });
             });
 
+        CROW_ROUTE(app, "/calibrate-correlation")
+            .methods("POST"_method)([&](const crow::request& req) {
+                return respond(
+                    "/calibrate-correlation", req,
+                    [&](const std::string& body, const std::string& request_id) {
+                        return client.CalibrateCorrelationJSON(body, request_id);
+                    });
+            });
+
         // Print endpoints
         std::cout << "Endpoints:\n"
                   << "  POST /price-fixed-rate-bond\n"
@@ -850,6 +859,7 @@ int main(int argc, char** argv) {
                   << "  POST /calibrate-swaption-vol\n"
                   << "  POST /calibrate-implied-forwards\n"
                   << "  POST /calibrate-vol-surface\n"
+                  << "  POST /calibrate-correlation\n"
                   << "  POST /price-equity-option\n"
                   << "  POST /price-zero-coupon-bond\n"
                   << "  POST /price-zero-coupon-swap\n"

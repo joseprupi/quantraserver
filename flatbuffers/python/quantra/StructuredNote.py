@@ -187,10 +187,26 @@ class StructuredNote(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Uniform additive shift applied to every off-diagonal entry of the
+    # correlation matrix before pricing (the desk's correlation mark-up or
+    # stress): each entry becomes `rho + correlation_markup` clipped to
+    # [-1, 1]; when the shifted matrix is not positive semi-definite it is
+    # repaired exactly as the Greeks' correlation bump is (eigenvalue
+    # clipping, rescaled to unit diagonal) and the response says so. The
+    # Greeks' correlation bump and the correlation-limit checks start from
+    # the marked-up matrix. Finite, in [-1, 1] (400 otherwise); must be
+    # absent with a single underlying. Absent = no shift.
+    # StructuredNote
+    def CorrelationMarkup(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
     # Upside participation at the final observation. Absent = none.
     # StructuredNote
     def Upside(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.UpsideParticipation import UpsideParticipation
@@ -202,7 +218,7 @@ class StructuredNote(object):
     # Simulation settings. Required.
     # StructuredNote
     def MonteCarlo(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(32))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.MonteCarloSpec import MonteCarloSpec
@@ -212,7 +228,7 @@ class StructuredNote(object):
         return None
 
 def StructuredNoteStart(builder):
-    builder.StartObject(14)
+    builder.StartObject(15)
 
 def Start(builder):
     StructuredNoteStart(builder)
@@ -301,14 +317,20 @@ def StructuredNoteAddCorrelationId(builder, correlationId):
 def AddCorrelationId(builder, correlationId):
     StructuredNoteAddCorrelationId(builder, correlationId)
 
+def StructuredNoteAddCorrelationMarkup(builder, correlationMarkup):
+    builder.PrependFloat64Slot(12, correlationMarkup, None)
+
+def AddCorrelationMarkup(builder, correlationMarkup):
+    StructuredNoteAddCorrelationMarkup(builder, correlationMarkup)
+
 def StructuredNoteAddUpside(builder, upside):
-    builder.PrependUOffsetTRelativeSlot(12, flatbuffers.number_types.UOffsetTFlags.py_type(upside), 0)
+    builder.PrependUOffsetTRelativeSlot(13, flatbuffers.number_types.UOffsetTFlags.py_type(upside), 0)
 
 def AddUpside(builder, upside):
     StructuredNoteAddUpside(builder, upside)
 
 def StructuredNoteAddMonteCarlo(builder, monteCarlo):
-    builder.PrependUOffsetTRelativeSlot(13, flatbuffers.number_types.UOffsetTFlags.py_type(monteCarlo), 0)
+    builder.PrependUOffsetTRelativeSlot(14, flatbuffers.number_types.UOffsetTFlags.py_type(monteCarlo), 0)
 
 def AddMonteCarlo(builder, monteCarlo):
     StructuredNoteAddMonteCarlo(builder, monteCarlo)
@@ -340,6 +362,7 @@ class StructuredNoteT(object):
         self.discountingCurve = None  # type: str
         self.fundingSpreadBp = 0.0  # type: float
         self.correlationId = None  # type: str
+        self.correlationMarkup = None  # type: Optional[float]
         self.upside = None  # type: Optional[UpsideParticipationT]
         self.monteCarlo = None  # type: Optional[MonteCarloSpecT]
 
@@ -392,6 +415,7 @@ class StructuredNoteT(object):
         self.discountingCurve = structuredNote.DiscountingCurve()
         self.fundingSpreadBp = structuredNote.FundingSpreadBp()
         self.correlationId = structuredNote.CorrelationId()
+        self.correlationMarkup = structuredNote.CorrelationMarkup()
         if structuredNote.Upside() is not None:
             self.upside = UpsideParticipationT.InitFromObj(structuredNote.Upside())
         if structuredNote.MonteCarlo() is not None:
@@ -455,6 +479,7 @@ class StructuredNoteT(object):
         StructuredNoteAddFundingSpreadBp(builder, self.fundingSpreadBp)
         if self.correlationId is not None:
             StructuredNoteAddCorrelationId(builder, correlationId)
+        StructuredNoteAddCorrelationMarkup(builder, self.correlationMarkup)
         if self.upside is not None:
             StructuredNoteAddUpside(builder, upside)
         if self.monteCarlo is not None:

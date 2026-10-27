@@ -329,6 +329,9 @@ There is no correlation market: the matrix is an input (a historical estimate,
 a dealer mark) and the engine only validates it. Like FX spots, the block is
 parsed and validated on every request that carries it, whether or not a
 product references a matrix, so a malformed block is a `400` on any endpoint.
+`POST /calibrate-correlation` returns a matrix of this shape from price
+histories (see "Correlation from price histories"); a structured note can
+shift it uniformly with `correlation_markup`.
 
 | Field | Meaning |
 | --- | --- |
@@ -1179,6 +1182,7 @@ shared between notes):
 | `maturity_payment_date` | Payment date of the redemption when the note is not called; on or after the final observation. Required. |
 | `discounting_curve`, `funding_spread_bp` | The note-currency curve and a flat continuously compounded zero spread added on top for discounting (default 0). |
 | `correlation_id` | A `CorrelationMatrixSpec` whose labels are exactly the basket's ids. Required with two or more underlyings; must be absent with one (a 1 x 1 unit matrix is used). |
+| `correlation_markup` | Optional, finite, in `[-1, 1]`; must be absent with a single underlying. A uniform additive shift of every off-diagonal entry of the matrix before pricing (the desk's correlation mark-up or stress): `rho + correlation_markup` clipped to `[-1, 1]`; when the shifted matrix is not positive semi-definite it is repaired exactly as the Greeks' bump is (eigenvalue clipping, rescaled to unit diagonal) and `terms.correlation_markup_repaired` says so. The simulation, the correlation-limit checks and the Greeks' correlation bump all start from the marked-up matrix. `terms` echoes the mark-up; the `market` diagnostic shows the matrix as supplied (`correlation_base`), the mark-up and the matrix used (`correlation`). |
 | `monte_carlo` | `paths` (presence-required, even with `antithetic`), `seed` (default 42; `> 0` with Sobol), `sequence` (`Sobol` default, or `PseudoRandom`), `antithetic` (default true), `brownian_bridge` (default true; must be false with `PseudoRandom`), `steps_per_year` (required with a surface vol or a `DailyClose` barrier, must be absent otherwise). |
 
 Top-level: `greeks` (see "Greeks") and `diagnostics` (`market`,
@@ -1251,8 +1255,12 @@ to the final simulated observation date (`sigma_S` at `initial_level`,
 dates followed by `maturity_payment_date` when it differs, with
 `discount_factors` (plain curve) and `discount_factors_with_funding`.
 `correlation_labels` / `correlation` = the matrix as used, row-major, in the
-note's underlying order (`[1]` for a single underlying; never repaired: a
-matrix that is not positive semi-definite is a `400` at parse).
+note's underlying order (`[1]` for a single underlying; the supplied matrix
+is never repaired: one that is not positive semi-definite is a `400` at
+parse). With a `correlation_markup`, `correlation` is the shifted (and, when
+needed, repaired) matrix the simulation ran on, `correlation_base` the
+matrix as supplied and `correlation_markup` the shift; both absent
+otherwise.
 
 `decomposition`: per simulated dated event `p_call` / `p_coupon` (the values
 of `event_probabilities`), `pv_coupons` (PV of the coupons paid on that
@@ -1384,7 +1392,7 @@ echoed in the block.
 | `underlyings[].delta` | NPV change per +1 % of the spot: central difference, the spot quote bumped to `spot x (1 +/- spot_bump)`, `(V+ - V-) / (2 spot_bump) x 0.01`. Only the spot moves: the initial level (strike fixing), the dividend curve and the volatility stay (sticky strike for a surface, whose local vol is unchanged in absolute strike). |
 | `underlyings[].gamma` | Change of `delta` per +1 % of the spot: `(V+ - 2 V0 + V-) / spot_bump^2 x 0.01^2`. |
 | `underlyings[].vega` | NPV change per +1 vol point: the underlying's Black volatility rebuilt with every value shifted by `+vol_bump` (the constant, every node of a term vol, every entry of a strike x expiry surface, from which the Dupire local vol is re-derived), `(V(sigma + vol_bump) - V0) / vol_bump x 0.01`. For a quanto underlying the shifted vol also enters the quanto drift `-rho sigma_S sigma_FX`. |
-| `correlation_sensitivity` | NPV change per +0.01 on every off-diagonal correlation: every entry shifted by `+correlation_bump` and clipped to `[-1, 1]`, `(V(rho + bump) - V0) / correlation_bump x 0.01`. Absent for a single underlying. A worst-of structure is long correlation (its coupons and calls become likelier, its put cheaper), so it is normally positive. |
+| `correlation_sensitivity` | NPV change per +0.01 on every off-diagonal correlation: every entry shifted by `+correlation_bump` and clipped to `[-1, 1]`, `(V(rho + bump) - V0) / correlation_bump x 0.01`. Absent for a single underlying. A worst-of structure is long correlation (its coupons and calls become likelier, its put cheaper), so it is normally positive. With a `correlation_markup` the bump is applied on top of the marked-up matrix. |
 | `correlation_bump_repaired`, `correlation_bumped` | When the bumped matrix is not positive semi-definite (smallest eigenvalue below `-1e-10`) it is repaired before the run: `V diag(max(lambda, 0)) V^T` (`SymmetricSchurDecomposition`), rescaled to unit diagonal; the flag says so and `correlation_bumped` is the matrix actually used (row-major, underlying order, after clipping and any repair). A 2 x 2 matrix never needs the repair; a singular 3 x 3 one bumped uniformly does. Absent / `false` for a single underlying. |
 | `funding_dv01` | NPV change per +1 bp of funding spread: `funding_spread_bp + funding_bump_bp` on the discounting only (the processes still drift on the plain curve), `(V(s + bump) - V0) / funding_bump_bp`. Negative for any note that pays. |
 | `rho` | NPV change per +1 bp parallel move of `discounting_curve`: a continuously compounded zero spread of `+rate_bump_bp` (`ZeroSpreadedTermStructure`, Actual/365 (Fixed)) on the note curve, used both as the processes' risk-free curve and under the funding spread for discounting, `(V(r + bump) - V0) / rate_bump_bp`. A note-currency underlying's forward rises with it; a quanto underlying's drift `r_local - q - rho sigma_S sigma_FX` does not move (its quanto curve is rebuilt on the shifted note curve, which cancels), so for a quanto basket `rho` is mostly the discounting. |
@@ -1490,7 +1498,9 @@ block on a note-currency underlying or none on a foreign one, its
 correlation missing or outside `[-1, 1]`, an FX spot of another pair, an FX
 vol that is a surface; an `EquityUnderlyingSpec` without `currency`;
 `correlation_id` missing with two or more underlyings or present with one,
-or whose labels are not exactly the basket; a `DailyClose` barrier or a
+or whose labels are not exactly the basket; a `correlation_markup` that is
+not finite or outside `[-1, 1]`, or given with a single underlying; a
+`DailyClose` barrier or a
 surface vol without `steps_per_year`, `steps_per_year` with constant / term
 vols and a European barrier, or 0; `knocked_in` missing when required or
 present otherwise; odd `paths` with `antithetic`; Sobol `seed` 0;
@@ -1523,10 +1533,11 @@ no weights; issuer-callable notes (Longstaff-Schwartz), lookbacks, coupon
 floors, FX-settled notes and scripted payoffs are out of scope; paths are
 not shared across the notes of one request; the correlation sensitivity is
 one uniform off-diagonal bump (no per-pair Greeks); delta and vega are per
-underlying (no cross-gammas, no vol-of-vol). The correlation matrix of the
-price is validated (symmetric, unit diagonal, positive semi-definite) and
-never repaired; only the bumped matrix of the Greeks is repaired, and the
-response says so.
+underlying (no cross-gammas, no vol-of-vol). The correlation matrix as
+supplied is validated (symmetric, unit diagonal, positive semi-definite)
+and never repaired; only a matrix the engine shifts itself (the Greeks'
+bump, the `correlation_markup`) is repaired, and the response says so. The
+mark-up is one uniform shift (no per-pair mark-ups).
 
 ## Implied forwards and dividends from option quotes
 
@@ -1945,6 +1956,173 @@ example `examples/data/structured_note/scotia_…_with_synthetic_surface.json`
 shows the pasted result, clearly labelled synthetic. Vendor files are
 converted with `tools/option_quotes/cboe_eod_to_quote_sheet.py` and never
 committed.
+
+## Correlation from price histories
+
+`POST /calibrate-correlation` turns the price histories of two or more
+underlyings into a `CorrelationMatrixSpec` ready for
+`pricing.correlations.matrices`, with everything needed to reproduce it:
+the dates common to every series inside a window, log or simple returns,
+the sample correlation, optional shrinkage toward the constant-correlation
+target (Ledoit-Wolf), and positive semi-definiteness enforced by an
+eigenvalue floor. The engine never fetches closes: it receives them. There
+is no `pricing` block and nothing is priced. A historical estimate is a
+judgment input (the window, the frequency and the shrinkage are choices,
+and the market's correlation is not the realised one); the structured
+note's `correlation_markup` is where the desk's view goes.
+
+### Request
+
+```json
+{
+  "as_of_date": "2026-09-30",
+  "series": [
+    {"underlying_id": "NDX", "closes": [{"date": "2025-09-29", "value": 24611.35}, "..."]},
+    {"underlying_id": "RTY", "closes": [{"date": "2025-09-29", "value": 2435.25}, "..."]}
+  ],
+  "estimator": {"window_days": 365, "returns": "Log", "frequency": "Daily",
+                "shrinkage": "LedoitWolf", "min_overlap": 60, "eigenvalue_floor": 1e-8},
+  "correlation_id": "NDX_RTY",
+  "labels": ["NDX", "RTY"]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `as_of_date` | Anchor of `window_days` and the date the estimate is labelled with. Required. Closes after it are used unless a window excludes them (documented, not an error). |
+| `series[]` | At least two, distinct `underlying_id`s (the `EquityUnderlyingSpec.id`s the matrix will be used with: they become its labels). `closes[]` = `{date, value}` in strictly increasing date order, every value > 0, at least one entry. |
+| `estimator.window_days` | Calendar days back from `as_of_date`: the window is `[as_of_date - window_days, as_of_date]`. `> 0`; `400` with `start_date` / `end_date`. |
+| `estimator.start_date`, `end_date` | Explicit inclusive window, either bound optional. Absent and no `window_days`: every common date. `400` when `start_date` is after `end_date`. |
+| `estimator.returns` | `Log` (default): `ln(P_t / P_{t-1})`; `Simple`: `P_t / P_{t-1} - 1`. |
+| `estimator.frequency` | `Daily` (default): every common date. `Weekly`: every fifth common observation counted back from the last one (the most recent close is always used); the returns are then five-observation returns. |
+| `estimator.shrinkage` | `None`, `LedoitWolf` (default) or `Fixed` (with `shrinkage_intensity` in `[0, 1]`, required iff `Fixed`). |
+| `estimator.min_overlap` | Least number of common dates inside the window, before the frequency sampling (default 60, `>= 3`); `400` below it. |
+| `estimator.eigenvalue_floor` | The eigenvalue negative ones are raised to when the matrix needs repair (default `1e-8`, in `[0, 1)`); see "Method". |
+| `correlation_id` | Id of the returned spec. Required. |
+| `labels` | Row/column order of the output, a permutation of the series ids (`400` otherwise). Absent = series order. |
+
+### Method
+
+Alignment: the observations used are the dates inside the window that every
+series has (an inner join), in date order, then every fifth of them when
+`Weekly`; at least three must remain. With `T` the number of returns
+(`observations_used - 1`), `x_it` the return of series `i`, every sum in
+date order:
+
+```
+m_i  = (1/T) Σ_t x_it,          y_it = x_it − m_i
+S_ij = (1/T) Σ_t y_it y_jt                   (maximum-likelihood covariance)
+r_ij = S_ij / sqrt(S_ii S_jj)                (the sample correlation; 1/T
+                                              against 1/(T−1) cancels here)
+annualised_volatility_i = sqrt(S_ii · T/(T−1) · 252 / step)   (unbiased, Act/252;
+                                              step 1 Daily, 5 Weekly)
+```
+
+Shrinkage toward the constant-correlation target, Ledoit and Wolf (2004),
+"Honey, I shrunk the sample covariance matrix": with `N` series the target
+has every off-diagonal correlation equal to `rbar = mean of the r_ij, i < j`,
+and the intensity is
+
+```
+pi_ij       = (1/T) Σ_t (y_it y_jt − S_ij)²,                    pi = Σ_ij pi_ij
+theta_ii,ij = (1/T) Σ_t (y_it² − S_ii)(y_it y_jt − S_ij)
+rho         = Σ_i pi_ii + Σ_{i≠j} (rbar/2) (sqrt(S_jj/S_ii) theta_ii,ij + sqrt(S_ii/S_jj) theta_jj,ij)
+gamma       = Σ_ij (rbar sqrt(S_ii S_jj) [i≠j, else S_ii] − S_ij)²
+delta       = max(0, min(1, ((pi − rho) / gamma) / T))
+c_ij        = delta · rbar + (1 − delta) · r_ij     (i ≠ j),   c_ii = 1
+```
+
+With exactly two series the target is the sample correlation itself, so
+`delta` is reported as 0 and the shrinkage changes nothing; the same for
+`N >= 3` when every pair has the same sample correlation (`gamma = 0`).
+`Fixed` uses the request's intensity in place of `delta`; `None` uses 0.
+
+Eigenvalue floor: the smallest eigenvalue of the shrunk matrix (QuantLib
+`SymmetricSchurDecomposition`) is reported; when it is below `-1e-10` (the
+correlation registry's own acceptance rule, so a rank-deficient matrix such
+as a perfectly correlated pair, eigenvalue 0, is returned as is) the matrix
+is repaired as `V diag(max(lambda, eigenvalue_floor)) Vᵀ` rescaled to unit
+diagonal (the structured note's bump repair with the floor in place of 0)
+and `eigenvalue_floor_applied` is true, with the smallest eigenvalue of the
+result next to it. A sample correlation is positive semi-definite in exact
+arithmetic, and so are the constant-correlation target and every convex
+combination of the two, so the floor meets rounding only, on a singular set
+(a series that is a combination of the others, more series than returns);
+it guarantees that the returned spec is accepted as a pricing input.
+
+Every output is deterministic: the series are read in the order given and
+every sum runs in the stated order, so the Python reference
+`calibrate_correlation_ql` (tests/contract/ql_reference.py), which repeats
+the arithmetic in plain Python, agrees with the engine to `1e-12`. The
+algebra, in the same words, is in
+`src/evaluators/correlation_calibration_evaluator.h`.
+
+### Response
+
+```json
+{
+  "correlation_spec": {"id": "NDX_RTY", "labels": ["NDX", "RTY"],
+                       "values": {"n_rows": 2, "n_cols": 2, "values": [1.0, 0.747207, 0.747207, 1.0]}},
+  "sample_correlation": [1.0, 0.747207, 0.747207, 1.0],
+  "shrinkage_target": 0.747207, "shrinkage_intensity_used": 0.0,
+  "eigenvalue_floor_applied": false,
+  "smallest_eigenvalue_before": 0.252793, "smallest_eigenvalue_after": 0.252793,
+  "observations_used": 253, "returns_used": 252,
+  "first_date": "2025-09-29", "last_date": "2026-09-30",
+  "series": [{"underlying_id": "NDX", "observations": 253, "dropped": 0, "annualised_volatility": 0.1991},
+             {"underlying_id": "RTY", "observations": 253, "dropped": 0, "annualised_volatility": 0.1867}],
+  "estimator_echo": {"start_date": "2025-09-29", "end_date": "2026-09-30", "returns": "Log",
+                     "frequency": "Daily", "shrinkage": "None", "min_overlap": 60, "eigenvalue_floor": 1e-8}
+}
+```
+
+`correlation_spec` is the matrix to paste (labels in the requested order,
+values row-major); `sample_correlation` is the unshrunk matrix in the same
+order, always returned next to it. `shrinkage_intensity_used` is 0 for
+`None`, the Ledoit-Wolf value for `LedoitWolf`, the request's value for
+`Fixed`. Per series, `observations` are the closes supplied and `dropped`
+the ones not used (outside the window, on a date another series lacks, or
+skipped by the weekly sampling); `observations - dropped` is
+`observations_used` for every series. `annualised_volatility` is a
+by-product (the realised vol of the returns used), not what pricing should
+carry for a vol. `estimator_echo` is the estimator as resolved: the window
+as explicit dates (never `window_days`), `shrinkage_intensity` present iff
+`Fixed`; posting the same series with it as `estimator` reproduces the
+response.
+
+### Using the spec
+
+Append `correlation_spec` to `pricing.correlations.matrices` and reference
+its id from the note's `correlation_id`; its labels must be exactly the
+note's underlying ids, so name the series after the `EquityUnderlyingSpec`
+ids (`labels` reorders the output when the note lists them differently; the
+engine permutes anyway). The desk's view goes on the note as
+`correlation_markup` (see "Structured notes"): the estimate stays in the
+request as it came out of this endpoint, the shift is echoed, and the
+`market` diagnostic shows both.
+
+### Rejected requests
+
+| Request | Status |
+|---|---|
+| fewer than two `series`, a duplicate `underlying_id`, empty `closes` | `400` naming `series[i]` |
+| closes not in strictly increasing date order, a close that is not finite and `> 0` | `400` naming `series[i].closes[k]` |
+| `window_days` together with `start_date` / `end_date`, `window_days` 0, `start_date` after `end_date` | `400` naming the field |
+| `shrinkage_intensity` missing with `Fixed`, outside `[0, 1]`, or given with another shrinkage | `400` naming `estimator.shrinkage_intensity` |
+| `min_overlap` below 3, `eigenvalue_floor` outside `[0, 1)` | `400` naming the field |
+| no date common to every series inside the window; fewer common dates than `min_overlap`; fewer than three observations after the weekly sampling | `400` with the window and the counts |
+| `labels` not a permutation of the series ids | `400` naming the label |
+| a malformed date, an unknown enum value, a missing `as_of_date` / `correlation_id` | `400` |
+
+### Data
+
+`examples/data/correlation/` carries two request files of public index
+closes (Nasdaq-100, Russell 2000, S&P 500; index closes, Yahoo Finance
+history pages): one year of daily NDX / RTY closes to the Scotia note's
+as-of date, which reproduces the 0.747 that example is booked with, and a
+three-series set to the JPMorgan note's date with Ledoit-Wolf shrinkage.
+The workflow example (`examples/structured_note_workflow/`, `--closes`)
+runs this endpoint ahead of the forwards and the surface.
 
 ## Hull-White calibration
 

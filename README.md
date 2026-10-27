@@ -41,10 +41,12 @@ Priced instruments:
 
 Utility endpoints cover yield- and inflation-curve bootstrapping, volatility
 surface sampling, Hull-White and SABR calibration, calendar date arithmetic,
-and the equity market-data chain from listed option quotes: implied forwards
-and dividends (`/calibrate-implied-forwards`) and an arbitrage-checked Black
-volatility surface (`/calibrate-vol-surface`, Andreasen-Huge or SVI per
-expiry) ready for the option and structured-note pricers.
+and the equity market-data chain for the option and structured-note
+pricers: implied forwards and dividends from listed option quotes
+(`/calibrate-implied-forwards`), an arbitrage-checked Black volatility
+surface (`/calibrate-vol-surface`, Andreasen-Huge or SVI per expiry) and a
+correlation matrix from price histories (`/calibrate-correlation`, aligned
+returns, Ledoit-Wolf shrinkage, eigenvalue floor).
 
 Features that apply across products:
 

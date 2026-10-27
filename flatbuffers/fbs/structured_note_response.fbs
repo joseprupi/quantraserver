@@ -82,6 +82,12 @@ table StructuredNoteTermsEcho {
     /// Absent for a single-underlying note (simulated on a 1 x 1 unit
     /// matrix).
     correlation_id:string;
+    /// The request's `correlation_markup`; absent when none was given.
+    correlation_markup:double = null;
+    /// True when the marked-up matrix was not positive semi-definite and
+    /// was repaired before pricing (see `StructuredNote.correlation_markup`).
+    /// False without a mark-up.
+    correlation_markup_repaired:bool;
     /// Paths requested (the number actually simulated is on the result).
     paths:uint;
     seed:ulong;
@@ -344,9 +350,15 @@ table StructuredNoteMarketDiagnostics {
     correlation_labels:[string] (required);
     /// The correlation matrix as used, row-major n x n, permuted to the
     /// note's underlying order; the 1 x 1 unit matrix for a single
-    /// underlying. No repair is ever applied (a matrix that is not positive
-    /// semi-definite is a 400).
+    /// underlying. The supplied matrix is never repaired (one that is not
+    /// positive semi-definite is a 400); with a `correlation_markup` this is
+    /// the shifted (and, when needed, repaired) matrix the simulation ran on.
     correlation:[double] (required);
+    /// With a `correlation_markup`: the matrix as supplied, before the
+    /// shift, same order. Absent otherwise.
+    correlation_base:[double];
+    /// The request's `correlation_markup`; absent when none was given.
+    correlation_markup:double = null;
 }
 
 /// `diagnostics.decomposition`: one simulated event (accrual-only events

@@ -1,0 +1,518 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "quantra_enums_DayCounter" : {
+      "type" : "string",
+      "enum": ["Actual360", "Actual365Fixed", "Actual365NoLeap", "ActualActual", "ActualActualISMA", "ActualActualBond", "ActualActualISDA", "ActualActualHistorical", "ActualActual365", "ActualActualAFB", "ActualActualEuro", "Business252", "One", "Simple", "Thirty360"]
+    },
+    "quantra_enums_Interpolator" : {
+      "type" : "string",
+      "enum": ["BackwardFlat", "ForwardFlat", "Linear", "LogCubic", "LogLinear"]
+    },
+    "quantra_enums_SurfaceInterpolator2D" : {
+      "type" : "string",
+      "enum": ["Bilinear", "Bicubic", "CubicStrikeLinearTime"]
+    },
+    "quantra_enums_SviTimeInterpolation" : {
+      "type" : "string",
+      "enum": ["LinearTotalVariance"]
+    },
+    "quantra_enums_BootstrapTrait" : {
+      "type" : "string",
+      "enum": ["Discount", "FwdRate", "InterpolatedDiscount", "InterpolatedFwd", "InterpolatedZero", "ZeroRate"]
+    },
+    "quantra_enums_TimeUnit" : {
+      "type" : "string",
+      "enum": ["Days", "Hours", "Microseconds", "Milliseconds", "Minutes", "Months", "Seconds", "Weeks", "Years"]
+    },
+    "quantra_enums_Calendar" : {
+      "type" : "string",
+      "enum": ["Argentina", "Australia", "BespokeCalendar", "Brazil", "Canada", "China", "CzechRepublic", "Denmark", "Finland", "Germany", "HongKong", "Hungary", "Iceland", "India", "Indonesia", "Israel", "Italy", "Japan", "Mexico", "NewZealand", "Norway", "NullCalendar", "Poland", "Romania", "Russia", "SaudiArabia", "Singapore", "Slovakia", "SouthAfrica", "SouthKorea", "Sweden", "Switzerland", "TARGET", "Taiwan", "Turkey", "Ukraine", "UnitedKingdom", "UnitedStates", "UnitedStatesGovernmentBond", "UnitedStatesNERC", "UnitedStatesNYSE", "UnitedStatesSettlement", "WeekendsOnly"]
+    },
+    "quantra_enums_BusinessDayConvention" : {
+      "type" : "string",
+      "enum": ["Following", "HalfMonthModifiedFollowing", "ModifiedFollowing", "ModifiedPreceding", "Nearest", "Preceding", "Unadjusted"]
+    },
+    "quantra_enums_Frequency" : {
+      "type" : "string",
+      "enum": ["Annual", "Bimonthly", "Biweekly", "Daily", "EveryFourthMonth", "EveryFourthWeek", "Monthly", "NoFrequency", "Once", "OtherFrequency", "Quarterly", "Semiannual", "Weekly"]
+    },
+    "quantra_enums_DateGenerationRule" : {
+      "type" : "string",
+      "enum": ["Backward", "CDS", "Forward", "OldCDS", "ThirdWednesday", "Twentieth", "TwentiethIMM", "Zero"]
+    },
+    "quantra_enums_CdsEngineType" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsHelperModel" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsQuoteType" : {
+      "type" : "string",
+      "enum": ["ParSpread", "Upfront"]
+    },
+    "quantra_enums_CdsIsdaNumericalFix" : {
+      "type" : "string",
+      "enum": ["None", "Taylor"]
+    },
+    "quantra_enums_CdsIsdaAccrualBias" : {
+      "type" : "string",
+      "enum": ["HalfDayBias", "NoBias"]
+    },
+    "quantra_enums_CdsIsdaForwardsInCouponPeriod" : {
+      "type" : "string",
+      "enum": ["Flat", "Piecewise"]
+    },
+    "quantra_enums_Compounding" : {
+      "type" : "string",
+      "enum": ["Compounded", "Continuous", "Simple", "SimpleThenCompounded"]
+    },
+    "quantra_enums_RateAveragingType" : {
+      "type" : "string",
+      "enum": ["Compound", "Simple"]
+    },
+    "quantra_enums_SwapType" : {
+      "type" : "string",
+      "enum": ["Payer", "Receiver"]
+    },
+    "quantra_enums_PayReceive" : {
+      "type" : "string",
+      "enum": ["Pay", "Receive"]
+    },
+    "quantra_enums_FRAType" : {
+      "type" : "string",
+      "enum": ["Long", "Short"]
+    },
+    "quantra_enums_CapFloorType" : {
+      "type" : "string",
+      "enum": ["Cap", "Floor", "Collar"]
+    },
+    "quantra_enums_CallabilityType" : {
+      "type" : "string",
+      "enum": ["Call", "Put"]
+    },
+    "quantra_enums_VolSurfaceFitMethod" : {
+      "type" : "string",
+      "enum": ["AndreasenHuge", "SviPerExpiry"]
+    },
+    "quantra_enums_ExerciseType" : {
+      "type" : "string",
+      "enum": ["European", "Bermudan", "American"]
+    },
+    "quantra_enums_SettlementType" : {
+      "type" : "string",
+      "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_SettlementMethod" : {
+      "type" : "string",
+      "enum": ["PhysicalOTC", "PhysicalCleared", "CollateralizedCashPrice", "ParYieldCurve"]
+    },
+    "quantra_enums_ProtectionSide" : {
+      "type" : "string",
+      "enum": ["Buyer", "Seller"]
+    },
+    "quantra_enums_VolatilityType" : {
+      "type" : "string",
+      "enum": ["Normal", "Lognormal", "ShiftedLognormal"]
+    },
+    "quantra_enums_VolSurfaceShape" : {
+      "type" : "string",
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate", "SviSlices"]
+    },
+    "quantra_enums_YoYInflationCapFloorEngineType" : {
+      "type" : "string",
+      "enum": ["Black", "UnitDisplacedBlack", "Bachelier"]
+    },
+    "quantra_enums_SwaptionVolKind" : {
+      "type" : "string",
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SabrParams", "SabrCalibrate"]
+    },
+    "quantra_enums_SwaptionStrikeKind" : {
+      "type" : "string",
+      "enum": ["Absolute", "SpreadFromATM"]
+    },
+    "quantra_enums_InflationCurveKind" : {
+      "type" : "string",
+      "enum": ["ZeroInflation", "YoYInflation"]
+    },
+    "quantra_enums_InflationCurveMeasure" : {
+      "type" : "string",
+      "enum": ["ZeroRate", "YoYRate"]
+    },
+    "quantra_enums_CPIInterpolationType" : {
+      "type" : "string",
+      "enum": ["AsIndex", "Flat", "Linear"]
+    },
+    "quantra_enums_BondPriceType" : {
+      "type" : "string",
+      "enum": ["Clean", "Dirty"]
+    },
+    "quantra_enums_IrModelType" : {
+      "type" : "string",
+      "enum": ["Black", "ShiftedBlack", "Bachelier", "HullWhiteLattice"]
+    },
+    "quantra_enums_ModelParamMode" : {
+      "type" : "string",
+      "enum": ["Explicit", "Calibrate"]
+    },
+    "quantra_enums_CmsPricerType" : {
+      "type" : "string",
+      "enum": ["LinearTsr", "HaganAnalytic", "HaganNumeric"]
+    },
+    "quantra_enums_CmsYieldCurveModel" : {
+      "type" : "string",
+      "enum": ["Standard", "ExactYield", "ParallelShifts", "NonParallelShifts"]
+    },
+    "quantra_enums_EquityModelType" : {
+      "type" : "string",
+      "enum": ["BlackScholesAnalytic", "BinomialCRR"]
+    },
+    "quantra_enums_EquityOptionType" : {
+      "type" : "string",
+      "enum": ["Call", "Put"]
+    },
+    "quantra_enums_EquitySettlementType" : {
+      "type" : "string",
+      "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_EquityBarrierType" : {
+      "type" : "string",
+      "enum": ["DownIn", "UpIn", "DownOut", "UpOut"]
+    },
+    "quantra_enums_EquityBarrierMonitoring" : {
+      "type" : "string",
+      "enum": ["Continuous", "Discrete"]
+    },
+    "quantra_enums_FxDirection" : {
+      "type" : "string",
+      "enum": ["BuyBase", "SellBase"]
+    },
+    "quantra_enums_SwapFlowKind" : {
+      "type" : "string",
+      "enum": ["Coupon", "NotionalExchange"]
+    },
+    "quantra_enums_BasketPerformanceRule" : {
+      "type" : "string",
+      "enum": ["WorstOf", "BestOf", "Average"]
+    },
+    "quantra_enums_CapitalBarrierMonitoring" : {
+      "type" : "string",
+      "enum": ["European", "DailyClose"]
+    },
+    "quantra_enums_RandomSequence" : {
+      "type" : "string",
+      "enum": ["Sobol", "PseudoRandom"]
+    },
+    "quantra_enums_StructuredNoteStatus" : {
+      "type" : "string",
+      "enum": ["Alive", "Called", "Matured"]
+    },
+    "quantra_enums_ReturnType" : {
+      "type" : "string",
+      "enum": ["Log", "Simple"]
+    },
+    "quantra_enums_ReturnFrequency" : {
+      "type" : "string",
+      "enum": ["Daily", "Weekly"]
+    },
+    "quantra_enums_CorrelationShrinkage" : {
+      "type" : "string",
+      "enum": ["None", "LedoitWolf", "Fixed"]
+    },
+    "quantra_Flow" : {
+      "type" : "string",
+      "enum": ["NONE", "FlowInterest", "FlowPastInterest", "FlowNotional"]
+    },
+    "quantra_IndexType" : {
+      "type" : "string",
+      "enum": ["Ibor", "Overnight"]
+    },
+    "quantra_Period" : {
+      "type" : "object",
+      "description" : "Canonical period type used across APIs. Both fields are presence-required:\na bare `n` would silently default to 0 and an omitted `unit` would silently\nmean Months, so a forgotten value is a 400 naming the field rather than a\nsilent (0 Months) tenor.",
+      "properties" : {
+        "n" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "unit" : {
+                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Yield" : {
+      "type" : "object",
+      "description" : "Yield/compounding convention specification.",
+      "properties" : {
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "compounding" : {
+                "$ref" : "#/definitions/quantra_enums_Compounding"
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Error" : {
+      "type" : "object",
+      "description" : "Error message container.",
+      "properties" : {
+        "error_message" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowInterest" : {
+      "type" : "object",
+      "description" : "Interest cash flow with fixing and accrual metadata.",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "rate" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowPastInterest" : {
+      "type" : "object",
+      "description" : "Past fixed interest cash flow.",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "rate" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowNotional" : {
+      "type" : "object",
+      "description" : "Notional exchange cash flow.",
+      "properties" : {
+        "date" : {
+                "type" : "string"
+              },
+        "amount" : {
+                "type" : "number"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowsWrapper" : {
+      "type" : "object",
+      "description" : "Wrapper for a single flow in a collection.",
+      "properties" : {
+        "flow_type" : {
+                "$ref" : "#/definitions/quantra_Flow"
+              },
+        "flow" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_FlowInterest" },{ "$ref" : "#/definitions/quantra_FlowPastInterest" },{ "$ref" : "#/definitions/quantra_FlowNotional" }]
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Fixing" : {
+      "type" : "object",
+      "description" : "Historical index fixing for seasoned instruments.",
+      "properties" : {
+        "date" : {
+                "type" : "string"
+              },
+        "value" : {
+                "type" : "number"
+              }
+      },
+      "required" : ["date"],
+      "additionalProperties" : false
+    },
+    "quantra_IndexDef" : {
+      "type" : "object",
+      "description" : "Complete index definition. Registered once per request, referenced by id.",
+      "properties" : {
+        "id" : {
+                "type" : "string",
+                "description" : "Unique identifier (e.g., \"EUR_6M\", \"USD_SOFR\", \"MY_CUSTOM_3M\")."
+              },
+        "name" : {
+                "type" : "string",
+                "description" : "Human-readable name / family label (e.g., \"Euribor\", \"SOFR\")."
+              },
+        "index_type" : {
+                "$ref" : "#/definitions/quantra_IndexType",
+                "description" : "IBOR or Overnight. Determines QuantLib class used. Presence-required: an\nomitted value is a 400, never the silent Ibor default."
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Tenor period (e.g., 6 Months for Euribor 6M, 0 Days for overnight)."
+              },
+        "fixing_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR). Presence-required."
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Calendar for fixing/payment dates. Presence-required."
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Business day convention. Presence-required."
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter",
+                "description" : "Day count convention. Presence-required."
+              },
+        "end_of_month" : {
+                "type" : "boolean",
+                "description" : "End of month rule (IBOR only, ignored for overnight). Presence-required:\nabsent-vs-false silently changes money-market schedule dates."
+              },
+        "currency" : {
+                "type" : "string",
+                "description" : "ISO currency code (e.g., \"EUR\", \"USD\", \"GBP\", \"JPY\")."
+              },
+        "fixings" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Fixing"},
+                "description" : "Past fixings needed for seasoned instruments."
+              }
+      },
+      "required" : ["id", "name"],
+      "additionalProperties" : false
+    },
+    "quantra_IndexRef" : {
+      "type" : "object",
+      "description" : "Reference to an IndexDef by its id.",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              }
+      },
+      "required" : ["id"],
+      "additionalProperties" : false
+    },
+    "quantra_PriceSeries" : {
+      "type" : "object",
+      "description" : "One underlying's price history: closes on strictly increasing dates,\nevery value > 0. The engine never fetches prices; it receives them.",
+      "properties" : {
+        "underlying_id" : {
+                "type" : "string",
+                "description" : "`EquityUnderlyingSpec.id` the series stands for; becomes a label of\nthe returned correlation matrix. Required, unique within `series`."
+              },
+        "closes" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Fixing"},
+                "description" : "`{date, value}` closes in strictly increasing date order (400\notherwise), value > 0. Required, at least one entry."
+              }
+      },
+      "required" : ["underlying_id", "closes"],
+      "additionalProperties" : false
+    },
+    "quantra_CorrelationEstimator" : {
+      "type" : "object",
+      "description" : "Settings of the historical correlation estimator. Every field has a\ndefault; the response echoes the settings as resolved (an explicit\nwindow instead of `window_days`) so the result can be reproduced from\nthe echo alone.",
+      "properties" : {
+        "window_days" : {
+                "type" : "integer", "minimum" : 0, "maximum" : 4294967295,
+                "description" : "Calendar days back from `as_of_date`: the window is\n[as_of_date - window_days, as_of_date]. Absent and no explicit\nwindow: every date common to all series is used, closes after\n`as_of_date` included. Must be > 0; 400 together with `start_date`\nor `end_date`."
+              },
+        "start_date" : {
+                "type" : "string",
+                "description" : "Explicit window, inclusive, ISO dates; either bound may be absent\n(no bound on that side). 400 with `window_days`, or when\n`start_date` is after `end_date`."
+              },
+        "end_date" : {
+                "type" : "string"
+              },
+        "returns" : {
+                "$ref" : "#/definitions/quantra_enums_ReturnType",
+                "description" : "Returns: Log (default) or Simple."
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_ReturnFrequency",
+                "description" : "Daily (default, every common date) or Weekly (every fifth common\nobservation counted back from the last)."
+              },
+        "shrinkage" : {
+                "$ref" : "#/definitions/quantra_enums_CorrelationShrinkage",
+                "description" : "None, LedoitWolf (default) or Fixed."
+              },
+        "shrinkage_intensity" : {
+                "type" : "number",
+                "description" : "Intensity in [0, 1] toward the constant-correlation target. Required\niff `shrinkage` is Fixed (400 otherwise)."
+              },
+        "min_overlap" : {
+                "type" : "integer", "minimum" : 0, "maximum" : 4294967295,
+                "description" : "Least number of dates common to all series inside the window (before\nthe frequency sampling); 400 below it. Must be >= 3."
+              },
+        "eigenvalue_floor" : {
+                "type" : "number",
+                "description" : "Eigenvalue the negative ones are raised to when the estimated (and\nshrunk) matrix is not positive semi-definite to the registry's\ntolerance (smallest eigenvalue below -1e-10; a rank-deficient matrix\nsuch as a perfectly correlated pair, eigenvalue 0, is returned as\nis): eigenvalues clipped to the floor, the matrix rescaled to unit\ndiagonal, the response says so. Finite, in [0, 1)."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CalibrateCorrelationRequest" : {
+      "type" : "object",
+      "description" : "Request for `/calibrate-correlation`: a correlation matrix, ready to\npaste under `pricing.correlations.matrices`, from the price histories\nof two or more underlyings. Returns on the dates common to every series\ninside the window, sample correlation, optional shrinkage toward the\nconstant-correlation target, positive semi-definiteness enforced by an\neigenvalue floor. There is no `pricing` block: the endpoint reads no\nmarket data other than the closes given here.",
+      "properties" : {
+        "as_of_date" : {
+                "type" : "string",
+                "description" : "Anchor of `window_days` and the date the estimate is labelled with.\nRequired. Closes after it are not an error (they are used unless a\nwindow excludes them)."
+              },
+        "series" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_PriceSeries"},
+                "description" : "At least two series with distinct `underlying_id`s. Required."
+              },
+        "estimator" : {
+                "$ref" : "#/definitions/quantra_CorrelationEstimator",
+                "description" : "Estimator settings; the defaults apply when absent."
+              },
+        "correlation_id" : {
+                "type" : "string",
+                "description" : "Id given to the returned `CorrelationMatrixSpec`. Required."
+              },
+        "labels" : {
+                "type" : "array", "items" : {"type" : "string"},
+                "description" : "Row/column order of the returned matrix: a permutation of the\n`underlying_id`s of `series` (400 otherwise). Absent = series order."
+              }
+      },
+      "required" : ["as_of_date", "series", "correlation_id"],
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/quantra_CalibrateCorrelationRequest"
+}

@@ -276,6 +276,16 @@ table StructuredNote {
     /// with exactly one underlying, which is simulated on a 1 x 1 unit
     /// matrix (a `CorrelationMatrixSpec` lists at least two labels).
     correlation_id:string;
+    /// Uniform additive shift applied to every off-diagonal entry of the
+    /// correlation matrix before pricing (the desk's correlation mark-up or
+    /// stress): each entry becomes `rho + correlation_markup` clipped to
+    /// [-1, 1]; when the shifted matrix is not positive semi-definite it is
+    /// repaired exactly as the Greeks' correlation bump is (eigenvalue
+    /// clipping, rescaled to unit diagonal) and the response says so. The
+    /// Greeks' correlation bump and the correlation-limit checks start from
+    /// the marked-up matrix. Finite, in [-1, 1] (400 otherwise); must be
+    /// absent with a single underlying. Absent = no shift.
+    correlation_markup:double = null;
     /// Upside participation at the final observation. Absent = none.
     upside:UpsideParticipation;
     /// Simulation settings. Required.
