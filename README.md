@@ -247,6 +247,9 @@ upgrade shipped in a release is documented in `docs/quantlib-upgrades/`
 - `examples/data/`: example JSON requests, one folder per product family
   (`structured_note/` holds the two factsheet transcriptions with placeholder
   market data and their README)
+- `examples/structured_note_workflow/`: a structured note priced at three levels
+  of market data, with a script that runs the option quotes → forwards → vol
+  surface → note chain
 - `tests/`: parity, integration, and client tests
 - `scripts/`: build, code generation, and runtime helpers
 - `tools/quantra-manager/`: packaged process-manager implementation
