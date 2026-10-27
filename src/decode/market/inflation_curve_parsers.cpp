@@ -275,14 +275,22 @@ InflationIndexPtr buildInflationIndex(
                 "InflationIndexSpec.underlying_zero_index_id not found for index id '" + id +
                 "': " + underlyingId);
         }
+        const std::string notZeroIndex =
+            "InflationIndexSpec.underlying_zero_index_id must reference a zero inflation index for index id '" +
+            id + "': " + underlyingId;
+        // Checked before the underlying is built: a zero index has no
+        // underlying, so a self-reference or a cycle of YoY specs stops here.
+        const auto underlyingKind = underlyingIt->second->kind();
+        if (underlyingKind.has_value() &&
+            underlyingKind.value() != enums::InflationCurveKind_ZeroInflation) {
+            QUANTRA_INVALID_ARGUMENT(notZeroIndex);
+        }
         auto underlying = buildInflationIndex(
             underlyingIt->second, specMap, cache, zeroCurveHandles, yoyCurveHandles);
         auto zeroUnderlying =
             QuantLib::ext::dynamic_pointer_cast<QuantLib::ZeroInflationIndex>(underlying);
         if (!zeroUnderlying) {
-            QUANTRA_INVALID_ARGUMENT(
-                "InflationIndexSpec.underlying_zero_index_id must reference a zero inflation index for index id: " +
-                id);
+            QUANTRA_INVALID_ARGUMENT(notZeroIndex);
         }
         if (spec->fixings() && spec->fixings()->size() > 0) {
             QUANTRA_INVALID_ARGUMENT(
