@@ -6436,9 +6436,9 @@ def _black_implied_vol(is_call, strike, fwd, price, df, t):
 def _otm_quotes(lines, flt, spot, fwd, df, t):
     """The engine's selectOutOfTheMoneyQuotes (implied_forwards_evaluator.cpp):
     the out-of-the-money side (call iff strike >= fwd) of every line that
-    passes the per-line rules, kept when its mid is above intrinsic, at least
-    1e-5 * spot (quote resolution) and has a Black-76 implied vol on (fwd, df,
-    t); sorted by strike."""
+    passes the per-line rules, kept when its mid is at least 1e-5 * spot
+    (quote resolution) and has a Black-76 implied vol on (fwd, df, t); sorted
+    by strike."""
     used = []
     for q in _quote_filter_pass(lines, flt):
         k_abs = q["strike"]
@@ -6446,8 +6446,7 @@ def _otm_quotes(lines, flt, spot, fwd, df, t):
         bid = q["call_bid"] if is_call else q["put_bid"]
         ask = q["call_ask"] if is_call else q["put_ask"]
         mid = q["call_mid"] if is_call else q["put_mid"]
-        intrinsic = df * max(fwd - k_abs if is_call else k_abs - fwd, 0.0)
-        if not mid > intrinsic or mid < 1e-5 * spot:
+        if mid < 1e-5 * spot:
             continue
         vol = _black_implied_vol(is_call, k_abs, fwd, mid, df, t)
         if vol is None:
@@ -6630,8 +6629,8 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
     fit above (same filter). Per expiry: the per-line filter, the
     out-of-the-money mid (call for K >= F, put below), its Black-76 implied
     vol via blackFormulaImpliedStdDev on the fitted forward and implied
-    discount factor (dropped when not above intrinsic, below the quote
-    resolution 1e-5 * spot, or not solvable), strikes sorted. Then
+    discount factor (dropped when below the quote resolution 1e-5 * spot or
+    not solvable), strikes sorted. Then
 
       * AndreasenHuge: AndreasenHugeVolatilityInterpl on CalibrationPairs
         (out-of-the-money VanillaOption, SimpleQuote(vol)), spot handle,

@@ -200,11 +200,10 @@ struct OutOfTheMoneyQuote {
 };
 
 /// The out-of-the-money side of every line of one expiry that passes the
-/// per-line rules (filterExpiryLines), kept when its mid is above the
-/// intrinsic value DF * max(+/-(F - K), 0), at least kQuoteResolution * spot,
-/// and has a Black-76 implied vol on (forward, discountFactor, time); every
-/// other line is appended to `dropped` with its reason. Survivors are
-/// returned sorted by strike.
+/// per-line rules (filterExpiryLines), kept when its mid is at least
+/// kQuoteResolution * spot and has a Black-76 implied vol on (forward,
+/// discountFactor, time); every other line is appended to `dropped` with its
+/// reason. Survivors are returned sorted by strike.
 std::vector<OutOfTheMoneyQuote> selectOutOfTheMoneyQuotes(
     const std::vector<const OptionQuoteLine*>& lines,
     const QuoteFilterData& flt,
