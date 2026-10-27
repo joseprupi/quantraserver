@@ -40,7 +40,8 @@ class FRAResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Value at settlement.
+    # Same value as npv: the settlement amount discounted on the discounting
+    # curve, not the undiscounted amount paid at settlement.
     # FRAResponse
     def SpotValue(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))

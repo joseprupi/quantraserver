@@ -1257,9 +1257,9 @@ paths:
       description: 'From a listed-option quote sheet (the same OptionQuoteSheet as
         /calibrate-implied-forwards) and per-expiry forwards (pasted from that endpoint''s
         response, or fitted here with the same filter): implied Black-76 vols of the
-        out-of-the-money mids on the fitted forward and implied discount factor (quotes
-        below intrinsic or outside the Black bounds are dropped with reasons), then
-        either Andreasen-Huge local-vol interpolation (QuantLib AndreasenHugeVolatilityInterpl,
+        out-of-the-money mids on the fitted forward and implied discount factor (mids
+        below 1e-5 of the spot or outside the Black bounds are dropped with reasons),
+        then either Andreasen-Huge local-vol interpolation (QuantLib AndreasenHugeVolatilityInterpl,
         cubic-spline, calls and puts, arbitrage-free by construction; sampled through
         AndreasenHugeVolatilityAdapter) or one raw SVI slice per expiry (QuantLib
         SviInterpolation, vega-weighted Levenberg-Marquardt) with Durrleman''s butterfly
@@ -7246,7 +7246,10 @@ components:
           description: The implied forward rate from the curve.
         spot_value:
           type: number
-          description: Value at settlement.
+          description: 'Same value as npv: the settlement amount discounted on the
+            discounting
+
+            curve, not the undiscounted amount paid at settlement.'
         settlement_date:
           type: string
           description: When the FRA settles.
@@ -10527,9 +10530,7 @@ components:
 
             `/calibrate-implied-forwards`, then the out-of-the-money side''s mid
 
-            not above intrinsic, below 1e-5 of the spot, or without an implied
-
-            vol).'
+            below 1e-5 of the spot or without an implied vol).'
           items:
             $ref: '#/components/schemas/quantra_DroppedQuote'
       required:

@@ -931,7 +931,8 @@ inline const char *EnumNamePayReceive(PayReceive e) {
   return EnumNamesPayReceive()[index];
 }
 
-/// FRA position: long (receive fixed, pay floating) or short (pay fixed, receive floating).
+/// FRA position: long (pay fixed, receive floating: gains when the forward rate
+/// rises above the strike) or short (receive fixed, pay floating).
 enum FRAType : int8_t {
   FRAType_Long = 0,
   FRAType_Short = 1,

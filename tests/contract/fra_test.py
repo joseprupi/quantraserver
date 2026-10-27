@@ -30,3 +30,34 @@ def test_fra_conventions_optional_and_ignored(client, data_dir):
         f"FRA NPV changed when the inert conventions were omitted: "
         f"{with_conventions} vs {without_conventions}"
     )
+
+
+def test_fra_long_pays_fixed_receives_floating(client, data_dir):
+    """fra_type Long is QuantLib's Position::Long: it pays the strike and
+    receives the floating rate. Struck below the forward it is worth more than
+    zero, struck above the forward less than zero, and the Short side of the
+    same trade is worth the negative."""
+    request = load_json(data_dir / "fra/fra_eur_3x6_long_strike_below_forward.json")
+    fra = request["fras"][0]["fra"]
+    assert fra["fra_type"] == "Long"
+
+    long_below = client.price("fra", request)["fras"][0]
+    assert fra["strike"] < long_below["forward_rate"]
+    assert long_below["npv"] > 0.0, long_below
+
+    fra["fra_type"] = "Short"
+    short_below = client.price("fra", request)["fras"][0]
+    assert abs(short_below["npv"] + long_below["npv"]) < 1e-9, (long_below, short_below)
+
+    fra["fra_type"] = "Long"
+    fra["strike"] = long_below["forward_rate"] + 0.005
+    long_above = client.price("fra", request)["fras"][0]
+    assert long_above["npv"] < 0.0, long_above
+
+
+def test_fra_spot_value_is_npv(client, data_dir):
+    """spot_value reports the same number as npv (the settlement amount
+    discounted on the discounting curve), not the undiscounted amount."""
+    request = load_json(data_dir / "fra/fra_eur_3x6_long_strike_below_forward.json")
+    fra = client.price("fra", request)["fras"][0]
+    assert fra["spot_value"] == fra["npv"], fra

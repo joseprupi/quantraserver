@@ -2,7 +2,8 @@
 
 # namespace: enums
 
-# FRA position: long (receive fixed, pay floating) or short (pay fixed, receive floating).
+# FRA position: long (pay fixed, receive floating: gains when the forward rate
+# rises above the strike) or short (receive fixed, pay floating).
 class FRAType(object):
     Long = 0
     Short = 1

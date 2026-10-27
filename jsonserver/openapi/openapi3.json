@@ -1825,7 +1825,7 @@
     "/calibrate-vol-surface": {
       "post": {
         "summary": "Calibrate a Black Volatility Surface from Option Quotes",
-        "description": "From a listed-option quote sheet (the same OptionQuoteSheet as /calibrate-implied-forwards) and per-expiry forwards (pasted from that endpoint's response, or fitted here with the same filter): implied Black-76 vols of the out-of-the-money mids on the fitted forward and implied discount factor (quotes below intrinsic or outside the Black bounds are dropped with reasons), then either Andreasen-Huge local-vol interpolation (QuantLib AndreasenHugeVolatilityInterpl, cubic-spline, calls and puts, arbitrage-free by construction; sampled through AndreasenHugeVolatilityAdapter) or one raw SVI slice per expiry (QuantLib SviInterpolation, vega-weighted Levenberg-Marquardt) with Durrleman's butterfly check (penalized refit when violated) and a calendar check of total variance across grid expiries (clipped when violated). Returns a complete VolSurfaceSpec (BlackVolSpec, strike x expiry surface on a moneyness grid converted to absolute strikes with the spot, bilinear, extrapolation allowed) ready for pricing.volatility.vol_surfaces, the forwards used, a per-expiry report (quotes used and dropped, RMSE and max error in vol units, SVI parameters, arbitrage findings and actions) and the vanilla repricing of every used quote on the returned surface (model vs mid, inside the bid/ask, largest price and vol excursions). European exercise only.",
+        "description": "From a listed-option quote sheet (the same OptionQuoteSheet as /calibrate-implied-forwards) and per-expiry forwards (pasted from that endpoint's response, or fitted here with the same filter): implied Black-76 vols of the out-of-the-money mids on the fitted forward and implied discount factor (mids below 1e-5 of the spot or outside the Black bounds are dropped with reasons), then either Andreasen-Huge local-vol interpolation (QuantLib AndreasenHugeVolatilityInterpl, cubic-spline, calls and puts, arbitrage-free by construction; sampled through AndreasenHugeVolatilityAdapter) or one raw SVI slice per expiry (QuantLib SviInterpolation, vega-weighted Levenberg-Marquardt) with Durrleman's butterfly check (penalized refit when violated) and a calendar check of total variance across grid expiries (clipped when violated). Returns a complete VolSurfaceSpec (BlackVolSpec, strike x expiry surface on a moneyness grid converted to absolute strikes with the spot, bilinear, extrapolation allowed) ready for pricing.volatility.vol_surfaces, the forwards used, a per-expiry report (quotes used and dropped, RMSE and max error in vol units, SVI parameters, arbitrage findings and actions) and the vanilla repricing of every used quote on the returned surface (model vs mid, inside the bid/ask, largest price and vol excursions). European exercise only.",
         "tags": [
           "Volatility"
         ],
@@ -8222,7 +8222,7 @@
           },
           "spot_value": {
             "type": "number",
-            "description": "Value at settlement."
+            "description": "Same value as npv: the settlement amount discounted on the discounting\ncurve, not the undiscounted amount paid at settlement."
           },
           "settlement_date": {
             "type": "string",
@@ -11070,7 +11070,7 @@
           },
           "dropped": {
             "type": "array",
-            "description": "Every line not used, with its reason (the per-line quality rules of\n`/calibrate-implied-forwards`, then the out-of-the-money side's mid\nnot above intrinsic, below 1e-5 of the spot, or without an implied\nvol).",
+            "description": "Every line not used, with its reason (the per-line quality rules of\n`/calibrate-implied-forwards`, then the out-of-the-money side's mid\nbelow 1e-5 of the spot or without an implied vol).",
             "items": {
               "$ref": "#/components/schemas/quantra_DroppedQuote"
             }
