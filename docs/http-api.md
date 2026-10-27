@@ -1179,7 +1179,7 @@ shared between notes):
 | `trade_id` | Echoed in the response. Required. |
 | `currency` | ISO code of the note: coupons, redemption and NPV. Required. |
 | `notional` | Coupons and the redemption are fractions of it. Presence-required, `> 0`. |
-| `underlyings[]` | The basket, at least one entry, ids distinct. Each: `underlying_id` (an `EquityUnderlyingSpec`, whose `currency` is required here), `volatility_id` (a `VolSurfaceSpec` with a `BlackVolSpec` or an `SviVolSpec` payload: constant or term vols step exactly between observation dates; a strike x expiry grid or SVI slices make the simulation Dupire local-vol and require `monte_carlo.steps_per_year`; `POST /calibrate-vol-surface` returns both forms from listed option quotes, ready to paste — see "Volatility surface from option quotes"), `initial_level` (the strike fixing every performance `S(t) / initial_level` is measured against; presence-required, `> 0`), `quanto` (present iff the underlying's currency differs from the note's: `discounting_curve` = the rate curve of the underlying's currency, `fx_spot_id` = an `FxSpotSpec` quoting the two currencies in either direction, `fx_volatility_id` = a constant or term `BlackVolSpec`, `fx_underlying_correlation` in `[-1, 1]`, presence-required), `historical_levels[]` (`{date, value}` closes on past dated observation dates; a past observation without one is a `400` naming the date). |
+| `underlyings[]` | The basket, at least one entry, ids distinct. Each: `underlying_id` (an `EquityUnderlyingSpec`, whose `currency` is required here), `volatility_id` (a `VolSurfaceSpec` with a `BlackVolSpec` or an `SviVolSpec` payload: constant or term vols step exactly between observation dates; a strike x expiry grid or SVI slices make the simulation Dupire local-vol and require `monte_carlo.steps_per_year`; `POST /calibrate-vol-surface` returns both forms from listed option quotes, ready to paste — see "Volatility surface from option quotes"), `initial_level` (the strike fixing every performance `S(t) / initial_level` is measured against; presence-required, `> 0`), `quanto` (present iff the underlying's currency differs from the note's: `discounting_curve` = the rate curve of the underlying's currency, `fx_spot_id` = an `FxSpotSpec` quoting the two currencies in either direction, used as quoted and only as the level the FX vol is read at, `fx_volatility_id` = a constant or term `BlackVolSpec`, `fx_underlying_correlation` in `[-1, 1]`, presence-required: the correlation with the FX rate quoted as note-currency units per one unit of the underlying's currency, USD per CHF for a CHF index in a USD note, see "Pricing conventions"), `historical_levels[]` (`{date, value}` closes on past dated observation dates; a past observation without one is a `400` naming the date). |
 | `performance_rule` | `WorstOf`, `BestOf` or `Average` of the underlyings' performances. Presence-required. |
 | `events[]` | Strictly increasing `observation_date`s; the last is the final observation. `autocall_trigger` present: `perf >= trigger` ends the note (notional plus this coupon plus the memory on `payment_date`). `coupon_trigger` present: `perf >= trigger` earns `coupon` plus the memory, paid on `payment_date` or held (`pay_only_on_call`). Both present (Phoenix with a call): the coupon test runs first. Neither: an accrual-only event, `coupon` joins the memory, nothing is observed or paid (`coupon_rule.memory` must be true, `payment_date` absent). `payment_date` is required iff a trigger is present and must be on or after the observation date; `coupon` is required with `coupon_trigger` and on accrual-only events. The final event must carry a trigger, unless it is marked `is_final: true`: a maturity-only observation where only the capital protection block (and `upside`) is tested, with no coupon test and no call test (the memory is not paid there); `coupon`, `coupon_trigger` and `autocall_trigger` must then be absent, `payment_date` is required and must equal `maturity_payment_date`, and the event must be the last one. A final observation that also tests a coupon or a call (Santander's 80 % hurdle, BNP's 100 % call) keeps its trigger; `is_final` is for a final date that only decides the redemption (the Scotia note). |
 | `coupon_rule` | `memory` (a missed coupon is added to a memory paid with the next coupon; the memory is a sum of amounts) and `pay_only_on_call` (true = Athena / snowball: earned coupons are held until a call or the final event; false = Phoenix: paid on their `payment_date`). Both presence-required. |
@@ -1255,9 +1255,10 @@ between consecutive observation dates (the first from the valuation date);
 `atm_vols[]` = the Black vol to each observation date at that date's
 forward; `barrier_vols[]` = the Black vol at `capital.barrier x
 initial_level`, equal to `atm_vols` unless the vol is a strike x expiry
-surface; `quanto_drift_bp` = `-rho x sigma_S x sigma_FX x 1e4` with the vols
-to the final simulated observation date (`sigma_S` at `initial_level`,
-`sigma_FX` at the FX spot). `payment_dates` = the simulated events' payment
+surface; `quanto_drift_bp` = `-rho x sigma_S x sigma_FX x 1e4` with `rho`
+the quanto block's `fx_underlying_correlation` as given and the vols to the
+final simulated observation date (`sigma_S` at `initial_level`, `sigma_FX`
+at the FX spot). `payment_dates` = the simulated events' payment
 dates followed by `maturity_payment_date` when it differs, with
 `discount_factors` (plain curve) and `discount_factors_with_funding`.
 `correlation_labels` / `correlation` = the matrix as used, row-major, in the
@@ -1423,11 +1424,16 @@ there is no adapter around the original object).
   underlying the `QuantoTermStructure(dividend, riskFree = r_note, foreign =
   quanto.discounting_curve, sigma_S at initial_level, sigma_FX at the FX
   spot, rho)`, so the drift is `r_local - q - rho sigma_S sigma_FX`. `rho` is
-  QuantLib's convention: the correlation with the FX rate quoted as
-  underlying-currency units per note-currency unit (CHF per USD for a CHF
-  index in a USD note); the other quoting direction flips its sign. Positive
-  `rho` lowers the drift. The processes are correlated by the
-  `StochasticProcessArray` (spectral pseudo-square-root).
+  `quanto.fx_underlying_correlation`, used as given: the correlation between
+  the underlying's returns and the returns of the FX rate quoted as
+  note-currency units per one unit of the underlying's currency (USD per CHF
+  for a CHF index in a USD note). Positive `rho` lowers the drift. A
+  correlation measured against the inverse quote (CHF per USD) goes in with
+  its sign flipped. The FX spot may quote the pair either way and is used as
+  quoted, never inverted: it is only the level the FX vol is read at, and
+  that vol is constant or term (no smile, the same for either quote), so
+  neither its value nor its direction moves the price. The processes are
+  correlated by the `StochasticProcessArray` (spectral pseudo-square-root).
 - Local vol: a strike-dependent vol — a strike x expiry `BlackVolSpec`
   (`SmileCube3D`, `SurfaceFromPrices`) or an `SviVolSpec` — is simulated
   as Dupire local vol (QuantLib `LocalVolSurface`: finite differences of

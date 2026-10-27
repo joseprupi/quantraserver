@@ -82,7 +82,9 @@ Santander 24 (3 accrual-only + 20 observations + final).
   (BNP `2026-06-29`, Santander `2026-08-21`). The placeholders leave the
   worst performer below 100% so neither note is already called.
 - `underlyings[].quanto.fx_underlying_correlation`: correlation between the
-  index and the FX rate (index currency per unit of USD).
+  index and the FX rate quoted as USD per one unit of the index currency
+  (USD per CHF for the SMI); a correlation measured against the inverse
+  quote (CHF per USD) goes in with its sign flipped.
 - `notes[].funding_spread_bp`: issuer funding over SOFR.
 
 ## A real note against its published value: Bank of Nova Scotia 06419JME7
