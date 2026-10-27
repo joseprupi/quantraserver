@@ -2033,6 +2033,111 @@ inline const char *EnumNameStructuredNoteStatus(StructuredNoteStatus e) {
   return EnumNamesStructuredNoteStatus()[index];
 }
 
+/// How a price history is turned into returns by `/calibrate-correlation`.
+/// Log: ln(P_t / P_{t-1}). Simple: P_t / P_{t-1} - 1.
+enum ReturnType : int8_t {
+  ReturnType_Log = 0,
+  ReturnType_Simple = 1,
+  ReturnType_MIN = ReturnType_Log,
+  ReturnType_MAX = ReturnType_Simple
+};
+
+inline const ReturnType (&EnumValuesReturnType())[2] {
+  static const ReturnType values[] = {
+    ReturnType_Log,
+    ReturnType_Simple
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesReturnType() {
+  static const char * const names[3] = {
+    "Log",
+    "Simple",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameReturnType(ReturnType e) {
+  if (::flatbuffers::IsOutRange(e, ReturnType_Log, ReturnType_Simple)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesReturnType()[index];
+}
+
+/// Which of the aligned observations `/calibrate-correlation` differences.
+/// Daily: every date common to all series. Weekly: every fifth common
+/// observation, counted back from the last one (so the most recent close is
+/// always used); the returns are then five-observation returns.
+enum ReturnFrequency : int8_t {
+  ReturnFrequency_Daily = 0,
+  ReturnFrequency_Weekly = 1,
+  ReturnFrequency_MIN = ReturnFrequency_Daily,
+  ReturnFrequency_MAX = ReturnFrequency_Weekly
+};
+
+inline const ReturnFrequency (&EnumValuesReturnFrequency())[2] {
+  static const ReturnFrequency values[] = {
+    ReturnFrequency_Daily,
+    ReturnFrequency_Weekly
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesReturnFrequency() {
+  static const char * const names[3] = {
+    "Daily",
+    "Weekly",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameReturnFrequency(ReturnFrequency e) {
+  if (::flatbuffers::IsOutRange(e, ReturnFrequency_Daily, ReturnFrequency_Weekly)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesReturnFrequency()[index];
+}
+
+/// Shrinkage of the sample correlation toward the constant-correlation
+/// target (every off-diagonal entry equal to the average sample
+/// correlation). None: the sample correlation. LedoitWolf: the intensity of
+/// Ledoit and Wolf (2004), "Honey, I shrunk the sample covariance matrix",
+/// clipped to [0, 1]. Fixed: the intensity given in
+/// `shrinkage_intensity`.
+enum CorrelationShrinkage : int8_t {
+  CorrelationShrinkage_None = 0,
+  CorrelationShrinkage_LedoitWolf = 1,
+  CorrelationShrinkage_Fixed = 2,
+  CorrelationShrinkage_MIN = CorrelationShrinkage_None,
+  CorrelationShrinkage_MAX = CorrelationShrinkage_Fixed
+};
+
+inline const CorrelationShrinkage (&EnumValuesCorrelationShrinkage())[3] {
+  static const CorrelationShrinkage values[] = {
+    CorrelationShrinkage_None,
+    CorrelationShrinkage_LedoitWolf,
+    CorrelationShrinkage_Fixed
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCorrelationShrinkage() {
+  static const char * const names[4] = {
+    "None",
+    "LedoitWolf",
+    "Fixed",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCorrelationShrinkage(CorrelationShrinkage e) {
+  if (::flatbuffers::IsOutRange(e, CorrelationShrinkage_None, CorrelationShrinkage_Fixed)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCorrelationShrinkage()[index];
+}
+
 }  // namespace enums
 }  // namespace quantra
 

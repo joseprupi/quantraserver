@@ -1253,6 +1253,24 @@
 </tr>
 </tbody>
 </table>
+<h2>Correlation / Calibration</h2>
+<table>
+<thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib value</th></tr></thead>
+<tbody>
+<tr>
+<td><div class="title">NDX / RTY correlation from one year of daily closes, no shrinkage</div><div class="desc">Historical correlation of the Nasdaq-100 and the Russell 2000 from 253 daily closes (2025-09-29 to 2026-09-30, index closes from Yahoo Finance history pages): inner join on dates, daily log returns, sample correlation (the 0.747 the Scotia structured-note example is booked with), no shrinkage, eigenvalue floor not needed. Compares the returned CorrelationMatrixSpec values, the sample correlation, the shrinkage target and intensity, the smallest eigenvalues, the observation counts and the Act/252 realised volatilities.</div></td>
+<td><code>historical correlation</code> <code>log returns</code> <code>date alignment</code> <code>realised volatility</code> <code>correlation spec</code></td>
+<td><a href="../../examples/data/correlation/ndx_rut_closes_2025-09-29_to_2026-09-30.json">ndx_rut_closes_2025-09-29_to_2026-09-30.json</a></td>
+<td class="npv">n_rows=2, n_cols=2, shrinkage_target=0.747207, shrinkage_intensity_used=0, eigenvalue_floor_applied=0, smallest_eigenvalue_before=0.252793, smallest_eigenvalue_after=0.252793, observations_used=253, returns_used=252, observations=253, dropped=0, annualised_volatility=0.199096, observations=253, dropped=0, annualised_volatility=0.186663, min_overlap=60, eigenvalue_floor=1e-08, 4-point grids x2</td>
+</tr>
+<tr>
+<td><div class="title">NDX / RTY / SPX correlation with Ledoit-Wolf shrinkage</div><div class="desc">Three index series (Nasdaq-100, Russell 2000, S&amp;P 500) over a 365-calendar-day window back from 2026-10-19 (251 common closes), daily log returns, Ledoit-Wolf (2004) shrinkage toward the constant-correlation target. Compares the shrunk matrix, the unshrunk sample correlation, the target and the intensity, the eigenvalue report, the counts (closes outside the window dropped per series) and the realised volatilities.</div></td>
+<td><code>historical correlation</code> <code>Ledoit-Wolf shrinkage</code> <code>constant-correlation target</code> <code>window</code> <code>correlation spec</code></td>
+<td><a href="../../examples/data/correlation/ndx_rty_spx_closes_2025-10-17_to_2026-10-19.json">ndx_rty_spx_closes_2025-10-17_to_2026-10-19.json</a></td>
+<td class="npv">n_rows=3, n_cols=3, shrinkage_target=0.833004, shrinkage_intensity_used=0.225732, eigenvalue_floor_applied=0, smallest_eigenvalue_before=0.0862708, smallest_eigenvalue_after=0.0862708, observations_used=251, returns_used=250, observations=266, dropped=15, annualised_volatility=0.19842, observations=266, dropped=15, annualised_volatility=0.182136, observations=252, dropped=1, annualised_volatility=0.12711, min_overlap=60, eigenvalue_floor=1e-08, 9-point grids x2</td>
+</tr>
+</tbody>
+</table>
 <h2>Zero Coupon Swaps</h2>
 <table>
 <thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib value</th></tr></thead>
@@ -1433,6 +1451,6 @@
 </tr>
 </tbody>
 </table>
-<footer>219 cases across 15 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<footer>221 cases across 16 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

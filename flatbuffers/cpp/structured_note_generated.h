@@ -941,6 +941,7 @@ struct StructuredNoteT : public ::flatbuffers::NativeTable {
   std::string discounting_curve{};
   double funding_spread_bp = 0.0;
   std::string correlation_id{};
+  ::flatbuffers::Optional<double> correlation_markup = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::UpsideParticipationT> upside{};
   std::unique_ptr<quantra::MonteCarloSpecT> monte_carlo{};
   StructuredNoteT() = default;
@@ -973,8 +974,9 @@ struct StructuredNote FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_DISCOUNTING_CURVE = 22,
     VT_FUNDING_SPREAD_BP = 24,
     VT_CORRELATION_ID = 26,
-    VT_UPSIDE = 28,
-    VT_MONTE_CARLO = 30
+    VT_CORRELATION_MARKUP = 28,
+    VT_UPSIDE = 30,
+    VT_MONTE_CARLO = 32
   };
   /// Trade identifier echoed in the response. Required.
   const ::flatbuffers::String *trade_id() const {
@@ -1039,6 +1041,18 @@ struct StructuredNote FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::String *correlation_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_CORRELATION_ID);
   }
+  /// Uniform additive shift applied to every off-diagonal entry of the
+  /// correlation matrix before pricing (the desk's correlation mark-up or
+  /// stress): each entry becomes `rho + correlation_markup` clipped to
+  /// [-1, 1]; when the shifted matrix is not positive semi-definite it is
+  /// repaired exactly as the Greeks' correlation bump is (eigenvalue
+  /// clipping, rescaled to unit diagonal) and the response says so. The
+  /// Greeks' correlation bump and the correlation-limit checks start from
+  /// the marked-up matrix. Finite, in [-1, 1] (400 otherwise); must be
+  /// absent with a single underlying. Absent = no shift.
+  ::flatbuffers::Optional<double> correlation_markup() const {
+    return GetOptional<double, double>(VT_CORRELATION_MARKUP);
+  }
   /// Upside participation at the final observation. Absent = none.
   const quantra::UpsideParticipation *upside() const {
     return GetPointer<const quantra::UpsideParticipation *>(VT_UPSIDE);
@@ -1072,6 +1086,7 @@ struct StructuredNote FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<double>(verifier, VT_FUNDING_SPREAD_BP, 8) &&
            VerifyOffset(verifier, VT_CORRELATION_ID) &&
            verifier.VerifyString(correlation_id()) &&
+           VerifyField<double>(verifier, VT_CORRELATION_MARKUP, 8) &&
            VerifyOffset(verifier, VT_UPSIDE) &&
            verifier.VerifyTable(upside()) &&
            VerifyOffsetRequired(verifier, VT_MONTE_CARLO) &&
@@ -1123,6 +1138,9 @@ struct StructuredNoteBuilder {
   void add_correlation_id(::flatbuffers::Offset<::flatbuffers::String> correlation_id) {
     fbb_.AddOffset(StructuredNote::VT_CORRELATION_ID, correlation_id);
   }
+  void add_correlation_markup(double correlation_markup) {
+    fbb_.AddElement<double>(StructuredNote::VT_CORRELATION_MARKUP, correlation_markup);
+  }
   void add_upside(::flatbuffers::Offset<quantra::UpsideParticipation> upside) {
     fbb_.AddOffset(StructuredNote::VT_UPSIDE, upside);
   }
@@ -1163,9 +1181,11 @@ inline ::flatbuffers::Offset<StructuredNote> CreateStructuredNote(
     ::flatbuffers::Offset<::flatbuffers::String> discounting_curve = 0,
     double funding_spread_bp = 0.0,
     ::flatbuffers::Offset<::flatbuffers::String> correlation_id = 0,
+    ::flatbuffers::Optional<double> correlation_markup = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::UpsideParticipation> upside = 0,
     ::flatbuffers::Offset<quantra::MonteCarloSpec> monte_carlo = 0) {
   StructuredNoteBuilder builder_(_fbb);
+  if(correlation_markup) { builder_.add_correlation_markup(*correlation_markup); }
   builder_.add_funding_spread_bp(funding_spread_bp);
   if(notional) { builder_.add_notional(*notional); }
   builder_.add_monte_carlo(monte_carlo);
@@ -1197,6 +1217,7 @@ inline ::flatbuffers::Offset<StructuredNote> CreateStructuredNoteDirect(
     const char *discounting_curve = nullptr,
     double funding_spread_bp = 0.0,
     const char *correlation_id = nullptr,
+    ::flatbuffers::Optional<double> correlation_markup = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::UpsideParticipation> upside = 0,
     ::flatbuffers::Offset<quantra::MonteCarloSpec> monte_carlo = 0) {
   auto trade_id__ = trade_id ? _fbb.CreateString(trade_id) : 0;
@@ -1220,6 +1241,7 @@ inline ::flatbuffers::Offset<StructuredNote> CreateStructuredNoteDirect(
       discounting_curve__,
       funding_spread_bp,
       correlation_id__,
+      correlation_markup,
       upside,
       monte_carlo);
 }
@@ -1509,6 +1531,7 @@ inline StructuredNoteT::StructuredNoteT(const StructuredNoteT &o)
         discounting_curve(o.discounting_curve),
         funding_spread_bp(o.funding_spread_bp),
         correlation_id(o.correlation_id),
+        correlation_markup(o.correlation_markup),
         upside((o.upside) ? new quantra::UpsideParticipationT(*o.upside) : nullptr),
         monte_carlo((o.monte_carlo) ? new quantra::MonteCarloSpecT(*o.monte_carlo) : nullptr) {
   underlyings.reserve(o.underlyings.size());
@@ -1530,6 +1553,7 @@ inline StructuredNoteT &StructuredNoteT::operator=(StructuredNoteT o) FLATBUFFER
   std::swap(discounting_curve, o.discounting_curve);
   std::swap(funding_spread_bp, o.funding_spread_bp);
   std::swap(correlation_id, o.correlation_id);
+  std::swap(correlation_markup, o.correlation_markup);
   std::swap(upside, o.upside);
   std::swap(monte_carlo, o.monte_carlo);
   return *this;
@@ -1556,6 +1580,7 @@ inline void StructuredNote::UnPackTo(StructuredNoteT *_o, const ::flatbuffers::r
   { auto _e = discounting_curve(); if (_e) _o->discounting_curve = _e->str(); }
   { auto _e = funding_spread_bp(); _o->funding_spread_bp = _e; }
   { auto _e = correlation_id(); if (_e) _o->correlation_id = _e->str(); }
+  { auto _e = correlation_markup(); _o->correlation_markup = _e; }
   { auto _e = upside(); if (_e) { if(_o->upside) { _e->UnPackTo(_o->upside.get(), _resolver); } else { _o->upside = std::unique_ptr<quantra::UpsideParticipationT>(_e->UnPack(_resolver)); } } else if (_o->upside) { _o->upside.reset(); } }
   { auto _e = monte_carlo(); if (_e) { if(_o->monte_carlo) { _e->UnPackTo(_o->monte_carlo.get(), _resolver); } else { _o->monte_carlo = std::unique_ptr<quantra::MonteCarloSpecT>(_e->UnPack(_resolver)); } } else if (_o->monte_carlo) { _o->monte_carlo.reset(); } }
 }
@@ -1580,6 +1605,7 @@ inline ::flatbuffers::Offset<StructuredNote> CreateStructuredNote(::flatbuffers:
   auto _discounting_curve = _fbb.CreateString(_o->discounting_curve);
   auto _funding_spread_bp = _o->funding_spread_bp;
   auto _correlation_id = _o->correlation_id.empty() ? 0 : _fbb.CreateString(_o->correlation_id);
+  auto _correlation_markup = _o->correlation_markup;
   auto _upside = _o->upside ? CreateUpsideParticipation(_fbb, _o->upside.get(), _rehasher) : 0;
   auto _monte_carlo = _o->monte_carlo ? CreateMonteCarloSpec(_fbb, _o->monte_carlo.get(), _rehasher) : 0;
   return quantra::CreateStructuredNote(
@@ -1596,6 +1622,7 @@ inline ::flatbuffers::Offset<StructuredNote> CreateStructuredNote(::flatbuffers:
       _discounting_curve,
       _funding_spread_bp,
       _correlation_id,
+      _correlation_markup,
       _upside,
       _monte_carlo);
 }

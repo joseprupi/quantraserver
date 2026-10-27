@@ -530,6 +530,8 @@ struct StructuredNoteTermsEchoT : public ::flatbuffers::NativeTable {
   std::string discounting_curve{};
   double funding_spread_bp = 0.0;
   std::string correlation_id{};
+  ::flatbuffers::Optional<double> correlation_markup = ::flatbuffers::nullopt;
+  bool correlation_markup_repaired = false;
   uint32_t paths = 0;
   uint64_t seed = 0;
   quantra::enums::RandomSequence sequence = quantra::enums::RandomSequence_Sobol;
@@ -566,12 +568,14 @@ struct StructuredNoteTermsEcho FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::
     VT_DISCOUNTING_CURVE = 30,
     VT_FUNDING_SPREAD_BP = 32,
     VT_CORRELATION_ID = 34,
-    VT_PATHS = 36,
-    VT_SEED = 38,
-    VT_SEQUENCE = 40,
-    VT_ANTITHETIC = 42,
-    VT_BROWNIAN_BRIDGE = 44,
-    VT_STEPS_PER_YEAR = 46
+    VT_CORRELATION_MARKUP = 36,
+    VT_CORRELATION_MARKUP_REPAIRED = 38,
+    VT_PATHS = 40,
+    VT_SEED = 42,
+    VT_SEQUENCE = 44,
+    VT_ANTITHETIC = 46,
+    VT_BROWNIAN_BRIDGE = 48,
+    VT_STEPS_PER_YEAR = 50
   };
   const ::flatbuffers::String *trade_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_TRADE_ID);
@@ -623,6 +627,16 @@ struct StructuredNoteTermsEcho FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::
   const ::flatbuffers::String *correlation_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_CORRELATION_ID);
   }
+  /// The request's `correlation_markup`; absent when none was given.
+  ::flatbuffers::Optional<double> correlation_markup() const {
+    return GetOptional<double, double>(VT_CORRELATION_MARKUP);
+  }
+  /// True when the marked-up matrix was not positive semi-definite and
+  /// was repaired before pricing (see `StructuredNote.correlation_markup`).
+  /// False without a mark-up.
+  bool correlation_markup_repaired() const {
+    return GetField<uint8_t>(VT_CORRELATION_MARKUP_REPAIRED, 0) != 0;
+  }
   /// Paths requested (the number actually simulated is on the result).
   uint32_t paths() const {
     return GetField<uint32_t>(VT_PATHS, 0);
@@ -670,6 +684,8 @@ struct StructuredNoteTermsEcho FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::
            VerifyField<double>(verifier, VT_FUNDING_SPREAD_BP, 8) &&
            VerifyOffset(verifier, VT_CORRELATION_ID) &&
            verifier.VerifyString(correlation_id()) &&
+           VerifyField<double>(verifier, VT_CORRELATION_MARKUP, 8) &&
+           VerifyField<uint8_t>(verifier, VT_CORRELATION_MARKUP_REPAIRED, 1) &&
            VerifyField<uint32_t>(verifier, VT_PATHS, 4) &&
            VerifyField<uint64_t>(verifier, VT_SEED, 8) &&
            VerifyField<int8_t>(verifier, VT_SEQUENCE, 1) &&
@@ -735,6 +751,12 @@ struct StructuredNoteTermsEchoBuilder {
   void add_correlation_id(::flatbuffers::Offset<::flatbuffers::String> correlation_id) {
     fbb_.AddOffset(StructuredNoteTermsEcho::VT_CORRELATION_ID, correlation_id);
   }
+  void add_correlation_markup(double correlation_markup) {
+    fbb_.AddElement<double>(StructuredNoteTermsEcho::VT_CORRELATION_MARKUP, correlation_markup);
+  }
+  void add_correlation_markup_repaired(bool correlation_markup_repaired) {
+    fbb_.AddElement<uint8_t>(StructuredNoteTermsEcho::VT_CORRELATION_MARKUP_REPAIRED, static_cast<uint8_t>(correlation_markup_repaired), 0);
+  }
   void add_paths(uint32_t paths) {
     fbb_.AddElement<uint32_t>(StructuredNoteTermsEcho::VT_PATHS, paths, 0);
   }
@@ -788,6 +810,8 @@ inline ::flatbuffers::Offset<StructuredNoteTermsEcho> CreateStructuredNoteTermsE
     ::flatbuffers::Offset<::flatbuffers::String> discounting_curve = 0,
     double funding_spread_bp = 0.0,
     ::flatbuffers::Offset<::flatbuffers::String> correlation_id = 0,
+    ::flatbuffers::Optional<double> correlation_markup = ::flatbuffers::nullopt,
+    bool correlation_markup_repaired = false,
     uint32_t paths = 0,
     uint64_t seed = 0,
     quantra::enums::RandomSequence sequence = quantra::enums::RandomSequence_Sobol,
@@ -796,6 +820,7 @@ inline ::flatbuffers::Offset<StructuredNoteTermsEcho> CreateStructuredNoteTermsE
     ::flatbuffers::Optional<uint32_t> steps_per_year = ::flatbuffers::nullopt) {
   StructuredNoteTermsEchoBuilder builder_(_fbb);
   builder_.add_seed(seed);
+  if(correlation_markup) { builder_.add_correlation_markup(*correlation_markup); }
   builder_.add_funding_spread_bp(funding_spread_bp);
   builder_.add_participation(participation);
   builder_.add_put_strike(put_strike);
@@ -813,6 +838,7 @@ inline ::flatbuffers::Offset<StructuredNoteTermsEcho> CreateStructuredNoteTermsE
   builder_.add_brownian_bridge(brownian_bridge);
   builder_.add_antithetic(antithetic);
   builder_.add_sequence(sequence);
+  builder_.add_correlation_markup_repaired(correlation_markup_repaired);
   builder_.add_capital_monitoring(capital_monitoring);
   builder_.add_coupon_pay_only_on_call(coupon_pay_only_on_call);
   builder_.add_coupon_memory(coupon_memory);
@@ -838,6 +864,8 @@ inline ::flatbuffers::Offset<StructuredNoteTermsEcho> CreateStructuredNoteTermsE
     const char *discounting_curve = nullptr,
     double funding_spread_bp = 0.0,
     const char *correlation_id = nullptr,
+    ::flatbuffers::Optional<double> correlation_markup = ::flatbuffers::nullopt,
+    bool correlation_markup_repaired = false,
     uint32_t paths = 0,
     uint64_t seed = 0,
     quantra::enums::RandomSequence sequence = quantra::enums::RandomSequence_Sobol,
@@ -869,6 +897,8 @@ inline ::flatbuffers::Offset<StructuredNoteTermsEcho> CreateStructuredNoteTermsE
       discounting_curve__,
       funding_spread_bp,
       correlation_id__,
+      correlation_markup,
+      correlation_markup_repaired,
       paths,
       seed,
       sequence,
@@ -2373,6 +2403,8 @@ struct StructuredNoteMarketDiagnosticsT : public ::flatbuffers::NativeTable {
   std::vector<double> discount_factors_with_funding{};
   std::vector<std::string> correlation_labels{};
   std::vector<double> correlation{};
+  std::vector<double> correlation_base{};
+  ::flatbuffers::Optional<double> correlation_markup = ::flatbuffers::nullopt;
   StructuredNoteMarketDiagnosticsT() = default;
   StructuredNoteMarketDiagnosticsT(const StructuredNoteMarketDiagnosticsT &o);
   StructuredNoteMarketDiagnosticsT(StructuredNoteMarketDiagnosticsT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -2390,7 +2422,9 @@ struct StructuredNoteMarketDiagnostics FLATBUFFERS_FINAL_CLASS : private ::flatb
     VT_DISCOUNT_FACTORS = 10,
     VT_DISCOUNT_FACTORS_WITH_FUNDING = 12,
     VT_CORRELATION_LABELS = 14,
-    VT_CORRELATION = 16
+    VT_CORRELATION = 16,
+    VT_CORRELATION_BASE = 18,
+    VT_CORRELATION_MARKUP = 20
   };
   /// Simulated observation dates, in order.
   const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *observation_dates() const {
@@ -2419,10 +2453,20 @@ struct StructuredNoteMarketDiagnostics FLATBUFFERS_FINAL_CLASS : private ::flatb
   }
   /// The correlation matrix as used, row-major n x n, permuted to the
   /// note's underlying order; the 1 x 1 unit matrix for a single
-  /// underlying. No repair is ever applied (a matrix that is not positive
-  /// semi-definite is a 400).
+  /// underlying. The supplied matrix is never repaired (one that is not
+  /// positive semi-definite is a 400); with a `correlation_markup` this is
+  /// the shifted (and, when needed, repaired) matrix the simulation ran on.
   const ::flatbuffers::Vector<double> *correlation() const {
     return GetPointer<const ::flatbuffers::Vector<double> *>(VT_CORRELATION);
+  }
+  /// With a `correlation_markup`: the matrix as supplied, before the
+  /// shift, same order. Absent otherwise.
+  const ::flatbuffers::Vector<double> *correlation_base() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_CORRELATION_BASE);
+  }
+  /// The request's `correlation_markup`; absent when none was given.
+  ::flatbuffers::Optional<double> correlation_markup() const {
+    return GetOptional<double, double>(VT_CORRELATION_MARKUP);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -2444,6 +2488,9 @@ struct StructuredNoteMarketDiagnostics FLATBUFFERS_FINAL_CLASS : private ::flatb
            verifier.VerifyVectorOfStrings(correlation_labels()) &&
            VerifyOffsetRequired(verifier, VT_CORRELATION) &&
            verifier.VerifyVector(correlation()) &&
+           VerifyOffset(verifier, VT_CORRELATION_BASE) &&
+           verifier.VerifyVector(correlation_base()) &&
+           VerifyField<double>(verifier, VT_CORRELATION_MARKUP, 8) &&
            verifier.EndTable();
   }
   StructuredNoteMarketDiagnosticsT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -2476,6 +2523,12 @@ struct StructuredNoteMarketDiagnosticsBuilder {
   void add_correlation(::flatbuffers::Offset<::flatbuffers::Vector<double>> correlation) {
     fbb_.AddOffset(StructuredNoteMarketDiagnostics::VT_CORRELATION, correlation);
   }
+  void add_correlation_base(::flatbuffers::Offset<::flatbuffers::Vector<double>> correlation_base) {
+    fbb_.AddOffset(StructuredNoteMarketDiagnostics::VT_CORRELATION_BASE, correlation_base);
+  }
+  void add_correlation_markup(double correlation_markup) {
+    fbb_.AddElement<double>(StructuredNoteMarketDiagnostics::VT_CORRELATION_MARKUP, correlation_markup);
+  }
   explicit StructuredNoteMarketDiagnosticsBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -2502,8 +2555,12 @@ inline ::flatbuffers::Offset<StructuredNoteMarketDiagnostics> CreateStructuredNo
     ::flatbuffers::Offset<::flatbuffers::Vector<double>> discount_factors = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<double>> discount_factors_with_funding = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> correlation_labels = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<double>> correlation = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> correlation = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> correlation_base = 0,
+    ::flatbuffers::Optional<double> correlation_markup = ::flatbuffers::nullopt) {
   StructuredNoteMarketDiagnosticsBuilder builder_(_fbb);
+  if(correlation_markup) { builder_.add_correlation_markup(*correlation_markup); }
+  builder_.add_correlation_base(correlation_base);
   builder_.add_correlation(correlation);
   builder_.add_correlation_labels(correlation_labels);
   builder_.add_discount_factors_with_funding(discount_factors_with_funding);
@@ -2522,7 +2579,9 @@ inline ::flatbuffers::Offset<StructuredNoteMarketDiagnostics> CreateStructuredNo
     const std::vector<double> *discount_factors = nullptr,
     const std::vector<double> *discount_factors_with_funding = nullptr,
     const std::vector<::flatbuffers::Offset<::flatbuffers::String>> *correlation_labels = nullptr,
-    const std::vector<double> *correlation = nullptr) {
+    const std::vector<double> *correlation = nullptr,
+    const std::vector<double> *correlation_base = nullptr,
+    ::flatbuffers::Optional<double> correlation_markup = ::flatbuffers::nullopt) {
   auto observation_dates__ = observation_dates ? _fbb.CreateVector<::flatbuffers::Offset<::flatbuffers::String>>(*observation_dates) : 0;
   auto underlyings__ = underlyings ? _fbb.CreateVector<::flatbuffers::Offset<quantra::StructuredNoteMarketUnderlying>>(*underlyings) : 0;
   auto payment_dates__ = payment_dates ? _fbb.CreateVector<::flatbuffers::Offset<::flatbuffers::String>>(*payment_dates) : 0;
@@ -2530,6 +2589,7 @@ inline ::flatbuffers::Offset<StructuredNoteMarketDiagnostics> CreateStructuredNo
   auto discount_factors_with_funding__ = discount_factors_with_funding ? _fbb.CreateVector<double>(*discount_factors_with_funding) : 0;
   auto correlation_labels__ = correlation_labels ? _fbb.CreateVector<::flatbuffers::Offset<::flatbuffers::String>>(*correlation_labels) : 0;
   auto correlation__ = correlation ? _fbb.CreateVector<double>(*correlation) : 0;
+  auto correlation_base__ = correlation_base ? _fbb.CreateVector<double>(*correlation_base) : 0;
   return quantra::CreateStructuredNoteMarketDiagnostics(
       _fbb,
       observation_dates__,
@@ -2538,7 +2598,9 @@ inline ::flatbuffers::Offset<StructuredNoteMarketDiagnostics> CreateStructuredNo
       discount_factors__,
       discount_factors_with_funding__,
       correlation_labels__,
-      correlation__);
+      correlation__,
+      correlation_base__,
+      correlation_markup);
 }
 
 ::flatbuffers::Offset<StructuredNoteMarketDiagnostics> CreateStructuredNoteMarketDiagnostics(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteMarketDiagnosticsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -5127,6 +5189,8 @@ inline StructuredNoteTermsEchoT::StructuredNoteTermsEchoT(const StructuredNoteTe
         discounting_curve(o.discounting_curve),
         funding_spread_bp(o.funding_spread_bp),
         correlation_id(o.correlation_id),
+        correlation_markup(o.correlation_markup),
+        correlation_markup_repaired(o.correlation_markup_repaired),
         paths(o.paths),
         seed(o.seed),
         sequence(o.sequence),
@@ -5156,6 +5220,8 @@ inline StructuredNoteTermsEchoT &StructuredNoteTermsEchoT::operator=(StructuredN
   std::swap(discounting_curve, o.discounting_curve);
   std::swap(funding_spread_bp, o.funding_spread_bp);
   std::swap(correlation_id, o.correlation_id);
+  std::swap(correlation_markup, o.correlation_markup);
+  std::swap(correlation_markup_repaired, o.correlation_markup_repaired);
   std::swap(paths, o.paths);
   std::swap(seed, o.seed);
   std::swap(sequence, o.sequence);
@@ -5190,6 +5256,8 @@ inline void StructuredNoteTermsEcho::UnPackTo(StructuredNoteTermsEchoT *_o, cons
   { auto _e = discounting_curve(); if (_e) _o->discounting_curve = _e->str(); }
   { auto _e = funding_spread_bp(); _o->funding_spread_bp = _e; }
   { auto _e = correlation_id(); if (_e) _o->correlation_id = _e->str(); }
+  { auto _e = correlation_markup(); _o->correlation_markup = _e; }
+  { auto _e = correlation_markup_repaired(); _o->correlation_markup_repaired = _e; }
   { auto _e = paths(); _o->paths = _e; }
   { auto _e = seed(); _o->seed = _e; }
   { auto _e = sequence(); _o->sequence = _e; }
@@ -5222,6 +5290,8 @@ inline ::flatbuffers::Offset<StructuredNoteTermsEcho> CreateStructuredNoteTermsE
   auto _discounting_curve = _fbb.CreateString(_o->discounting_curve);
   auto _funding_spread_bp = _o->funding_spread_bp;
   auto _correlation_id = _o->correlation_id.empty() ? 0 : _fbb.CreateString(_o->correlation_id);
+  auto _correlation_markup = _o->correlation_markup;
+  auto _correlation_markup_repaired = _o->correlation_markup_repaired;
   auto _paths = _o->paths;
   auto _seed = _o->seed;
   auto _sequence = _o->sequence;
@@ -5246,6 +5316,8 @@ inline ::flatbuffers::Offset<StructuredNoteTermsEcho> CreateStructuredNoteTermsE
       _discounting_curve,
       _funding_spread_bp,
       _correlation_id,
+      _correlation_markup,
+      _correlation_markup_repaired,
       _paths,
       _seed,
       _sequence,
@@ -5771,7 +5843,9 @@ inline StructuredNoteMarketDiagnosticsT::StructuredNoteMarketDiagnosticsT(const 
         discount_factors(o.discount_factors),
         discount_factors_with_funding(o.discount_factors_with_funding),
         correlation_labels(o.correlation_labels),
-        correlation(o.correlation) {
+        correlation(o.correlation),
+        correlation_base(o.correlation_base),
+        correlation_markup(o.correlation_markup) {
   underlyings.reserve(o.underlyings.size());
   for (const auto &underlyings_ : o.underlyings) { underlyings.emplace_back((underlyings_) ? new quantra::StructuredNoteMarketUnderlyingT(*underlyings_) : nullptr); }
 }
@@ -5784,6 +5858,8 @@ inline StructuredNoteMarketDiagnosticsT &StructuredNoteMarketDiagnosticsT::opera
   std::swap(discount_factors_with_funding, o.discount_factors_with_funding);
   std::swap(correlation_labels, o.correlation_labels);
   std::swap(correlation, o.correlation);
+  std::swap(correlation_base, o.correlation_base);
+  std::swap(correlation_markup, o.correlation_markup);
   return *this;
 }
 
@@ -5803,6 +5879,8 @@ inline void StructuredNoteMarketDiagnostics::UnPackTo(StructuredNoteMarketDiagno
   { auto _e = discount_factors_with_funding(); if (_e) { _o->discount_factors_with_funding.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->discount_factors_with_funding[_i] = _e->Get(_i); } } else { _o->discount_factors_with_funding.resize(0); } }
   { auto _e = correlation_labels(); if (_e) { _o->correlation_labels.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->correlation_labels[_i] = _e->Get(_i)->str(); } } else { _o->correlation_labels.resize(0); } }
   { auto _e = correlation(); if (_e) { _o->correlation.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->correlation[_i] = _e->Get(_i); } } else { _o->correlation.resize(0); } }
+  { auto _e = correlation_base(); if (_e) { _o->correlation_base.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->correlation_base[_i] = _e->Get(_i); } } else { _o->correlation_base.resize(0); } }
+  { auto _e = correlation_markup(); _o->correlation_markup = _e; }
 }
 
 inline ::flatbuffers::Offset<StructuredNoteMarketDiagnostics> StructuredNoteMarketDiagnostics::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteMarketDiagnosticsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -5820,6 +5898,8 @@ inline ::flatbuffers::Offset<StructuredNoteMarketDiagnostics> CreateStructuredNo
   auto _discount_factors_with_funding = _fbb.CreateVector(_o->discount_factors_with_funding);
   auto _correlation_labels = _fbb.CreateVectorOfStrings(_o->correlation_labels);
   auto _correlation = _fbb.CreateVector(_o->correlation);
+  auto _correlation_base = _o->correlation_base.size() ? _fbb.CreateVector(_o->correlation_base) : 0;
+  auto _correlation_markup = _o->correlation_markup;
   return quantra::CreateStructuredNoteMarketDiagnostics(
       _fbb,
       _observation_dates,
@@ -5828,7 +5908,9 @@ inline ::flatbuffers::Offset<StructuredNoteMarketDiagnostics> CreateStructuredNo
       _discount_factors,
       _discount_factors_with_funding,
       _correlation_labels,
-      _correlation);
+      _correlation,
+      _correlation_base,
+      _correlation_markup);
 }
 
 inline StructuredNoteEventDecompositionT *StructuredNoteEventDecomposition::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {

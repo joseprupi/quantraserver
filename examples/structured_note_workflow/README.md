@@ -9,14 +9,16 @@ and response fields named below are defined in `docs/http-api.md`:
 ["Structured notes"](../../docs/http-api.md#structured-notes),
 ["Diagnostics"](../../docs/http-api.md#diagnostics),
 ["Greeks"](../../docs/http-api.md#greeks),
-["Implied forwards and dividends from option quotes"](../../docs/http-api.md#implied-forwards-and-dividends-from-option-quotes)
-and ["Volatility surface from option quotes"](../../docs/http-api.md#volatility-surface-from-option-quotes).
+["Implied forwards and dividends from option quotes"](../../docs/http-api.md#implied-forwards-and-dividends-from-option-quotes),
+["Volatility surface from option quotes"](../../docs/http-api.md#volatility-surface-from-option-quotes)
+and ["Correlation from price histories"](../../docs/http-api.md#correlation-from-price-histories).
 
 | File | What |
 |---|---|
-| `price_note_from_quotes.py` | Level 2 end to end: quote sheets → `calibrate-implied-forwards` → `calibrate-vol-surface` → `price-structured-note` on the grid and on the SVI payload, with the repricing diagnostic; prints a table and writes every request and response body. Python 3 + `requests`. |
-| `price_note_from_quotes.sh` | The same three calls as raw HTTP (`curl` + `jq`), on the bodies the Python script wrote or on the shipped example requests. |
+| `price_note_from_quotes.py` | Level 2 end to end: price histories → `calibrate-correlation` (with `--closes`), quote sheets → `calibrate-implied-forwards` → `calibrate-vol-surface` → `price-structured-note` on the grid and on the SVI payload, with the repricing diagnostic; prints a table and writes every request and response body. Python 3 + `requests`. |
+| `price_note_from_quotes.sh` | The same calls as raw HTTP (`curl` + `jq`), on the bodies the Python script wrote or on the shipped example requests. |
 | `../data/vol_surface/synthetic_scotia_{ndx,rty}_sheet.json` | The two quote sheets the script reads by default: **synthetic**, generated on the note's own market by `tests/tools/make_synthetic_quote_sheet.py` (`svi_scotia_ndx` / `svi_scotia_rty`). |
+| `../data/correlation/ndx_rut_closes_2025-09-29_to_2026-09-30.json` | The price histories `--closes` reads by default: one year of daily NDX and RTY closes (public index closes; see the README there). Real data, unlike the sheets. |
 | `../data/structured_note/scotia_..._with_synthetic_surface.json`, `..._with_synthetic_svi.json` | The level-2 result as a single request each (grid / SVI payload), ready to post. |
 
 `tests/contract/structured_note_workflow_test.py` runs the Python script in
@@ -73,11 +75,12 @@ forward the market trades. The result is indicative: 965.6 ± 0.4 at
 ## Level 2: option quotes → forwards → surface → the note
 
 Two sheets of listed European option quotes (one per index, the as-of date
-of the note) are the only new input; the chain is three endpoints and the
+of the note) are the new input, and optionally the two indices' price
+histories; the chain is three calibration endpoints and the pricer, and the
 script runs it:
 
 ```bash
-python3 examples/structured_note_workflow/price_note_from_quotes.py --url http://localhost:8080 --flat
+python3 examples/structured_note_workflow/price_note_from_quotes.py --url http://localhost:8080 --flat --closes
 # own sheets, own note:
 python3 examples/structured_note_workflow/price_note_from_quotes.py \
   --sheet-ndx ndx_eod_sheet.json --sheet-rty rut_eod_sheet.json --note my_note.json \
@@ -90,7 +93,21 @@ Steps, each printed with a one-line summary:
 - (a) The note is loaded; its spots, as-of date and discounting curve are
   the market the calibrations run on (a sheet whose `spot` or `as_of_date`
   differs from the note's is reported).
-- (b) `POST /calibrate-implied-forwards` per index: `pricing` (the as-of
+- (b) With `--closes [FILE]`, `POST /calibrate-correlation` on the price
+  histories (the shipped NDX / RTY closes by default; `FILE` is any
+  `calibrate-correlation` request whose series are the note's underlyings):
+  the `series` of `{date, value}` closes, the `estimator` (window, log or
+  simple returns, daily or weekly, shrinkage) and the note's
+  `correlation_id`. The response gives `correlation_spec` (pasted into
+  `pricing.correlations.matrices` in place of the booked matrix),
+  `sample_correlation` next to it, the shrinkage target and intensity, the
+  smallest eigenvalue before and after the floor, the closes used and
+  dropped per series and their realised vols. The script prints the matrix
+  used and the sample side by side. Without `--closes` the booked matrix is
+  reported and kept. On the shipped closes the estimate is 0.7472, the
+  0.747 the note is booked with; with two series the Ledoit-Wolf target is
+  the sample itself (intensity 0), so the file asks for `shrinkage: None`.
+- (c) `POST /calibrate-implied-forwards` per index: `pricing` (the as-of
   date, the spot quote, the discounting curve, a flat 0 % placeholder
   dividend curve the fit does not read), the `sheet`, the
   `discounting_curve`, the `filter` and the `dividend_curve_id` wanted.
@@ -101,7 +118,7 @@ Steps, each printed with a one-line summary:
   that reproduces those forwards, pasted into `pricing.rates.curves` with
   the underlying's `dividend_yield_curve_id` pointed at it. The script
   prints that table.
-- (c) `POST /calibrate-vol-surface` per index: the same `pricing` and
+- (d) `POST /calibrate-vol-surface` per index: the same `pricing` and
   `sheet`, the step-(b) `expiries` array as `forwards` (so the surface is
   fitted on exactly the forwards the note will simulate), `method`
   (`SviPerExpiry` here; `AndreasenHuge` is the default) and
@@ -115,20 +132,22 @@ Steps, each printed with a one-line summary:
   slices with their forwards), and `vanilla_repricing`: every used quote
   repriced on the returned grid, the surface's own acceptance check. The
   script prints the report and keeps both specs.
-- (d) `POST /price-structured-note` twice: the note with the two dividend
-  curves and the two surfaces pasted in (grid, then SVI), `monte_carlo.
-  steps_per_year` set (required with a surface: the simulation is Dupire
+- (e) `POST /price-structured-note` twice: the note with the correlation
+  matrix of (b), the two dividend curves and the two surfaces pasted in
+  (grid, then SVI), `monte_carlo.steps_per_year` set (required with a surface: the simulation is Dupire
   local vol on a time grid; 252 = one step per trading day), and
   `diagnostics: {vanilla_repricing: true, vanilla_repricing_sheets: [the two
   sheets], vanilla_repricing_filter: the same filter}`.
-- (e) With `--flat`: a third pricing with a `Constant` vol per index equal
+- (f) With `--flat`: a third pricing with a `Constant` vol per index equal
   to the Black-76 implied vol of the sheet's at-the-money quote nearest one
   year, no `steps_per_year`: the level-1 request built from the same sheets.
-- (f) The table.
+- (g) The table.
 
 Run on the synthetic sheets at the defaults (2,048 Sobol paths, 252 steps
-per year) with `--flat`; the 507-step local-vol simulation and its
-repricing run take about 2 s each in the engine at this path count:
+per year) with `--flat` and the booked correlation; the 507-step local-vol
+simulation and its repricing run take about 2 s each in the engine at this
+path count (with `--closes` the matrix is 0.7472 instead of 0.747 and the
+rows move within the noise):
 
 ```
     run    price      +/- SE   status  p_call  p_breach      bond   coupons   cap.loss  repricing inside/within noise/total  max vol err
@@ -173,7 +192,8 @@ How to read it:
   wings. A local-vol run reprices the listed options; a flat vol reprices
   the one quote it was read from.
 
-The request bodies the script sends (`implied_forwards_<ID>_request.json`,
+The request bodies the script sends (`correlation_request.json` with
+`--closes`, `implied_forwards_<ID>_request.json`,
 `vol_surface_<ID>_request.json`, `price_note_{grid,svi,flat}_request.json`)
 and the responses are written to `--out-dir` (a temp dir by default; the
 path is printed). Any HTTP error ends the run with the engine's message and
@@ -214,9 +234,13 @@ When the desk already has the market, paste it; nothing is calibrated.
   `spot x D_div(T) / D_discount(T)`, and the `market` diagnostic echoes the
   forwards and implied yields at every observation date, so a desk forward
   can be checked against it before pricing.
-- Correlation: the matrix the desk marks (`pricing.correlations.matrices`);
-  the `checks` diagnostic prices the correlation-one and correlation-zero
-  limits on the same stream, and `greeks.correlation_sensitivity` the slope.
+- Correlation: the matrix the desk marks (`pricing.correlations.matrices`),
+  or the historical estimate of `/calibrate-correlation` with the desk's
+  view as `correlation_markup` on the note (a uniform shift of every
+  off-diagonal entry, clipped and repaired, echoed in `terms` and in the
+  `market` diagnostic); the `checks` diagnostic prices the correlation-one
+  and correlation-zero limits on the same stream, and
+  `greeks.correlation_sensitivity` the slope.
 - Funding: `funding_spread_bp` over the `discounting_curve` (the issuer's
   level; `greeks.funding_dv01` is the sensitivity per bp), or a funding
   curve as the discounting curve itself with the spread at zero.

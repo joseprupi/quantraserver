@@ -117,6 +117,9 @@ struct StructuredNoteTrade {
     std::string discountingCurveId;
     double fundingSpreadBp = 0.0;
     std::string correlationId;
+    /// Uniform shift of every off-diagonal correlation before pricing;
+    /// absent = none.
+    std::optional<double> correlationMarkup;
     std::optional<UpsideData> upside;
     MonteCarloData monteCarlo;
     /// `notes[<i>]`, the prefix of every message about this note.
@@ -214,6 +217,8 @@ struct NoteTermsEcho {
     std::string discountingCurveId;
     double fundingSpreadBp = 0.0;
     std::string correlationId;
+    std::optional<double> correlationMarkup;
+    bool correlationMarkupRepaired = false;
     unsigned int paths = 0;
     unsigned long seed = 42;
     RandomSequenceKind sequence = RandomSequenceKind::Sobol;
@@ -333,8 +338,12 @@ struct NoteMarketDiagnostics {
     std::vector<double> discountFactors;
     std::vector<double> discountFactorsWithFunding;
     std::vector<std::string> correlationLabels;
-    /// Row-major n x n.
+    /// Row-major n x n: the matrix the simulation ran on.
     std::vector<double> correlation;
+    /// With a correlation mark-up: the matrix as supplied (same order);
+    /// empty otherwise.
+    std::vector<double> correlationBase;
+    std::optional<double> correlationMarkup;
 };
 
 struct NoteEventDecomposition {

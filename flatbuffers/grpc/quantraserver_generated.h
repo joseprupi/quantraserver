@@ -24,6 +24,8 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 #include "calendar_business_days_response_generated.h"
 #include "calendar_holidays_request_generated.h"
 #include "calendar_holidays_response_generated.h"
+#include "calibrate_correlation_request_generated.h"
+#include "calibrate_correlation_response_generated.h"
 #include "calibrate_implied_forwards_request_generated.h"
 #include "calibrate_implied_forwards_response_generated.h"
 #include "calibrate_swaption_model_request_generated.h"

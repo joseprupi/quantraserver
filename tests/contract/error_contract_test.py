@@ -982,6 +982,19 @@ _EC_NON_PSD = [1.0, 0.9, 0.9,
 # Every mutation starts from the BNP example (4 underlyings, 3 quanto, one
 # past observation, constant vols, European barrier).
 # ---------------------------------------------------------------------------
+
+_EC_CORR = "correlation/ndx_rut_closes_2025-09-29_to_2026-09-30.json"
+
+
+def _ec_corr(mutate):
+    """Mutate a calibrate-correlation request in place (the mutator may
+    return nothing)."""
+    def f(req):
+        mutate(req)
+        return req
+    return f
+
+
 _EC_SN = "structured_note/bnp_quad_index_classic_autocall_xs2741509801.json"
 
 
@@ -2394,6 +2407,49 @@ SCENARIOS = [
      _ec_bootstrap_overflowing_zero_curve(),
      _ec_body_is_error_json(
          "non-finite value in response at results[0].series[0].values[1]")),
+    # ---- calibrate-correlation ----
+    ("ec:400 calibrate_correlation one series", "calibrate_correlation", _EC_CORR, 400,
+     _ec_corr(lambda q: q["series"].pop()),
+     _ec_body_contains("series: at least two price series are needed")),
+    ("ec:400 calibrate_correlation duplicate id", "calibrate_correlation", _EC_CORR, 400,
+     _ec_corr(lambda q: q["series"][1].__setitem__("underlying_id", "NDX")),
+     _ec_body_contains("series[1].underlying_id: duplicate 'NDX'")),
+    ("ec:400 calibrate_correlation non-increasing dates", "calibrate_correlation", _EC_CORR, 400,
+     _ec_corr(lambda q: q["series"][0]["closes"].__setitem__(5, dict(q["series"][0]["closes"][4]))),
+     _ec_body_contains("series[0].closes[5].date")),
+    ("ec:400 calibrate_correlation non-positive close", "calibrate_correlation", _EC_CORR, 400,
+     _ec_corr(lambda q: q["series"][1]["closes"][7].__setitem__("value", 0.0)),
+     _ec_body_contains("series[1].closes[7].value must be finite and > 0")),
+    ("ec:400 calibrate_correlation overlap below min_overlap", "calibrate_correlation", _EC_CORR, 400,
+     _ec_corr(lambda q: q["estimator"].__setitem__("min_overlap", 300)),
+     _ec_body_contains("is below estimator.min_overlap (300)")),
+    ("ec:400 calibrate_correlation labels not a permutation", "calibrate_correlation", _EC_CORR, 400,
+     _ec_corr(lambda q: q.__setitem__("labels", ["NDX", "SPX"])),
+     _ec_body_contains("labels: 'SPX' is not a series id")),
+    ("ec:400 calibrate_correlation both window forms", "calibrate_correlation", _EC_CORR, 400,
+     _ec_corr(lambda q: q["estimator"].update({"window_days": 30, "end_date": "2026-09-30"})),
+     _ec_body_contains("estimator.window_days: give either window_days or start_date / end_date")),
+    ("ec:400 calibrate_correlation Fixed without intensity", "calibrate_correlation", _EC_CORR, 400,
+     _ec_corr(lambda q: q["estimator"].__setitem__("shrinkage", "Fixed")),
+     _ec_body_contains("estimator.shrinkage_intensity is required with shrinkage = Fixed")),
+    ("ec:400 calibrate_correlation intensity out of range", "calibrate_correlation", _EC_CORR, 400,
+     _ec_corr(lambda q: q["estimator"].update({"shrinkage": "Fixed", "shrinkage_intensity": -0.1})),
+     _ec_body_contains("estimator.shrinkage_intensity must be in [0, 1]")),
+    ("ec:400 calibrate_correlation empty window", "calibrate_correlation", _EC_CORR, 400,
+     _ec_corr(lambda q: q["estimator"].__setitem__("start_date", "2027-01-01")),
+     _ec_body_contains("contains no date common to every series")),
+    ("ec:400 calibrate_correlation correlation_id missing", "calibrate_correlation", _EC_CORR, 400,
+     _ec_corr(lambda q: q.pop("correlation_id"))),
+
+    # ---- price-structured-note: correlation_markup ----
+    ("ec:400 structured note correlation_markup above 1", "structured_note", _EC_SN, 400,
+     _ec_sn_set("correlation_markup", 1.5),
+     _ec_body_contains("notes[0].correlation_markup: must be finite and in [-1, 1]")),
+    ("ec:400 structured note correlation_markup on a single underlying", "structured_note",
+     "structured_note/single_underlying_reverse_convertible.json", 400,
+     _ec_sn_set("correlation_markup", 0.05),
+     _ec_body_contains("notes[0].correlation_markup: must be absent with a single underlying")),
+
 ]
 
 

@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Quantra Pricing API",
-    "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Zero Coupon Bond | `/price-zero-coupon-bond` | Price zero-coupon (single redemption) bonds |\n| Zero Coupon Swap | `/price-zero-coupon-swap` | Price zero-coupon fixed-vs-compounded-floating swaps |\n| Year-on-Year Inflation Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation caps, floors, and collars |\n| Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |\n| FX Forward | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount curves |\n| Cross-Currency Swap | `/price-cross-currency-swap` | Price cross-currency swaps (two SwapLeg entries in two currencies, fixed / IBOR / overnight coupons, principal exchanges) |\n| Structured Note | `/price-structured-note` | Price structured notes on equity-index baskets (autocallables, Phoenix / Athena coupons, capital barriers) by Monte Carlo |\n| Calibrate Implied Forwards | `/calibrate-implied-forwards` | Implied forwards, funding and dividend yields per expiry from listed-option quotes (put-call parity fit), with a ready-to-use dividend curve |\n| Calibrate Vol Surface | `/calibrate-vol-surface` | Arbitrage-checked Black implied-vol surface from listed-option quotes (Andreasen-Huge or SVI per expiry), with a ready-to-paste `BlackVolSpec` and a vanilla-repricing report |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/bonds/fixed_rate_bond_request.json\n```\n",
-    "version": "0.15.0",
+    "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Zero Coupon Bond | `/price-zero-coupon-bond` | Price zero-coupon (single redemption) bonds |\n| Zero Coupon Swap | `/price-zero-coupon-swap` | Price zero-coupon fixed-vs-compounded-floating swaps |\n| Year-on-Year Inflation Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation caps, floors, and collars |\n| Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |\n| FX Forward | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount curves |\n| Cross-Currency Swap | `/price-cross-currency-swap` | Price cross-currency swaps (two SwapLeg entries in two currencies, fixed / IBOR / overnight coupons, principal exchanges) |\n| Structured Note | `/price-structured-note` | Price structured notes on equity-index baskets (autocallables, Phoenix / Athena coupons, capital barriers) by Monte Carlo |\n| Calibrate Implied Forwards | `/calibrate-implied-forwards` | Implied forwards, funding and dividend yields per expiry from listed-option quotes (put-call parity fit), with a ready-to-use dividend curve |\n| Calibrate Vol Surface | `/calibrate-vol-surface` | Arbitrage-checked Black implied-vol surface from listed-option quotes (Andreasen-Huge or SVI per expiry), with a ready-to-paste `BlackVolSpec` and a vanilla-repricing report |\n| Calibrate Correlation | `/calibrate-correlation` | Correlation matrix from price histories (aligned returns, Ledoit-Wolf shrinkage, eigenvalue floor), as a ready-to-paste `CorrelationMatrixSpec` |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/bonds/fixed_rate_bond_request.json\n```\n",
+    "version": "0.16.0",
     "contact": {
       "name": "Quantra API Support",
       "url": "https://github.com/joseprupi/quantraserver"
@@ -1885,6 +1885,69 @@
         }
       }
     },
+    "/calibrate-correlation": {
+      "post": {
+        "summary": "Calibrate a Correlation Matrix from Price Histories",
+        "description": "From the closes of two or more underlyings (dates and values supplied in the request; the engine fetches nothing): align the series on the dates common to all of them inside the window (calendar days back from as_of_date, an explicit start/end, or every common date), optionally keep every fifth observation (weekly), take log or simple returns, and form the sample correlation (maximum-likelihood covariance normalised to unit diagonal). Shrink it toward the constant-correlation target (every pair at the average sample correlation) with the Ledoit-Wolf (2004) intensity clipped to [0, 1], a fixed intensity, or none; then enforce positive semi-definiteness with an eigenvalue floor (QuantLib SymmetricSchurDecomposition; eigenvalues clipped and the matrix rescaled to unit diagonal, reported when applied). Returns the CorrelationMatrixSpec under the request's correlation_id (labels in the requested order), the unshrunk sample correlation, the target and intensity used, the smallest eigenvalue before and after the floor, the observations and returns used with the first and last dates, per series the closes supplied, dropped and the realised volatility (Act/252), and the estimator settings as resolved, which reproduce the response when posted back. 400 naming the field for fewer than two series, duplicate ids, non-increasing dates, a non-positive close, an overlap below min_overlap, labels that are not a permutation of the series ids, or inconsistent shrinkage or window settings.",
+        "tags": [
+          "Volatility"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/quantra_CalibrateCorrelationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful pricing response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/quantra_CalibrateCorrelationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health Check",
@@ -2437,6 +2500,28 @@
           "Alive",
           "Called",
           "Matured"
+        ]
+      },
+      "quantra_enums_ReturnType": {
+        "type": "string",
+        "enum": [
+          "Log",
+          "Simple"
+        ]
+      },
+      "quantra_enums_ReturnFrequency": {
+        "type": "string",
+        "enum": [
+          "Daily",
+          "Weekly"
+        ]
+      },
+      "quantra_enums_CorrelationShrinkage": {
+        "type": "string",
+        "enum": [
+          "None",
+          "LedoitWolf",
+          "Fixed"
         ]
       },
       "quantra_Flow": {
@@ -6258,6 +6343,211 @@
         ],
         "additionalProperties": false
       },
+      "quantra_PriceSeries": {
+        "type": "object",
+        "description": "One underlying's price history: closes on strictly increasing dates,\nevery value > 0. The engine never fetches prices; it receives them.",
+        "properties": {
+          "underlying_id": {
+            "type": "string",
+            "description": "`EquityUnderlyingSpec.id` the series stands for; becomes a label of\nthe returned correlation matrix. Required, unique within `series`."
+          },
+          "closes": {
+            "type": "array",
+            "description": "`{date, value}` closes in strictly increasing date order (400\notherwise), value > 0. Required, at least one entry.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_Fixing"
+            }
+          }
+        },
+        "required": [
+          "underlying_id",
+          "closes"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_CorrelationEstimator": {
+        "type": "object",
+        "description": "Settings of the historical correlation estimator. Every field has a\ndefault; the response echoes the settings as resolved (an explicit\nwindow instead of `window_days`) so the result can be reproduced from\nthe echo alone.",
+        "properties": {
+          "window_days": {
+            "type": "integer",
+            "description": "Calendar days back from `as_of_date`: the window is\n[as_of_date - window_days, as_of_date]. Absent and no explicit\nwindow: every date common to all series is used, closes after\n`as_of_date` included. Must be > 0; 400 together with `start_date`\nor `end_date`.",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "start_date": {
+            "type": "string",
+            "description": "Explicit window, inclusive, ISO dates; either bound may be absent\n(no bound on that side). 400 with `window_days`, or when\n`start_date` is after `end_date`."
+          },
+          "end_date": {
+            "type": "string"
+          },
+          "returns": {
+            "$ref": "#/components/schemas/quantra_enums_ReturnType"
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/quantra_enums_ReturnFrequency"
+          },
+          "shrinkage": {
+            "$ref": "#/components/schemas/quantra_enums_CorrelationShrinkage"
+          },
+          "shrinkage_intensity": {
+            "type": "number",
+            "description": "Intensity in [0, 1] toward the constant-correlation target. Required\niff `shrinkage` is Fixed (400 otherwise)."
+          },
+          "min_overlap": {
+            "type": "integer",
+            "description": "Least number of dates common to all series inside the window (before\nthe frequency sampling); 400 below it. Must be >= 3.",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "eigenvalue_floor": {
+            "type": "number",
+            "description": "Eigenvalue the negative ones are raised to when the estimated (and\nshrunk) matrix is not positive semi-definite to the registry's\ntolerance (smallest eigenvalue below -1e-10; a rank-deficient matrix\nsuch as a perfectly correlated pair, eigenvalue 0, is returned as\nis): eigenvalues clipped to the floor, the matrix rescaled to unit\ndiagonal, the response says so. Finite, in [0, 1)."
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_CalibrateCorrelationRequest": {
+        "type": "object",
+        "description": "Request for `/calibrate-correlation`: a correlation matrix, ready to\npaste under `pricing.correlations.matrices`, from the price histories\nof two or more underlyings. Returns on the dates common to every series\ninside the window, sample correlation, optional shrinkage toward the\nconstant-correlation target, positive semi-definiteness enforced by an\neigenvalue floor. There is no `pricing` block: the endpoint reads no\nmarket data other than the closes given here.",
+        "properties": {
+          "as_of_date": {
+            "type": "string",
+            "description": "Anchor of `window_days` and the date the estimate is labelled with.\nRequired. Closes after it are not an error (they are used unless a\nwindow excludes them)."
+          },
+          "series": {
+            "type": "array",
+            "description": "At least two series with distinct `underlying_id`s. Required.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_PriceSeries"
+            }
+          },
+          "estimator": {
+            "$ref": "#/components/schemas/quantra_CorrelationEstimator"
+          },
+          "correlation_id": {
+            "type": "string",
+            "description": "Id given to the returned `CorrelationMatrixSpec`. Required."
+          },
+          "labels": {
+            "type": "array",
+            "description": "Row/column order of the returned matrix: a permutation of the\n`underlying_id`s of `series` (400 otherwise). Absent = series order.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "as_of_date",
+          "series",
+          "correlation_id"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_CorrelationSeriesReport": {
+        "type": "object",
+        "description": "Per-series report of `/calibrate-correlation`, in the output label\norder.",
+        "properties": {
+          "underlying_id": {
+            "type": "string"
+          },
+          "observations": {
+            "type": "integer",
+            "description": "Closes supplied for this series.",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "dropped": {
+            "type": "integer",
+            "description": "Closes not used: outside the window, on a date some other series\nlacks, or skipped by the Weekly sampling. `observations - dropped`\nis `observations_used` for every series.",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "annualised_volatility": {
+            "type": "number",
+            "description": "Realised volatility of the returns used, annualised on an Act/252\nbasis: sqrt(unbiased variance x 252 / step) with step 1 (Daily) or 5\n(Weekly). A by-product; not what pricing should use for a vol."
+          }
+        },
+        "required": [
+          "underlying_id"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_CalibrateCorrelationResponse": {
+        "type": "object",
+        "description": "Response of `/calibrate-correlation`.",
+        "properties": {
+          "correlation_spec": {
+            "$ref": "#/components/schemas/quantra_CorrelationMatrixSpec"
+          },
+          "sample_correlation": {
+            "type": "array",
+            "description": "The sample correlation before shrinkage and before the eigenvalue\nfloor, row-major in the same label order.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "shrinkage_target": {
+            "type": "number",
+            "description": "The constant-correlation target: the average of the off-diagonal\nsample correlations."
+          },
+          "shrinkage_intensity_used": {
+            "type": "number",
+            "description": "Intensity applied: 0 for None, the Ledoit-Wolf value (clipped to\n[0, 1]) for LedoitWolf, the request's value for Fixed. Off-diagonal\nentries of the result are `intensity x target + (1 - intensity) x\nsample` before the eigenvalue floor. With exactly two series the\ntarget equals the sample correlation and the intensity is reported\nas 0 (there is nothing to shrink)."
+          },
+          "eigenvalue_floor_applied": {
+            "type": "boolean",
+            "description": "True when the shrunk matrix was not positive semi-definite to the\nregistry's tolerance (smallest eigenvalue below -1e-10) and was\nrepaired (eigenvalues clipped to `eigenvalue_floor`, rescaled to\nunit diagonal)."
+          },
+          "smallest_eigenvalue_before": {
+            "type": "number",
+            "description": "Smallest eigenvalue of the shrunk matrix before the floor."
+          },
+          "smallest_eigenvalue_after": {
+            "type": "number",
+            "description": "Smallest eigenvalue of the returned matrix (equal to `before` when\nthe floor was not applied)."
+          },
+          "observations_used": {
+            "type": "integer",
+            "description": "Price observations that entered the returns (after the window, the\nalignment and the frequency sampling); the same for every series.",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "returns_used": {
+            "type": "integer",
+            "description": "`observations_used - 1`.",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "first_date": {
+            "type": "string",
+            "description": "First and last observation dates used."
+          },
+          "last_date": {
+            "type": "string"
+          },
+          "series": {
+            "type": "array",
+            "description": "One entry per series, in the output label order.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_CorrelationSeriesReport"
+            }
+          },
+          "estimator_echo": {
+            "$ref": "#/components/schemas/quantra_CorrelationEstimator"
+          }
+        },
+        "required": [
+          "correlation_spec",
+          "sample_correlation",
+          "first_date",
+          "last_date",
+          "series",
+          "estimator_echo"
+        ],
+        "additionalProperties": false
+      },
       "quantra_OptionQuote": {
         "type": "object",
         "description": "One listed-option quote line: a strike at an expiry with the call and put\nsides as quoted (bid/ask), plus optional liquidity fields. Shared by the\nimplied-forward calibration (`/calibrate-implied-forwards`) and the\nvol-surface calibration that consumes its forwards. Prices are in the\nunderlying's currency per unit of underlying (not per contract).\n\nEvery scalar is presence-required where it is needed: a strike or a price\nthat is absent is reported as a dropped quote with a reason, never read as\n0.0. A line may carry only one side (call or put); it then cannot enter a\nparity fit and is dropped with reason \"missing call or put side\".",
@@ -8779,6 +9069,10 @@
             "type": "string",
             "description": "Id of the `CorrelationMatrixSpec` in pricing.correlations.matrices;\nits labels must be exactly the basket's underlying ids. Required\n(400) when the note has two or more underlyings; must be absent (400)\nwith exactly one underlying, which is simulated on a 1 x 1 unit\nmatrix (a `CorrelationMatrixSpec` lists at least two labels)."
           },
+          "correlation_markup": {
+            "type": "number",
+            "description": "Uniform additive shift applied to every off-diagonal entry of the\ncorrelation matrix before pricing (the desk's correlation mark-up or\nstress): each entry becomes `rho + correlation_markup` clipped to\n[-1, 1]; when the shifted matrix is not positive semi-definite it is\nrepaired exactly as the Greeks' correlation bump is (eigenvalue\nclipping, rescaled to unit diagonal) and the response says so. The\nGreeks' correlation bump and the correlation-limit checks start from\nthe marked-up matrix. Finite, in [-1, 1] (400 otherwise); must be\nabsent with a single underlying. Absent = no shift."
+          },
           "upside": {
             "$ref": "#/components/schemas/quantra_UpsideParticipation"
           },
@@ -9890,6 +10184,14 @@
             "type": "string",
             "description": "Absent for a single-underlying note (simulated on a 1 x 1 unit\nmatrix)."
           },
+          "correlation_markup": {
+            "type": "number",
+            "description": "The request's `correlation_markup`; absent when none was given."
+          },
+          "correlation_markup_repaired": {
+            "type": "boolean",
+            "description": "True when the marked-up matrix was not positive semi-definite and\nwas repaired before pricing (see `StructuredNote.correlation_markup`).\nFalse without a mark-up."
+          },
           "paths": {
             "type": "integer",
             "description": "Paths requested (the number actually simulated is on the result).",
@@ -10353,10 +10655,21 @@
           },
           "correlation": {
             "type": "array",
-            "description": "The correlation matrix as used, row-major n x n, permuted to the\nnote's underlying order; the 1 x 1 unit matrix for a single\nunderlying. No repair is ever applied (a matrix that is not positive\nsemi-definite is a 400).",
+            "description": "The correlation matrix as used, row-major n x n, permuted to the\nnote's underlying order; the 1 x 1 unit matrix for a single\nunderlying. The supplied matrix is never repaired (one that is not\npositive semi-definite is a 400); with a `correlation_markup` this is\nthe shifted (and, when needed, repaired) matrix the simulation ran on.",
             "items": {
               "type": "number"
             }
+          },
+          "correlation_base": {
+            "type": "array",
+            "description": "With a `correlation_markup`: the matrix as supplied, before the\nshift, same order. Absent otherwise.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "correlation_markup": {
+            "type": "number",
+            "description": "The request's `correlation_markup`; absent when none was given."
           }
         },
         "required": [

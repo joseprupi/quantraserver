@@ -1,0 +1,78 @@
+include "enums.fbs";
+include "index.fbs";
+
+namespace quantra;
+
+/// One underlying's price history: closes on strictly increasing dates,
+/// every value > 0. The engine never fetches prices; it receives them.
+table PriceSeries {
+    /// `EquityUnderlyingSpec.id` the series stands for; becomes a label of
+    /// the returned correlation matrix. Required, unique within `series`.
+    underlying_id:string (required);
+    /// `{date, value}` closes in strictly increasing date order (400
+    /// otherwise), value > 0. Required, at least one entry.
+    closes:[Fixing] (required);
+}
+
+/// Settings of the historical correlation estimator. Every field has a
+/// default; the response echoes the settings as resolved (an explicit
+/// window instead of `window_days`) so the result can be reproduced from
+/// the echo alone.
+table CorrelationEstimator {
+    /// Calendar days back from `as_of_date`: the window is
+    /// [as_of_date - window_days, as_of_date]. Absent and no explicit
+    /// window: every date common to all series is used, closes after
+    /// `as_of_date` included. Must be > 0; 400 together with `start_date`
+    /// or `end_date`.
+    window_days:uint = null;
+    /// Explicit window, inclusive, ISO dates; either bound may be absent
+    /// (no bound on that side). 400 with `window_days`, or when
+    /// `start_date` is after `end_date`.
+    start_date:string;
+    end_date:string;
+    /// Returns: Log (default) or Simple.
+    returns:enums.ReturnType = Log;
+    /// Daily (default, every common date) or Weekly (every fifth common
+    /// observation counted back from the last).
+    frequency:enums.ReturnFrequency = Daily;
+    /// None, LedoitWolf (default) or Fixed.
+    shrinkage:enums.CorrelationShrinkage = LedoitWolf;
+    /// Intensity in [0, 1] toward the constant-correlation target. Required
+    /// iff `shrinkage` is Fixed (400 otherwise).
+    shrinkage_intensity:double = null;
+    /// Least number of dates common to all series inside the window (before
+    /// the frequency sampling); 400 below it. Must be >= 3.
+    min_overlap:uint = 60;
+    /// Eigenvalue the negative ones are raised to when the estimated (and
+    /// shrunk) matrix is not positive semi-definite to the registry's
+    /// tolerance (smallest eigenvalue below -1e-10; a rank-deficient matrix
+    /// such as a perfectly correlated pair, eigenvalue 0, is returned as
+    /// is): eigenvalues clipped to the floor, the matrix rescaled to unit
+    /// diagonal, the response says so. Finite, in [0, 1).
+    eigenvalue_floor:double = 0.00000001;
+}
+
+/// Request for `/calibrate-correlation`: a correlation matrix, ready to
+/// paste under `pricing.correlations.matrices`, from the price histories
+/// of two or more underlyings. Returns on the dates common to every series
+/// inside the window, sample correlation, optional shrinkage toward the
+/// constant-correlation target, positive semi-definiteness enforced by an
+/// eigenvalue floor. There is no `pricing` block: the endpoint reads no
+/// market data other than the closes given here.
+table CalibrateCorrelationRequest {
+    /// Anchor of `window_days` and the date the estimate is labelled with.
+    /// Required. Closes after it are not an error (they are used unless a
+    /// window excludes them).
+    as_of_date:string (required);
+    /// At least two series with distinct `underlying_id`s. Required.
+    series:[PriceSeries] (required);
+    /// Estimator settings; the defaults apply when absent.
+    estimator:CorrelationEstimator;
+    /// Id given to the returned `CorrelationMatrixSpec`. Required.
+    correlation_id:string (required);
+    /// Row/column order of the returned matrix: a permutation of the
+    /// `underlying_id`s of `series` (400 otherwise). Absent = series order.
+    labels:[string];
+}
+
+root_type CalibrateCorrelationRequest;

@@ -352,6 +352,20 @@ StructuredNoteTrade decodeNote(const quantra::StructuredNote* n, std::size_t i) 
             p + ".correlation_id: required with " + std::to_string(t.underlyings.size()) +
             " underlyings");
     }
+    if (n->correlation_markup().has_value()) {
+        const double markup = n->correlation_markup().value();
+        if (!std::isfinite(markup) || markup < -1.0 || markup > 1.0) {
+            QUANTRA_INVALID_ARGUMENT(
+                p + ".correlation_markup: must be finite and in [-1, 1], got " +
+                std::to_string(markup));
+        }
+        if (t.underlyings.size() == 1) {
+            QUANTRA_INVALID_ARGUMENT(
+                p + ".correlation_markup: must be absent with a single underlying (there is no "
+                    "off-diagonal correlation to shift)");
+        }
+        t.correlationMarkup = markup;
+    }
 
     if (const auto* up = n->upside()) {
         const std::string upp = p + ".upside";
@@ -500,6 +514,8 @@ flatbuffers::Offset<quantra::StructuredNoteTermsEcho> serializeTerms(
     tb.add_discounting_curve(disc);
     tb.add_funding_spread_bp(t.fundingSpreadBp);
     if (!t.correlationId.empty()) tb.add_correlation_id(corr);
+    if (t.correlationMarkup) tb.add_correlation_markup(*t.correlationMarkup);
+    tb.add_correlation_markup_repaired(t.correlationMarkupRepaired);
     tb.add_paths(t.paths);
     tb.add_seed(static_cast<uint64_t>(t.seed));
     tb.add_sequence(fromSequence(t.sequence));
@@ -609,6 +625,8 @@ flatbuffers::Offset<quantra::StructuredNoteMarketDiagnostics> serializeMarket(
     auto dfsF = b.CreateVector(m.discountFactorsWithFunding);
     auto labels = strings(b, m.correlationLabels);
     auto corr = b.CreateVector(m.correlation);
+    flatbuffers::Offset<flatbuffers::Vector<double>> corrBase;
+    if (!m.correlationBase.empty()) corrBase = b.CreateVector(m.correlationBase);
     quantra::StructuredNoteMarketDiagnosticsBuilder mb(b);
     mb.add_observation_dates(obs);
     mb.add_underlyings(undsVec);
@@ -617,6 +635,8 @@ flatbuffers::Offset<quantra::StructuredNoteMarketDiagnostics> serializeMarket(
     mb.add_discount_factors_with_funding(dfsF);
     mb.add_correlation_labels(labels);
     mb.add_correlation(corr);
+    if (!m.correlationBase.empty()) mb.add_correlation_base(corrBase);
+    if (m.correlationMarkup) mb.add_correlation_markup(*m.correlationMarkup);
     return mb.Finish();
 }
 

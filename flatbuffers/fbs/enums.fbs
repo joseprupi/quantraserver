@@ -484,3 +484,31 @@ enum StructuredNoteStatus : byte {
     Called = 1,
     Matured = 2
 }
+
+/// How a price history is turned into returns by `/calibrate-correlation`.
+/// Log: ln(P_t / P_{t-1}). Simple: P_t / P_{t-1} - 1.
+enum ReturnType : byte {
+    Log = 0,
+    Simple = 1
+}
+
+/// Which of the aligned observations `/calibrate-correlation` differences.
+/// Daily: every date common to all series. Weekly: every fifth common
+/// observation, counted back from the last one (so the most recent close is
+/// always used); the returns are then five-observation returns.
+enum ReturnFrequency : byte {
+    Daily = 0,
+    Weekly = 1
+}
+
+/// Shrinkage of the sample correlation toward the constant-correlation
+/// target (every off-diagonal entry equal to the average sample
+/// correlation). None: the sample correlation. LedoitWolf: the intensity of
+/// Ledoit and Wolf (2004), "Honey, I shrunk the sample covariance matrix",
+/// clipped to [0, 1]. Fixed: the intensity given in
+/// `shrinkage_intensity`.
+enum CorrelationShrinkage : byte {
+    None = 0,
+    LedoitWolf = 1,
+    Fixed = 2
+}

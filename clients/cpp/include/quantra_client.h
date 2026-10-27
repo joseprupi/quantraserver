@@ -42,6 +42,7 @@
 #include "calendar_advance_response_generated.h"
 #include "calendar_business_days_response_generated.h"
 #include "calendar_holidays_response_generated.h"
+#include "calibrate_correlation_response_generated.h"
 #include "calibrate_implied_forwards_response_generated.h"
 #include "calibrate_swaption_model_response_generated.h"
 #include "calibrate_swaption_vol_response_generated.h"
@@ -173,6 +174,8 @@ public:
         const std::string& json, const std::string& request_id = "");
     JsonResponse CalibrateVolSurfaceJSON(
         const std::string& json, const std::string& request_id = "");
+    JsonResponse CalibrateCorrelationJSON(
+        const std::string& json, const std::string& request_id = "");
     JsonResponse PriceEquityOptionJSON(const std::string& json, const std::string& request_id = "");
     JsonResponse PriceZeroCouponBondJSON(
         const std::string& json, const std::string& request_id = "");
@@ -275,6 +278,10 @@ public:
     grpc::Status CalibrateVolSurface(
         const Message<CalibrateVolSurfaceRequest>& request,
         Message<CalibrateVolSurfaceResponse>* response);
+
+    grpc::Status CalibrateCorrelation(
+        const Message<CalibrateCorrelationRequest>& request,
+        Message<CalibrateCorrelationResponse>* response);
 
     grpc::Status PriceEquityOption(
         const Message<PriceEquityOptionRequest>& request,

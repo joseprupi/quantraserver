@@ -3,7 +3,9 @@ stays runnable: price_note_from_quotes.py is run as a user runs it, against
 the test server, on the shipped synthetic Scotia sheets at a small path
 count, and its printed table is parsed back.
 
-Locked here: exit 0; the grid and the SVI prices within 3 combined
+Locked here: exit 0; the --closes step (the correlation matrix estimated
+from the shipped NDX / RTY closes, pasted into every pricing request in
+place of the booked 0.747); the grid and the SVI prices within 3 combined
 standard errors of each other (same stream, same model: the test suite's
 repricing test holds them to one); the `vanilla_repricing` block in both
 written responses with every sheet quote of the vol-surface calibration;
@@ -49,7 +51,7 @@ def test_workflow_script_runs_end_to_end(client, data_dir, tmp_path):
     out_dir = tmp_path / "bodies"
     proc = subprocess.run(
         [sys.executable, str(SCRIPT), "--url", client.base_url, "--paths", str(PATHS),
-         "--out-dir", str(out_dir), "--flat",
+         "--out-dir", str(out_dir), "--flat", "--closes",
          "--sheet-ndx", str(data_dir / "vol_surface" / "synthetic_scotia_ndx_sheet.json"),
          "--sheet-rty", str(data_dir / "vol_surface" / "synthetic_scotia_rty_sheet.json"),
          "--note", str(data_dir / "structured_note" /
@@ -57,8 +59,10 @@ def test_workflow_script_runs_end_to_end(client, data_dir, tmp_path):
         capture_output=True, text=True, timeout=900)
     assert proc.returncode == 0, proc.stdout[-2000:] + proc.stderr[-2000:]
     out = proc.stdout
-    for step in ("(a)", "(b)", "(c)", "(d)", "(e)", "(f)"):
+    for step in ("(a)", "(b)", "(c)", "(d)", "(e)", "(f)", "(g)"):
         assert step in out, step
+    assert "(b) correlation NDX_RTY from" in out
+    assert "shrinkage None" in out
 
     rows = {m["run"]: m.groupdict() for m in map(ROW.match, out.splitlines()) if m}
     assert set(rows) == {"grid", "svi", "flat"}, out
@@ -76,8 +80,8 @@ def test_workflow_script_runs_end_to_end(client, data_dir, tmp_path):
     assert float(flat["err"]) > float(grid["err"])
 
     # The bodies on disk: every call's request and response, replayable.
-    names = {"implied_forwards_NDX", "implied_forwards_RTY", "vol_surface_NDX", "vol_surface_RTY",
-             "price_note_grid", "price_note_svi", "price_note_flat"}
+    names = {"correlation", "implied_forwards_NDX", "implied_forwards_RTY", "vol_surface_NDX",
+             "vol_surface_RTY", "price_note_grid", "price_note_svi", "price_note_flat"}
     for name in names:
         assert (out_dir / f"{name}_request.json").is_file(), name
         assert (out_dir / f"{name}_response.json").is_file(), name
@@ -91,6 +95,12 @@ def test_workflow_script_runs_end_to_end(client, data_dir, tmp_path):
         assert ids == {"NDX": "NDX_DIV_IMPLIED", "RTY": "RTY_DIV_IMPLIED"}
         curve_ids = [c["id"] for c in req["pricing"]["rates"]["curves"]]
         assert set(curve_ids) == {"USD_TSY", "NDX_DIV_IMPLIED", "RTY_DIV_IMPLIED"}
+        # The calibrated matrix replaced the booked one in every pricing request.
+        corr = load_json(out_dir / "correlation_response.json")["correlation_spec"]
+        assert corr["labels"] == ["NDX", "RTY"]
+        assert abs(corr["values"]["values"][1] - 0.7472070756883675) < 1e-9
+        assert req["pricing"]["correlations"]["matrices"] == [corr]
+        assert req["notes"][0]["correlation_id"] == "NDX_RTY"
         note = load_json(out_dir / f"price_note_{name}_response.json")["notes"][0]
         vr = note["vanilla_repricing"]
         assert vr["count"] == int(rows[name]["count"])
@@ -123,6 +133,18 @@ def test_workflow_script_reports_engine_errors(client, data_dir, tmp_path):
     assert proc.returncode == 2, proc.stdout[-500:] + proc.stderr[-500:]
     assert "HTTP 400" in proc.stderr and "quotes" in proc.stderr, proc.stderr
     assert (tmp_path / "bodies" / "implied_forwards_NDX_response.json").is_file()
+
+    # A closes file whose series are not the note's underlyings is refused
+    # by the script before any call.
+    closes = load_json(data_dir / "correlation" / "ndx_rty_spx_closes_2025-10-17_to_2026-10-19.json")
+    three = tmp_path / "three.json"
+    three.write_text(json.dumps(closes))
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT), "--url", client.base_url, "--paths", "256",
+         "--out-dir", str(tmp_path / "bodies3"), "--closes", str(three)],
+        capture_output=True, text=True, timeout=300)
+    assert proc.returncode != 0
+    assert "SPX" in proc.stderr and "not the note's underlyings" in proc.stderr
 
     spx = tmp_path / "spx_sheet.json"
     spx.write_text(json.dumps({**sheet, "sheet": {**sheet["sheet"], "underlying_id": "SPX"}}))

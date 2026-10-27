@@ -173,8 +173,9 @@ class StructuredNoteMarketDiagnostics(object):
 
     # The correlation matrix as used, row-major n x n, permuted to the
     # note's underlying order; the 1 x 1 unit matrix for a single
-    # underlying. No repair is ever applied (a matrix that is not positive
-    # semi-definite is a 400).
+    # underlying. The supplied matrix is never repaired (one that is not
+    # positive semi-definite is a 400); with a `correlation_markup` this is
+    # the shifted (and, when needed, repaired) matrix the simulation ran on.
     # StructuredNoteMarketDiagnostics
     def Correlation(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
@@ -202,8 +203,45 @@ class StructuredNoteMarketDiagnostics(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         return o == 0
 
+    # With a `correlation_markup`: the matrix as supplied, before the
+    # shift, same order. Absent otherwise.
+    # StructuredNoteMarketDiagnostics
+    def CorrelationBase(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        if o != 0:
+            a = self._tab.Vector(o)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
+        return 0
+
+    # StructuredNoteMarketDiagnostics
+    def CorrelationBaseAsNumpy(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        if o != 0:
+            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
+        return 0
+
+    # StructuredNoteMarketDiagnostics
+    def CorrelationBaseLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # StructuredNoteMarketDiagnostics
+    def CorrelationBaseIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        return o == 0
+
+    # The request's `correlation_markup`; absent when none was given.
+    # StructuredNoteMarketDiagnostics
+    def CorrelationMarkup(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
 def StructuredNoteMarketDiagnosticsStart(builder):
-    builder.StartObject(7)
+    builder.StartObject(9)
 
 def Start(builder):
     StructuredNoteMarketDiagnosticsStart(builder)
@@ -292,6 +330,24 @@ def StructuredNoteMarketDiagnosticsStartCorrelationVector(builder, numElems):
 def StartCorrelationVector(builder, numElems):
     return StructuredNoteMarketDiagnosticsStartCorrelationVector(builder, numElems)
 
+def StructuredNoteMarketDiagnosticsAddCorrelationBase(builder, correlationBase):
+    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(correlationBase), 0)
+
+def AddCorrelationBase(builder, correlationBase):
+    StructuredNoteMarketDiagnosticsAddCorrelationBase(builder, correlationBase)
+
+def StructuredNoteMarketDiagnosticsStartCorrelationBaseVector(builder, numElems):
+    return builder.StartVector(8, numElems, 8)
+
+def StartCorrelationBaseVector(builder, numElems):
+    return StructuredNoteMarketDiagnosticsStartCorrelationBaseVector(builder, numElems)
+
+def StructuredNoteMarketDiagnosticsAddCorrelationMarkup(builder, correlationMarkup):
+    builder.PrependFloat64Slot(8, correlationMarkup, None)
+
+def AddCorrelationMarkup(builder, correlationMarkup):
+    StructuredNoteMarketDiagnosticsAddCorrelationMarkup(builder, correlationMarkup)
+
 def StructuredNoteMarketDiagnosticsEnd(builder):
     return builder.EndObject()
 
@@ -314,6 +370,8 @@ class StructuredNoteMarketDiagnosticsT(object):
         self.discountFactorsWithFunding = None  # type: List[float]
         self.correlationLabels = None  # type: List[str]
         self.correlation = None  # type: List[float]
+        self.correlationBase = None  # type: List[float]
+        self.correlationMarkup = None  # type: Optional[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -377,6 +435,14 @@ class StructuredNoteMarketDiagnosticsT(object):
                     self.correlation.append(structuredNoteMarketDiagnostics.Correlation(i))
             else:
                 self.correlation = structuredNoteMarketDiagnostics.CorrelationAsNumpy()
+        if not structuredNoteMarketDiagnostics.CorrelationBaseIsNone():
+            if np is None:
+                self.correlationBase = []
+                for i in range(structuredNoteMarketDiagnostics.CorrelationBaseLength()):
+                    self.correlationBase.append(structuredNoteMarketDiagnostics.CorrelationBase(i))
+            else:
+                self.correlationBase = structuredNoteMarketDiagnostics.CorrelationBaseAsNumpy()
+        self.correlationMarkup = structuredNoteMarketDiagnostics.CorrelationMarkup()
 
     # StructuredNoteMarketDiagnosticsT
     def Pack(self, builder):
@@ -436,6 +502,14 @@ class StructuredNoteMarketDiagnosticsT(object):
                 for i in reversed(range(len(self.correlation))):
                     builder.PrependFloat64(self.correlation[i])
                 correlation = builder.EndVector()
+        if self.correlationBase is not None:
+            if np is not None and type(self.correlationBase) is np.ndarray:
+                correlationBase = builder.CreateNumpyVector(self.correlationBase)
+            else:
+                StructuredNoteMarketDiagnosticsStartCorrelationBaseVector(builder, len(self.correlationBase))
+                for i in reversed(range(len(self.correlationBase))):
+                    builder.PrependFloat64(self.correlationBase[i])
+                correlationBase = builder.EndVector()
         StructuredNoteMarketDiagnosticsStart(builder)
         if self.observationDates is not None:
             StructuredNoteMarketDiagnosticsAddObservationDates(builder, observationDates)
@@ -451,5 +525,8 @@ class StructuredNoteMarketDiagnosticsT(object):
             StructuredNoteMarketDiagnosticsAddCorrelationLabels(builder, correlationLabels)
         if self.correlation is not None:
             StructuredNoteMarketDiagnosticsAddCorrelation(builder, correlation)
+        if self.correlationBase is not None:
+            StructuredNoteMarketDiagnosticsAddCorrelationBase(builder, correlationBase)
+        StructuredNoteMarketDiagnosticsAddCorrelationMarkup(builder, self.correlationMarkup)
         structuredNoteMarketDiagnostics = StructuredNoteMarketDiagnosticsEnd(builder)
         return structuredNoteMarketDiagnostics

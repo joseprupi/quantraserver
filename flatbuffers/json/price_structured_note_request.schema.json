@@ -209,6 +209,18 @@
       "type" : "string",
       "enum": ["Alive", "Called", "Matured"]
     },
+    "quantra_enums_ReturnType" : {
+      "type" : "string",
+      "enum": ["Log", "Simple"]
+    },
+    "quantra_enums_ReturnFrequency" : {
+      "type" : "string",
+      "enum": ["Daily", "Weekly"]
+    },
+    "quantra_enums_CorrelationShrinkage" : {
+      "type" : "string",
+      "enum": ["None", "LedoitWolf", "Fixed"]
+    },
     "quantra_Flow" : {
       "type" : "string",
       "enum": ["NONE", "FlowInterest", "FlowPastInterest", "FlowNotional"]
@@ -2944,6 +2956,10 @@
         "correlation_id" : {
                 "type" : "string",
                 "description" : "Id of the `CorrelationMatrixSpec` in pricing.correlations.matrices;\nits labels must be exactly the basket's underlying ids. Required\n(400) when the note has two or more underlyings; must be absent (400)\nwith exactly one underlying, which is simulated on a 1 x 1 unit\nmatrix (a `CorrelationMatrixSpec` lists at least two labels)."
+              },
+        "correlation_markup" : {
+                "type" : "number",
+                "description" : "Uniform additive shift applied to every off-diagonal entry of the\ncorrelation matrix before pricing (the desk's correlation mark-up or\nstress): each entry becomes `rho + correlation_markup` clipped to\n[-1, 1]; when the shifted matrix is not positive semi-definite it is\nrepaired exactly as the Greeks' correlation bump is (eigenvalue\nclipping, rescaled to unit diagonal) and the response says so. The\nGreeks' correlation bump and the correlation-limit checks start from\nthe marked-up matrix. Finite, in [-1, 1] (400 otherwise); must be\nabsent with a single underlying. Absent = no shift."
               },
         "upside" : {
                 "$ref" : "#/definitions/quantra_UpsideParticipation",

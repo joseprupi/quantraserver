@@ -467,6 +467,7 @@ NoteTermsEcho echoTerms(
     e.discountingCurveId = t.discountingCurveId;
     e.fundingSpreadBp = t.fundingSpreadBp;
     e.correlationId = t.correlationId;
+    e.correlationMarkup = t.correlationMarkup;
     e.paths = t.monteCarlo.paths;
     e.seed = t.monteCarlo.seed;
     e.sequence = t.monteCarlo.sequence;
@@ -601,12 +602,22 @@ NoteResultRow priceNote(
     std::vector<std::string> ids;
     for (const auto& u : trade.underlyings)
         ids.push_back(u.underlyingId);
-    const QuantLib::Matrix correlation = basketCorrelation(trade, reg, ids);
+    // The matrix as supplied, then the desk's uniform mark-up on every
+    // off-diagonal entry (clipped, repaired like the Greeks' bump when the
+    // shift breaks positive semi-definiteness); the simulation, the limit
+    // checks and the Greeks' bump all start from `correlation`.
+    const QuantLib::Matrix baseCorrelation = basketCorrelation(trade, reg, ids);
+    bool markupRepaired = false;
+    const QuantLib::Matrix correlation =
+        trade.correlationMarkup
+            ? bumpCorrelation(baseCorrelation, *trade.correlationMarkup, markupRepaired)
+            : baseCorrelation;
 
     NoteResultRow row;
     row.tradeId = trade.tradeId;
     row.seed = trade.monteCarlo.seed;
     row.terms = echoTerms(trade, und, asOf);
+    row.terms.correlationMarkupRepaired = markupRepaired;
     for (std::size_t k = 0; k < nU; ++k) {
         NoteModelUnderlying mu;
         mu.underlyingId = trade.underlyings[k].underlyingId;
@@ -1078,6 +1089,12 @@ NoteResultRow priceNote(
         for (Size i = 0; i < correlation.rows(); ++i)
             for (Size j = 0; j < correlation.columns(); ++j)
                 m.correlation.push_back(correlation[i][j]);
+        if (trade.correlationMarkup) {
+            m.correlationMarkup = *trade.correlationMarkup;
+            for (Size i = 0; i < baseCorrelation.rows(); ++i)
+                for (Size j = 0; j < baseCorrelation.columns(); ++j)
+                    m.correlationBase.push_back(baseCorrelation[i][j]);
+        }
         row.market = m;
     }
 
