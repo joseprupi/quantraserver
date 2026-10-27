@@ -31,6 +31,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "contract"))
 from ql_reference import ApiClient, load_json  # noqa: E402
+from request_state_test import (  # noqa: E402
+    run_curve_extrapolation_sequence,
+    run_swaption_vol_extrapolation_sequence,
+)
 
 
 # (id, product key, example request file, response list key for the priced
@@ -294,6 +298,19 @@ def test_bogus_quote_id_not_masked_by_warm_cache(nocache_client, cache_client,
         )
     print(f"[cache] bogus_quote_id: off/warm-first/warm-second all "
           f"HTTP 404, body {off[1]!r}")
+
+
+def test_curve_extrapolation_option_not_left_on_cached_curve(cache_client, data_dir):
+    """A /bootstrap-curves query that allows extrapolation reads the cached
+    curve; a later bond past that curve's last pillar must still fail."""
+    run_curve_extrapolation_sequence(cache_client, data_dir)
+
+
+def test_vol_extrapolation_option_not_left_on_cached_sabr_cube(cache_client, data_dir):
+    """A /sample-vol-surfaces query that forbids extrapolation reads the
+    cached SABR cube; a later swaption past the cube's last tenor must still
+    price, at the same NPV."""
+    run_swaption_vol_extrapolation_sequence(cache_client, data_dir)
 
 
 def _count_cache_hits(log_path: Path) -> int:

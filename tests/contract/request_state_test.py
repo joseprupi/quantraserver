@@ -1,6 +1,6 @@
 """Per-request state isolation and integer input guards (HTTP contract).
 
-Two concerns that share a theme — a request must see only its own inputs:
+Three concerns that share a theme — a request must see only its own inputs:
 
 1. Index fixings are process-global QuantLib state. The server resets the
    whole fixing store at the start of every request, so a request that needs
@@ -12,6 +12,14 @@ Two concerns that share a theme — a request must see only its own inputs:
 2. Day-count integers (fixing_days / settlement_days / cash_settlement_days)
    feed unsigned QuantLib parameters. A negative value must be a named 400,
    never a silent wrap into a multi-billion-day offset.
+
+3. The per-query allow_extrapolation option of /bootstrap-curves and
+   /sample-vol-surfaces applies to that query only. With the engine caches
+   on (as in the container) the curve and the calibrated SABR cube a query
+   reads are shared by later requests, so the option must never be left
+   set on them. The B / A / B sequences take the client to run against: the
+   cache-ON suite (tests/caching) runs them again on the server where those
+   objects are shared.
 """
 
 import copy
@@ -141,3 +149,99 @@ def test_negative_day_count_is_a_named_400(client, data_dir, builder):
     assert status == 400, f"{field}=-1 should be a 400, got {status} :: {body[:300]}"
     assert field in body, f"error should name {field} :: {body[:300]}"
     assert "non-negative" in body, f"error should say non-negative :: {body[:300]}"
+
+
+# ---------------------------------------------------------------------------
+# Per-query extrapolation options
+# ---------------------------------------------------------------------------
+
+
+def _tenor_grid(*tenors):
+    return {
+        "grid_type": "TenorGrid",
+        "grid": {
+            "tenors": [{"n": n, "unit": unit} for n, unit in tenors],
+            "calendar": "TARGET",
+            "business_day_convention": "ModifiedFollowing",
+        },
+    }
+
+
+def _results_without_errors(status, body, what):
+    assert status == 200, f"{what} should answer 200, got {status} :: {body[:300]}"
+    results = json.loads(body).get("results")
+    assert results, f"{what}: no results :: {body[:300]}"
+    for r in results:
+        assert not r.get("error"), f"{what}: query failed :: {r.get('error')}"
+
+
+def run_curve_extrapolation_sequence(client, data_dir):
+    """Bond past its curve's last pillar: 422; a /bootstrap-curves query on
+    that curve without options (allow_extrapolation defaults to true): 200;
+    the bond again: the same 422."""
+    bond = _load(data_dir, "bonds/fixed_rate_bond_beyond_pillar_request.json")
+    curve_id = bond["bonds"][0]["discounting_curve"]
+    sample = {
+        "pricing": copy.deepcopy(bond["pricing"]),
+        "queries": [{
+            "curve_id": curve_id,
+            "measures": ["DF"],
+            "grid": _tenor_grid((1, "Months")),
+        }],
+    }
+
+    first = _post(client, "fixed_rate_bond", bond)
+    assert first[0] == 422 and "past max curve time" in first[1], \
+        f"bond past the last pillar should be a 422 :: {first[0]} {first[1][:300]}"
+
+    _results_without_errors(*_post(client, "bootstrap_curves", sample), "bootstrap-curves")
+
+    again = _post(client, "fixed_rate_bond", bond)
+    assert again == first, \
+        f"the query's extrapolation option leaked into the curve: {again[0]} {again[1][:300]}"
+
+
+def run_swaption_vol_extrapolation_sequence(client, data_dir):
+    """SABR-calibrated swaption on a 12Y underlying, past the cube's last
+    tenor (10Y), priced on the cube's own flat extrapolation: 200; a
+    /sample-vol-surfaces query on that cube with allow_extrapolation false:
+    200; the swaption again: 200 with the same NPV."""
+    swaption = _load(data_dir, "vol/swaption_sabr_calibrate_request.json")
+    trade = swaption["swaptions"][0]
+    underlying = trade["swaption"]["underlying"]
+    for leg in ("fixed_leg", "floating_leg"):
+        underlying[leg]["schedule"]["termination_date"] = "2038-01-17"
+    curve_id = underlying["fixed_leg"]["discounting_curve"]
+    sample = {
+        "pricing": copy.deepcopy(swaption["pricing"]),
+        "queries": [{
+            "vol_id": trade["volatility"],
+            "surface_type": "Swaption",
+            "expiry_grid": _tenor_grid((1, "Years")),
+            "tenor_grid": _tenor_grid((5, "Years")),
+            "strike_grid": {"axis": "AbsoluteStrike", "strikes": [0.03]},
+            "discounting_curve_id": curve_id,
+            "forwarding_curve_id": curve_id,
+            "output_mode": "Cube",
+            "options": {"allow_extrapolation": False},
+        }],
+    }
+
+    status, body = _post(client, "swaption", swaption)
+    assert status == 200, f"12Y underlying should price: HTTP {status} :: {body[:300]}"
+    npv = json.loads(body)["swaptions"][0]["npv"]
+
+    _results_without_errors(*_post(client, "sample_vol_surfaces", sample), "sample-vol-surfaces")
+
+    status, body = _post(client, "swaption", swaption)
+    assert status == 200, \
+        f"the query's extrapolation option leaked into the cube: HTTP {status} :: {body[:300]}"
+    assert json.loads(body)["swaptions"][0]["npv"] == npv
+
+
+def test_curve_extrapolation_option_does_not_leak(client, data_dir):
+    run_curve_extrapolation_sequence(client, data_dir)
+
+
+def test_swaption_vol_extrapolation_option_does_not_leak(client, data_dir):
+    run_swaption_vol_extrapolation_sequence(client, data_dir)

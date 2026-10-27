@@ -60,17 +60,9 @@ BootstrapInflationCurvesPerCurve sampleQuery(
         QUANTRA_INVALID_ARGUMENT(err.str());
     }
 
-    if (query.allowExtrapolation) {
-        if (hasZ)
-            zc->enableExtrapolation();
-        else
-            yy->enableExtrapolation();
-    } else {
-        if (hasZ)
-            zc->disableExtrapolation();
-        else
-            yy->disableExtrapolation();
-    }
+    // The query's option goes to each read, never onto the registry curve.
+    // Without it, dates past the curve's max date are rejected below.
+    const bool extrapolate = query.allowExtrapolation;
 
     out.referenceDate = referenceDate;
     out.pillarDates = meta.pillarDates;
@@ -82,7 +74,7 @@ BootstrapInflationCurvesPerCurve sampleQuery(
         series.values.reserve(query.gridDates.size());
 
         for (const auto& d : query.gridDates) {
-            if (!query.allowExtrapolation) {
+            if (!extrapolate) {
                 QuantLib::Date maxDate = hasZ ? zc->maxDate() : yy->maxDate();
                 if (d > maxDate) {
                     QUANTRA_INVALID_ARGUMENT("Date is outside inflation curve support");
@@ -91,11 +83,11 @@ BootstrapInflationCurvesPerCurve sampleQuery(
             if (measure == InflationCurveSampleMeasure::ZeroRate) {
                 if (!hasZ)
                     QUANTRA_INVALID_ARGUMENT("ZeroRate measure requires a zero inflation curve");
-                series.values.push_back(zc->zeroRate(d));
+                series.values.push_back(zc->zeroRate(d, extrapolate));
             } else if (measure == InflationCurveSampleMeasure::YoYRate) {
                 if (!hasY)
                     QUANTRA_INVALID_ARGUMENT("YoYRate measure requires a YoY inflation curve");
-                series.values.push_back(yy->yoyRate(d));
+                series.values.push_back(yy->yoyRate(d, extrapolate));
             } else {
                 QUANTRA_INVALID_ARGUMENT(
                     "Unsupported InflationCurveMeasure for curve_id: " + query.curveId);

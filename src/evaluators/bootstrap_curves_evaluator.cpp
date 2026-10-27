@@ -12,14 +12,17 @@ namespace quantra {
 namespace {
 
 double sampleDiscount(
-    const std::shared_ptr<QuantLib::YieldTermStructure>& curve, const QuantLib::Date& d) {
-    return curve->discount(d);
+    const std::shared_ptr<QuantLib::YieldTermStructure>& curve,
+    const QuantLib::Date& d,
+    bool extrapolate) {
+    return curve->discount(d, extrapolate);
 }
 
 double sampleZero(
     const std::shared_ptr<QuantLib::YieldTermStructure>& curve,
     const QuantLib::Date& d,
-    const ZeroSampleSpec& spec) {
+    const ZeroSampleSpec& spec,
+    bool extrapolate) {
     QuantLib::DayCounter dc = spec.useCurveDayCounter ? curve->dayCounter() : spec.dayCounter;
     // A sample on or before the reference date is the t -> 0 limit of the zero
     // rate. QuantLib's zeroRate(Date) computes that limit itself when the date
@@ -32,13 +35,14 @@ double sampleZero(
     // curve whose zero is interpolated from t = 0.
     const QuantLib::Date refDate = curve->referenceDate();
     const QuantLib::Date dd = (d < refDate) ? refDate : d;
-    return curve->zeroRate(dd, dc, spec.compounding, spec.frequency).rate();
+    return curve->zeroRate(dd, dc, spec.compounding, spec.frequency, extrapolate).rate();
 }
 
 double sampleForward(
     const std::shared_ptr<QuantLib::YieldTermStructure>& curve,
     const QuantLib::Date& d,
-    const ForwardSampleSpec& spec) {
+    const ForwardSampleSpec& spec,
+    bool extrapolate) {
     QuantLib::DayCounter dc = spec.useCurveDayCounter ? curve->dayCounter() : spec.dayCounter;
     QuantLib::Date endDate;
     if (spec.instantaneous) {
@@ -58,7 +62,7 @@ double sampleForward(
     // on or before `d`; forwardRate needs a positive period, so fall back to
     // the next calendar day.
     if (endDate <= d) endDate = d + 1;
-    return curve->forwardRate(d, endDate, dc, spec.compounding, spec.frequency).rate();
+    return curve->forwardRate(d, endDate, dc, spec.compounding, spec.frequency, extrapolate).rate();
 }
 
 BootstrapCurvesPerCurve sampleQuery(const BootstrapCurvesQuery& query, const PricingRegistry& reg) {
@@ -76,11 +80,10 @@ BootstrapCurvesPerCurve sampleQuery(const BootstrapCurvesQuery& query, const Pri
         QUANTRA_NOT_FOUND("Curve handle has no linked curve for id: " + query.curveId);
     }
 
-    if (query.allowExtrapolation) {
-        curve->enableExtrapolation();
-    } else {
-        curve->disableExtrapolation();
-    }
+    // The query's option goes to each read, never onto the curve: with the
+    // curve cache on, the curve object is shared with later requests. Curves
+    // are built without extrapolation, so `false` keeps QuantLib's range check.
+    const bool extrapolate = query.allowExtrapolation;
 
     out.referenceDate = curve->referenceDate();
 
@@ -93,17 +96,17 @@ BootstrapCurvesPerCurve sampleQuery(const BootstrapCurvesQuery& query, const Pri
         switch (measure) {
             case CurveSampleMeasure::DiscountFactor:
                 for (const auto& d : query.gridDates) {
-                    series.values.push_back(sampleDiscount(curve, d));
+                    series.values.push_back(sampleDiscount(curve, d, extrapolate));
                 }
                 break;
             case CurveSampleMeasure::ZeroRate:
                 for (const auto& d : query.gridDates) {
-                    series.values.push_back(sampleZero(curve, d, query.zero));
+                    series.values.push_back(sampleZero(curve, d, query.zero, extrapolate));
                 }
                 break;
             case CurveSampleMeasure::ForwardRate:
                 for (const auto& d : query.gridDates) {
-                    series.values.push_back(sampleForward(curve, d, query.fwd));
+                    series.values.push_back(sampleForward(curve, d, query.fwd, extrapolate));
                 }
                 break;
         }
