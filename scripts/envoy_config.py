@@ -28,6 +28,14 @@ except ImportError:
     HAS_YAML = False
 
 
+def least_request_choice_count(workers: int) -> int:
+    """Number of workers LEAST_REQUEST samples per request (see the cluster).
+
+    Kept in lockstep with the inline copy in tools/quantra-manager/quantra.
+    """
+    return max(2, 4 * workers)
+
+
 def generate_envoy_config(
     port: int = 50051,
     base_port: int = 50055,
@@ -128,11 +136,17 @@ def generate_envoy_config(
                 "name": "quantra_workers",
                 "connect_timeout": connect_timeout,
                 "type": "STATIC",
-                # LEAST_REQUEST steers new requests to the worker with the
-                # fewest in-flight requests. Workers are single-threaded, so a
-                # busy one keeps an in-flight count >= 1 and is naturally
-                # avoided until it frees up.
+                # LEAST_REQUEST samples choice_count workers at random (with
+                # replacement) and picks the one with the fewest in-flight
+                # requests; Envoy 1.28 has no full scan. Workers are
+                # single-threaded, so a request lands behind a busy one only
+                # when every sample is busy: with k of n busy, (k/n)^2 at the
+                # default of 2 samples, (k/n)^(4n) here (about 1% with 3 of 4
+                # busy).
                 "lb_policy": "LEAST_REQUEST",
+                "least_request_lb_config": {
+                    "choice_count": least_request_choice_count(workers)
+                },
                 "typed_extension_protocol_options": {
                     "envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
                         "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",

@@ -21,10 +21,15 @@ container defaults `QUANTRA_WORKERS` to the detected core count, capped at 8 and
 floored at 1; set `QUANTRA_WORKERS` explicitly to override. More workers than
 cores mostly adds memory pressure without adding parallel compute.
 
-Envoy balances with `LEAST_REQUEST`, so a new request is sent to the worker with
-the fewest in-flight requests. Because a busy worker keeps an in-flight count of
-at least one, incoming work naturally routes around it to an idle worker instead
-of queueing behind a slow computation.
+Envoy balances with `LEAST_REQUEST`: for each request it samples `choice_count`
+workers at random (with replacement) and sends the request to the sampled worker
+with the fewest in-flight requests. Because a busy worker keeps an in-flight
+count of at least one, incoming work routes around it to an idle worker instead
+of queueing behind a slow computation, unless every sample is busy. Envoy 1.28
+has no full scan and samples two workers by default, which with 3 of 4 workers
+busy would still queue more than half of the requests behind a slow one
+(0.75² ≈ 56%). The generated config samples four times the worker count
+(`choice_count` 16 for 4 workers), which brings that to about 1% (0.75¹⁶).
 
 Envoy probes each worker with a gRPC health check against the standard
 `grpc.health.v1.Health` service (empty service name, i.e. overall serving
