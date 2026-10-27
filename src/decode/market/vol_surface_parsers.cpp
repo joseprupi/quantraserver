@@ -238,6 +238,30 @@ double periodToTime(
     return dc.yearFraction(ref, d);
 }
 
+// Linear smile section with no ATM level (atmLevel() is Null).
+// InterpolatedSmileSection keeps its ATM level in a quote, which cannot be
+// read when Null.
+class SmileSectionWithoutAtm : public QuantLib::InterpolatedSmileSection<QuantLib::Linear> {
+public:
+    SmileSectionWithoutAtm(
+        QuantLib::Time optionTime,
+        std::vector<QuantLib::Rate> strikes,
+        const std::vector<QuantLib::Real>& stdDevs,
+        const QuantLib::DayCounter& dc,
+        QuantLib::VolatilityType type,
+        QuantLib::Real shift)
+        : QuantLib::InterpolatedSmileSection<QuantLib::Linear>(
+              optionTime,
+              std::move(strikes),
+              stdDevs,
+              QuantLib::Null<QuantLib::Real>(),
+              QuantLib::Linear(),
+              dc,
+              type,
+              shift) {}
+    QuantLib::Real atmLevel() const override { return QuantLib::Null<QuantLib::Real>(); }
+};
+
 class SwaptionSmileCubeCustom : public QuantLib::SwaptionVolatilityStructure {
 public:
     SwaptionSmileCubeCustom(
@@ -367,6 +391,13 @@ protected:
         for (double k : absStrikes) {
             double v = triLinear(optionTime, swapLength, k);
             stdDevs.push_back(v * sqrtT);
+        }
+        // Without ATM forwards (absolute strikes) the cube has no ATM level:
+        // the middle strike is only an interpolation anchor. A consumer that
+        // needs a forward then uses its own (LinearTsrPricer: the swap rate).
+        if (atmForwards_.empty()) {
+            return QuantLib::ext::make_shared<SmileSectionWithoutAtm>(
+                optionTime, absStrikes, stdDevs, dayCounter(), volatilityType(), displacement_);
         }
         double atmLevel = atm;
         return QuantLib::ext::shared_ptr<QuantLib::SmileSection>(
