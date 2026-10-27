@@ -47,7 +47,7 @@ void writeDoubles(CanonicalBuffer& buf, const std::vector<double>& xs) {
 std::string buildHwCalibrateCacheKey(const HwCalibrateKeyInputs& in) {
     CanonicalBuffer buf;
 
-    buf.writeTag("hw-calib:v2:");
+    buf.writeTag("hw-calib:v3:");
 
     // Consumed market vols + resolved grid.
     writeDoubles(buf, in.consumedVols);
@@ -79,6 +79,8 @@ std::string buildHwCalibrateCacheKey(const HwCalibrateKeyInputs& in) {
     buf.writeU8(static_cast<uint8_t>(in.iborConvention));
     buf.writeBool(in.iborEndOfMonth);
     buf.writeString(in.iborFixingCalendar.empty() ? std::string() : in.iborFixingCalendar.name());
+    buf.writeI32(in.iborFixingDays);
+    buf.writeBool(in.iborIsOvernight);
 
     // Calibration spec (clamped iteration/eval counts).
     buf.writeBool(in.calibrateA);
@@ -99,7 +101,7 @@ std::string buildHwCalibrateCacheKey(const HwCalibrateKeyInputs& in) {
     // their holidays, so an override changes the calibration.
     appendCalendarOverridesSection(buf);
 
-    return "hw-calib:v2:" + sha256hex(buf.data());
+    return "hw-calib:v3:" + sha256hex(buf.data());
 }
 
 } // namespace quantra

@@ -264,10 +264,10 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
     //
     // The calibrated (a, sigma) is a deterministic function of the consumed
     // market vols, the resolved grid, the discount/forwarding curves, the
-    // swap-index conventions and the (clamped) calibration spec. Build a content
-    // key from exactly those inputs and, when the cache is enabled and the key is
-    // buildable, serve a prior result instead of re-running the whole
-    // Levenberg-Marquardt fit.
+    // swap-index and IBOR-index conventions and the (clamped) calibration
+    // spec. Build a content key from exactly those inputs and, when the cache
+    // is enabled and the key is buildable, serve a prior result instead of
+    // re-running the whole Levenberg-Marquardt fit.
     //
     // Fail-closed: if either curve cache key is unavailable (curve cache off, or
     // a bumped run) or key assembly throws, the key is left empty and we
@@ -304,6 +304,9 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
             ki.iborConvention = ibor->businessDayConvention();
             ki.iborEndOfMonth = ibor->endOfMonth();
             ki.iborFixingCalendar = ibor->fixingCalendar();
+            ki.iborFixingDays = static_cast<int>(ibor->fixingDays());
+            ki.iborIsOvernight =
+                std::dynamic_pointer_cast<QuantLib::OvernightIndex>(ibor) != nullptr;
             ki.calibrateA = calibSpec.calibrate_a;
             ki.calibrateSigma = calibSpec.calibrate_sigma;
             ki.aInit = aStart;

@@ -740,6 +740,97 @@ def test_calendar_overrides_cache_engaged(case, cache_client, data_dir,
           f"hits: {before} -> {after}")
 
 
+# ---------------------------------------------------------------------------
+# Hull-White calibration and the IBOR index's fixing days
+#
+# QuantLib's SwaptionHelper starts each calibration swap the index's fixing
+# days after expiry, so two requests differing only in those days calibrate to
+# different parameters. The curves are moved onto a twin of the index, so
+# their keys do not see the change: only the calibration key can tell the two
+# requests apart.
+# ---------------------------------------------------------------------------
+
+HW_FIXING_DAYS_CASES = [
+    c for c in CASES
+    if c.id in ("calibrate_swaption_model", "swaption_bermudan_hw_calibrated")
+]
+
+
+def _with_ibor_fixing_days(request: dict, fixing_days: int, twin_suffix: str) -> dict:
+    """The request with its curve helpers on a twin of the calibration's IBOR
+    index and the index itself on `fixing_days`."""
+    out = copy.deepcopy(request)
+    rates = out["pricing"]["rates"]
+    spec = next(m["payload"]["hw_calibration"]
+                for m in out["pricing"]["volatility"]["models"]
+                if "hw_calibration" in m.get("payload", {}))
+    ibor_id = next(s["float_index_id"] for s in rates["swap_indices"]
+                   if s["id"] == spec["swap_index_id"])
+    ibor = next(i for i in rates["indices"] if i["id"] == ibor_id)
+    twin = dict(copy.deepcopy(ibor), id=f"{ibor_id}_CURVE_{twin_suffix}")
+    rates["indices"].append(twin)
+    moved = 0
+    for curve in rates["curves"]:
+        for point in curve.get("points", []):
+            ref = point.get("point", {}).get("float_index")
+            if ref is not None and ref.get("id") == ibor_id:
+                ref["id"] = twin["id"]
+                moved += 1
+    assert moved, f"no curve helper references {ibor_id}"
+    ibor["fixing_days"] = fixing_days
+    return out
+
+
+def _hw_sigma(response: dict):
+    if "hw_sigma" in response:
+        return response["hw_sigma"]
+    return response.get("swaptions", [{}])[0].get("used_hw_sigma")
+
+
+@pytest.mark.parametrize("case", HW_FIXING_DAYS_CASES,
+                         ids=[c.id for c in HW_FIXING_DAYS_CASES])
+def test_hw_calib_ibor_fixing_days_not_served_from_another_entry(
+        case, nocache_client, cache_client, data_dir, cache_log_path):
+    """Calibrate with the IBOR index on 2 fixing days, then on 0: the second
+    answer must be the cache-OFF one for 0 days, not the entry cached for 2.
+    The twin index is named per case, so each case starts with nothing
+    cached."""
+    base = load_json(data_dir / case.filename)
+    two = _with_ibor_fixing_days(base, 2, case.id)
+    zero = _with_ibor_fixing_days(base, 0, case.id)
+
+    off_two = nocache_client.price(case.product, two)
+    off_zero = nocache_client.price(case.product, zero)
+    assert _canonical(off_two) != _canonical(off_zero), (
+        f"{case.id}: the fixing days do not change the cache-OFF response, so "
+        f"this case cannot detect a stale cache entry"
+    )
+
+    cache_client.price(case.product, two)               # populate
+    before = _count_hits(cache_log_path, "hw")
+    warm_two = cache_client.price(case.product, two)    # must hit
+    assert _canonical(warm_two) == _canonical(off_two)
+    after = before
+    for _ in range(20):
+        after = _count_hits(cache_log_path, "hw")
+        if after > before:
+            break
+        time.sleep(0.1)
+    assert after > before, (
+        f"{case.id}: the repeated 2-day request logged no HwCalibCache hit, so "
+        f"the calibration is not cached and this case proves nothing"
+    )
+
+    got = cache_client.price(case.product, zero)
+    assert _canonical(got) == _canonical(off_zero), (
+        f"{case.id}: the 0-day request was served the calibration cached for "
+        f"2 days (sigma {_hw_sigma(got)}; cache-OFF {_hw_sigma(off_zero)}, "
+        f"2 days {_hw_sigma(off_two)})"
+    )
+    print(f"[cache] {case.id}: sigma 2 days {_hw_sigma(off_two)}, "
+          f"0 days {_hw_sigma(off_zero)}; cache-ON == cache-OFF for both")
+
+
 
 # ---------------------------------------------------------------------------
 # Cross-currency basis pillars
