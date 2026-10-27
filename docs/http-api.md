@@ -2214,6 +2214,11 @@ the Hull-White `used_hw_*` diagnostics, `cms_swap_rate`, the CDS
 `used_cms_*` block and the flow `kind`) is
 declared optional for that reason, so its absence always means "not computed"
 and a reported `0.0` always means "computed and equal to zero".
+The CDS `fair_upfront` is not declared optional, but in the JSON it follows the
+same rule: it is absent when QuantLib has no fair upfront, which is the case
+once the upfront settlement date (`upfront_date`, else the trade date plus
+`cash_settlement_days`) has passed, as for a seasoned trade. A FlatBuffers reader then sees the schema
+default `0.0`.
 
 ## Service endpoints
 
