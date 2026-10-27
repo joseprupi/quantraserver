@@ -4,15 +4,8 @@
 #include "request_validation.h"
 
 #include <algorithm>
-#include <sstream>
 
 namespace quantra { namespace grid_utils {
-
-std::string ToIsoDate(const QuantLib::Date& d) {
-    std::ostringstream os;
-    os << DateToIso(d);
-    return os.str();
-}
 
 QuantLib::Calendar ResolveCalendar(
     const DateGridSpec* gridSpec,

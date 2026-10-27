@@ -213,7 +213,7 @@ PricingRegistry PricingRegistryBuilder::build(
                     "Swaption vol '" + kv.first + "' uses SabrCalibrate with swap_index_id '" +
                     entry.swapIndexId +
                     "' which is not an Ibor swap index; OIS swap index support for the "
-                    "SABR calibrate path is not implemented yet (TODO).");
+                    "SABR calibrate path is not implemented yet.");
             }
         }
     }

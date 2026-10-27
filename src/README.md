@@ -30,7 +30,7 @@ The folders state the pipeline every request goes through:
 | `decode/products/` | per-product `*_mapper.{h,cpp}` + flow builders | yes — FB↔domain for the product tables |
 | `decode/market/` | FlatBuffers market-data tables → QuantLib objects (`term_structure_parser`, `vol_surface_parsers`, `schedule_parser`, `yield_parser`, per-product `*_parser`, …) | yes |
 | `evaluators/` | per-product `*_evaluator.{h,cpp}` — the QuantLib pricing/compute | **no — boundary-enforced** |
-| `market/` | shared market-data assembly: `pricing_registry(+builder)`, `curve_bootstrapper`, `curve_cache`, the `*_registry` files, `sabr_calibrate_cache`, `swaption_vol_runtime`/`_diagnostics`/`_model_calibration`, `engine_factory`, `grid_utils` | yes |
+| `market/` | shared market-data assembly: `pricing_registry(+builder)`, `curve_bootstrapper`, `curve_cache`, the `*_registry` files, `sabr_calibrate_cache`, `swaption_vol_runtime`/`_diagnostics`/`_model_calibration`, `grid_utils` | yes |
 | `domain/` | plain C++ types, no QuantLib pricing logic: `*_domain.h`, `enums_domain.{h,cpp}`, `pricing_context.h`, `eval_date_guard.h`, `swaption_rebump.h` | no |
 | `common/` | `enum_convert.{h,cpp}` (FB enum ↔ QuantLib), `date_convert.{h,cpp}` (date helpers), `error.{h,cpp}` | no |
 

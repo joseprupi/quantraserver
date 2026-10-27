@@ -255,12 +255,7 @@ SwaptionVolEntry finalizeVolEntry(
         return withSwaptionSabrParamsAtm(raw, atms);
     }
     if (isSabrCalibrate) {
-        if (sidx.kind != quantra::SwapIndexKind_IborSwapIndex) {
-            QUANTRA_NOT_IMPLEMENTED(
-                "SABR calibrate finalize: swap index '" + raw.swapIndexId +
-                "' is not an Ibor swap index (OIS-shaped SABR calibrate not "
-                "supported in v1)");
-        }
+        // The registry build has already rejected a non-Ibor swap index here.
         const QuantLib::Period swapIdxTenor = raw.tenors.front();
         auto swapIndexBase = reg.rates.swapIndices.getIborSwapIndexWithCurves(
             raw.swapIndexId, swapIdxTenor, reg.rates.indices, forwardingCurve, discountCurve);
@@ -280,10 +275,9 @@ SwaptionVolEntry finalizeVolEntry(
     return withSwaptionSmileCubeAtm(raw, atms);
 }
 
-/// Inline construction of the swaption pricing engine from a SwaptionModelDomain.
-/// Mirrors the legacy EngineFactory::makeSwaptionEngine branching exactly, plus
-/// the HullWhiteLattice path (Explicit) and the Calibrate path (consumes the
-/// already-computed HwCalibResult). Validation messages match legacy verbatim.
+/// Builds the swaption pricing engine from a SwaptionModelDomain, after
+/// checking that the model and the vol surface are compatible. HullWhiteLattice
+/// takes explicit parameters or the already-computed HwCalibResult (Calibrate).
 std::shared_ptr<QuantLib::PricingEngine> buildEngine(
     const std::string& modelId,
     const SwaptionModelDomain& model,

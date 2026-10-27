@@ -17,7 +17,6 @@
 #include <ql/termstructures/inflation/piecewiseyoyinflationcurve.hpp>
 #include <ql/termstructures/inflation/piecewisezeroinflationcurve.hpp>
 #include <ql/time/period.hpp>
-#include <ql/time/schedule.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -95,13 +94,6 @@ double resolveQuoteOrInline(
         return quotes->getValue(helper->quote_id()->str(), quantra::QuoteType_Curve);
     }
     return requireFinite(helper->quote_value(), helperLabel + ".quote_value");
-}
-
-QuantLib::Date parseDateReq(const flatbuffers::String* s, const std::string& label) {
-    if (!s || s->str().empty()) {
-        QUANTRA_INVALID_ARGUMENT(label + " is required");
-    }
-    return DateToQL(s->str());
 }
 
 QuantLib::Region regionFromCurrency(const std::string& ccy) {
@@ -204,41 +196,6 @@ HelperDates resolveHelperDates(
             helperLabel + " maturity must be after reference_date for curve id: " + curveId);
     }
     return out;
-}
-
-QuantLib::Schedule buildSchedule(
-    const quantra::Schedule* scheduleSpec,
-    const std::string& curveId,
-    const std::string& helperLabel) {
-    if (!scheduleSpec) {
-        QUANTRA_INVALID_ARGUMENT(helperLabel + ".schedule is required for curve id: " + curveId);
-    }
-    if (!scheduleSpec->effective_date() || !scheduleSpec->termination_date()) {
-        QUANTRA_INVALID_ARGUMENT(
-            helperLabel +
-            ".schedule requires effective_date and termination_date for curve id: " + curveId);
-    }
-    // The convention enums are presence-required: an omitted convention is an
-    // error, never an alphabetical-0 default (calendar Argentina, etc.).
-    if (!scheduleSpec->calendar().has_value() || !scheduleSpec->frequency().has_value() ||
-        !scheduleSpec->convention().has_value() ||
-        !scheduleSpec->termination_date_convention().has_value() ||
-        !scheduleSpec->date_generation_rule().has_value() ||
-        !scheduleSpec->end_of_month().has_value()) {
-        QUANTRA_INVALID_ARGUMENT(
-            helperLabel +
-            ".schedule requires calendar, frequency, convention, termination_date_convention, date_generation_rule and end_of_month for curve id: " +
-            curveId);
-    }
-    return QuantLib::Schedule(
-        DateToQL(scheduleSpec->effective_date()->str()),
-        DateToQL(scheduleSpec->termination_date()->str()),
-        FrequencyToPeriod(FrequencyToQL(scheduleSpec->frequency().value())),
-        CalendarToQL(scheduleSpec->calendar().value()),
-        ConventionToQL(scheduleSpec->convention().value()),
-        ConventionToQL(scheduleSpec->termination_date_convention().value()),
-        DateGenerationToQL(scheduleSpec->date_generation_rule().value()),
-        scheduleSpec->end_of_month().value());
 }
 
 template <typename TTermStructure>

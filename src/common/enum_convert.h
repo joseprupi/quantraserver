@@ -30,9 +30,6 @@ QuantLib::DateGeneration::Rule DateGenerationToQL(
 QuantLib::Compounding CompoundingToQL(const quantra::enums::Compounding compounding);
 QuantLib::RateAveraging::Type RateAveragingToQL(const quantra::enums::RateAveragingType averaging);
 QuantLib::Settlement::Method SettlementMethodToQL(const quantra::enums::SettlementMethod method);
-QuantLib::VanillaSwap::Type SwapTypeToQL(const quantra::enums::SwapType swapType);
-QuantLib::OvernightIndexedSwap::Type OvernightIndexedSwapTypeToQL(
-    const quantra::enums::SwapType swapType);
 QuantLib::ZeroCouponSwap::Type ZeroCouponSwapTypeToQL(const quantra::enums::SwapType swapType);
 QuantLib::ZeroCouponInflationSwap::Type ZeroCouponInflationSwapTypeToQL(
     const quantra::enums::SwapType swapType);

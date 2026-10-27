@@ -104,7 +104,6 @@ struct SwapLegData {
         }
         return 0.0;
     }
-    bool isFixed() const { return kind == Kind::Fixed; }
 };
 
 /// Name of a coupon kind as the wire spells it (`coupons_type`).

@@ -16,8 +16,6 @@
 
 namespace quantra { namespace grid_utils {
 
-std::string ToIsoDate(const QuantLib::Date& d);
-
 QuantLib::Calendar ResolveCalendar(
     const DateGridSpec* gridSpec,
     const QueryOptions* options,

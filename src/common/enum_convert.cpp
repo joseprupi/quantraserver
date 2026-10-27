@@ -274,28 +274,6 @@ QuantLib::Settlement::Method SettlementMethodToQL(const quantra::enums::Settleme
     QUANTRA_ERROR("Settlement method not found");
 }
 
-QuantLib::VanillaSwap::Type SwapTypeToQL(const quantra::enums::SwapType swapType) {
-    switch (swapType) {
-        case quantra::enums::SwapType_Payer: return QuantLib::VanillaSwap::Payer;
-        case quantra::enums::SwapType_Receiver: return QuantLib::VanillaSwap::Receiver;
-    }
-
-    QUANTRA_ERROR(
-        "swap_type is not a known swap type: " + std::to_string(static_cast<int>(swapType)));
-}
-
-QuantLib::OvernightIndexedSwap::Type OvernightIndexedSwapTypeToQL(
-    const quantra::enums::SwapType swapType) {
-    switch (swapType) {
-        case quantra::enums::SwapType_Payer: return QuantLib::OvernightIndexedSwap::Payer;
-        case quantra::enums::SwapType_Receiver: return QuantLib::OvernightIndexedSwap::Receiver;
-    }
-
-    QUANTRA_ERROR(
-        "swap_type is not a known overnight indexed swap type: " +
-        std::to_string(static_cast<int>(swapType)));
-}
-
 QuantLib::ZeroCouponSwap::Type ZeroCouponSwapTypeToQL(const quantra::enums::SwapType swapType) {
     switch (swapType) {
         case quantra::enums::SwapType_Payer: return QuantLib::ZeroCouponSwap::Payer;
