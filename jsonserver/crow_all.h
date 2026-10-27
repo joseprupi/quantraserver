@@ -1141,6 +1141,13 @@ namespace crow
         template<typename F>
         void start(F f)
         {
+            // Local change (not in upstream Crow): disable Nagle's algorithm.
+            // A response is written as many buffers and leaves in more than
+            // one segment; with Nagle on, the last segment waits for the
+            // client's delayed ACK (~40 ms per request on a kept-alive
+            // connection).
+            error_code ec;
+            socket_.set_option(tcp::no_delay(true), ec);
             f(error_code());
         }
 
