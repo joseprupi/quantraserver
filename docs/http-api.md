@@ -852,6 +852,12 @@ and, for a CMS floating leg,
 `used_cms_mean_reversion` and the `used_cms_hagan_*` limits. Worked
 examples: `examples/data/ir_swaps/irs_*.json` and `cms_*.json`.
 
+The CMS pricer reads the swaption vol `coupons.swaption_vol_id` of any kind.
+A `SpreadFromATM` smile cube or a SABR surface (`SwaptionSabrParamsSpec`,
+`SwaptionSabrCalibrateSpec`) is built on the ATM forwards of its own
+`swap_index_id`, computed on the CMS leg's `discounting_curve` and
+`forwarding_curve`, as `/price-swaption` computes them on the trade's curves.
+
 ## OIS swap
 
 `POST /price-ois-swap` prices a fixed leg against a compounded (or
