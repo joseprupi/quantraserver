@@ -487,7 +487,9 @@ private:
         const double eps = 1.0e-12;
         const double tNode0 = std::max(tExp_[e0], eps);
         const double tNode1 = std::max(tExp_[e1], eps);
-        const double tQuery = std::max(tExp, eps);
+        // Outside the expiry grid the edge node's vol extends flat: its total
+        // variance is divided by the edge time, not by the query time.
+        const double tQuery = std::max(std::min(std::max(tExp, tExp_.front()), tExp_.back()), eps);
 
         // Interpolate on total variance across expiry to improve calendar behavior.
         const double w00 = std::pow(nodeVolWithStrike(e0, t0, strikeAbs), 2.0) * tNode0;
@@ -728,7 +730,10 @@ private:
         const double eps = 1.0e-12;
         const double tNode0 = std::max(tExp_[e0], eps);
         const double tNode1 = std::max(tExp_[e1], eps);
-        const double tQuery = std::max(optionTime, eps);
+        // Outside the expiry grid the edge node's vol extends flat (see the
+        // smile cube).
+        const double tQuery =
+            std::max(std::min(std::max(optionTime, tExp_.front()), tExp_.back()), eps);
 
         const double v00 = nodeVol(e0, t0, strike);
         const double v01 = nodeVol(e0, t1, strike);
