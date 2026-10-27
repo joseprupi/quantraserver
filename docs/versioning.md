@@ -26,6 +26,86 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.16.1 (October 2026) — fixes from a full code review
+
+`v0.16.1` is a PATCH release: fixes only, no request or response shape
+changes, no change to the binary or JSON wire. Every 0.16.0 request is a
+valid 0.16.1 request. Outputs change only where they were wrong; each change
+is listed below. QuantLib stays at 1.44.
+
+**Pricing**
+
+- Swaption smile-cube and SABR surfaces extend the edge implied vol flat
+  outside the quoted expiries. The edge total variance was divided by the
+  query time, so vol grew as √(T_edge/t) before the first expiry and fell
+  after the last (0.69 instead of 0.20 at one month on a flat 20% cube).
+  Prices of swaptions and CMS fixings outside the expiry grid change; reads
+  inside the grid are unchanged.
+- LinearTsr CMS coupons on absolute-strike smile cubes use the swap rate as
+  the forward. The cube's smile sections reported the middle grid strike as
+  the ATM level, so the price depended on how the strike grid was laid out.
+- Inflation swaps and YoY caps/floors price on the curve the trade
+  references. With several curves on one index, every trade priced on the
+  first curve by id. Index specs that shared a QuantLib name (the same
+  family name in one region, for example CAD and JPY `CPI`) no longer share
+  one fixing series. QuantLib error texts name inflation indices by spec id,
+  and `family_name` is descriptive only.
+- Equity options with discrete dividends: `implied_volatility` accounts for
+  the dividends (the discrete-dividend example goes from 0.1297 to 0.2000).
+- Business/252 year fractions no longer depend on whether the worker earlier
+  served a request with Brazil holiday overrides.
+
+**Requests that failed and now price**
+
+- A seasoned CDS (upfront payment date passed) prices. `fair_upfront` is
+  omitted when QuantLib has none (binary readers see 0.0).
+- A floating-rate bond with `bond_pricing_flows` and a past fixing of 1.0 or
+  more prices; it returned 500.
+
+**Requests now rejected with a 400 that names the problem**
+
+- `FixedRateBond` without `issue_date`.
+- A YoY index spec whose `underlying_zero_index_id` is not a zero index,
+  including self-references and cycles.
+- A request body that is not a single JSON object: leading schema
+  statements, and comments anywhere (comments are not JSON). The message
+  names the line and column.
+
+**Results no longer depend on earlier requests on the same worker**
+
+- `/bootstrap-curves`, `/bootstrap-inflation-curves` and
+  `/sample-vol-surfaces` no longer change whether later requests extrapolate
+  on cached curves or SABR cubes.
+- The calibrated SABR cube cache key includes the surface's calendar,
+  business-day convention and day counter.
+- The curve cache holds only helper-free copies of bootstrapped curves,
+  exact at every node, so cached curves are never re-dated by other
+  requests. A request whose as-of differs from the previous one no longer
+  pays for re-dating every cached curve. With the cache on, a curve that
+  fails to bootstrap on `/bootstrap-curves` returns a per-query error, as
+  with the cache off.
+- A failure while restoring the evaluation date or clearing fixings at the
+  end of a request is logged instead of stopping the worker. Between
+  requests the evaluation date returns to unset.
+
+**Responses**
+
+- Bond flows (`bond_pricing_flows`): floating coupons carry their
+  `fixing_date` (ISO date), and paid fixed-rate coupons carry their `rate`.
+
+**Operations and documentation**
+
+- The JSON gateway sets `TCP_NODELAY`: POSTs on kept-alive connections no
+  longer wait about 40 ms for a delayed ACK.
+- Envoy's least-request balancing compares `4 × workers` candidates instead
+  of two, so light requests rarely queue behind heavy ones.
+- `FRAType.Long` is documented as paying the fixed rate (QuantLib's
+  convention, which the engine always used; the comment said the opposite),
+  and `FRAResponse.spot_value` as equal to `npv`.
+- The Python client takes its version from `VERSION`, and its bond example
+  runs again. Dead code (`EngineFactory` and helpers without callers) and a
+  per-request debug print are removed.
+
 ## Version 0.16.0 (October 2026) — correlation as an input you can reproduce
 
 `v0.16.0` is a backward-compatible MINOR release. No existing request
