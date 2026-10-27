@@ -23,6 +23,9 @@ end to end against the running JSON API:
     QuantLib reference built from the same request;
   - a leg-level `payment_lag` / `payment_calendar` on an IBOR leg moves the
     payment dates and matches the QuantLib reference;
+  - a CMS LinearTsr leg on a flat absolute-strike smile cube prices like the
+    constant vol whatever the cube's strike grid (no ATM level is read off
+    the strikes);
   - the 400s the leg model promises, each naming the offending field.
 """
 
@@ -307,6 +310,63 @@ def test_ibor_leg_payment_lag_and_calendar_match_quantlib(client, data_dir):
     assert [f["payment_date"] for f in lagged] == [d for d, _, _ in ref["legs"][1]["flows"]]
     # The fixed leg carries no lag: its flows are those of the plain swap.
     assert row["legs"][0]["flows"] == _row(client, "vanilla_swap", plain)["legs"][0]["flows"]
+
+
+# ---------------------------------------------------------------------------
+# CMS LinearTsr leg on an absolute-strike smile cube
+# ---------------------------------------------------------------------------
+
+def _flat_absolute_cube(constant_surface, strikes):
+    """The constant surface as an absolute-strike smile cube on `strikes`,
+    flat at the constant vol, with expiries covering the CMS fixings."""
+    wrapper = constant_surface["payload"]
+    base = copy.deepcopy(wrapper["payload"]["base"])
+    vol = base.pop("constant_vol")
+    base["shape"] = "SmileCube3D"
+    expiries = [{"n": n, "unit": u} for n, u in ((1, "Months"), (1, "Years"), (5, "Years"),
+                                                 (10, "Years"))]
+    tenors = [{"n": n, "unit": "Years"} for n in (5, 10, 20)]
+    return {
+        "id": constant_surface["id"],
+        "payload_type": "SwaptionVolSpec",
+        "payload": {
+            "swap_index_id": wrapper["swap_index_id"],
+            "payload_type": "SwaptionVolSmileCubeSpec",
+            "payload": {
+                "base": base,
+                "expiries": expiries,
+                "tenors": tenors,
+                "strikes": strikes,
+                "strike_kind": "Absolute",
+                "vols": {
+                    "n_1": len(expiries), "n_2": len(tenors), "n_3": len(strikes),
+                    "values": [vol] * (len(expiries) * len(tenors) * len(strikes)),
+                },
+            },
+        },
+    }
+
+
+def test_cms_linear_tsr_on_a_flat_absolute_cube_prices_at_the_flat_vol(client, data_dir):
+    """An absolute-strike cube carries no ATM level, so LinearTsr replicates
+    around the swap rate: a flat cube prices the CMS leg like the constant
+    vol, whatever its strike grid (here two grids with middle strikes 4% and
+    1.5%, both away from the ~3% swap rates)."""
+    request = load_json(data_dir / "ir_swaps/cms_eur_5y_payer_cms10y_floored_lineartsr.json")
+    surfaces = request["pricing"]["volatility"]["vol_surfaces"]
+    assert len(surfaces) == 1
+    assert surfaces[0]["payload"]["payload_type"] == "SwaptionVolConstantSpec"
+
+    constant = _row(client, "vanilla_swap", request)["legs"][1]["npv"]
+    cube_npvs = []
+    for strikes in ([0.01, 0.02, 0.04, 0.05, 0.06], [0.005, 0.01, 0.015, 0.02, 0.025]):
+        cube = copy.deepcopy(request)
+        cube["pricing"]["volatility"]["vol_surfaces"] = [_flat_absolute_cube(surfaces[0], strikes)]
+        cube_npvs.append(_row(client, "vanilla_swap", cube)["legs"][1]["npv"])
+
+    assert cube_npvs[0] == pytest.approx(cube_npvs[1], rel=1e-12), cube_npvs
+    for npv in cube_npvs:
+        assert npv == pytest.approx(constant, rel=1e-6), (npv, constant)
 
 
 # ---------------------------------------------------------------------------

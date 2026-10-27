@@ -48,7 +48,8 @@ struct FRAResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double forward_rate() const {
     return GetField<double>(VT_FORWARD_RATE, 0.0);
   }
-  /// Value at settlement.
+  /// Same value as npv: the settlement amount discounted on the discounting
+  /// curve, not the undiscounted amount paid at settlement.
   double spot_value() const {
     return GetField<double>(VT_SPOT_VALUE, 0.0);
   }

@@ -205,6 +205,24 @@ double safeOptionTime(const DayCounter& dc, const Date& evalDate, const Date& ex
     return std::max(1.0e-8, dc.yearFraction(evalDate, expiry));
 }
 
+// QuantLib's range checks of a swaption vol read without extrapolation (swap
+// length, option time, strike; same order and messages), for a surface that
+// allows extrapolation itself (the smile and SABR cubes) read by a query that
+// does not.
+void checkSwaptionVolRange(
+    const SwaptionVolatilityStructure& vol, Time optionTime, Time swapLength, Rate strike) {
+    QL_REQUIRE(
+        swapLength <= vol.maxSwapLength(),
+        "swap tenor (" << swapLength << ") is past max tenor (" << vol.maxSwapLength() << ")");
+    QL_REQUIRE(
+        optionTime <= vol.maxTime() || close_enough(optionTime, vol.maxTime()),
+        "time (" << optionTime << ") is past max curve time (" << vol.maxTime() << ")");
+    QL_REQUIRE(
+        strike >= vol.minStrike() && strike <= vol.maxStrike(),
+        "strike (" << strike << ") is outside the curve domain [" << vol.minStrike() << ","
+                   << vol.maxStrike() << "]");
+}
+
 int resolveSelectorIndex(int idx, int size, const std::string& name, bool required) {
     if (idx < 0) {
         if (required) {
@@ -378,10 +396,6 @@ VolSurfaceSampleResult priceOneQuery(
         if (volEntry.handle.empty()) {
             QUANTRA_ERROR("Swaption vol handle is empty");
         }
-        if (allowExtrapolation)
-            volEntry.handle->enableExtrapolation();
-        else
-            volEntry.handle->disableExtrapolation();
 
         int64_t nExp = static_cast<int64_t>(expiries.size());
         int64_t nTen = static_cast<int64_t>(tenors.size());
@@ -568,7 +582,14 @@ VolSurfaceSampleResult priceOneQuery(
                     }
                 }
             }
-            return volEntry.handle->volatility(optionTime, swapLength, absStrike);
+            // The query's option goes to the read, never onto the surface: a
+            // calibrated SABR cube is shared with later requests.
+            if (!allowExtrapolation && volEntry.handle->allowsExtrapolation()) {
+                checkSwaptionVolRange(
+                    *volEntry.handle.currentLink(), optionTime, swapLength, absStrike);
+            }
+            return volEntry.handle->volatility(
+                optionTime, swapLength, absStrike, allowExtrapolation);
         };
 
         auto computeSwapLengthSupportBounds =
@@ -776,11 +797,6 @@ VolSurfaceSampleResult priceOneQuery(
         usedCalendar = gc.fbCalendar;
         usedBdc = gc.fbBdc;
 
-        if (allowExtrapolation)
-            volEntry.handle->enableExtrapolation();
-        else
-            volEntry.handle->disableExtrapolation();
-
         std::vector<Date> expiries = buildDateGrid(
             q.expiryGrid, sampleReferenceDate, asOf, options, volEntry.calendar, gc.fbCalendar,
             volEntry.businessDayConvention, volEntry.businessDayConventionFb);
@@ -809,7 +825,7 @@ VolSurfaceSampleResult priceOneQuery(
                         QUANTRA_INVALID_ARGUMENT("Strike is outside equity black vol support");
                     }
                 }
-                volsOut.push_back(volEntry.handle->blackVol(d, strike));
+                volsOut.push_back(volEntry.handle->blackVol(d, strike, allowExtrapolation));
             }
         }
         nExpOut = static_cast<int>(expiries.size());
@@ -852,10 +868,6 @@ VolSurfaceSampleResult priceOneQuery(
         usedBdc = gc.fbBdc;
         allowExtrapolationUsed = allowExtrapolation;
         expiryKindOut = SampleExpiryKind::GridDate;
-        if (allowExtrapolation)
-            volEntry.handle->enableExtrapolation();
-        else
-            volEntry.handle->disableExtrapolation();
         std::vector<Date> expiries = buildDateGrid(
             q.expiryGrid, volEntry.referenceDate, asOf, options, volEntry.calendar, gc.fbCalendar,
             volEntry.businessDayConvention, volEntry.businessDayConventionFb);
@@ -881,7 +893,7 @@ VolSurfaceSampleResult priceOneQuery(
                         QUANTRA_INVALID_ARGUMENT("Strike is outside optionlet vol support");
                     }
                 }
-                volsOut.push_back(volEntry.handle->volatility(d, strike));
+                volsOut.push_back(volEntry.handle->volatility(d, strike, allowExtrapolation));
             }
         }
         nExpOut = static_cast<int>(expiries.size());

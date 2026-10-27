@@ -4,8 +4,6 @@
 #include "model_domain.h"
 #include "pricing_registry.h"
 
-#include "model_generated.h"
-
 #include <ql/math/array.hpp>
 #include <ql/math/optimization/constraint.hpp>
 
@@ -70,13 +68,8 @@ struct HwCalibResult {
 /// a_flatness below this value flags the calibrated "a" as poorly identified.
 constexpr double kHwAFlatnessThreshold = 1.0e-2;
 
-HwCalibResult calibrateHullWhiteFromSwaptionVol(
-    const PricingRegistry& reg,
-    const quantra::SwaptionHwCalibrationSpec* calibSpec,
-    const QuantLib::Date asOf);
-
-/// FB-free overload accepting the plain-domain mirror of SwaptionHwCalibrationSpec.
-/// Used by the swaption pricer cutover, which never sees the raw FB table.
+/// Calibrates Hull-White to the swaption vol surface named in calibSpec, the
+/// plain-domain mirror of SwaptionHwCalibrationSpec.
 HwCalibResult calibrateHullWhiteFromSwaptionVol(
     const PricingRegistry& reg,
     const SwaptionHwCalibrationDomain& calibSpec,

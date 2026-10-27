@@ -80,7 +80,8 @@ struct CachedCurveData {
 /**
  * CurveCacheBackend - Abstract interface for curve cache storage.
  *
- * L1 (in-process) stores live QuantLib objects.
+ * L1 (in-process) stores QuantLib curve objects that observe nothing
+ * (no rate helpers), so no other request can change them.
  * L2 (Redis, future) stores serialized CachedCurveData.
  *
  * The layered cache checks L1 first, then L2 if available.
@@ -113,7 +114,7 @@ public:
 // =============================================================================
 
 /**
- * InProcessCurveCache - LRU cache of live QuantLib YieldTermStructure objects.
+ * InProcessCurveCache - LRU cache of QuantLib YieldTermStructure objects.
  *
  * Single-threaded (no locking needed — each worker is a single-threaded process).
  * L2 methods return nullopt / no-op (ready for override by Redis backend).

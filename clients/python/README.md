@@ -56,7 +56,8 @@ from quantra_client import Client
 from quantra.PriceFixedRateBondRequest import PriceFixedRateBondRequestT
 
 request = PriceFixedRateBondRequestT()
-# ... populate request.pricing (as-of date, curves) and request.bonds ...
+# ... populate request.pricing (asOfDate, and the curves under
+# pricing.rates = RatesMarketDataT()) and request.bonds ...
 
 with Client("localhost:50051") as client:
     response = client.price_fixed_rate_bonds(request)

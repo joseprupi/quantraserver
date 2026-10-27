@@ -3,6 +3,9 @@
 
 #include <ql/indexes/indexmanager.hpp>
 
+#include <exception>
+#include <iostream>
+
 namespace quantra {
 
 /**
@@ -23,10 +26,23 @@ namespace quantra {
  * Nothing cached across requests depends on live fixings: the curve cache
  * stores frozen pillar values, and the calibration caches store fitted
  * parameters.
+ *
+ * Clearing notifies the observers of every index with stored fixings and
+ * QuantLib rethrows their failures. A destructor must not throw (that is
+ * std::terminate), so a failed exit clear is logged; the next request's
+ * guard clears again on entry, and fails that request if it cannot.
  */
 struct FixingsGuard {
     FixingsGuard() { QuantLib::IndexManager::instance().clearHistories(); }
-    ~FixingsGuard() { QuantLib::IndexManager::instance().clearHistories(); }
+    ~FixingsGuard() {
+        try {
+            QuantLib::IndexManager::instance().clearHistories();
+        } catch (const std::exception& e) {
+            std::cerr << "[FixingsGuard] clearing the index fixings: " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "[FixingsGuard] clearing the index fixings: unknown error" << std::endl;
+        }
+    }
     FixingsGuard(const FixingsGuard&) = delete;
     FixingsGuard& operator=(const FixingsGuard&) = delete;
 };

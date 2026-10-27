@@ -177,14 +177,6 @@ std::vector<OutOfTheMoneyQuote> selectOutOfTheMoneyQuotes(
         const double bid = isCall ? q.callBid : q.putBid;
         const double ask = isCall ? q.callAsk : q.putAsk;
         const double mid = isCall ? q.callMid : q.putMid;
-        const double intrinsic = DF * std::max(isCall ? F - q.strike : q.strike - F, 0.0);
-        if (!(mid > intrinsic)) {
-            dropped.push_back(
-                DroppedQuoteData{
-                    expiryIso, q.strike,
-                    std::string("out-of-the-money ") + side + " mid not above intrinsic value"});
-            continue;
-        }
         if (mid < kQuoteResolution * spot) {
             dropped.push_back(
                 DroppedQuoteData{

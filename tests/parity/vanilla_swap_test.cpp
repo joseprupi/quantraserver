@@ -131,8 +131,9 @@ protected:
         return buildPricing(b, asof, asof, 0, indices, swapIndices, curves, 0, 0, vols);
     }
 
-    /// Prices a one-swap request through the handler; the response buffer
-    /// stays alive in `respB_` until the next call.
+    /// Prices a one-swap request through the handler. Each call keeps its own
+    /// response buffer in `responses_`, so every returned pointer stays valid
+    /// until the end of the test.
     const quantra::VanillaSwapResponse* price(
         flatbuffers::grpc::MessageBuilder& b,
         flatbuffers::Offset<quantra::Pricing> pricing,
@@ -144,11 +145,12 @@ protected:
         b.Finish(quantra::CreatePriceVanillaSwapRequest(b, pricing, swaps, includeFlows));
 
         VanillaSwapPricingRequest req;
-        respB_ = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+        auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+        responses_.push_back(respB);
         auto resp = req.request(
-            respB_, flatbuffers::GetRoot<quantra::PriceVanillaSwapRequest>(b.GetBufferPointer()));
-        respB_->Finish(resp);
-        return flatbuffers::GetRoot<quantra::PriceVanillaSwapResponse>(respB_->GetBufferPointer())
+            respB, flatbuffers::GetRoot<quantra::PriceVanillaSwapRequest>(b.GetBufferPointer()));
+        respB->Finish(resp);
+        return flatbuffers::GetRoot<quantra::PriceVanillaSwapResponse>(respB->GetBufferPointer())
             ->swaps()
             ->Get(0);
     }
@@ -183,7 +185,7 @@ protected:
         return swap;
     }
 
-    std::shared_ptr<flatbuffers::grpc::MessageBuilder> respB_;
+    std::vector<std::shared_ptr<flatbuffers::grpc::MessageBuilder>> responses_;
 };
 
 TEST_F(VanillaSwapParityTest, VanillaSwap_NPVMatches) {

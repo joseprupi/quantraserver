@@ -170,7 +170,6 @@ public:
         auto deadline = std::chrono::system_clock::now() + timeout;
         return channel_->WaitForConnected(deadline);
     }
-    JsonParser& GetParser() { return *json_parser_; }
 
     // Generic JSON call handler. `request_id` (already sanitized by the HTTP
     // layer) is forwarded to the backend as `x-request-id` gRPC metadata so

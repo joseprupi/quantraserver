@@ -238,6 +238,30 @@ double periodToTime(
     return dc.yearFraction(ref, d);
 }
 
+// Linear smile section with no ATM level (atmLevel() is Null).
+// InterpolatedSmileSection keeps its ATM level in a quote, which cannot be
+// read when Null.
+class SmileSectionWithoutAtm : public QuantLib::InterpolatedSmileSection<QuantLib::Linear> {
+public:
+    SmileSectionWithoutAtm(
+        QuantLib::Time optionTime,
+        std::vector<QuantLib::Rate> strikes,
+        const std::vector<QuantLib::Real>& stdDevs,
+        const QuantLib::DayCounter& dc,
+        QuantLib::VolatilityType type,
+        QuantLib::Real shift)
+        : QuantLib::InterpolatedSmileSection<QuantLib::Linear>(
+              optionTime,
+              std::move(strikes),
+              stdDevs,
+              QuantLib::Null<QuantLib::Real>(),
+              QuantLib::Linear(),
+              dc,
+              type,
+              shift) {}
+    QuantLib::Real atmLevel() const override { return QuantLib::Null<QuantLib::Real>(); }
+};
+
 class SwaptionSmileCubeCustom : public QuantLib::SwaptionVolatilityStructure {
 public:
     SwaptionSmileCubeCustom(
@@ -368,6 +392,13 @@ protected:
             double v = triLinear(optionTime, swapLength, k);
             stdDevs.push_back(v * sqrtT);
         }
+        // Without ATM forwards (absolute strikes) the cube has no ATM level:
+        // the middle strike is only an interpolation anchor. A consumer that
+        // needs a forward then uses its own (LinearTsrPricer: the swap rate).
+        if (atmForwards_.empty()) {
+            return QuantLib::ext::make_shared<SmileSectionWithoutAtm>(
+                optionTime, absStrikes, stdDevs, dayCounter(), volatilityType(), displacement_);
+        }
         double atmLevel = atm;
         return QuantLib::ext::shared_ptr<QuantLib::SmileSection>(
             new QuantLib::InterpolatedSmileSection<QuantLib::Linear>(
@@ -487,7 +518,9 @@ private:
         const double eps = 1.0e-12;
         const double tNode0 = std::max(tExp_[e0], eps);
         const double tNode1 = std::max(tExp_[e1], eps);
-        const double tQuery = std::max(tExp, eps);
+        // Outside the expiry grid the edge node's vol extends flat: its total
+        // variance is divided by the edge time, not by the query time.
+        const double tQuery = std::max(std::min(std::max(tExp, tExp_.front()), tExp_.back()), eps);
 
         // Interpolate on total variance across expiry to improve calendar behavior.
         const double w00 = std::pow(nodeVolWithStrike(e0, t0, strikeAbs), 2.0) * tNode0;
@@ -728,7 +761,10 @@ private:
         const double eps = 1.0e-12;
         const double tNode0 = std::max(tExp_[e0], eps);
         const double tNode1 = std::max(tExp_[e1], eps);
-        const double tQuery = std::max(optionTime, eps);
+        // Outside the expiry grid the edge node's vol extends flat (see the
+        // smile cube).
+        const double tQuery =
+            std::max(std::min(std::max(optionTime, tExp_.front()), tExp_.back()), eps);
 
         const double v00 = nodeVol(e0, t0, strike);
         const double v01 = nodeVol(e0, t1, strike);

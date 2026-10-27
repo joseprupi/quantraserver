@@ -4127,8 +4127,7 @@ struct StructuredNoteRepricingExpiry FLATBUFFERS_FINAL_CLASS : private ::flatbuf
   }
   /// Every line not used, with its reason (the per-line quality rules of
   /// `/calibrate-implied-forwards`, then the out-of-the-money side's mid
-  /// not above intrinsic, below 1e-5 of the spot, or without an implied
-  /// vol).
+  /// below 1e-5 of the spot or without an implied vol).
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::DroppedQuote>> *dropped() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::DroppedQuote>> *>(VT_DROPPED);
   }

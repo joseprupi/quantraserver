@@ -67,7 +67,8 @@ struct CdsPerTrade {
     double npv = 0.0;
     std::optional<double>
         fairSpread; // absent when QuantLib cannot express it (e.g. a zero-running-coupon CDS)
-    double fairUpfront = 0.0;
+    std::optional<double>
+        fairUpfront; // absent when QuantLib has none (the upfront date has passed)
     double defaultLegNpv = 0.0;
     double premiumLegNpv = 0.0;
 };

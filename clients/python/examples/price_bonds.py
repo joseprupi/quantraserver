@@ -1,25 +1,27 @@
-import os
 import sys
 import time
 import argparse
+from pathlib import Path
 
 # The generated FlatBuffers Python package (`quantra.*`) lives in
-# flatbuffers/python/ and the client package in this directory's parent, so the
+# flatbuffers/python/ and the client package in clients/python/, so the
 # example runs straight from a source checkout without installing anything.
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.join(_REPO_ROOT, "flatbuffers", "python"))
-sys.path.insert(0, os.path.join(_REPO_ROOT, "clients", "python"))
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(_REPO_ROOT / "flatbuffers" / "python"))
+sys.path.insert(0, str(_REPO_ROOT / "clients" / "python"))
 
 from quantra_client.client import Client
 
 # Generated Objects
 from quantra.Pricing import PricingT
+from quantra.RatesMarketData import RatesMarketDataT
 from quantra.TermStructure import TermStructureT
 from quantra.Point import Point
 from quantra.PointsWrapper import PointsWrapperT
 from quantra.DepositHelper import DepositHelperT
 from quantra.BondHelper import BondHelperT
 from quantra.FixedRateBond import FixedRateBondT
+from quantra.Period import PeriodT
 from quantra.Schedule import ScheduleT
 from quantra.PriceFixedRateBond import PriceFixedRateBondT
 from quantra.PriceFixedRateBondRequest import PriceFixedRateBondRequestT
@@ -36,7 +38,7 @@ from quantra.enums.Interpolator import Interpolator
 from quantra.enums.BootstrapTrait import BootstrapTrait
 from quantra.enums.Compounding import Compounding
 
-def create_market_data():
+def create_market_data(curve_id="depos"):
     """
     Replicates the C++ 'build_bond_engine' exactly:
     - 3 Deposits (3M, 6M, 1Y)
@@ -56,8 +58,9 @@ def create_market_data():
     for rate, n, unit in dep_data:
         dep = DepositHelperT()
         dep.rate = rate
-        dep.tenorNumber = n
-        dep.tenorTimeUnit = unit
+        dep.tenor = PeriodT()
+        dep.tenor.n = n
+        dep.tenor.unit = unit
         dep.fixingDays = 3
         dep.calendar = Calendar.TARGET
         dep.businessDayConvention = BusinessDayConvention.ModifiedFollowing
@@ -108,7 +111,7 @@ def create_market_data():
 
     # --- 3. CURVE DEFINITION ---
     curve = TermStructureT()
-    curve.id = "depos"
+    curve.id = curve_id
     curve.referenceDate = "2008-09-18"
     curve.dayCounter = DayCounter.ActualActualISDA # Matching C++
     curve.interpolator = Interpolator.LogLinear    # Matching C++
@@ -153,9 +156,8 @@ def run_benchmark(bonds_per_request, num_requests, share_curve):
     client = Client(target="localhost:50051")
     
     # 1. Prepare Data
-    curve = create_market_data()
     bond = create_target_bond()
-    
+
     # Yield configuration (optional in C++ benchmark, but good for completeness)
     yield_def = YieldT()
     yield_def.dayCounter = DayCounter.Actual360
@@ -163,27 +165,21 @@ def run_benchmark(bonds_per_request, num_requests, share_curve):
     yield_def.frequency = Frequency.Annual
 
     # 2. Build Request Structure
-    # If share_curve=1: We send ONE curve in the 'curves' list.
-    # If share_curve=0: We send N copies of the curve (one per bond) to force processing overhead.
-    
-    curves_list = []
+    # share_curve=1: one curve that every bond discounts on.
+    # share_curve=0: one copy of the curve per bond, each under its own id
+    # (curve ids must be unique in a request), so every copy is bootstrapped.
     if share_curve:
-        curves_list = [curve]
+        curve_ids = ["depos"] * bonds_per_request
+        curves_list = [create_market_data("depos")]
     else:
-        # C++ Logic: "if (share_curve == 0) term_structures.push_back(term_structure)"
-        # We simulate the heavy payload by duplicating the curve definition
-        # Note: We give them unique IDs to ensure the server doesn't just cache the first one!
-        for i in range(bonds_per_request):
-            # Shallow copy is fine, but we need unique IDs if we really want to force re-bootstrapping
-            # However, to strictly match C++ which pushes the SAME pointer, we just push the same object.
-            # If the server is smart, it might cache it. If we want to be mean, we change the ID.
-            curves_list.append(curve)
+        curve_ids = [f"depos_{i}" for i in range(bonds_per_request)]
+        curves_list = [create_market_data(curve_id) for curve_id in curve_ids]
 
     bond_requests = []
-    for _ in range(bonds_per_request):
+    for curve_id in curve_ids:
         req = PriceFixedRateBondT()
         req.fixedRateBond = bond
-        req.discountingCurve = "depos" 
+        req.discountingCurve = curve_id
         req.yield_ = yield_def
         bond_requests.append(req)
 
@@ -191,7 +187,8 @@ def run_benchmark(bonds_per_request, num_requests, share_curve):
     full_request.pricing = PricingT()
     full_request.pricing.asOfDate = "2008-09-18"
     full_request.pricing.settlementDate = "2008-09-18"
-    full_request.pricing.curves = curves_list
+    full_request.pricing.rates = RatesMarketDataT()
+    full_request.pricing.rates.curves = curves_list
     full_request.bonds = bond_requests
 
     # 3. Execution
@@ -216,6 +213,7 @@ def run_benchmark(bonds_per_request, num_requests, share_curve):
             errors += 1
 
     elapsed = time.time() - start_time
+    client.close()
     if elapsed == 0: elapsed = 0.0001
     
     throughput = total_processed / elapsed

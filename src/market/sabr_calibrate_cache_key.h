@@ -20,6 +20,7 @@ namespace quantra {
  *   - swap_index_id
  *   - discount-curve cache-key + forwarding-curve cache-key
  *   - reference date, displacement, volatility type
+ *   - calendar, business-day convention and day counter of the surface
  *   - server-computed ATM forwards (small but matters for cube identity)
  *
  * `discountCurveKey` and `forwardingCurveKey` are the cache keys returned by
@@ -27,7 +28,7 @@ namespace quantra {
  * full curve identity (helpers + quotes + dependencies); using them keeps the
  * SABR key small and avoids re-serializing curve internals here.
  *
- * Output: "sabr-cube:v1:<sha256hex>".
+ * Output: "sabr-cube:v2:<sha256hex>".
  */
 std::string buildSabrCalibrateCacheKey(
     const SwaptionVolEntry& finalizedInputs,

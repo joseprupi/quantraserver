@@ -26,10 +26,7 @@ namespace quantra {
  */
 class TermStructureParser {
 public:
-    /// Legacy: parse with inline values only (no index resolution - deposits/bonds only)
-    std::shared_ptr<QuantLib::YieldTermStructure> parse(const quantra::TermStructure* ts);
-
-    /// Full: parse with registries for quotes, curves, indices and FX spots
+    /// Parses with the registries for quotes, curves, indices and FX spots.
     std::shared_ptr<QuantLib::YieldTermStructure> parse(
         const quantra::TermStructure* ts,
         const QuoteRegistry* quotes,

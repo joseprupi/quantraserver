@@ -17,7 +17,6 @@
 #include <ql/termstructures/inflation/piecewiseyoyinflationcurve.hpp>
 #include <ql/termstructures/inflation/piecewisezeroinflationcurve.hpp>
 #include <ql/time/period.hpp>
-#include <ql/time/schedule.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -95,13 +94,6 @@ double resolveQuoteOrInline(
         return quotes->getValue(helper->quote_id()->str(), quantra::QuoteType_Curve);
     }
     return requireFinite(helper->quote_value(), helperLabel + ".quote_value");
-}
-
-QuantLib::Date parseDateReq(const flatbuffers::String* s, const std::string& label) {
-    if (!s || s->str().empty()) {
-        QUANTRA_INVALID_ARGUMENT(label + " is required");
-    }
-    return DateToQL(s->str());
 }
 
 QuantLib::Region regionFromCurrency(const std::string& ccy) {
@@ -206,41 +198,6 @@ HelperDates resolveHelperDates(
     return out;
 }
 
-QuantLib::Schedule buildSchedule(
-    const quantra::Schedule* scheduleSpec,
-    const std::string& curveId,
-    const std::string& helperLabel) {
-    if (!scheduleSpec) {
-        QUANTRA_INVALID_ARGUMENT(helperLabel + ".schedule is required for curve id: " + curveId);
-    }
-    if (!scheduleSpec->effective_date() || !scheduleSpec->termination_date()) {
-        QUANTRA_INVALID_ARGUMENT(
-            helperLabel +
-            ".schedule requires effective_date and termination_date for curve id: " + curveId);
-    }
-    // The convention enums are presence-required: an omitted convention is an
-    // error, never an alphabetical-0 default (calendar Argentina, etc.).
-    if (!scheduleSpec->calendar().has_value() || !scheduleSpec->frequency().has_value() ||
-        !scheduleSpec->convention().has_value() ||
-        !scheduleSpec->termination_date_convention().has_value() ||
-        !scheduleSpec->date_generation_rule().has_value() ||
-        !scheduleSpec->end_of_month().has_value()) {
-        QUANTRA_INVALID_ARGUMENT(
-            helperLabel +
-            ".schedule requires calendar, frequency, convention, termination_date_convention, date_generation_rule and end_of_month for curve id: " +
-            curveId);
-    }
-    return QuantLib::Schedule(
-        DateToQL(scheduleSpec->effective_date()->str()),
-        DateToQL(scheduleSpec->termination_date()->str()),
-        FrequencyToPeriod(FrequencyToQL(scheduleSpec->frequency().value())),
-        CalendarToQL(scheduleSpec->calendar().value()),
-        ConventionToQL(scheduleSpec->convention().value()),
-        ConventionToQL(scheduleSpec->termination_date_convention().value()),
-        DateGenerationToQL(scheduleSpec->date_generation_rule().value()),
-        scheduleSpec->end_of_month().value());
-}
-
 template <typename TTermStructure>
 QuantLib::Handle<TTermStructure> lookupNominalCurveHandle(
     const std::string& curveId,
@@ -275,7 +232,11 @@ InflationIndexPtr buildInflationIndex(
         return cached->second;
     }
 
-    const std::string family = hasText(spec->family_name()) ? spec->family_name()->str() : id;
+    // QuantLib stores inflation fixings by index name, "<region> <family>"
+    // compared ignoring case, and the currencies without a QuantLib region
+    // share one region. The spec id is the family name, so each spec keeps
+    // its own fixings (family_name is descriptive only).
+    const std::string& family = id;
     const std::string ccyStr = hasText(spec->currency()) ? spec->currency()->str() : "EUR";
     QuantLib::Currency ccy = CurrencyFromString(ccyStr);
     QuantLib::Region region = regionFromCurrency(ccyStr);
@@ -314,14 +275,22 @@ InflationIndexPtr buildInflationIndex(
                 "InflationIndexSpec.underlying_zero_index_id not found for index id '" + id +
                 "': " + underlyingId);
         }
+        const std::string notZeroIndex =
+            "InflationIndexSpec.underlying_zero_index_id must reference a zero inflation index for index id '" +
+            id + "': " + underlyingId;
+        // Checked before the underlying is built: a zero index has no
+        // underlying, so a self-reference or a cycle of YoY specs stops here.
+        const auto underlyingKind = underlyingIt->second->kind();
+        if (underlyingKind.has_value() &&
+            underlyingKind.value() != enums::InflationCurveKind_ZeroInflation) {
+            QUANTRA_INVALID_ARGUMENT(notZeroIndex);
+        }
         auto underlying = buildInflationIndex(
             underlyingIt->second, specMap, cache, zeroCurveHandles, yoyCurveHandles);
         auto zeroUnderlying =
             QuantLib::ext::dynamic_pointer_cast<QuantLib::ZeroInflationIndex>(underlying);
         if (!zeroUnderlying) {
-            QUANTRA_INVALID_ARGUMENT(
-                "InflationIndexSpec.underlying_zero_index_id must reference a zero inflation index for index id: " +
-                id);
+            QUANTRA_INVALID_ARGUMENT(notZeroIndex);
         }
         if (spec->fixings() && spec->fixings()->size() > 0) {
             QUANTRA_INVALID_ARGUMENT(

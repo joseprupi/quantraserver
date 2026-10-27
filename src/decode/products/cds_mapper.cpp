@@ -113,7 +113,9 @@ flatbuffers::Offset<quantra::PriceCDSResponse> CdsMapper::toResponse(
         if (v.fairSpread && std::isfinite(*v.fairSpread)) {
             vb.add_fair_spread(*v.fairSpread);
         }
-        vb.add_fair_upfront(v.fairUpfront);
+        if (v.fairUpfront) {
+            vb.add_fair_upfront(*v.fairUpfront);
+        }
         vb.add_default_leg_npv(v.defaultLegNpv);
         vb.add_premium_leg_npv(v.premiumLegNpv);
         valueOffsets.push_back(vb.Finish());

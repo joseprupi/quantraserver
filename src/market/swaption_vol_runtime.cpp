@@ -196,12 +196,7 @@ SwaptionVolEntry finalizeSwaptionVolEntryForPricing(
         return withSwaptionSabrParamsAtm(raw, atms);
     }
     if (isSabrCalibrate) {
-        if (sidx.kind != quantra::SwapIndexKind_IborSwapIndex) {
-            QUANTRA_NOT_IMPLEMENTED(
-                "SABR calibrate finalize: swap index '" + raw.swapIndexId +
-                "' is not an Ibor swap index (OIS-shaped SABR calibrate not "
-                "supported in v1)");
-        }
+        // The registry build has already rejected a non-Ibor swap index here.
         // Use the first tenor in the grid as the representative swap tenor
         // for the SwapIndex; XabrSwaptionVolatilityCube re-indexes internally
         // by exact (option, tenor) lookup so this choice is only the index's

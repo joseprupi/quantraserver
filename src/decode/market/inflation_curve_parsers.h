@@ -38,8 +38,11 @@ std::map<std::string, InflationCurveEntry> buildInflationCurves(
 /**
  * Build inflation indices and populate PricingRegistry.inflationIndices.
  *
- * Each InflationIndexSpec is linked to a matching-kind inflation curve when
- * available. Multiple curves can reference the same index_id.
+ * Each index carries its spec's fixings and is linked to one matching-kind
+ * inflation curve on it, if any (the first by curve id). Several curves can
+ * reference the same index_id, so trades are not priced through that link:
+ * each trade uses a clone of the index linked to the curve it references
+ * (clones share the index's fixings).
  */
 void buildInflationIndices(
     const flatbuffers::Vector<flatbuffers::Offset<quantra::InflationIndexSpec>>* indices,

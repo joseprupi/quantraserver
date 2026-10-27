@@ -257,7 +257,13 @@ CdsPerTrade priceTrade(
     } catch (const QuantLib::Error&) {
         // fair spread not available for this trade; leave it unset.
     }
-    out.fairUpfront = cds->fairUpfront();
+    // Nor a fair upfront once the upfront settlement date has passed (a
+    // seasoned trade); report it only when it is available.
+    try {
+        out.fairUpfront = cds->fairUpfront();
+    } catch (const QuantLib::Error&) {
+        // fair upfront not available for this trade; leave it unset.
+    }
     out.defaultLegNpv = cds->defaultLegNPV();
     out.premiumLegNpv = cds->couponLegNPV();
     return out;

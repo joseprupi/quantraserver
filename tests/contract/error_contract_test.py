@@ -681,6 +681,21 @@ def _ec_yoy_cf_bad_schedule_date():
     return f
 
 
+def _ec_add_ratio_yoy_specs(*links):
+    """Append ratio YoY index specs, one per (id, underlying_zero_index_id),
+    each a copy of the request's first index spec without fixings."""
+    def f(req):
+        indices = req["pricing"]["inflation"]["inflation_indices"]
+        template = indices[0]
+        for spec_id, underlying_id in links:
+            spec = {k: v for k, v in template.items() if k != "fixings"}
+            spec["id"] = spec_id
+            spec["underlying_zero_index_id"] = underlying_id
+            indices.append(spec)
+        return req
+    return f
+
+
 def _ec_callable_empty_call_schedule():
     """Empty the callable bond's call_schedule — rejected 400 (a present-yet-empty
     call schedule is a plain fixed-rate bond, not a callable one)."""
@@ -1232,6 +1247,12 @@ SCENARIOS = [
      "bonds/fixed_rate_bond_request.json", 400,
      _ec_del_bond_field("bonds", "fixed_rate_bond", "accrual_day_counter"),
      _ec_body_contains("FixedRateBond.accrual_day_counter is required")),
+    # issue_date is optional on the wire; without the guard the parser
+    # dereferenced the null string and crashed the worker.
+    ("ec:400 fixed_rate_bond missing issue_date", "fixed_rate_bond",
+     "bonds/fixed_rate_bond_request.json", 400,
+     _ec_del_bond_field("bonds", "fixed_rate_bond", "issue_date"),
+     _ec_body_contains("FixedRateBond.issue_date is required")),
     ("ec:400 fixed_rate_bond yield missing compounding", "fixed_rate_bond",
      "bonds/fixed_rate_bond_request.json", 400,
      _ec_del_yield_field("bonds", "compounding"),
@@ -1623,6 +1644,26 @@ SCENARIOS = [
      "inflation/yyiis_eur_5y_payer_annual.json", 400,
      _ec_del_instrument_field("swaps", "year_on_year_inflation_swap", "swap_type"),
      _ec_body_contains("YearOnYearInflationSwap.swap_type is required")),
+    # ---- 400: a ratio YoY index's underlying must be a zero inflation index ----
+    # The kind is checked before the underlying is built: a YoY spec naming
+    # itself, or two YoY specs naming each other, used to recurse until the
+    # worker's stack overflowed. The valid request after them checks the
+    # worker is still serving.
+    ("ec:400 yoy inflation index naming itself as underlying",
+     "year_on_year_inflation_swap",
+     "inflation/yyiis_eur_5y_payer_annual.json", 400,
+     _ec_add_ratio_yoy_specs(("YY_SELF", "YY_SELF")),
+     _ec_body_contains("must reference a zero inflation index for index id 'YY_SELF': "
+                       "YY_SELF")),
+    ("ec:400 yoy inflation indices naming each other as underlying",
+     "year_on_year_inflation_swap",
+     "inflation/yyiis_eur_5y_payer_annual.json", 400,
+     _ec_add_ratio_yoy_specs(("YY_CYCLE_A", "YY_CYCLE_B"), ("YY_CYCLE_B", "YY_CYCLE_A")),
+     _ec_body_contains("must reference a zero inflation index for index id 'YY_CYCLE_A': "
+                       "YY_CYCLE_B")),
+    ("ec:200 year_on_year_inflation_swap after the cyclic index specs",
+     "year_on_year_inflation_swap",
+     "inflation/yyiis_eur_5y_payer_annual.json", 200, _ec_identity),
     # ---- 400 INVALID_ARGUMENT: coupon-pricer optionlet-vol convention presence ----
     # A ConstantOptionletVolatility convention enum omitted from a coupon pricer
     # must be rejected, not silently defaulted to the alphabetical-0 value.

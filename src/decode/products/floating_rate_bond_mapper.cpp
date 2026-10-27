@@ -9,8 +9,6 @@
 
 #include <ql/types.hpp>
 
-#include <cstdint>
-
 namespace quantra {
 
 namespace {
@@ -83,25 +81,21 @@ FloatingRateBondTrade extractTrade(const quantra::PriceFloatingRateBond* pricing
 }
 
 /**
- * Serialize one plain flow into a FlowsWrapper offset. This is the wire
- * shape for floating-bond flows — including the long-standing quirk that the
- * floating-coupon `fixing_date` slot (typed `string` in the schema) is written
- * via the implicit double→uint32→Offset<String> conversion of the underlying
- * FloatingRateCoupon::indexFixing() value. Keeping the FB serialization here
- * means the pricer stays FB-free.
+ * Serialize one plain flow into a FlowsWrapper offset (the wire shape for
+ * floating-bond flows). A coupon's `fixing_date` is its ISO fixing date.
+ * Keeping the FB serialization here means the pricer stays FB-free.
  */
 flatbuffers::Offset<quantra::FlowsWrapper> serializeFlow(
     flatbuffers::grpc::MessageBuilder& builder, const FloatingRateBondFlowPlain& f) {
     using Kind = FloatingRateBondFlowPlain::Kind;
     switch (f.kind) {
         case Kind::Interest: {
+            auto fixingDate = builder.CreateString(f.fixingDate);
             auto accrualStart = builder.CreateString(f.accrualStartDate);
             auto accrualEnd = builder.CreateString(f.accrualEndDate);
             quantra::FlowInterestBuilder fib(builder);
             fib.add_amount(f.amount);
-            fib.add_fixing_date(
-                flatbuffers::Offset<flatbuffers::String>(
-                    static_cast<std::uint32_t>(f.indexFixing)));
+            fib.add_fixing_date(fixingDate);
             fib.add_accrual_start_date(accrualStart);
             fib.add_accrual_end_date(accrualEnd);
             fib.add_rate(f.rate);
@@ -114,16 +108,12 @@ flatbuffers::Offset<quantra::FlowsWrapper> serializeFlow(
             return wb.Finish();
         }
         case Kind::PastInterest: {
+            auto fixingDate = builder.CreateString(f.fixingDate);
             auto accrualStart = builder.CreateString(f.accrualStartDate);
             auto accrualEnd = builder.CreateString(f.accrualEndDate);
-            // The floating-bond wire shape uses FlowPastInterestBuilder here
-            // (the fixed-rate path uses FlowInterestBuilder + the past tag —
-            // a separate quirk preserved in fixed_rate_bond_mapper).
             quantra::FlowPastInterestBuilder fib(builder);
             fib.add_amount(f.amount);
-            fib.add_fixing_date(
-                flatbuffers::Offset<flatbuffers::String>(
-                    static_cast<std::uint32_t>(f.indexFixing)));
+            fib.add_fixing_date(fixingDate);
             fib.add_accrual_start_date(accrualStart);
             fib.add_accrual_end_date(accrualEnd);
             fib.add_rate(f.rate);

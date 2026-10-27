@@ -47,7 +47,7 @@ std::string buildSabrCalibrateCacheKey(
     const std::string& forwardingCurveKey) {
     CanonicalBuffer buf;
 
-    buf.writeTag("sabr-cube:v1:");
+    buf.writeTag("sabr-cube:v2:");
 
     // Surface identity / pillars
     buf.writeI32(e.nExp);
@@ -70,6 +70,11 @@ std::string buildSabrCalibrateCacheKey(
     buf.writeU8(static_cast<uint8_t>(e.qlVolType));
     // Reference date as serial day count (calendar-independent canonical form).
     buf.writeI32(static_cast<int32_t>(e.referenceDate.serialNumber()));
+    // Surface conventions: they build the ATM matrix and the frozen cube
+    // (option dates and times).
+    buf.writeString(e.calendar.empty() ? std::string() : e.calendar.name());
+    buf.writeU8(static_cast<uint8_t>(e.businessDayConvention));
+    buf.writeString(e.dayCounter.empty() ? std::string() : e.dayCounter.name());
 
     // Forward conventions (swap index + curve identities). The curve cache
     // keys carry full bootstrap identity, so we delegate to them rather than
@@ -88,7 +93,7 @@ std::string buildSabrCalibrateCacheKey(
     // the cube key never relies on that.
     appendCalendarOverridesSection(buf);
 
-    return "sabr-cube:v1:" + sha256hex(buf.data());
+    return "sabr-cube:v2:" + sha256hex(buf.data());
 }
 
 } // namespace quantra

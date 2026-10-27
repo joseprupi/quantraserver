@@ -39,7 +39,7 @@ struct CmsPricerParams {
 
 /// Plain description of a constant-maturity swap-rate coupon leg (`CmsCoupons`).
 struct CmsLegSpec {
-    QuantLib::Schedule schedule;
+    QuantLib::Schedule schedule = EmptySchedule();
     double notional = 0.0;
     std::string swapIndexId;
     QuantLib::Period swapTenor;
@@ -104,7 +104,6 @@ struct SwapLegData {
         }
         return 0.0;
     }
-    bool isFixed() const { return kind == Kind::Fixed; }
 };
 
 /// Name of a coupon kind as the wire spells it (`coupons_type`).

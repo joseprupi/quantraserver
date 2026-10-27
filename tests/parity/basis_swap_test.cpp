@@ -74,7 +74,9 @@ flatbuffers::Offset<quantra::IborCoupons> buildIborCoupons(
 class BasisSwapParityTest : public QuantraComparisonTest {
 protected:
     /// Prices a one-swap request (EUR_3M + EUR_6M indices, one EUR curve)
-    /// through the handler; the response buffer stays alive in `respB_`.
+    /// through the handler. Each call keeps its own response buffer in
+    /// `responses_`, so every returned pointer stays valid until the end of
+    /// the test.
     const quantra::BasisSwapResponse* price(
         flatbuffers::grpc::MessageBuilder& b, flatbuffers::Offset<quantra::BasisSwap> swap) {
         auto ts = buildCurve(b, "discount");
@@ -88,16 +90,17 @@ protected:
         b.Finish(quantra::CreatePriceBasisSwapRequest(b, pricing, swaps));
 
         BasisSwapPricingRequest req;
-        respB_ = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+        auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+        responses_.push_back(respB);
         auto resp = req.request(
-            respB_, flatbuffers::GetRoot<quantra::PriceBasisSwapRequest>(b.GetBufferPointer()));
-        respB_->Finish(resp);
-        return flatbuffers::GetRoot<quantra::PriceBasisSwapResponse>(respB_->GetBufferPointer())
+            respB, flatbuffers::GetRoot<quantra::PriceBasisSwapRequest>(b.GetBufferPointer()));
+        respB->Finish(resp);
+        return flatbuffers::GetRoot<quantra::PriceBasisSwapResponse>(respB->GetBufferPointer())
             ->swaps()
             ->Get(0);
     }
 
-    std::shared_ptr<flatbuffers::grpc::MessageBuilder> respB_;
+    std::vector<std::shared_ptr<flatbuffers::grpc::MessageBuilder>> responses_;
 };
 
 // Base case: payer basis swap, 3M (leg1, paid) vs 6M (leg2, received), zero

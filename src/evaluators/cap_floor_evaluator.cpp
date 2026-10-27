@@ -21,9 +21,8 @@ namespace quantra {
 
 namespace {
 
-/// Inline construction of the cap/floor pricing engine from a
-/// CapFloorModelDomain. Mirrors EngineFactory::makeCapFloorEngine exactly,
-/// including the model/vol compatibility validation messages.
+/// Builds the cap/floor pricing engine from a CapFloorModelDomain, after
+/// checking that the model and the vol type are compatible.
 std::shared_ptr<QuantLib::PricingEngine> buildEngine(
     const std::string& modelId,
     const CapFloorModelDomain& model,

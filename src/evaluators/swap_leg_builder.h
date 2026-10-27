@@ -33,9 +33,16 @@
 
 namespace quantra {
 
+/// An empty schedule with every member set: QuantLib::Schedule's default
+/// constructor leaves the business-day convention uninitialized, and a
+/// SwapLegData copies the leg specs it does not use.
+inline QuantLib::Schedule EmptySchedule() {
+    return QuantLib::Schedule(std::vector<QuantLib::Date>(), QuantLib::Calendar());
+}
+
 /// Plain description of a fixed-rate coupon leg.
 struct FixedRateLegSpec {
-    QuantLib::Schedule schedule;
+    QuantLib::Schedule schedule = EmptySchedule();
     /// One entry per coupon period, or a single entry for a constant notional.
     std::vector<double> notionals;
     double rate = 0.0;
@@ -54,7 +61,7 @@ struct FixedRateLegSpec {
 /// per period, `fixingDays` before the accrual start (or at its end with
 /// `inArrears`).
 struct FloatingLegSpec {
-    QuantLib::Schedule schedule;
+    QuantLib::Schedule schedule = EmptySchedule();
     /// One entry per coupon period, or a single entry for a constant notional.
     std::vector<double> notionals;
     double spread = 0.0;
@@ -78,7 +85,7 @@ struct FloatingLegSpec {
 /// observation conventions QuantLib::OvernightIndexedSwap exposes. The coupon
 /// day counter is the index's own (QuantLib's convention for OIS legs).
 struct OvernightLegSpec {
-    QuantLib::Schedule schedule;
+    QuantLib::Schedule schedule = EmptySchedule();
     /// One entry per coupon period, or a single entry for a constant notional.
     std::vector<double> notionals;
     double spread = 0.0;

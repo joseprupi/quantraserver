@@ -54,14 +54,7 @@ std::string pointTypeName(quantra::Point type) {
 } // namespace
 
 // =============================================================================
-// Legacy parse (backward compatible, no registries)
-// =============================================================================
-std::shared_ptr<YieldTermStructure> TermStructureParser::parse(const quantra::TermStructure* ts) {
-    return parse(ts, nullptr, nullptr, nullptr);
-}
-
-// =============================================================================
-// Full parse with registries
+// Parse with registries
 // =============================================================================
 std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
     const quantra::TermStructure* ts,

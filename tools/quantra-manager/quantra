@@ -151,6 +151,11 @@ def preflight_ports(port: int, base_port: int, workers: int, admin_port: int):
 # ----------------------------
 # Envoy config generation
 # ----------------------------
+def least_request_choice_count(workers: int) -> int:
+    # Kept in lockstep with scripts/envoy_config.py.
+    return max(2, 4 * workers)
+
+
 def generate_envoy_config(port: int, base_port: int, workers: int, admin_port: int) -> dict:
     endpoints = []
     for i in range(workers):
@@ -216,9 +221,14 @@ def generate_envoy_config(port: int, base_port: int, workers: int, admin_port: i
                 "name": "quantra_workers",
                 "connect_timeout": "0.25s",
                 "type": "STATIC",
-                # Route around a busy single-threaded worker: LEAST_REQUEST
-                # prefers the worker with the fewest in-flight requests.
+                # Route around busy single-threaded workers: LEAST_REQUEST
+                # samples choice_count workers at random (with replacement)
+                # and picks the least loaded; Envoy 1.28 has no full scan and
+                # samples 2 by default.
                 "lb_policy": "LEAST_REQUEST",
+                "least_request_lb_config": {
+                    "choice_count": least_request_choice_count(workers)
+                },
                 "typed_extension_protocol_options": {
                     "envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
                         "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",

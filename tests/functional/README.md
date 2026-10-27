@@ -844,8 +844,8 @@ or cannot agree with the server more tightly than the effect being tested:
   lognormal path it has validated.
 * **OIS-underlying vol surfaces** (`swap_index_id` of kind OisSwapIndex) —
   the server computes OIS ATM forwards for sampling, but SABR calibrate
-  rejects OIS swap indices ("not supported in v1") and the reference only
-  builds the Ibor path.
+  rejects OIS swap indices (a 501, "not implemented yet") and the
+  reference only builds the Ibor path.
 * **The diagnostics `expiries`/`tenors` period fields** — these serialize
   correctly (`writePeriod` in `src/market/swaption_vol_diagnostics.cpp` goes
   through the proper TimeUnit conversion; a dedicated contract test covers

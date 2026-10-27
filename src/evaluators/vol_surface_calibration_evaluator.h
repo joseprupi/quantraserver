@@ -18,11 +18,10 @@
  *    used — the call for K >= F, the put for K < F — and its mid is inverted
  *    with Black-76 on the forward, blackFormulaImpliedStdDev(type, K, F,
  *    mid, DF), sigma = stdDev / sqrt(T), T = Act/365F from the as-of date.
- *    A mid not above the intrinsic value DF * max(F - K, 0) (call) /
- *    DF * max(K - F, 0) (put), a mid below the quote resolution 1e-5 * S
- *    (0.24 points on a 24,000 index: no vol information, any vol prices
- *    inside such a bid/ask) or a mid whose inversion does not solve (outside
- *    the Black bounds) is dropped with that reason.
+ *    A mid below the quote resolution 1e-5 * S (0.24 points on a 24,000
+ *    index: no vol information, any vol prices inside such a bid/ask) or a
+ *    mid whose inversion does not solve (outside the Black bounds) is
+ *    dropped with that reason.
  *
  * 3a. AndreasenHuge. Every used quote becomes a calibration pair
  *    (VanillaOption with the out-of-the-money payoff and the expiry, a

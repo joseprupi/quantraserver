@@ -1319,9 +1319,9 @@ per underlying as `/calibrate-vol-surface` takes it, and optionally
 the quotes -> surface -> simulation chain. Every usable quote of every sheet
 — the per-line rules of `/calibrate-implied-forwards`, then the
 out-of-the-money side with respect to the model forward (`Call` iff `strike
->= forward`) kept when its mid is above intrinsic, at least `1e-5 x spot`
-and has a Black-76 implied vol — is priced as a European option on ONE
-extra simulation of the note's model: same market, correlation, sequence,
+>= forward`) kept when its mid is at least `1e-5 x spot` and has a Black-76
+implied vol — is priced as a European option on ONE extra simulation of the
+note's model: same market, correlation, sequence,
 seed and `paths`, on the note's time grid with the sheet expiries added as
 mandatory dates (refined by `steps_per_year` as usual; an expiry after the
 note's maturity extends the grid). Per option: `model_price =
@@ -1763,10 +1763,10 @@ butterfly and calendar checks.
 per-line rules contributes its out-of-the-money side: the call for
 `K ≥ F`, the put below. Its mid is inverted with Black-76 on the forward
 (`blackFormulaImpliedStdDev(type, K, F, mid, DF)`, `σ = stdDev / √T`, `T`
-Act/365F). Dropped with a reason: a mid not above the intrinsic value, a mid
-below the quote resolution `1e-5 x spot` (0.24 points on a 24,000 index:
-such a price carries no vol information, any vol prices inside its bid/ask),
-a mid outside the Black bounds (no vol solves). An expiry needs
+Act/365F). Dropped with a reason: a mid below the quote resolution
+`1e-5 x spot` (0.24 points on a 24,000 index: such a price carries no vol
+information, any vol prices inside its bid/ask), a mid outside the Black
+bounds (no vol solves). An expiry needs
 `max(filter.min_quotes_per_expiry, 5)` used quotes for `SviPerExpiry`
 (five parameters) and `filter.min_quotes_per_expiry` for `AndreasenHuge`;
 with fewer it is reported unusable. `400` when no expiry is usable.
@@ -2214,6 +2214,11 @@ the Hull-White `used_hw_*` diagnostics, `cms_swap_rate`, the CDS
 `used_cms_*` block and the flow `kind`) is
 declared optional for that reason, so its absence always means "not computed"
 and a reported `0.0` always means "computed and equal to zero".
+The CDS `fair_upfront` is not declared optional, but in the JSON it follows the
+same rule: it is absent when QuantLib has no fair upfront, which is the case
+once the upfront settlement date (`upfront_date`, else the trade date plus
+`cash_settlement_days`) has passed, as for a seasoned trade. A FlatBuffers reader then sees the schema
+default `0.0`.
 
 ## Service endpoints
 

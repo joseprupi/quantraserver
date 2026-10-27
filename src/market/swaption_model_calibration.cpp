@@ -5,7 +5,6 @@
 #include "eval_date_guard.h"
 #include "hw_calibrate_cache.h"
 #include "hw_calibrate_cache_key.h"
-#include "request_validation.h"
 
 #include <ql/handle.hpp>
 #include <ql/indexes/iborindex.hpp>
@@ -41,10 +40,6 @@ QuantLib::Period frequencyToPeriod(QuantLib::Frequency f) {
         case QuantLib::EveryFourthMonth: return QuantLib::Period(4, QuantLib::Months);
         default: return QuantLib::Period(1, QuantLib::Years);
     }
-}
-
-QuantLib::Period toQlPeriod(const quantra::Period* p) {
-    return requirePeriod(p, "Calibration Period");
 }
 
 double marketVolAtNode(
@@ -115,45 +110,6 @@ void resetHwCalibrationCallCount() {
 
 int getHwCalibrationCallCount() {
     return g_hwCalibrationCallCount.load();
-}
-
-HwCalibResult calibrateHullWhiteFromSwaptionVol(
-    const PricingRegistry& reg,
-    const quantra::SwaptionHwCalibrationSpec* calibSpec,
-    const QuantLib::Date asOf) {
-    if (!calibSpec || !calibSpec->swaption_vol_id() || !calibSpec->discount_curve_id() ||
-        !calibSpec->forwarding_curve_id() || !calibSpec->swap_index_id()) {
-        QUANTRA_INVALID_ARGUMENT(
-            "SwaptionHwCalibrationSpec requires swaption_vol_id, discount_curve_id, forwarding_curve_id, and swap_index_id");
-    }
-
-    SwaptionHwCalibrationDomain domain;
-    domain.swaption_vol_id = calibSpec->swaption_vol_id()->str();
-    domain.discount_curve_id = calibSpec->discount_curve_id()->str();
-    domain.forwarding_curve_id = calibSpec->forwarding_curve_id()->str();
-    domain.swap_index_id = calibSpec->swap_index_id()->str();
-    if (calibSpec->expiries() && calibSpec->expiries()->size() > 0) {
-        domain.expiries.reserve(calibSpec->expiries()->size());
-        for (auto it = calibSpec->expiries()->begin(); it != calibSpec->expiries()->end(); ++it) {
-            domain.expiries.push_back(toQlPeriod(*it));
-        }
-    }
-    if (calibSpec->tenors() && calibSpec->tenors()->size() > 0) {
-        domain.tenors.reserve(calibSpec->tenors()->size());
-        for (auto it = calibSpec->tenors()->begin(); it != calibSpec->tenors()->end(); ++it) {
-            domain.tenors.push_back(toQlPeriod(*it));
-        }
-    }
-    domain.calibrate_a = calibSpec->calibrate_a();
-    domain.calibrate_sigma = calibSpec->calibrate_sigma();
-    domain.a_init = calibSpec->a_init();
-    domain.sigma_init = calibSpec->sigma_init();
-    domain.a_lower = calibSpec->a_lower();
-    domain.a_upper = calibSpec->a_upper();
-    domain.max_iterations = calibSpec->max_iterations();
-    domain.function_evaluations = calibSpec->function_evaluations();
-    domain.end_criteria_eps = calibSpec->end_criteria_eps();
-    return calibrateHullWhiteFromSwaptionVol(reg, domain, asOf);
 }
 
 HwCalibResult calibrateHullWhiteFromSwaptionVol(

@@ -447,8 +447,8 @@ TEST(VolSurfaceCalibration, PastedForwardsAndCustomGrid) {
         VolSurfaceCalibrationEvaluator().evaluate(in, mkt.reg, mkt.ctx), QuantraInvalidArgument);
 }
 
-// Dropped quotes with reasons: a below-intrinsic mid, a thin SVI expiry, an
-// expiry without a pasted forward.
+// Dropped quotes with reasons: a mid above the Black upper bound, a mid below
+// the quote resolution, a thin SVI expiry, an expiry without a pasted forward.
 TEST(VolSurfaceCalibration, DropsWithReasons) {
     Market mkt;
     auto in = baseInputs(VolSurfaceFitMethod::SviPerExpiry);

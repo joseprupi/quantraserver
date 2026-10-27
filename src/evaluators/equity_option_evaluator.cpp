@@ -254,8 +254,10 @@ EquityOptionPerTrade priceTrade(
     out.impliedVolatility = std::numeric_limits<double>::quiet_NaN();
     if (!trade.hasBarrier) {
         if (auto vanilla = std::dynamic_pointer_cast<QuantLib::VanillaOption>(instrument)) {
-            out.impliedVolatility =
-                safeGreek([&]() { return vanilla->impliedVolatility(npv, process); });
+            // Invert with the dividends the NPV was priced with (an empty
+            // schedule without discrete dividends).
+            out.impliedVolatility = safeGreek(
+                [&]() { return vanilla->impliedVolatility(npv, process, dividendSchedule); });
         }
     }
 

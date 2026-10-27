@@ -73,8 +73,7 @@ class StructuredNoteRepricingExpiry(object):
 
     # Every line not used, with its reason (the per-line quality rules of
     # `/calibrate-implied-forwards`, then the out-of-the-money side's mid
-    # not above intrinsic, below 1e-5 of the spot, or without an implied
-    # vol).
+    # below 1e-5 of the spot or without an implied vol).
     # StructuredNoteRepricingExpiry
     def Dropped(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))

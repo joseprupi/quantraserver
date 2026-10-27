@@ -14,7 +14,7 @@
               },
         "spot_value" : {
                 "type" : "number",
-                "description" : "Value at settlement."
+                "description" : "Same value as npv: the settlement amount discounted on the discounting\ncurve, not the undiscounted amount paid at settlement."
               },
         "settlement_date" : {
                 "type" : "string",

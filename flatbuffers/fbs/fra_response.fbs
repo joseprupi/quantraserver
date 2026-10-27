@@ -5,7 +5,8 @@ table FRAResponse {
     npv:double;
     /// The implied forward rate from the curve.
     forward_rate:double;
-    /// Value at settlement.
+    /// Same value as npv: the settlement amount discounted on the discounting
+    /// curve, not the undiscounted amount paid at settlement.
     spot_value:double;
     /// When the FRA settles.
     settlement_date:string;
