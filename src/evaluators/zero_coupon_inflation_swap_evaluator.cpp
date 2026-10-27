@@ -85,11 +85,14 @@ ZeroCouponInflationSwapPerSwap priceTrade(
     if (indexIt == reg.inflation.inflationIndices.end()) {
         QUANTRA_NOT_FOUND("Inflation index not found: " + trade.inflationIndexId);
     }
-    auto inflationIndex = std::dynamic_pointer_cast<QuantLib::ZeroInflationIndex>(indexIt->second);
-    if (!inflationIndex) {
+    auto zeroIndex = std::dynamic_pointer_cast<QuantLib::ZeroInflationIndex>(indexIt->second);
+    if (!zeroIndex) {
         QUANTRA_INVALID_ARGUMENT(
             "Inflation index is not zero inflation: " + trade.inflationIndexId);
     }
+    // Forecast on the trade's own curve; the clone shares the index fixings.
+    auto inflationIndex = zeroIndex->clone(
+        QuantLib::Handle<QuantLib::ZeroInflationTermStructure>(curveIt->second->currentLink()));
 
     auto swap = std::make_shared<QuantLib::ZeroCouponInflationSwap>(
         trade.swapType, trade.notional, trade.startDate, trade.maturityDate, trade.fixedCalendar,

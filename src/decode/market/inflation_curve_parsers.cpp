@@ -232,7 +232,11 @@ InflationIndexPtr buildInflationIndex(
         return cached->second;
     }
 
-    const std::string family = hasText(spec->family_name()) ? spec->family_name()->str() : id;
+    // QuantLib stores inflation fixings by index name, "<region> <family>"
+    // compared ignoring case, and the currencies without a QuantLib region
+    // share one region. The spec id is the family name, so each spec keeps
+    // its own fixings (family_name is descriptive only).
+    const std::string& family = id;
     const std::string ccyStr = hasText(spec->currency()) ? spec->currency()->str() : "EUR";
     QuantLib::Currency ccy = CurrencyFromString(ccyStr);
     QuantLib::Region region = regionFromCurrency(ccyStr);

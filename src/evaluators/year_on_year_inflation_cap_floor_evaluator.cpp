@@ -80,10 +80,14 @@ YoYInflationCapFloorPerTrade priceTrade(
     if (indexIt == reg.inflation.inflationIndices.end()) {
         QUANTRA_NOT_FOUND("Inflation index not found: " + trade.inflationIndexId);
     }
-    auto inflationIndex = std::dynamic_pointer_cast<QuantLib::YoYInflationIndex>(indexIt->second);
-    if (!inflationIndex) {
+    auto yoyIndex = std::dynamic_pointer_cast<QuantLib::YoYInflationIndex>(indexIt->second);
+    if (!yoyIndex) {
         QUANTRA_INVALID_ARGUMENT("Inflation index is not YoY inflation: " + trade.inflationIndexId);
     }
+    // The leg and the engine forecast on the trade's own curve; the clone
+    // shares the index fixings.
+    auto inflationIndex = yoyIndex->clone(
+        QuantLib::Handle<QuantLib::YoYInflationTermStructure>(curveIt->second->currentLink()));
 
     auto volIt = reg.volatility.yoyOptionletVols.find(trade.volatilityId);
     if (volIt == reg.volatility.yoyOptionletVols.end()) {
