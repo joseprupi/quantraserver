@@ -11,6 +11,8 @@ std::shared_ptr<QuantLib::Bond> FixedRateBondParser::parse(const quantra::FixedR
         QUANTRA_INVALID_ARGUMENT("FixedRateBond.accrual_day_counter is required");
     if (!bond->payment_convention().has_value())
         QUANTRA_INVALID_ARGUMENT("FixedRateBond.payment_convention is required");
+    if (bond->issue_date() == nullptr)
+        QUANTRA_INVALID_ARGUMENT("FixedRateBond.issue_date is required");
 
     auto schedule = schedule_parser.parse(bond->schedule());
     auto dayCounter = DayCounterToQL(bond->accrual_day_counter().value());

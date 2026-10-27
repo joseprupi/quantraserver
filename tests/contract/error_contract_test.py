@@ -1232,6 +1232,12 @@ SCENARIOS = [
      "bonds/fixed_rate_bond_request.json", 400,
      _ec_del_bond_field("bonds", "fixed_rate_bond", "accrual_day_counter"),
      _ec_body_contains("FixedRateBond.accrual_day_counter is required")),
+    # issue_date is optional on the wire; without the guard the parser
+    # dereferenced the null string and crashed the worker.
+    ("ec:400 fixed_rate_bond missing issue_date", "fixed_rate_bond",
+     "bonds/fixed_rate_bond_request.json", 400,
+     _ec_del_bond_field("bonds", "fixed_rate_bond", "issue_date"),
+     _ec_body_contains("FixedRateBond.issue_date is required")),
     ("ec:400 fixed_rate_bond yield missing compounding", "fixed_rate_bond",
      "bonds/fixed_rate_bond_request.json", 400,
      _ec_del_yield_field("bonds", "compounding"),
