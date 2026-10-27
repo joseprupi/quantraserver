@@ -17,6 +17,7 @@ scenario drops in as a one-line CASES addition — no other change needed.
 """
 
 import copy
+import datetime
 import json
 import re
 import time
@@ -951,3 +952,172 @@ def test_xccy_spot_change_changes_npv_but_not_the_pure_rates_curves(
             f"the pure-rates curve {curve} changed key on an FX spot move")
     # The original entries still answer the original request.
     assert _canonical(cache_client.price(XCCY_SWAP_CASE.product, plain)) == _canonical(off_plain)
+
+
+# ---------------------------------------------------------------------------
+# Curves bootstrapped from rate helpers
+#
+# QuantLib's tenor rate helpers re-date themselves on every evaluation-date
+# change, with the calendars in force at that moment. The cache therefore
+# holds a copy of each bootstrapped curve's nodes on the same interpolated
+# curve, without the helpers: the copy gives the bootstrapped curve's numbers,
+# and no later request can re-date or re-bootstrap it.
+# ---------------------------------------------------------------------------
+
+EUR_CURVE_FIXTURE = "curves/curves_eur_depo_swap_all_measures_tenor_grid.json"
+TRAITS = ("Discount", "ZeroRate", "FwdRate")
+INTERPOLATORS = ("Linear", "LogLinear", "LogCubic", "BackwardFlat", "ForwardFlat")
+# QuantLib cannot bootstrap these on that curve: a log interpolator cannot
+# take the -1 end of the bracket for a zero or forward rate, a backward-flat
+# discount curve gives the spot-starting first deposit no rate, and a
+# forward-flat forward does not reach its own pillar.
+NOT_BOOTSTRAPPABLE = {
+    ("ZeroRate", "LogLinear"), ("ZeroRate", "LogCubic"),
+    ("FwdRate", "LogLinear"), ("FwdRate", "LogCubic"),
+    ("Discount", "BackwardFlat"), ("FwdRate", "ForwardFlat"),
+}
+# A request at another as-of moves the evaluation date twice: to its own
+# as-of, then back to the worker's resting date.
+UNRELATED_CASE = CASES[0]  # fixed-rate bond, as-of 2008-09-15
+
+
+def _eur_curve_request(data_dir, trait, interpolator, as_of=None):
+    """The EUR deposit/swap curve example with the given bootstrap trait and
+    interpolator, optionally moved to another as-of (reference date too)."""
+    request = load_json(data_dir / EUR_CURVE_FIXTURE)
+    curve = request["pricing"]["rates"]["curves"][0]
+    curve["bootstrap_trait"] = trait
+    curve["interpolator"] = interpolator
+    if as_of is not None:
+        request["pricing"]["as_of_date"] = as_of
+        curve["reference_date"] = as_of
+    return request
+
+
+def _price_unrelated_request(cache_client, data_dir):
+    cache_client.price(UNRELATED_CASE.product, load_json(data_dir / UNRELATED_CASE.filename))
+
+
+@pytest.mark.parametrize(
+    "trait,interpolator",
+    [(t, i) for t in TRAITS for i in INTERPOLATORS],
+    ids=[f"{t}-{i}" for t in TRAITS for i in INTERPOLATORS],
+)
+def test_bootstrapped_curve_cache_transparency(trait, interpolator, nocache_client,
+                                               cache_client, data_dir):
+    """Every bootstrap trait and interpolator: discount factors, zero and
+    forward rates sampled weekly to a year past the last pillar are identical
+    cache-OFF, on the miss and on the hit; a curve QuantLib cannot bootstrap
+    fails identically."""
+    request = _eur_curve_request(data_dir, trait, interpolator)
+    request["queries"][0]["grid"] = {
+        "grid_type": "RangeGrid",
+        "grid": {"start_date": "2025-01-15", "end_date": "2036-01-15",
+                 "step_number": 7, "step_time_unit": "Days"},
+    }
+
+    off = _post_raw(nocache_client, "bootstrap_curves", request)
+    warm = _post_raw(cache_client, "bootstrap_curves", request)
+    hit = _post_raw(cache_client, "bootstrap_curves", request)
+
+    assert off[0] == 200, f"{trait}/{interpolator}: HTTP {off[0]} :: {off[1][:300]}"
+    error = json.loads(off[1])["results"][0].get("error")
+    expect_error = (trait, interpolator) in NOT_BOOTSTRAPPABLE
+    assert bool(error) == expect_error, f"{trait}/{interpolator}: error {error!r}"
+    assert warm == off, f"{trait}/{interpolator}: the miss differs from cache-OFF"
+    assert hit == off, f"{trait}/{interpolator}: the hit differs from cache-OFF"
+
+
+def test_bootstrapped_curve_unchanged_by_a_request_at_another_as_of(
+        nocache_client, cache_client, data_dir):
+    """A ZeroRate curve, then a request at another as-of, then the curve
+    again: the same numbers, equal to cache-OFF."""
+    request = _eur_curve_request(data_dir, "ZeroRate", "Linear", as_of="2025-02-03")
+
+    off = nocache_client.price("bootstrap_curves", request)
+    first = cache_client.price("bootstrap_curves", request)
+    _price_unrelated_request(cache_client, data_dir)
+    again = cache_client.price("bootstrap_curves", request)
+
+    assert _canonical(first) == _canonical(off), "the miss differs from cache-OFF"
+    assert _canonical(again) == _canonical(off), (
+        "a request at another as-of changed the cached ZeroRate curve")
+
+
+def test_bootstrapped_curve_with_calendar_overrides_unchanged_at_the_resting_date(
+        nocache_client, cache_client, data_dir):
+    """The same with holiday overrides on the curve's calendar, at the
+    worker's resting date (today: the evaluation date is unset between
+    requests). A request there does not move the evaluation date, so helpers
+    that another request re-dated without the overrides would stay so."""
+    today = datetime.date.today()
+    plain = _eur_curve_request(data_dir, "ZeroRate", "Linear", as_of=today.isoformat())
+    request = copy.deepcopy(plain)
+    request["pricing"]["calendar_overrides"] = [{
+        "calendar": "TARGET",
+        "added_holidays": [(today + datetime.timedelta(days=k)).isoformat()
+                           for k in range(1, 15)],
+    }]
+
+    off = nocache_client.price("bootstrap_curves", request)
+    assert _canonical(off) != _canonical(nocache_client.price("bootstrap_curves", plain)), (
+        "the overrides do not move the curve, so this case cannot detect a re-dated one")
+
+    first = cache_client.price("bootstrap_curves", request)
+    _price_unrelated_request(cache_client, data_dir)
+    again = cache_client.price("bootstrap_curves", request)
+
+    assert _canonical(first) == _canonical(off), "the miss differs from cache-OFF"
+    assert _canonical(again) == _canonical(off), (
+        "a request at another as-of changed the cached curve built with overrides")
+
+
+LOCKOUT_FIXTURE = "curves/curves_usd_ois_sofr_lookback2_lockout2_df_zero.json"
+LOCKOUT_CURVE_ID = "USD_SOFR_OIS"
+
+
+def _lockout_curve_request(data_dir, as_of):
+    """The SOFR OIS example as a linear ZeroRate curve whose first pillar is
+    a one-week OIS with a four-day lockout, which needs five fixings in the
+    week."""
+    request = load_json(data_dir / LOCKOUT_FIXTURE)
+    request["pricing"]["as_of_date"] = as_of
+    curve = request["pricing"]["rates"]["curves"][0]
+    curve["reference_date"] = as_of
+    curve["bootstrap_trait"] = "ZeroRate"
+    curve["interpolator"] = "Linear"
+    first = curve["points"][0]["point"]
+    first["tenor"] = {"n": 1, "unit": "Weeks"}
+    first["lockout_days"] = 4
+    return request
+
+
+def test_cached_curve_does_not_fail_a_request_at_another_as_of(
+        nocache_client, cache_client, data_dir, cache_log_path):
+    """A request at as-of 2025-01-15 answers the same before and after the
+    cache holds a curve that cannot be rebuilt at that date: from 2025-01-15
+    the curve's first week holds Martin Luther King Day, so its one-week OIS
+    has four fixings, too few for the lockout; from 2025-01-22 it has five."""
+    lockout = _lockout_curve_request(data_dir, "2025-01-22")
+    status, body = _post_raw(nocache_client, "bootstrap_curves", lockout)
+    assert status == 200 and not json.loads(body)["results"][0].get("error"), body[:300]
+    status, body = _post_raw(nocache_client, "bootstrap_curves",
+                             _lockout_curve_request(data_dir, "2025-01-15"))
+    assert "Lockout" in body, (
+        f"the lockout curve should not build at 2025-01-15 :: HTTP {status} {body[:300]}")
+
+    unrelated = load_json(data_dir / EUR_CURVE_FIXTURE)  # as-of 2025-01-15
+    off = _post_raw(nocache_client, "bootstrap_curves", unrelated)
+    before = _post_raw(cache_client, "bootstrap_curves", unrelated)
+
+    hits = _count_curve_hits(cache_log_path, LOCKOUT_CURVE_ID)
+    cache_client.price("bootstrap_curves", lockout)
+    cache_client.price("bootstrap_curves", lockout)
+    assert _wait_for_hits(cache_log_path, LOCKOUT_CURVE_ID, hits) > hits, (
+        "the lockout curve did not engage the cache, so this case proves nothing")
+
+    after = _post_raw(cache_client, "bootstrap_curves", unrelated)
+    assert before == off, f"cache-ON differs from cache-OFF :: {before[1][:300]}"
+    assert after == off, (
+        f"a cached curve changed a request at another as-of: HTTP {after[0]} :: "
+        f"{after[1][:300]}")

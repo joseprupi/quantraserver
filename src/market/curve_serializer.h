@@ -12,16 +12,35 @@
 #include <ql/math/interpolations/forwardflatinterpolation.hpp>
 #include <ql/math/interpolations/loginterpolation.hpp>
 #include <ql/termstructures/yield/discountcurve.hpp>
+#include <ql/termstructures/yield/forwardcurve.hpp>
 #include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
+#include <ql/termstructures/yield/zerocurve.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/time/date.hpp>
 
+#include <exception>
 #include <memory>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace quantra {
+
+/**
+ * A bootstrapped curve's nodes on the interpolated curve the bootstrap fills
+ * (InterpolatedDiscountCurve, InterpolatedZeroCurve or InterpolatedForwardCurve
+ * for the Discount, ZeroYield and ForwardRate traits). The bootstrap takes the
+ * max date from the helpers, so it is carried over as well.
+ */
+template <class Base> class FrozenYieldCurve : public Base {
+public:
+    template <class... Args>
+    explicit FrozenYieldCurve(const QuantLib::Date& maxDate, Args&&... args)
+        : Base(std::forward<Args>(args)...) {
+        this->maxDate_ = maxDate;
+    }
+};
 
 /**
  * CurveSerializer - Converts between live QuantLib curves and CachedCurveData.
@@ -32,9 +51,39 @@ namespace quantra {
  * interpolator reproduces identical values.
  *
  * Reconstruction: builds an InterpolatedDiscountCurve from cached DFs.
+ *
+ * Freezing: copies a bootstrapped curve, without its rate helpers, for the
+ * in-process (L1) cache.
  */
 class CurveSerializer {
 public:
+    /**
+     * Helper-free copy of a curve TermStructureParser bootstrapped. A
+     * PiecewiseYieldCurve observes its rate helpers, and QuantLib's tenor
+     * helpers re-date themselves on every evaluation-date change, with the
+     * calendars in force at that moment: a cached bootstrapped curve would be
+     * re-dated and re-bootstrapped by other requests. The copy is the curve's
+     * own interpolated base built from its nodes (dates and data), with the
+     * same interpolator, day counter, calendar, max date and extrapolation
+     * setting, and observes nothing.
+     *
+     * Returns nullptr, and the curve is then not to be cached, when it is not
+     * a PiecewiseYieldCurve the parser builds, when it fails to bootstrap (the
+     * request meets the error where it uses the curve, as without the cache),
+     * or when the copy does not return exactly the curve's times and discount
+     * factors at every node, halfway between nodes and a year past the last.
+     */
+    static std::shared_ptr<QuantLib::YieldTermStructure> freeze(
+        const std::shared_ptr<QuantLib::YieldTermStructure>& curve) {
+        try {
+            if (auto frozen = freezeTrait<QuantLib::Discount>(curve)) return frozen;
+            if (auto frozen = freezeTrait<QuantLib::ZeroYield>(curve)) return frozen;
+            return freezeTrait<QuantLib::ForwardRate>(curve);
+        } catch (const std::exception&) {
+            return nullptr;
+        }
+    }
+
     /**
      * True iff serialize() can extract the curve's ACTUAL bootstrap pillars,
      * i.e. the curve is a PiecewiseYieldCurve matching the TermStructure's
@@ -47,8 +96,7 @@ public:
      * InterpolatedForwardCurve) — are not PiecewiseYieldCurves, so
      * tryExtractPillars() below fails and serialize() would WEEKLY-RESAMPLE
      * them, an approximation that must never be served on a cache hit.
-     * Callers must check this before caching serialized/frozen
-     * data; when false, cache the live curve instead.
+     * Callers must check this before storing serialized data.
      */
     static bool canSerializeExactly(
         const std::shared_ptr<QuantLib::YieldTermStructure>& curve,
@@ -152,7 +200,7 @@ public:
             default:
                 // Fail closed: substituting a different interpolator would make a
                 // cache hit price differently than a miss between pillars. Callers
-                // catch this and fall back to caching the live curve.
+                // catch this and treat the entry as a miss.
                 QUANTRA_ERROR(
                     "CurveSerializer::reconstruct: unsupported interpolator enum " +
                     std::to_string(static_cast<int>(data.interpolator)));
@@ -166,6 +214,55 @@ public:
     }
 
 private:
+    /// The interpolators TermStructureParser::buildCurve builds with.
+    template <class Trait>
+    static std::shared_ptr<QuantLib::YieldTermStructure> freezeTrait(
+        const std::shared_ptr<QuantLib::YieldTermStructure>& curve) {
+        if (auto frozen = freezeAs<Trait>(curve, QuantLib::Linear())) return frozen;
+        if (auto frozen = freezeAs<Trait>(curve, QuantLib::LogLinear())) return frozen;
+        if (auto frozen = freezeAs<Trait>(curve, QuantLib::BackwardFlat())) return frozen;
+        if (auto frozen = freezeAs<Trait>(curve, QuantLib::ForwardFlat())) return frozen;
+        return freezeAs<Trait, QuantLib::LogCubic>(curve, QuantLib::MonotonicLogCubic());
+    }
+
+    template <class Trait, class Interpolator>
+    static std::shared_ptr<QuantLib::YieldTermStructure> freezeAs(
+        const std::shared_ptr<QuantLib::YieldTermStructure>& curve,
+        const Interpolator& interpolator) {
+        auto live =
+            std::dynamic_pointer_cast<QuantLib::PiecewiseYieldCurve<Trait, Interpolator>>(curve);
+        // The parser builds no jumps; a curve with jumps is not copied.
+        if (!live || !live->jumpDates().empty()) return nullptr;
+        using Base = typename Trait::template curve<Interpolator>::type;
+        auto frozen = std::make_shared<FrozenYieldCurve<Base>>(
+            live->maxDate(), live->dates(), live->data(), live->dayCounter(), live->calendar(),
+            interpolator);
+        if (live->allowsExtrapolation()) frozen->enableExtrapolation();
+        if (frozen->times() != live->times() || frozen->referenceDate() != live->referenceDate() ||
+            frozen->maxDate() != live->maxDate() || !sameDiscounts(*live, *frozen, live->times())) {
+            return nullptr;
+        }
+        return frozen;
+    }
+
+    /// Exact equality of the discount factors at every node, halfway between
+    /// nodes and a year past the last node.
+    static bool sameDiscounts(
+        const QuantLib::YieldTermStructure& a,
+        const QuantLib::YieldTermStructure& b,
+        const std::vector<QuantLib::Time>& times) {
+        if (times.empty()) return false;
+        for (std::size_t i = 0; i < times.size(); ++i) {
+            if (a.discount(times[i], true) != b.discount(times[i], true)) return false;
+            if (i + 1 < times.size()) {
+                const QuantLib::Time mid = 0.5 * (times[i] + times[i + 1]);
+                if (a.discount(mid, true) != b.discount(mid, true)) return false;
+            }
+        }
+        const QuantLib::Time past = times.back() + 1.0;
+        return a.discount(past, true) == b.discount(past, true);
+    }
+
     /**
      * Try to extract actual pillar dates from a PiecewiseYieldCurve.
      *

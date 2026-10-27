@@ -50,6 +50,18 @@ static void addDiscountOnlyDep(
     addDepFromRef(deps, curveId, hd->discount_curve());
 }
 
+/// Curves interpolated from explicit points (no rate helpers) observe
+/// nothing, so the curve cache can hold them as built.
+static bool interpolatesExplicitPoints(const quantra::TermStructure* ts) {
+    if (!ts->bootstrap_trait().has_value()) return false;
+    switch (ts->bootstrap_trait().value()) {
+        case quantra::enums::BootstrapTrait_InterpolatedDiscount:
+        case quantra::enums::BootstrapTrait_InterpolatedZero:
+        case quantra::enums::BootstrapTrait_InterpolatedFwd: return true;
+        default: return false;
+    }
+}
+
 /// Add all dependency edges (discount + projection).
 /// Used for helpers that genuinely encode multi-curve projection relationships
 /// (TenorBasisSwapHelper).
@@ -412,57 +424,38 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
 
             cache.stats().bootstraps++;
 
-            // Freeze/serialize ONLY when the serializer can extract the
-            // curve's actual bootstrap pillars (a PiecewiseYieldCurve built by
-            // TermStructureParser). Otherwise — e.g. a ZeroRatePoint curve,
-            // which is an InterpolatedZeroCurve — serialize() would fall back
-            // to weekly resampling, and an L1/L2 hit would serve an
-            // approximation of the user's nodes instead of the real curve
-            // Such curves cache the LIVE curve (value-exact, same
-            // as the non-Discount-trait branch) and skip the L2 store.
-            bool exactPillars = CurveSerializer::canSerializeExactly(curve, ts);
-
-            std::shared_ptr<QuantLib::YieldTermStructure> toCacheL1 = curve;
-            if (exactPillars) {
-                // Serialize once; reused for both the L2 store and (for
-                // Discount curves) the frozen L1 reconstruction below.
-                auto serialized = CurveSerializer::serialize(curve, ts);
-
-                // Cache a frozen, dependency-free curve in L1 for subsequent
-                // hits. A live PiecewiseYieldCurve observes its helpers, which
-                // observe the discount-curve handle; relinking that handle on
-                // a later request (even to identical data) marks the cached
-                // curve dirty and forces a full re-bootstrap on next use. The
-                // reconstructed InterpolatedDiscountCurve holds only pillar
-                // dates and discount factors — it observes nothing, so it
-                // never re-bootstraps.
-                // Only Discount-trait curves reconstruct bit-exactly; other
-                // traits fall back to caching the live curve (today's
-                // behavior).
-                if (ts->bootstrap_trait().has_value() &&
-                    ts->bootstrap_trait().value() == quantra::enums::BootstrapTrait_Discount) {
-                    try {
-                        toCacheL1 = CurveSerializer::reconstruct(serialized);
-                    } catch (const std::exception&) {
-                        // reconstruct() fails closed on data it cannot rebuild
-                        // exactly; cache the live curve instead (pre-freeze
-                        // behavior) rather than failing the request.
-                        toCacheL1 = curve;
-                    }
-                }
-
-                // Store in L2 (serialized DFs — for future Redis). Gated on
-                // exactPillars for the same reason as the freeze: resampled
+            // L1 holds only curves that observe nothing. A curve bootstrapped
+            // from rate helpers observes them, and QuantLib's tenor helpers
+            // re-date themselves on every evaluation-date change, with the
+            // calendars in force at that moment: other requests would re-date
+            // and re-bootstrap a cached one. It is cached as its helper-free
+            // copy, which returns exactly the same values, or not at all when
+            // no exact copy can be made (including when it fails to bootstrap:
+            // the request then meets the error where it uses the curve, as
+            // without the cache). A curve interpolated from explicit points
+            // observes nothing and is cached as built.
+            std::shared_ptr<QuantLib::YieldTermStructure> toCacheL1 =
+                CurveSerializer::freeze(curve);
+            if (toCacheL1) {
+                // L2 (serialized DFs, for a future Redis backend) only when the
+                // serializer can extract the curve's actual pillars: resampled
                 // data must never be reconstructed and served on an L2 hit.
-                cache.backend().putL2(key, serialized);
+                if (CurveSerializer::canSerializeExactly(curve, ts)) {
+                    cache.backend().putL2(key, CurveSerializer::serialize(curve, ts));
+                }
+            } else if (interpolatesExplicitPoints(ts)) {
+                toCacheL1 = curve;
             }
-            cache.backend().putL1(key, toCacheL1);
 
-            cache.logEvent(id, key, "MISS_BOOTSTRAP", bootMs);
-
-            // The miss request itself stays on the live curve, so its result is
-            // byte-identical to the no-cache path; only later L1 hits use the
-            // frozen reconstruction.
+            if (toCacheL1) {
+                cache.backend().putL1(key, toCacheL1);
+                cache.logEvent(id, key, "MISS_BOOTSTRAP", bootMs);
+                // This request prices on the cached object too, as a hit does;
+                // the bootstrapped curve and its helpers are released here.
+                curve = toCacheL1;
+            } else {
+                cache.logEvent(id, key, "MISS_UNCACHED", bootMs);
+            }
             out.handles.at(id)->linkTo(curve);
             depKeys[id] = key;
             out.keys[id] = key;
