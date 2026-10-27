@@ -33,8 +33,10 @@ using QuantLib::Date;
 // keyed this way, so these values must never change as a side effect.
 const char* const kCurveKeyNoOverrides =
     "yc:v3:4a06a2ccdd85fd584b1910aee22eac58d698e9f60696a29f961752f9244344a7";
+// sabr-cube moved from v1 to v2 when the surface calendar, business-day
+// convention and day counter became part of the key material; re-pinned then.
 const char* const kSabrKeyNoOverrides =
-    "sabr-cube:v1:b3bf8ff6128ac5f0ad9f03570fb0d64e2cdb5446bbbfa3b3310a78f503ff3f66";
+    "sabr-cube:v2:5d23556484c7e626e5dd6274e4153af984376920343ada4b4a01b3705d650a23";
 // hw-calib moved from v1 to v2 in 0.13.1 when the joint-fit bounds on "a"
 // (a_lower / a_upper) became part of the key material; re-pinned then.
 const char* const kHwKeyNoOverrides =
@@ -215,7 +217,7 @@ INSTANTIATE_TEST_SUITE_P(
     CacheKeyCalendarOverridesTest,
     ::testing::Values(
         KeyCase{"Curve", "yc:v3:", kCurveKeyNoOverrides, curveKey},
-        KeyCase{"SabrCube", "sabr-cube:v1:", kSabrKeyNoOverrides, sabrKey},
+        KeyCase{"SabrCube", "sabr-cube:v2:", kSabrKeyNoOverrides, sabrKey},
         KeyCase{"HullWhiteCalibration", "hw-calib:v2:", kHwKeyNoOverrides, hwKey}),
     [](const ::testing::TestParamInfo<KeyCase>& info) { return std::string(info.param.name); });
 
