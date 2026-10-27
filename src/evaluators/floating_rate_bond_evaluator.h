@@ -70,21 +70,18 @@ struct FloatingRateBondInputs {
 
 /**
  * Plain cash-flow representation produced by the evaluator and consumed by the
- * mapper. Mirrors the FlowsWrapper union shape the original flow serialization
- * emits. `indexFixing` carries the QuantLib FloatingRateCoupon::indexFixing()
- * value as a double; the mapper passes it through the same FB `fixing_date`
- * field the legacy serializer used (the legacy path stores the raw double
- * value via the generated `add_fixing_date` setter, which we preserve
- * byte-identically here).
+ * mapper. Mirrors the FlowsWrapper union shape the flow serialization emits.
+ * `fixingDate` is the coupon's FloatingRateCoupon::fixingDate() as ISO
+ * YYYY-MM-DD (interest flows only), written to the FB `fixing_date` field.
  */
 struct FloatingRateBondFlowPlain {
     enum class Kind { Interest, PastInterest, Notional };
     Kind kind = Kind::Interest;
     double amount = 0.0;
     double rate = 0.0;
-    double indexFixing = 0.0;
     double discount = 0.0;
     double price = 0.0;
+    std::string fixingDate;
     std::string accrualStartDate;
     std::string accrualEndDate;
     std::string paymentDate;

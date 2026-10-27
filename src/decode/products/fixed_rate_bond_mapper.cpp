@@ -57,11 +57,10 @@ FixedRateBondInputs FixedRateBondMapper::toInputs(
 namespace {
 
 /**
- * Serialize one plain flow into a FlowsWrapper offset. This is the wire
- * shape for fixed-bond flows — including the long-standing quirk that past
- * coupons are tagged Flow_FlowPastInterest while the payload is laid out as
- * FlowInterest (no fixing_date, no discount, no price). Keeping the FB
- * serialization here means the boundary stays clean: the pricer is FB-free.
+ * Serialize one plain flow into a FlowsWrapper offset (the wire shape for
+ * fixed-bond flows). A past coupon is a FlowPastInterest table: amount,
+ * accrual dates and rate, no discount or price. Keeping the FB serialization
+ * here means the boundary stays clean: the pricer is FB-free.
  */
 flatbuffers::Offset<quantra::FlowsWrapper> serializeFlow(
     flatbuffers::grpc::MessageBuilder& builder, const FixedRateBondFlowPlain& f) {
@@ -86,9 +85,7 @@ flatbuffers::Offset<quantra::FlowsWrapper> serializeFlow(
         case Kind::PastInterest: {
             auto accrualStart = builder.CreateString(f.accrualStartDate);
             auto accrualEnd = builder.CreateString(f.accrualEndDate);
-            // Intentional: the wire shape uses FlowInterestBuilder + the
-            // Flow_FlowPastInterest tag for past coupons.
-            quantra::FlowInterestBuilder fib(builder);
+            quantra::FlowPastInterestBuilder fib(builder);
             fib.add_amount(f.amount);
             fib.add_accrual_start_date(accrualStart);
             fib.add_accrual_end_date(accrualEnd);

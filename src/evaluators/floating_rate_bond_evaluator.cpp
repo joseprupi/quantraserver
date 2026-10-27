@@ -51,7 +51,7 @@ std::vector<FloatingRateBondFlowPlain> extractFlows(
         if (coupon) {
             FloatingRateBondFlowPlain f;
             f.amount = coupon->amount();
-            f.indexFixing = coupon->indexFixing();
+            f.fixingDate = DateToIso(coupon->fixingDate());
             f.accrualStartDate = DateToIso(coupon->accrualStartDate());
             f.accrualEndDate = DateToIso(coupon->accrualEndDate());
             f.rate = coupon->rate();
