@@ -16,7 +16,6 @@
 #include <chrono>
 #include <cmath>
 #include <functional>
-#include <iostream>
 #include <limits>
 #include <map>
 #include <memory>
@@ -134,15 +133,6 @@ double basketPerformance(BasketPerformanceRule rule, const std::vector<double>& 
         }
     }
     return perfs.front();
-}
-
-const char* ruleName(BasketPerformanceRule rule) {
-    switch (rule) {
-        case BasketPerformanceRule::WorstOf: return "WorstOf";
-        case BasketPerformanceRule::BestOf: return "BestOf";
-        case BasketPerformanceRule::Average: return "Average";
-    }
-    return "?";
 }
 
 // ---------------------------------------------------------------------------
@@ -1527,17 +1517,6 @@ NoteResultRow priceNote(
                 bumpedRun("greek_rate", kNone, 1.0, kNone, shiftedNote, true, correlation, shifted);
             out.rho = difference(rateUp, baseValues, 1.0 / g.rateBumpBp);
         }
-        std::cout << "Structured note " << trade.tradeId << " Greeks (common random numbers):";
-        for (const auto& ug : out.underlyings) {
-            std::cout << " " << ug.underlyingId << " delta " << ug.delta.value << " gamma "
-                      << ug.gamma.value << " vega " << ug.vega.value;
-        }
-        if (out.correlationSensitivity) {
-            std::cout << " correlation " << out.correlationSensitivity->value
-                      << (out.correlationBumpRepaired ? " (repaired)" : "");
-        }
-        std::cout << " funding_dv01 " << out.fundingDv01.value << " rho " << out.rho.value
-                  << std::endl;
         row.greeks = out;
     }
 
