@@ -114,8 +114,9 @@ flatbuffers::Offset<quantra::OisSwap> fbSwap(
 
 class OisSwapParityTest : public QuantraComparisonTest {
 protected:
-    /// Prices a one-swap request through the handler; the response buffer
-    /// stays alive in `respB_` until the next call.
+    /// Prices a one-swap request through the handler. Each call keeps its own
+    /// response buffer in `responses_`, so every returned pointer stays valid
+    /// until the end of the test.
     const quantra::OisSwapResponse* price(
         flatbuffers::grpc::MessageBuilder& b,
         flatbuffers::Offset<quantra::OisSwap> swap,
@@ -130,11 +131,12 @@ protected:
         b.Finish(quantra::CreatePriceOisSwapRequest(b, pricing, swaps, includeFlows));
 
         OisSwapPricingRequest req;
-        respB_ = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+        auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+        responses_.push_back(respB);
         auto resp = req.request(
-            respB_, flatbuffers::GetRoot<quantra::PriceOisSwapRequest>(b.GetBufferPointer()));
-        respB_->Finish(resp);
-        return flatbuffers::GetRoot<quantra::PriceOisSwapResponse>(respB_->GetBufferPointer())
+            respB, flatbuffers::GetRoot<quantra::PriceOisSwapRequest>(b.GetBufferPointer()));
+        respB->Finish(resp);
+        return flatbuffers::GetRoot<quantra::PriceOisSwapResponse>(respB->GetBufferPointer())
             ->swaps()
             ->Get(0);
     }
@@ -176,7 +178,7 @@ protected:
         return "";
     }
 
-    std::shared_ptr<flatbuffers::grpc::MessageBuilder> respB_;
+    std::vector<std::shared_ptr<flatbuffers::grpc::MessageBuilder>> responses_;
 };
 
 // Base case: payer OIS, annual schedules, compounded averaging, zero spread.
