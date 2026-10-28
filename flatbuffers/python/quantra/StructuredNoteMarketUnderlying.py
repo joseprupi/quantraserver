@@ -200,9 +200,11 @@ class StructuredNoteMarketUnderlying(object):
     # Quanto drift adjustment applied, -rho x sigma_S x sigma_FX in basis
     # points per year, with sigma_S the underlying's Black vol at
     # `initial_level` and sigma_FX the FX vol at the FX spot, both to the
-    # final simulated observation date; rho in QuantLib's convention
-    # (correlation with the FX rate quoted as underlying-currency units per
-    # note-currency unit). Absent for a same-currency underlying.
+    # final simulated observation date; rho is the quanto block's
+    # `fx_underlying_correlation` as given (correlation with the FX rate
+    # quoted as note-currency units per one unit of the underlying's
+    # currency), so a positive rho gives a negative adjustment. Absent for
+    # a same-currency underlying.
     # StructuredNoteMarketUnderlying
     def QuantoDriftBp(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))

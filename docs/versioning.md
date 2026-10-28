@@ -26,6 +26,65 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.16.2 (October 2026) — multi-curve Hull-White, CMS on smile and SABR surfaces
+
+`v0.16.2` is a PATCH release: fixes only, no request or response shape
+changes, no change to the binary or JSON wire. Every 0.16.1 request is a
+valid 0.16.2 request. Outputs change only where they were wrong; each change
+is listed below. QuantLib stays at 1.44.
+
+**Hull-White honours the forwarding curve.** QuantLib's tree and Jamshidian
+swaption engines are single-curve: the Hull-White model is fitted to the
+discount curve and floating coupons are valued off it, so the index's
+forwarding curve was ignored. A 20 bp basis left a Bermudan price unchanged,
+and calibration distorted sigma to absorb it.
+
+- When a swaption's floating or overnight leg forwards on a different curve
+  id than it discounts on, pricing now uses QuantLib's
+  `FdHullWhiteSwaptionEngine`, which projects the index on its own curve
+  with the same a and sigma. Its time grid is `lattice_steps`; the other
+  grid settings are QuantLib's defaults.
+- Hull-White calibration prices its helpers with the same engine when
+  `forwarding_curve_id` differs from `discount_curve_id`.
+- Requests whose curve ids are the same are unchanged (byte-identical).
+  Multi-curve requests change: a Bermudan under a 20 bp basis goes from
+  25,238 to 29,707, equal to QuantLib-Python's FD engine.
+- Where QuantLib's FD engine cannot price correctly, the multi-curve case is
+  a 400 naming the field, never a single-curve price:
+  - forwarding and discount curves with different day counters or
+    reference dates;
+  - American exercise;
+  - cash settlement with `ParYieldCurve`;
+  - an overnight lookback that observes rates before an exercise date.
+- Multi-curve calibration is 10–20 times slower than Jamshidian, and large
+  joint `(a, sigma)` fits can exceed the gateway's 10 s deadline.
+
+Details in `docs/http-api.md`, "Hull-White engines and the forwarding
+curve".
+
+**CMS legs on spread-from-ATM cubes and SABR surfaces price.** These vol
+kinds build their QuantLib structure only once the server's ATM forwards are
+injected. The CMS coupon path skipped that step, so such legs failed with an
+internal "swaption vol handle is empty" error (422). The CMS path now runs
+the same step as swaptions, on the vol's swap index and the leg's discounting
+and forwarding curves. Constant, ATM-matrix and absolute-strike vols are
+unchanged.
+
+**Hull-White calibration cache key.** QuantLib's `SwaptionHelper` starts the
+underlying swap at the IBOR index's fixing days after exercise. Those fixing
+days were not in the cache key, so two calibrations differing only in them
+shared an entry. The key now includes the fixing days, and whether the index
+is an overnight index (key version v3).
+
+**Quanto correlation convention documented correctly (no price change).**
+`QuantoSpec.fx_underlying_correlation` has always been used in QuantLib's
+convention: the correlation with the FX rate quoted as note-currency units
+per one unit of the underlying's currency (USD per CHF for a CHF index in a
+USD note), giving the drift `r_local − q − ρ·σS·σFX`. The documentation
+described the inverse quote and said the FX spot was inverted, which it is
+not. A correlation measured against the inverse quote must be entered with
+its sign flipped.
+
 ## Version 0.16.1 (October 2026) — fixes from a full code review
 
 `v0.16.1` is a PATCH release: fixes only, no request or response shape

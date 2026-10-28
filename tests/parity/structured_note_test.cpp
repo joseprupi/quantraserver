@@ -20,7 +20,16 @@
 //  e. seasoning: a past event resolved as called with the payment still
 //     ahead (npv = DF x payment, Called, paths 0), already paid (npv 0), and
 //     not called (memory carried = the past coupons, then paid on the next
-//     call at zero vol).
+//     call at zero vol);
+//  f. quanto convention: a CHF index in a USD note paying N (1 + S_T / S_0)
+//     at T. `fx_underlying_correlation` = rho is the correlation with USD
+//     per CHF (note-currency units per underlying-currency unit), so for
+//     rho = +/-0.5 the market block's forward is S_0 exp((r_CHF - q - rho
+//     sigma_S sigma_FX) T) to 1e-12, both drift echoes are -rho sigma_S
+//     sigma_FX, the npv gives that forward within 4 SE, an FX spot quoted
+//     the other way round changes nothing, and a Monte Carlo in the CHF
+//     measure (no quanto formula) agrees within 4 SE with corr(S, USD per
+//     CHF) = rho and is at least 20 SE away with corr(S, CHF per USD) = rho.
 //
 // StructuredNoteDiagnosticsTest covers the opt-in blocks: the market block
 // against the flat curves (forwards = S D_div / D_rf, implied yields, vols,
@@ -57,6 +66,8 @@
 #include <ql/math/distributions/bivariatenormaldistribution.hpp>
 #include <ql/math/interpolations/bilinearinterpolation.hpp>
 #include <ql/math/matrixutilities/symmetricschurdecomposition.hpp>
+#include <ql/math/randomnumbers/rngtraits.hpp>
+#include <ql/math/statistics/incrementalstatistics.hpp>
 #include <ql/pricingengines/blackformula.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
@@ -181,6 +192,36 @@ struct NoteMarket {
         reg.correlations.put(MakeCorrelationRuntime(m));
     }
 
+    /// A flat continuously compounded rate curve (a quanto block's local curve).
+    void addFlatCurve(const std::string& id, double rate) {
+        reg.rates.curves[id] =
+            std::make_shared<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>(
+                std::make_shared<QuantLib::FlatForward>(asOf, rate, dc));
+    }
+
+    /// A constant Black vol (an FX vol for a quanto block).
+    void addConstantVol(const std::string& id, double vol) {
+        BlackVolEntry v;
+        v.handle = Handle<QuantLib::BlackVolTermStructure>(
+            std::make_shared<QuantLib::BlackConstantVol>(asOf, QuantLib::NullCalendar(), vol, dc));
+        v.constantVol = vol;
+        v.shapeFb = quantra::enums::VolSurfaceShape_Constant;
+        v.referenceDate = asOf;
+        v.dayCounter = dc;
+        reg.volatility.blackVols[id] = v;
+    }
+
+    /// An FX spot: one unit of `base` costs `rate` units of `quote`.
+    void addFxSpot(
+        const std::string& id, const std::string& base, const std::string& quote, double rate) {
+        FxSpot fx;
+        fx.id = id;
+        fx.baseCurrency = base;
+        fx.quoteCurrency = quote;
+        fx.rate = Handle<QuantLib::Quote>(std::make_shared<QuantLib::SimpleQuote>(rate));
+        reg.fx.spots.put(fx);
+    }
+
     /// Analytic European option on `id` with the spot and the constant vol
     /// replaced (flat curves of the registry).
     QuantLib::VanillaOption optionAt(
@@ -288,6 +329,52 @@ void expectWithin(double actual, double expected, double se, double k, const cha
     std::cout << "  " << what << ": engine " << actual << " vs closed form " << expected << " ("
               << z << " SE, SE = " << se << ")" << std::endl;
     EXPECT_LE(z, k) << what;
+}
+
+/// E_note[S_T] for an index S in another currency, by Monte Carlo in the
+/// INDEX currency's measure, with no quanto formula. Y = index-currency
+/// units per note-currency unit (CHF per USD): there S drifts at
+/// r_local - q and Y at r_local - r_note. S_T paid in the note currency is
+/// worth S_T Y_T in the index currency at T; valued in that measure and
+/// converted back at Y_0, E_note[S_T] = exp((r_note - r_local) T)
+/// E_local[S_T Y_T / Y_0]. `corrSY` is corr(S, Y), i.e. minus the
+/// correlation with the note-per-index quote (USD per CHF). Antithetic
+/// pairs, Mersenne Twister with a fixed seed.
+struct ForeignMeasureEstimate {
+    double mean = 0.0;
+    double standardError = 0.0;
+};
+
+ForeignMeasureEstimate foreignMeasureForward(
+    double s0,
+    double q,
+    double rLocal,
+    double rNote,
+    double sigmaS,
+    double sigmaFx,
+    double T,
+    double corrSY,
+    std::size_t pairs) {
+    auto rsg = QuantLib::PseudoRandom::make_sequence_generator(2, 20261027);
+    const double sqrtT = std::sqrt(T);
+    const double orthogonal = std::sqrt(1.0 - corrSY * corrSY);
+    const double driftS = (rLocal - q - 0.5 * sigmaS * sigmaS) * T;
+    const double driftY = (rLocal - rNote - 0.5 * sigmaFx * sigmaFx) * T;
+    QuantLib::IncrementalStatistics stats;
+    for (std::size_t i = 0; i < pairs; ++i) {
+        const std::vector<double>& z = rsg.nextSequence().value;
+        const double wS = z[0];
+        const double wY = corrSY * z[0] + orthogonal * z[1];
+        double pair = 0.0;
+        for (const double sign : {1.0, -1.0}) {
+            const double sT = s0 * std::exp(driftS + sigmaS * sqrtT * sign * wS);
+            const double yRatio = std::exp(driftY + sigmaFx * sqrtT * sign * wY);
+            pair += 0.5 * sT * yRatio;
+        }
+        stats.add(pair);
+    }
+    const double toNote = std::exp((rNote - rLocal) * T);
+    return {toNote * stats.mean(), toNote * stats.errorEstimate()};
 }
 
 } // namespace
@@ -735,6 +822,88 @@ TEST_F(StructuredNoteCollapseTest, SurfaceVolHoldsTheEdgeOutsideTheStrikeGrid) {
         // The linearly continued variance at 50 is larger than the edge's
         // (the put-wing slope keeps rising); the simulation did not read it.
         EXPECT_GT(row.market->underlyings.at(0).barrierVols.at(0), 0.45 + 0.01);
+    }
+}
+
+// f. quanto correlation convention
+TEST_F(StructuredNoteCollapseTest, QuantoCorrelationIsAgainstNotePerUnderlyingFx) {
+    std::cout << "\n=== Structured note: quanto correlation convention ===" << std::endl;
+    const Date obs5y{21, QuantLib::October, 2031}, pay5y{28, QuantLib::October, 2031};
+    const double q = 0.02, rChf = 0.01, sigmaS = 0.20, sigmaFx = 0.10;
+    const double usdPerChf = 1.25;
+    for (const double rho : {0.5, -0.5}) {
+        std::optional<NoteResultRow> first;
+        double T = 0.0, forward = 0.0;
+        // The same FX spot quoted CHF/USD (USD per CHF) and USD/CHF (CHF per
+        // USD): rho keeps its meaning and nothing changes.
+        for (const bool quotedUsdPerChf : {true, false}) {
+            NoteMarket m(valuation);
+            m.addUnderlying("SMI", kSpot, q, sigmaS, "CHF");
+            m.addFlatCurve("CHF_FLAT", rChf);
+            m.addConstantVol("CHFUSD_VOL", sigmaFx);
+            if (quotedUsdPerChf) {
+                m.addFxSpot("FX", "CHF", "USD", usdPerChf);
+            } else {
+                m.addFxSpot("FX", "USD", "CHF", 1.0 / usdPerChf);
+            }
+            auto t = baseTrade({"SMI"}, "");
+            t.underlyings[0].quanto = QuantoData{"CHF_FLAT", "FX", "CHFUSD_VOL", rho};
+            ObservationEventData fin;
+            fin.observationDate = obs5y;
+            fin.paymentDate = pay5y;
+            fin.isFinal = true;
+            t.events.push_back(fin);
+            t.maturityPaymentDate = pay5y;
+            t.upside = UpsideData{0.0, 1.0, std::nullopt}; // pays N (1 + S_T / S_0)
+            t.monteCarlo.paths = 1 << 16;
+            NoteDiagnosticsRequest diag;
+            diag.market = true;
+            const auto r = price(m, t, diag);
+            ASSERT_TRUE(r.market.has_value());
+            const NoteMarketUnderlying& mu = r.market->underlyings.at(0);
+            ASSERT_EQ(mu.forwards.size(), 1u);
+            ASSERT_TRUE(mu.quantoDriftBp.has_value());
+            ASSERT_TRUE(r.model.underlyings.at(0).quantoDrift.has_value());
+            if (first) {
+                EXPECT_DOUBLE_EQ(mu.forwards[0], forward);
+                EXPECT_DOUBLE_EQ(*mu.quantoDriftBp, *first->market->underlyings[0].quantoDriftBp);
+                EXPECT_DOUBLE_EQ(r.npv, first->npv);
+                EXPECT_DOUBLE_EQ(*r.standardError, *first->standardError);
+                continue;
+            }
+            // Closed form with rho against USD per CHF.
+            T = m.t(obs5y);
+            const double expected = kSpot * std::exp((rChf - q - rho * sigmaS * sigmaFx) * T);
+            forward = mu.forwards[0];
+            std::cout << "  rho " << rho << ": forward " << forward << " vs closed form "
+                      << expected << std::endl;
+            EXPECT_NEAR(forward / expected, 1.0, 1e-12);
+            EXPECT_NEAR(*mu.quantoDriftBp, -rho * sigmaS * sigmaFx * 1e4, 1e-9);
+            EXPECT_NEAR(*r.model.underlyings[0].quantoDrift, -rho * sigmaS * sigmaFx, 1e-15);
+            // The simulated note: npv = DF N (1 + E[S_T] / S_0).
+            ASSERT_TRUE(r.standardError.has_value());
+            const double scale = m.df(pay5y) * kNotional / kSpot;
+            expectWithin(
+                r.npv / scale - kSpot, expected, *r.standardError / scale, 4.0,
+                "E[S_T] from the npv");
+            first = r;
+        }
+        // Independent check of the sign in the CHF measure: corr(S, USD per
+        // CHF) = rho reproduces the engine; corr(S, CHF per USD) = rho, the
+        // other reading, is far away.
+        const auto asDocumented =
+            foreignMeasureForward(kSpot, q, rChf, kRate, sigmaS, sigmaFx, T, -rho, 1 << 16);
+        const auto otherQuote =
+            foreignMeasureForward(kSpot, q, rChf, kRate, sigmaS, sigmaFx, T, rho, 1 << 16);
+        const double zDocumented =
+            std::fabs(forward - asDocumented.mean) / asDocumented.standardError;
+        const double zOther = std::fabs(forward - otherQuote.mean) / otherQuote.standardError;
+        std::cout << "  CHF-measure Monte Carlo: corr with USD per CHF " << asDocumented.mean
+                  << " (SE " << asDocumented.standardError << ", " << zDocumented
+                  << " SE from the engine), corr with CHF per USD " << otherQuote.mean << " (SE "
+                  << otherQuote.standardError << ", " << zOther << " SE)" << std::endl;
+        EXPECT_LE(zDocumented, 4.0);
+        EXPECT_GE(zOther, 20.0);
     }
 }
 

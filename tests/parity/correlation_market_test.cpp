@@ -13,7 +13,11 @@
 // curve whose dividend curve is the quanto curve has forward
 // S * exp((r_local - q - rho * sigma_S * sigma_FX) * T) (QuantLib
 // QuantoTermStructure wired as its QuantoEngine wires it) to 1e-12 relative,
-// and rho = 0 gives the plain forward in the underlying's own currency.
+// and rho = 0 gives the plain forward in the underlying's own currency. rho
+// is the correlation with the FX rate quoted as note-currency units per
+// underlying-currency unit (USD per CHF for the CHF index in a USD note
+// below); structured_note_test.cpp checks that sign against a Monte Carlo
+// in the underlying's own currency.
 #include "correlation_parser.h"
 #include "correlation_registry.h"
 #include "error.h"
@@ -371,7 +375,7 @@ struct FlatQuantoMarket {
     QuantLib::Date reference{15, QuantLib::January, 2025};
     QuantLib::DayCounter dc = QuantLib::Actual365Fixed();
     double spot = 12000.0; // SMI level, also the note's initial level
-    double fxSpot = 0.90;  // CHF per USD
+    double fxSpot = 0.90;  // only the level the flat FX vol is read at
     double rLocal = 0.005; // CHF
     double rNote = 0.042;  // USD
     double q = 0.03;

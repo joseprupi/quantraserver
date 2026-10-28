@@ -51,7 +51,7 @@ info:
     curl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type:\
     \ application/json\" \\\n  -d @examples/data/bonds/fixed_rate_bond_request.json\n\
     ```\n"
-  version: 0.16.1
+  version: 0.16.2
   contact:
     name: Quantra API Support
     url: https://github.com/joseprupi/quantraserver
@@ -7942,15 +7942,23 @@ components:
 
         note currency: the note pays in its own currency the performance of an
 
-        index quoted in another one, so the simulated drift of that index is
+        index quoted in another one. The index keeps its own units and is
 
-        r_note - q - rho * sigma_S * sigma_FX (QuantLib QuantoTermStructure) while
+        simulated in the note currency''s measure with the drift
 
-        the index keeps its own units. Present iff the underlying''s currency
+        r_local - q - rho * sigma_S * sigma_FX (QuantLib QuantoTermStructure):
 
-        differs from `StructuredNote.currency` (400 either way otherwise: a
+        r_local the rate of the underlying''s currency (`discounting_curve`), q
 
-        quanto block on a same-currency underlying, or none on a foreign one).'
+        its dividend yield, sigma_S its volatility, sigma_FX the FX volatility
+
+        and rho `fx_underlying_correlation`. Present iff the underlying''s
+
+        currency differs from `StructuredNote.currency` (400 either way
+
+        otherwise: a quanto block on a same-currency underlying, or none on a
+
+        foreign one).'
       properties:
         discounting_curve:
           type: string
@@ -7963,11 +7971,17 @@ components:
             curve is `StructuredNote.discounting_curve`. Required.'
         fx_spot_id:
           type: string
-          description: 'Id of the `FxSpotSpec` in pricing.fx.spots for the underlying''s
+          description: 'Id of the `FxSpotSpec` in pricing.fx.spots quoting the underlying''s
 
-            currency against the note currency, in either direction (the engine
+            currency against the note currency, in either direction. The rate is
 
-            inverts when base/quote are the other way round). Required.'
+            used as quoted, never inverted, and only as the level the FX
+
+            volatility is read at; that volatility is Constant or term (no
+
+            smile), so neither the rate nor the quoting direction changes the
+
+            price or the meaning of `fx_underlying_correlation`. Required.'
         fx_volatility_id:
           type: string
           description: 'Id of the `VolSurfaceSpec` (BlackVolSpec payload, Constant
@@ -7975,16 +7989,25 @@ components:
 
             in pricing.volatility.vol_surfaces holding the volatility of that FX
 
-            rate; used only for the quanto drift adjustment. Required.'
+            rate (the same for either quoting direction); used only for the
+
+            quanto drift adjustment. Required.'
         fx_underlying_correlation:
           type: number
-          description: 'Correlation between the underlying and the FX rate (underlying
+          description: 'Correlation, in [-1, 1], between the returns of the underlying
+            and
 
-            currency per unit of note currency, i.e. the rate that rises when
+            the returns of the FX rate quoted as NOTE-currency units per one unit
 
-            the note currency strengthens against the underlying''s currency), in
+            of the UNDERLYING''s currency (USD per CHF for a CHF index in a USD
 
-            [-1, 1]. A scalar input: the FX rate is not simulated and this
+            note). The drift is r_local - q - rho * sigma_S * sigma_FX: a
+
+            positive correlation lowers it. A correlation measured against the
+
+            inverse quote (CHF per USD in the example) goes in with its sign
+
+            flipped. A scalar input: the FX rate is not simulated and this
 
             correlation is not read from the correlation matrix. Presence-
 
@@ -10017,11 +10040,15 @@ components:
 
             `initial_level` and sigma_FX the FX vol at the FX spot, both to the
 
-            final simulated observation date; rho in QuantLib''s convention
+            final simulated observation date; rho is the quanto block''s
 
-            (correlation with the FX rate quoted as underlying-currency units per
+            `fx_underlying_correlation` as given (correlation with the FX rate
 
-            note-currency unit). Absent for a same-currency underlying.'
+            quoted as note-currency units per one unit of the underlying''s
+
+            currency), so a positive rho gives a negative adjustment. Absent for
+
+            a same-currency underlying.'
       required:
       - underlying_id
       additionalProperties: false

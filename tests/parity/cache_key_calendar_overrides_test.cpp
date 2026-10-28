@@ -38,9 +38,10 @@ const char* const kCurveKeyNoOverrides =
 const char* const kSabrKeyNoOverrides =
     "sabr-cube:v2:5d23556484c7e626e5dd6274e4153af984376920343ada4b4a01b3705d650a23";
 // hw-calib moved from v1 to v2 in 0.13.1 when the joint-fit bounds on "a"
-// (a_lower / a_upper) became part of the key material; re-pinned then.
+// (a_lower / a_upper) became part of the key material, and to v3 when the IBOR
+// index's fixing days and overnight flag did; re-pinned each time.
 const char* const kHwKeyNoOverrides =
-    "hw-calib:v2:73547789be2a034a0e3aa9a4d5c162863d5e9b9a921e3d94c6ae64195106bf8b";
+    "hw-calib:v3:a8e0dea623f81b5a330e10c7987ee06a824e8b2e6d41313606b7c67645a7ece0";
 
 std::string curveKey() {
     flatbuffers::FlatBufferBuilder fbb;
@@ -90,6 +91,7 @@ std::string hwKey() {
     in.floatCalendar = QuantLib::TARGET();
     in.iborTenor = QuantLib::Period(6, QuantLib::Months);
     in.iborFixingCalendar = QuantLib::TARGET();
+    in.iborFixingDays = 2;
     in.aInit = 0.03;
     in.sigmaInit = 0.01;
     in.maxIterations = 400;
@@ -218,7 +220,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         KeyCase{"Curve", "yc:v3:", kCurveKeyNoOverrides, curveKey},
         KeyCase{"SabrCube", "sabr-cube:v2:", kSabrKeyNoOverrides, sabrKey},
-        KeyCase{"HullWhiteCalibration", "hw-calib:v2:", kHwKeyNoOverrides, hwKey}),
+        KeyCase{"HullWhiteCalibration", "hw-calib:v3:", kHwKeyNoOverrides, hwKey}),
     [](const ::testing::TestParamInfo<KeyCase>& info) { return std::string(info.param.name); });
 
 }}} // namespace quantra::testing

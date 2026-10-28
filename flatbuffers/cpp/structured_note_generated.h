@@ -60,11 +60,15 @@ struct QuantoSpecT : public ::flatbuffers::NativeTable {
 
 /// Quanto treatment of one basket underlying whose currency differs from the
 /// note currency: the note pays in its own currency the performance of an
-/// index quoted in another one, so the simulated drift of that index is
-/// r_note - q - rho * sigma_S * sigma_FX (QuantLib QuantoTermStructure) while
-/// the index keeps its own units. Present iff the underlying's currency
-/// differs from `StructuredNote.currency` (400 either way otherwise: a
-/// quanto block on a same-currency underlying, or none on a foreign one).
+/// index quoted in another one. The index keeps its own units and is
+/// simulated in the note currency's measure with the drift
+/// r_local - q - rho * sigma_S * sigma_FX (QuantLib QuantoTermStructure):
+/// r_local the rate of the underlying's currency (`discounting_curve`), q
+/// its dividend yield, sigma_S its volatility, sigma_FX the FX volatility
+/// and rho `fx_underlying_correlation`. Present iff the underlying's
+/// currency differs from `StructuredNote.currency` (400 either way
+/// otherwise: a quanto block on a same-currency underlying, or none on a
+/// foreign one).
 struct QuantoSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef QuantoSpecT NativeTableType;
   typedef QuantoSpecBuilder Builder;
@@ -81,22 +85,29 @@ struct QuantoSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::String *discounting_curve() const {
     return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNTING_CURVE);
   }
-  /// Id of the `FxSpotSpec` in pricing.fx.spots for the underlying's
-  /// currency against the note currency, in either direction (the engine
-  /// inverts when base/quote are the other way round). Required.
+  /// Id of the `FxSpotSpec` in pricing.fx.spots quoting the underlying's
+  /// currency against the note currency, in either direction. The rate is
+  /// used as quoted, never inverted, and only as the level the FX
+  /// volatility is read at; that volatility is Constant or term (no
+  /// smile), so neither the rate nor the quoting direction changes the
+  /// price or the meaning of `fx_underlying_correlation`. Required.
   const ::flatbuffers::String *fx_spot_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_FX_SPOT_ID);
   }
   /// Id of the `VolSurfaceSpec` (BlackVolSpec payload, Constant or term)
   /// in pricing.volatility.vol_surfaces holding the volatility of that FX
-  /// rate; used only for the quanto drift adjustment. Required.
+  /// rate (the same for either quoting direction); used only for the
+  /// quanto drift adjustment. Required.
   const ::flatbuffers::String *fx_volatility_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_FX_VOLATILITY_ID);
   }
-  /// Correlation between the underlying and the FX rate (underlying
-  /// currency per unit of note currency, i.e. the rate that rises when
-  /// the note currency strengthens against the underlying's currency), in
-  /// [-1, 1]. A scalar input: the FX rate is not simulated and this
+  /// Correlation, in [-1, 1], between the returns of the underlying and
+  /// the returns of the FX rate quoted as NOTE-currency units per one unit
+  /// of the UNDERLYING's currency (USD per CHF for a CHF index in a USD
+  /// note). The drift is r_local - q - rho * sigma_S * sigma_FX: a
+  /// positive correlation lowers it. A correlation measured against the
+  /// inverse quote (CHF per USD in the example) goes in with its sign
+  /// flipped. A scalar input: the FX rate is not simulated and this
   /// correlation is not read from the correlation matrix. Presence-
   /// required (a bare double would silently mean 0 = no adjustment).
   ::flatbuffers::Optional<double> fx_underlying_correlation() const {

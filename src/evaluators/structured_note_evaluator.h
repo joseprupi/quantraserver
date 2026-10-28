@@ -23,13 +23,15 @@
  * QuantoTermStructure of src/market/quanto_builder.h (riskFree = r_note,
  * foreign = the quanto block's `discounting_curve` = r_local), so that the
  * drift is r_local - q - rho * sigma_S * sigma_FX. rho is the quanto block's
- * `fx_underlying_correlation` in QuantLib's convention: correlation of the
- * underlying with the FX rate quoted as UNDERLYING-currency units per
- * NOTE-currency unit (CHF per USD for a CHF index in a USD note); the
- * response's model echo reports the resulting drift adjustment. The FX vol
- * is read at the FX spot level, the equity vol at `initial_level`. The
- * processes are correlated with CorrelationRegistry::subMatrix(correlation_id,
- * underlying ids) (StochasticProcessArray, spectral pseudo-square-root).
+ * `fx_underlying_correlation`, used unchanged: the correlation of the
+ * underlying with the FX rate quoted as NOTE-currency units per one
+ * UNDERLYING-currency unit (USD per CHF for a CHF index in a USD note); the
+ * response's model echo reports the resulting drift adjustment. The FX spot
+ * may quote the pair either way and is used as quoted (never inverted), only
+ * as the level the FX vol (Constant or term, so strike-independent) is read
+ * at; the equity vol is read at `initial_level`. The processes are
+ * correlated with CorrelationRegistry::subMatrix(correlation_id, underlying
+ * ids) (StochasticProcessArray, spectral pseudo-square-root).
  *
  * Discounting: every cash flow is discounted on
  * ZeroSpreadedTermStructure(discounting_curve, funding_spread_bp / 1e4) — a

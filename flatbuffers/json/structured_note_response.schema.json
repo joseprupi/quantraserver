@@ -1791,7 +1791,7 @@
               },
         "quanto_drift_bp" : {
                 "type" : "number",
-                "description" : "Quanto drift adjustment applied, -rho x sigma_S x sigma_FX in basis\npoints per year, with sigma_S the underlying's Black vol at\n`initial_level` and sigma_FX the FX vol at the FX spot, both to the\nfinal simulated observation date; rho in QuantLib's convention\n(correlation with the FX rate quoted as underlying-currency units per\nnote-currency unit). Absent for a same-currency underlying."
+                "description" : "Quanto drift adjustment applied, -rho x sigma_S x sigma_FX in basis\npoints per year, with sigma_S the underlying's Black vol at\n`initial_level` and sigma_FX the FX vol at the FX spot, both to the\nfinal simulated observation date; rho is the quanto block's\n`fx_underlying_correlation` as given (correlation with the FX rate\nquoted as note-currency units per one unit of the underlying's\ncurrency), so a positive rho gives a negative adjustment. Absent for\na same-currency underlying."
               }
       },
       "required" : ["underlying_id"],

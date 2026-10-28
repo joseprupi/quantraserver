@@ -852,6 +852,12 @@ and, for a CMS floating leg,
 `used_cms_mean_reversion` and the `used_cms_hagan_*` limits. Worked
 examples: `examples/data/ir_swaps/irs_*.json` and `cms_*.json`.
 
+The CMS pricer reads the swaption vol `coupons.swaption_vol_id` of any kind.
+A `SpreadFromATM` smile cube or a SABR surface (`SwaptionSabrParamsSpec`,
+`SwaptionSabrCalibrateSpec`) is built on the ATM forwards of its own
+`swap_index_id`, computed on the CMS leg's `discounting_curve` and
+`forwarding_curve`, as `/price-swaption` computes them on the trade's curves.
+
 ## OIS swap
 
 `POST /price-ois-swap` prices a fixed leg against a compounded (or
@@ -889,7 +895,9 @@ leg by market convention), the other leg held fixed. Worked examples:
 `"underlying"`). The swaption's curves are the underlying legs': both legs
 must name the same `discounting_curve` (the swaption is priced on one
 discount curve, `400` otherwise) and the floating / overnight leg's
-`forwarding_curve` projects the index; the request wrapper keeps only the
+`forwarding_curve` projects the index (on a `HullWhiteLattice` model, see
+"Hull-White engines and the forwarding curve" for the engine this
+selects); the request wrapper keeps only the
 swaption-specific references (`volatility`, `model`). The underlying is
 priced from QuantLib's own `VanillaSwap` / `OvernightIndexedSwap` built from
 the two legs, which takes the fixed leg's notional for both legs, adjusts
@@ -1173,7 +1181,7 @@ shared between notes):
 | `trade_id` | Echoed in the response. Required. |
 | `currency` | ISO code of the note: coupons, redemption and NPV. Required. |
 | `notional` | Coupons and the redemption are fractions of it. Presence-required, `> 0`. |
-| `underlyings[]` | The basket, at least one entry, ids distinct. Each: `underlying_id` (an `EquityUnderlyingSpec`, whose `currency` is required here), `volatility_id` (a `VolSurfaceSpec` with a `BlackVolSpec` or an `SviVolSpec` payload: constant or term vols step exactly between observation dates; a strike x expiry grid or SVI slices make the simulation Dupire local-vol and require `monte_carlo.steps_per_year`; `POST /calibrate-vol-surface` returns both forms from listed option quotes, ready to paste — see "Volatility surface from option quotes"), `initial_level` (the strike fixing every performance `S(t) / initial_level` is measured against; presence-required, `> 0`), `quanto` (present iff the underlying's currency differs from the note's: `discounting_curve` = the rate curve of the underlying's currency, `fx_spot_id` = an `FxSpotSpec` quoting the two currencies in either direction, `fx_volatility_id` = a constant or term `BlackVolSpec`, `fx_underlying_correlation` in `[-1, 1]`, presence-required), `historical_levels[]` (`{date, value}` closes on past dated observation dates; a past observation without one is a `400` naming the date). |
+| `underlyings[]` | The basket, at least one entry, ids distinct. Each: `underlying_id` (an `EquityUnderlyingSpec`, whose `currency` is required here), `volatility_id` (a `VolSurfaceSpec` with a `BlackVolSpec` or an `SviVolSpec` payload: constant or term vols step exactly between observation dates; a strike x expiry grid or SVI slices make the simulation Dupire local-vol and require `monte_carlo.steps_per_year`; `POST /calibrate-vol-surface` returns both forms from listed option quotes, ready to paste — see "Volatility surface from option quotes"), `initial_level` (the strike fixing every performance `S(t) / initial_level` is measured against; presence-required, `> 0`), `quanto` (present iff the underlying's currency differs from the note's: `discounting_curve` = the rate curve of the underlying's currency, `fx_spot_id` = an `FxSpotSpec` quoting the two currencies in either direction, used as quoted and only as the level the FX vol is read at, `fx_volatility_id` = a constant or term `BlackVolSpec`, `fx_underlying_correlation` in `[-1, 1]`, presence-required: the correlation with the FX rate quoted as note-currency units per one unit of the underlying's currency, USD per CHF for a CHF index in a USD note, see "Pricing conventions"), `historical_levels[]` (`{date, value}` closes on past dated observation dates; a past observation without one is a `400` naming the date). |
 | `performance_rule` | `WorstOf`, `BestOf` or `Average` of the underlyings' performances. Presence-required. |
 | `events[]` | Strictly increasing `observation_date`s; the last is the final observation. `autocall_trigger` present: `perf >= trigger` ends the note (notional plus this coupon plus the memory on `payment_date`). `coupon_trigger` present: `perf >= trigger` earns `coupon` plus the memory, paid on `payment_date` or held (`pay_only_on_call`). Both present (Phoenix with a call): the coupon test runs first. Neither: an accrual-only event, `coupon` joins the memory, nothing is observed or paid (`coupon_rule.memory` must be true, `payment_date` absent). `payment_date` is required iff a trigger is present and must be on or after the observation date; `coupon` is required with `coupon_trigger` and on accrual-only events. The final event must carry a trigger, unless it is marked `is_final: true`: a maturity-only observation where only the capital protection block (and `upside`) is tested, with no coupon test and no call test (the memory is not paid there); `coupon`, `coupon_trigger` and `autocall_trigger` must then be absent, `payment_date` is required and must equal `maturity_payment_date`, and the event must be the last one. A final observation that also tests a coupon or a call (Santander's 80 % hurdle, BNP's 100 % call) keeps its trigger; `is_final` is for a final date that only decides the redemption (the Scotia note). |
 | `coupon_rule` | `memory` (a missed coupon is added to a memory paid with the next coupon; the memory is a sum of amounts) and `pay_only_on_call` (true = Athena / snowball: earned coupons are held until a call or the final event; false = Phoenix: paid on their `payment_date`). Both presence-required. |
@@ -1249,9 +1257,10 @@ between consecutive observation dates (the first from the valuation date);
 `atm_vols[]` = the Black vol to each observation date at that date's
 forward; `barrier_vols[]` = the Black vol at `capital.barrier x
 initial_level`, equal to `atm_vols` unless the vol is a strike x expiry
-surface; `quanto_drift_bp` = `-rho x sigma_S x sigma_FX x 1e4` with the vols
-to the final simulated observation date (`sigma_S` at `initial_level`,
-`sigma_FX` at the FX spot). `payment_dates` = the simulated events' payment
+surface; `quanto_drift_bp` = `-rho x sigma_S x sigma_FX x 1e4` with `rho`
+the quanto block's `fx_underlying_correlation` as given and the vols to the
+final simulated observation date (`sigma_S` at `initial_level`, `sigma_FX`
+at the FX spot). `payment_dates` = the simulated events' payment
 dates followed by `maturity_payment_date` when it differs, with
 `discount_factors` (plain curve) and `discount_factors_with_funding`.
 `correlation_labels` / `correlation` = the matrix as used, row-major, in the
@@ -1417,11 +1426,16 @@ there is no adapter around the original object).
   underlying the `QuantoTermStructure(dividend, riskFree = r_note, foreign =
   quanto.discounting_curve, sigma_S at initial_level, sigma_FX at the FX
   spot, rho)`, so the drift is `r_local - q - rho sigma_S sigma_FX`. `rho` is
-  QuantLib's convention: the correlation with the FX rate quoted as
-  underlying-currency units per note-currency unit (CHF per USD for a CHF
-  index in a USD note); the other quoting direction flips its sign. Positive
-  `rho` lowers the drift. The processes are correlated by the
-  `StochasticProcessArray` (spectral pseudo-square-root).
+  `quanto.fx_underlying_correlation`, used as given: the correlation between
+  the underlying's returns and the returns of the FX rate quoted as
+  note-currency units per one unit of the underlying's currency (USD per CHF
+  for a CHF index in a USD note). Positive `rho` lowers the drift. A
+  correlation measured against the inverse quote (CHF per USD) goes in with
+  its sign flipped. The FX spot may quote the pair either way and is used as
+  quoted, never inverted: it is only the level the FX vol is read at, and
+  that vol is constant or term (no smile, the same for either quote), so
+  neither its value nor its direction moves the price. The processes are
+  correlated by the `StochasticProcessArray` (spectral pseudo-square-root).
 - Local vol: a strike-dependent vol — a strike x expiry `BlackVolSpec`
   (`SmileCube3D`, `SurfaceFromPrices`) or an `SviVolSpec` — is simulated
   as Dupire local vol (QuantLib `LocalVolSurface`: finite differences of
@@ -2124,11 +2138,63 @@ three-series set to the JPMorgan note's date with Ledoit-Wolf shrinkage.
 The workflow example (`examples/structured_note_workflow/`, `--closes`)
 runs this endpoint ahead of the forwards and the surface.
 
+## Hull-White engines and the forwarding curve
+
+A `HullWhiteLattice` model (`SwaptionModelSpec`) is a one-factor Hull-White
+model on the discount curve. The QuantLib engine that prices with it depends
+on the curve the underlying's index projects on:
+
+| The index projects on | `/price-swaption` | Calibration helpers (`/calibrate-swaption-model`, `param_mode: Calibrate`) |
+| --- | --- | --- |
+| the discount curve: the floating / overnight leg's `forwarding_curve` names its `discounting_curve` (in `SwaptionHwCalibrationSpec`, `forwarding_curve_id` equals `discount_curve_id`) | `TreeSwaptionEngine`, `lattice_steps` time steps | `JamshidianSwaptionEngine` |
+| another curve: the two ids differ | `FdHullWhiteSwaptionEngine`, `lattice_steps` time steps | `FdHullWhiteSwaptionEngine`, 100 time steps |
+
+The rule compares curve ids, not contents: a forwarding curve defined like
+the discount curve under another id takes the second row. QuantLib's tree and
+Jamshidian engines value the floating leg off the model's own curve, so a
+separate forwarding curve would have no effect on them.
+`FdHullWhiteSwaptionEngine` discounts on the model's curve and projects the
+index on its forwarding curve through a second Hull-White model with the same
+`a` and `sigma` (a deterministic basis between the two curves). It prices
+`VanillaSwap` and `OisSwap` underlyings (QuantLib rebuilds the swap on the
+forwarding curve) with European or Bermudan exercise. Both FD rows
+use QuantLib's defaults for the rest of the grid: 100 short-rate points, no
+damping steps, mesher epsilon `1e-5`, Douglas scheme. The calibration spec
+has no grid field, so the helpers run on QuantLib's default 100 time steps.
+The rebump greeks reprice on the same engine as the base price. The response
+does not name the engine; `used_hw_*` report the parameters as before.
+
+FD helpers cost about 10 to 20 times a Jamshidian helper. Through the JSON
+gateway the shipped 2x2 calibration examples take 0.3 to 0.8 s instead of
+about 0.2 s, a sigma-only fit on 50 helpers about 1.2 s (200 helpers: 4.7 s)
+and a joint fit on a 4x4 grid about 3 s; a joint fit on 50 helpers or more
+runs past the gateway's 10 s deadline (`504`). Calibrate `sigma` only, as
+recommended under "Hull-White calibration", or keep the grid small.
+
+A callable bond's coupons are fixed and need no forwarding curve: it is
+priced on `TreeCallableFixedRateBondEngine` with `tree_steps` either way.
+Only a `param_mode: Calibrate` model whose `hw_calibration` names a
+forwarding curve calibrates on the FD helpers above.
+
+### Rejected requests on a forwarding curve
+
+None of these falls back to the tree.
+
+| Request | Status |
+| --- | --- |
+| `forwarding_curve` and `discounting_curve` (or `forwarding_curve_id` and `discount_curve_id`) with different day counters or reference dates: `FdHullWhiteSwaptionEngine` requires them equal | `400` naming both curves |
+| `exercise_type: American`: the FD engine looks each exercise date up by its time and prices European and Bermudan exercise only | `400` naming `Swaption.exercise_type` |
+| `settlement_type: Cash` with `settlement_method: ParYieldCurve`: the FD engine values the swap itself at exercise (physical or collateralized cash settlement) | `400` naming `Swaption.settlement_method` |
+| an OIS underlying whose `lookback_days` makes a coupon starting on or after an exercise date observe rates before that date: the FD engine projects each coupon from the exercise date | `400` naming `Swaption.underlying.overnight_leg.coupons.lookback_days` |
+
 ## Hull-White calibration
 
 `POST /calibrate-swaption-model`, and a swaption or callable bond whose model
 has `param_mode: Calibrate`, fit Hull-White `(a, sigma)` to an ATM swaption
-matrix with Levenberg-Marquardt (`SwaptionHwCalibrationSpec`).
+matrix with Levenberg-Marquardt (`SwaptionHwCalibrationSpec`). The helpers
+are priced on `JamshidianSwaptionEngine`, or on `FdHullWhiteSwaptionEngine`
+when `forwarding_curve_id` names another curve than `discount_curve_id` (see
+"Hull-White engines and the forwarding curve").
 
 **Recommendation for production use: `calibrate_a: false` with a market
 mean reversion in `a_init`, calibrating `sigma` only.** On a market ATM

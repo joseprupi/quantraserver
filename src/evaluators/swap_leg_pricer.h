@@ -65,7 +65,8 @@ struct CmsPricerBuildResult {
 
 /// Build the CMS coupon pricer (LinearTsr / Hagan analytic / Hagan numeric)
 /// on `volEntry` and `discountCurve`, validating the numeric settings (400
-/// naming the setting).
+/// naming the setting). `volEntry` must have its handle built (a SpreadFromATM
+/// cube or SABR surface after finalizeSwaptionVolEntryForPricing).
 CmsPricerBuildResult BuildCmsPricer(
     const CmsPricerParams& params,
     const SwaptionVolEntry& volEntry,

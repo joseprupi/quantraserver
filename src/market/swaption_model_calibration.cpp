@@ -14,6 +14,7 @@
 #include <ql/models/calibrationhelper.hpp>
 #include <ql/models/shortrate/calibrationhelpers/swaptionhelper.hpp>
 #include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
+#include <ql/pricingengines/swaption/fdhullwhiteswaptionengine.hpp>
 #include <ql/pricingengines/swaption/jamshidianswaptionengine.hpp>
 #include <ql/settings.hpp>
 
@@ -112,6 +113,20 @@ int getHwCalibrationCallCount() {
     return g_hwCalibrationCallCount.load();
 }
 
+std::string fdHullWhiteCurveMismatch(
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& forwarding,
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& discount) {
+    if (forwarding->dayCounter() != discount->dayCounter()) {
+        return "the same day counter (" + forwarding->dayCounter().name() + " vs " +
+               discount->dayCounter().name() + ")";
+    }
+    if (forwarding->referenceDate() != discount->referenceDate()) {
+        return "the same reference date (" + DateToIso(forwarding->referenceDate()) + " vs " +
+               DateToIso(discount->referenceDate()) + ")";
+    }
+    return {};
+}
+
 HwCalibResult calibrateHullWhiteFromSwaptionVol(
     const PricingRegistry& reg,
     const SwaptionHwCalibrationDomain& calibSpec,
@@ -152,6 +167,21 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
         QUANTRA_NOT_FOUND("Calibration forwarding curve not found: " + forwardingCurveId);
     }
     QuantLib::Handle<QuantLib::YieldTermStructure> forwardingCurve(fIt->second->currentLink());
+
+    // Helpers projecting on a curve other than the discount curve are priced on
+    // QuantLib's FdHullWhiteSwaptionEngine; Jamshidian would value their
+    // floating leg off the model's (discount) curve.
+    const bool fdHelperEngine = forwardingCurveId != discountCurveId;
+    if (fdHelperEngine) {
+        const std::string mismatch = fdHullWhiteCurveMismatch(forwardingCurve, discountCurve);
+        if (!mismatch.empty()) {
+            QUANTRA_INVALID_ARGUMENT(
+                "SwaptionHwCalibrationSpec.forwarding_curve_id '" + forwardingCurveId +
+                "' and discount_curve_id '" + discountCurveId + "' must have " + mismatch +
+                ": helpers on a forwarding curve are priced with QuantLib's "
+                "FdHullWhiteSwaptionEngine, which requires it");
+        }
+    }
 
     if (!reg.rates.swapIndices.has(swapIndexId)) {
         QUANTRA_NOT_FOUND("Calibration swap index not found: " + swapIndexId);
@@ -264,10 +294,10 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
     //
     // The calibrated (a, sigma) is a deterministic function of the consumed
     // market vols, the resolved grid, the discount/forwarding curves, the
-    // swap-index conventions and the (clamped) calibration spec. Build a content
-    // key from exactly those inputs and, when the cache is enabled and the key is
-    // buildable, serve a prior result instead of re-running the whole
-    // Levenberg-Marquardt fit.
+    // swap-index and IBOR-index conventions and the (clamped) calibration
+    // spec. Build a content key from exactly those inputs and, when the cache
+    // is enabled and the key is buildable, serve a prior result instead of
+    // re-running the whole Levenberg-Marquardt fit.
     //
     // Fail-closed: if either curve cache key is unavailable (curve cache off, or
     // a bumped run) or key assembly throws, the key is left empty and we
@@ -304,6 +334,10 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
             ki.iborConvention = ibor->businessDayConvention();
             ki.iborEndOfMonth = ibor->endOfMonth();
             ki.iborFixingCalendar = ibor->fixingCalendar();
+            ki.iborFixingDays = static_cast<int>(ibor->fixingDays());
+            ki.iborIsOvernight =
+                std::dynamic_pointer_cast<QuantLib::OvernightIndex>(ibor) != nullptr;
+            ki.fdHelperEngine = fdHelperEngine;
             ki.calibrateA = calibSpec.calibrate_a;
             ki.calibrateSigma = calibSpec.calibrate_sigma;
             ki.aInit = aStart;
@@ -360,7 +394,14 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
 
     auto hwModel = QuantLib::ext::make_shared<QuantLib::HullWhite>(
         discountCurve, aStart, calibSpec.sigma_init);
-    auto engine = QuantLib::ext::make_shared<QuantLib::JamshidianSwaptionEngine>(hwModel);
+    // FD engine on QuantLib's default grid (100 time steps, 100 short-rate
+    // points, Douglas scheme); it projects each helper's index on its own curve.
+    QuantLib::ext::shared_ptr<QuantLib::PricingEngine> engine;
+    if (fdHelperEngine) {
+        engine = QuantLib::ext::make_shared<QuantLib::FdHullWhiteSwaptionEngine>(hwModel);
+    } else {
+        engine = QuantLib::ext::make_shared<QuantLib::JamshidianSwaptionEngine>(hwModel);
+    }
     for (auto& h : helpers) {
         auto blackHelper = QuantLib::ext::dynamic_pointer_cast<QuantLib::BlackCalibrationHelper>(h);
         if (!blackHelper) {

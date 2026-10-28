@@ -26,14 +26,19 @@ end to end against the running JSON API:
   - a CMS LinearTsr leg on a flat absolute-strike smile cube prices like the
     constant vol whatever the cube's strike grid (no ATM level is read off
     the strikes);
+  - a CMS leg on a SpreadFromATM cube or a SABR surface (built on ATM
+    forwards the engine computes) prices: a flat cube like the constant vol,
+    a SABR surface with beta 1, rho 0 and a small nu (given, or fitted to
+    flat quotes) close to it;
   - the 400s the leg model promises, each naming the offending field.
 """
 
 import copy
+import math
 
 import pytest
 
-from ql_reference import load_json, swap_legs_ql
+from ql_reference import get_calendar, get_day_counter, load_json, parse_date, swap_legs_ql
 
 # Role-named leg fields of each endpoint, in `legs` order.
 LEG_ROLES = {
@@ -367,6 +372,181 @@ def test_cms_linear_tsr_on_a_flat_absolute_cube_prices_at_the_flat_vol(client, d
     assert cube_npvs[0] == pytest.approx(cube_npvs[1], rel=1e-12), cube_npvs
     for npv in cube_npvs:
         assert npv == pytest.approx(constant, rel=1e-6), (npv, constant)
+
+
+# ---------------------------------------------------------------------------
+# CMS leg on forward-aware swaption vols (SpreadFromATM cube, SABR)
+# ---------------------------------------------------------------------------
+
+def _cms_two_curve_request(data_dir, pricer):
+    """The floored CMS example with coupon pricer `pricer` and the CMS leg
+    projected off its own forwarding curve (the discount curve's quotes
+    + 50bp), so the ATM forwards of a forward-aware surface are only right
+    when computed on both of the leg's curves."""
+    request = load_json(data_dir / "ir_swaps/cms_eur_5y_payer_cms10y_floored_lineartsr.json")
+    curves = request["pricing"]["rates"]["curves"]
+    forwarding = copy.deepcopy(next(c for c in curves if c["id"] == "discount"))
+    forwarding["id"] = "forwarding"
+    for point in forwarding["points"]:
+        point["point"]["rate"] += 0.005
+    curves.append(forwarding)
+    floating = _swap(request, "vanilla_swap")["floating_leg"]
+    floating["forwarding_curve"] = "forwarding"
+    floating["coupons"]["pricer"]["pricer_type"] = pricer
+    return request
+
+
+def _cms_leg_npv(client, request, surface=None):
+    """NPV of the CMS (floating) leg of `request`, on `surface` if given."""
+    if surface is not None:
+        request = copy.deepcopy(request)
+        request["pricing"]["volatility"]["vol_surfaces"] = [surface]
+    return _row(client, "vanilla_swap", request)["legs"][1]["npv"]
+
+
+def _nodes_on_fixings(client, request):
+    """A surface grid with a node on every CMS fixing after the as-of date:
+    each fixing as `n` business days of the vol calendar (Calendar::advance
+    by n Days lands on it) and the CMS swap tenor as the only tenor. Also
+    returns the node times on the vol day counter."""
+    priced = copy.deepcopy(request)
+    priced["include_flows"] = True
+    flows = _row(client, "vanilla_swap", priced)["legs"][1]["flows"]
+    base = request["pricing"]["volatility"]["vol_surfaces"][0]["payload"]["payload"]["base"]
+    calendar = get_calendar(base["calendar"])
+    day_counter = get_day_counter(base["day_counter"])
+    as_of = parse_date(request["pricing"]["as_of_date"])
+    fixings = sorted({parse_date(f["fixing_date"]) for f in flows if f.get("fixing_date")})
+    fixings = [d for d in fixings if d > as_of]
+    assert len(fixings) == 19, fixings
+    expiries = [{"n": calendar.businessDaysBetween(as_of, d), "unit": "Days"} for d in fixings]
+    tenor = copy.deepcopy(_swap(request, "vanilla_swap")["floating_leg"]["coupons"]["swap_tenor"])
+    times = [day_counter.yearFraction(as_of, d) for d in fixings]
+    return expiries, [tenor], times
+
+
+def _forward_aware_surface(constant_surface, payload_type, grids):
+    """`constant_surface` re-expressed as a `payload_type` surface with the
+    same id, swap index and conventions, plus the payload's `grids`."""
+    wrapper = constant_surface["payload"]
+    base = copy.deepcopy(wrapper["payload"]["base"])
+    base.pop("constant_vol")
+    base.pop("shape", None)
+    return {
+        "id": constant_surface["id"],
+        "payload_type": "SwaptionVolSpec",
+        "payload": {
+            "swap_index_id": wrapper["swap_index_id"],
+            "payload_type": payload_type,
+            "payload": dict(base=base, **grids),
+        },
+    }
+
+
+@pytest.mark.parametrize("pricer", ["LinearTsr", "HaganAnalytic"])
+def test_cms_leg_on_a_flat_spread_from_atm_cube_prices_at_the_flat_vol(client, data_dir, pricer):
+    """A SpreadFromATM cube is built on ATM forwards the engine computes for
+    its swap index, here on the CMS leg's curves. Flat at the constant vol
+    (20%) with a node on every fixing, it prices the leg like that constant
+    vol: Hagan reads only variances (20% at any strike), and LinearTsr also
+    takes the smile's ATM level as its forward, which on a node is the fair
+    rate of the very swap the coupon fixes on (same swap index, same
+    curves). What is left is round-off (none here: the prices are equal),
+    hence rel 1e-9; a forward off by 0.1bp moves the LinearTsr leg by 7e-5."""
+    request = _cms_two_curve_request(data_dir, pricer)
+    constant_surface = request["pricing"]["volatility"]["vol_surfaces"][0]
+    vol = constant_surface["payload"]["payload"]["base"]["constant_vol"]
+    expiries, tenors, _ = _nodes_on_fixings(client, request)
+    strikes = [-0.01, 0.0, 0.01]
+    cube = _forward_aware_surface(constant_surface, "SwaptionVolSmileCubeSpec", {
+        "expiries": expiries,
+        "tenors": tenors,
+        "strikes": strikes,
+        "strike_kind": "SpreadFromATM",
+        "vols": {"n_1": len(expiries), "n_2": 1, "n_3": len(strikes),
+                 "values": [vol] * (len(expiries) * len(strikes))},
+    })
+
+    constant = _cms_leg_npv(client, request)
+    assert _cms_leg_npv(client, request, cube) == pytest.approx(constant, rel=1e-9)
+
+
+@pytest.mark.parametrize("pricer", ["LinearTsr", "HaganAnalytic"])
+def test_cms_leg_on_a_near_lognormal_sabr_surface_prices_near_the_flat_vol(
+        client, data_dir, pricer):
+    """SabrParams on the same nodes with beta 1, rho 0 and nu 0.1%. Hagan's
+    lognormal expansion (QuantLib's sabrVolatility) then reads
+
+        sigma(K) = alpha * z / asinh(z) * (1 + nu^2 T / 12),  z = nu / alpha * ln(F / K),
+
+    so alpha = 20% / (1 + nu^2 T / 12) puts every node's ATM vol at 20%, and
+    off the money the smile lifts by a relative z / asinh(z) - 1 <= z^2 / 6.
+    On the strikes that carry the leg (within 5 standard deviations,
+    |ln(F / K)| <= 5 alpha sqrt(T)) that is at most eps = 25 nu^2 T_max / 6
+    (2e-5 here). The leg moves at most like sigma^2 with the vol (the CMS
+    convexity; the floor is closer to linear), so by less than 2 eps of its
+    value: the tolerance."""
+    request = _cms_two_curve_request(data_dir, pricer)
+    constant_surface = request["pricing"]["volatility"]["vol_surfaces"][0]
+    vol = constant_surface["payload"]["payload"]["base"]["constant_vol"]
+    expiries, tenors, times = _nodes_on_fixings(client, request)
+    nu = 0.001
+
+    def per_node(values):
+        values = list(values)
+        return {"n_rows": len(values), "n_cols": 1, "values": values}
+
+    sabr = _forward_aware_surface(constant_surface, "SwaptionSabrParamsSpec", {
+        "expiries": expiries,
+        "tenors": tenors,
+        "alpha": per_node(vol / (1.0 + nu * nu * t / 12.0) for t in times),
+        "beta": per_node(1.0 for _ in times),
+        "rho": per_node(0.0 for _ in times),
+        "nu": per_node(nu for _ in times),
+    })
+
+    eps = 25.0 * nu * nu * max(times) / 6.0
+    constant = _cms_leg_npv(client, request)
+    assert _cms_leg_npv(client, request, sabr) == pytest.approx(constant, rel=2.0 * eps)
+
+
+@pytest.mark.parametrize("pricer", ["LinearTsr", "HaganAnalytic"])
+def test_cms_leg_on_a_sabr_fit_to_flat_quotes_prices_near_the_flat_vol(client, data_dir, pricer):
+    """SabrCalibrate (beta fixed at 1) fitted to flat 20% quotes on the same
+    nodes, plus a 20Y tenor (the QuantLib cube needs two; the 10Y CMS tenor
+    stays a node). The fit, read back from /calibrate-swaption-vol, has its
+    ATM vols within `atm` of 20% and small nu and rho. To first order in rho,
+    Hagan's expansion lifts the smile by at most |rho| z / 2 + z^2 / 6 with
+    z = 5 nu sqrt(T_max) on the strikes that carry the leg, so the bound of
+    the SabrParams test applies to that lift."""
+    request = _cms_two_curve_request(data_dir, pricer)
+    constant_surface = request["pricing"]["volatility"]["vol_surfaces"][0]
+    vol = constant_surface["payload"]["payload"]["base"]["constant_vol"]
+    expiries, tenors, times = _nodes_on_fixings(client, request)
+    tenors.append({"n": 20, "unit": "Years"})
+    spreads = [-0.01, -0.005, 0.0, 0.005, 0.01]
+    sabr = _forward_aware_surface(constant_surface, "SwaptionSabrCalibrateSpec", {
+        "expiries": expiries,
+        "tenors": tenors,
+        "strikes": spreads,
+        "vols": {"n_1": len(expiries), "n_2": len(tenors), "n_3": len(spreads),
+                 "values": [vol] * (len(expiries) * len(tenors) * len(spreads))},
+        "beta_fixed": True,
+        "beta_value": 1.0,
+    })
+    pricing = copy.deepcopy(request["pricing"])
+    pricing["volatility"]["vol_surfaces"] = [sabr]
+    fit = client.price("calibrate_swaption_vol", {
+        "pricing": pricing, "vol_id": sabr["id"],
+        "discounting_curve_id": "discount", "forwarding_curve_id": "forwarding",
+    })["diagnostics"]
+    atm = max(abs(v / vol - 1.0) for v in fit["atm_vol_per_node"])
+    z = 5.0 * max(fit["nu_per_node"]) * math.sqrt(max(times))
+    lift = atm + max(abs(r) for r in fit["rho_per_node"]) * z / 2.0 + z * z / 6.0
+    assert lift < 1e-5, fit
+
+    constant = _cms_leg_npv(client, request)
+    assert _cms_leg_npv(client, request, sabr) == pytest.approx(constant, rel=2.0 * lift)
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 #include "swap_leg_pricer.h"
 
 #include "error.h"
+#include "swaption_vol_runtime.h"
 
 #include <ql/cashflows/cashflows.hpp>
 #include <ql/cashflows/cmscoupon.hpp>
@@ -51,7 +52,9 @@ QuantLib::GFunctionFactory::YieldCurveModel toYieldCurveModel(
 /// (family from `pricing.rates.swap_indices`, IBOR leg projected off the
 /// leg's forwarding curve, discounted on the leg's discounting curve) with
 /// the requested pricer attached. The swaption vol must be as of the
-/// evaluation date (strict mode, as every vol surface).
+/// evaluation date (strict mode, as every vol surface). A SpreadFromATM cube
+/// or a SABR surface is built here, as the swaption pricer builds it: on the
+/// ATM forwards of the vol's own swap index, from the leg's two curves.
 QuantLib::Leg buildCmsCoupons(
     const SwapLegData& leg,
     const std::string& name,
@@ -92,7 +95,18 @@ QuantLib::Leg buildCmsCoupons(
     if (cms.floor.has_value()) builder.withFloors(cms.floor.value());
     QuantLib::Leg coupons = builder;
 
-    auto pricerBuild = BuildCmsPricer(cms.pricerParams, volIt->second, discounting);
+    // Builds the handle of a SpreadFromATM cube or a SABR surface; any other
+    // kind comes back unchanged (its handle is built at parse time).
+    const SwaptionVolEntry volEntry = finalizeSwaptionVolEntryForPricing(
+        volIt->second, reg, discounting, forwarding, /*forceRecomputeAtm=*/false,
+        leg.discountingCurveId, leg.forwardingCurveId);
+    if (volEntry.handle.empty()) {
+        QUANTRA_INVALID_ARGUMENT(
+            name + ".coupons.swaption_vol_id '" + cms.swaptionVolId + "' is a " +
+            quantra::enums::EnumNameSwaptionVolKind(volEntry.volKind) +
+            " swaption vol, which CMS coupons do not support");
+    }
+    auto pricerBuild = BuildCmsPricer(cms.pricerParams, volEntry, discounting);
     QuantLib::setCouponPricer(coupons, pricerBuild.pricer);
     used = pricerBuild.used;
     return coupons;

@@ -54,6 +54,16 @@ struct HwCalibrateKeyInputs {
     QuantLib::BusinessDayConvention iborConvention = QuantLib::ModifiedFollowing;
     bool iborEndOfMonth = false;
     QuantLib::Calendar iborFixingCalendar;
+    // QuantLib's SwaptionHelper starts each underlying swap this many business
+    // days after expiry; the settlementDays it is given (spotDays above) only
+    // selects that rule.
+    int iborFixingDays = 0;
+    // The helper builds an overnight-indexed swap on an overnight index.
+    bool iborIsOvernight = false;
+    // The helpers are priced on FdHullWhiteSwaptionEngine (forwarding curve id
+    // differs from the discount curve id) rather than Jamshidian. Two curve ids
+    // can share one content key, so the curve keys alone do not decide it.
+    bool fdHelperEngine = false;
 
     // Calibration spec. Iteration/eval counts are the CLAMPED values actually
     // handed to the optimizer (a client cannot vary a cache entry by asking for
@@ -73,7 +83,7 @@ struct HwCalibrateKeyInputs {
 
 /**
  * Build a content-keyed SHA-256 cache key for a Hull-White swaption-model
- * calibration. Output: "hw-calib:v2:<sha256hex>".
+ * calibration. Output: "hw-calib:v3:<sha256hex>".
  *
  * Every field of HwCalibrateKeyInputs is serialized into a canonical buffer, so
  * two requests collide in the cache iff every consumed input matches. When in

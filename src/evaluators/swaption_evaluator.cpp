@@ -9,6 +9,7 @@
 #include "swaption_model_calibration.h"
 #include "swaption_vol_runtime.h"
 
+#include <ql/cashflows/overnightindexedcoupon.hpp>
 #include <ql/exercise.hpp>
 #include <ql/instruments/fixedvsfloatingswap.hpp>
 #include <ql/instruments/overnightindexedswap.hpp>
@@ -18,6 +19,7 @@
 #include <ql/pricingengines/blackcalculator.hpp>
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/pricingengines/swaption/blackswaptionengine.hpp>
+#include <ql/pricingengines/swaption/fdhullwhiteswaptionengine.hpp>
 #include <ql/pricingengines/swaption/treeswaptionengine.hpp>
 #include <ql/settings.hpp>
 #include <ql/utilities/dataformatters.hpp>
@@ -275,15 +277,94 @@ SwaptionVolEntry finalizeVolEntry(
     return withSwaptionSmileCubeAtm(raw, atms);
 }
 
+/// Hull-White on a forwarding curve: the floating / overnight leg projects on
+/// a curve other than its discounting curve. QuantLib's tree engine values
+/// that leg off the model's (discount) curve, so these trades are priced on
+/// FdHullWhiteSwaptionEngine, which projects the index on its own curve.
+bool usesFdHullWhite(const SwaptionTrade& trade, const SwaptionModelDomain& model) {
+    return model.model_type == IrModelTypeKind::HullWhiteLattice &&
+           trade.forwardingCurveId != trade.discountingCurveId;
+}
+
+std::string floatingLegName(const SwaptionTrade& trade) {
+    return trade.instrument.underlyingIsVanilla ? "Swaption.underlying.floating_leg"
+                                                : "Swaption.underlying.overnight_leg";
+}
+
+/// FdHullWhiteSwaptionEngine requires both curves to share day counter and
+/// reference date. Checked on every market the trade is priced on.
+void requireFdHullWhiteCurves(
+    const SwaptionTrade& trade,
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& discount,
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& forwarding) {
+    const std::string mismatch = fdHullWhiteCurveMismatch(forwarding, discount);
+    if (!mismatch.empty()) {
+        const std::string leg = floatingLegName(trade);
+        QUANTRA_INVALID_ARGUMENT(
+            leg + ".forwarding_curve '" + trade.forwardingCurveId + "' and " + leg +
+            ".discounting_curve '" + trade.discountingCurveId + "' must have " + mismatch +
+            ": a HullWhiteLattice model on a forwarding curve prices with QuantLib's "
+            "FdHullWhiteSwaptionEngine, which requires it");
+    }
+}
+
+/// Trades QuantLib's FdHullWhiteSwaptionEngine cannot value. It looks up each
+/// exercise date by its time (no American exercise), values the swap at
+/// exercise whatever the settlement method (no par-yield cash settlement), and
+/// projects each coupon starting on or after an exercise date from that date
+/// (no overnight observation before it).
+void requireFdHullWhiteTrade(const SwaptionTrade& trade, const QuantLib::Swaption& swaption) {
+    const SwaptionInstrument& inst = trade.instrument;
+    const std::string onForwardingCurve =
+        " is not supported on a HullWhiteLattice model whose " + floatingLegName(trade) +
+        ".forwarding_curve ('" + trade.forwardingCurveId + "') is not the discounting_curve ('" +
+        trade.discountingCurveId + "'): QuantLib's FdHullWhiteSwaptionEngine ";
+    if (inst.exerciseType == quantra::enums::ExerciseType_American) {
+        QUANTRA_INVALID_ARGUMENT(
+            "Swaption.exercise_type American" + onForwardingCurve +
+            "prices European and Bermudan exercise only");
+    }
+    if (inst.settlementType == quantra::enums::SettlementType_Cash &&
+        inst.settlementMethod == QuantLib::Settlement::ParYieldCurve) {
+        QUANTRA_INVALID_ARGUMENT(
+            "Swaption.settlement_method ParYieldCurve" + onForwardingCurve +
+            "values the swap itself at exercise (physical or collateralized cash settlement)");
+    }
+    if (inst.underlyingIsVanilla) {
+        return;
+    }
+    const int lookbackDays = inst.oisUnderlying.overnightLeg.overnight.lookbackDays;
+    for (const auto& cf : swaption.underlying()->floatingLeg()) {
+        auto coupon = QuantLib::ext::dynamic_pointer_cast<QuantLib::OvernightIndexedCoupon>(cf);
+        if (!coupon) continue;
+        for (const QuantLib::Date& exercise : swaption.exercise()->dates()) {
+            if (coupon->accrualStartDate() < exercise || coupon->valueDates().front() >= exercise) {
+                continue;
+            }
+            std::ostringstream err;
+            err << (lookbackDays > 0 ? "Swaption.underlying.overnight_leg.coupons.lookback_days " +
+                                           std::to_string(lookbackDays)
+                                     : std::string("Swaption.underlying.overnight_leg.schedule"))
+                << onForwardingCurve << "projects each coupon from the exercise date, but the "
+                << "coupon starting " << DateToIso(coupon->accrualStartDate())
+                << " observes rates from " << DateToIso(coupon->valueDates().front())
+                << ", before exercise date " << DateToIso(exercise);
+            QUANTRA_INVALID_ARGUMENT(err.str());
+        }
+    }
+}
+
 /// Builds the swaption pricing engine from a SwaptionModelDomain, after
 /// checking that the model and the vol surface are compatible. HullWhiteLattice
-/// takes explicit parameters or the already-computed HwCalibResult (Calibrate).
+/// takes explicit parameters or the already-computed HwCalibResult (Calibrate),
+/// and prices on FdHullWhiteSwaptionEngine when `fdHullWhite` is set.
 std::shared_ptr<QuantLib::PricingEngine> buildEngine(
     const std::string& modelId,
     const SwaptionModelDomain& model,
     const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve,
     const SwaptionVolEntry& volEntry,
-    const HwCalibResult* calibrated) {
+    const HwCalibResult* calibrated,
+    bool fdHullWhite) {
     if (model.model_type == IrModelTypeKind::Bachelier &&
         (volEntry.volKind == quantra::enums::SwaptionVolKind_SabrParams ||
          volEntry.volKind == quantra::enums::SwaptionVolKind_SabrCalibrate)) {
@@ -342,6 +423,13 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
                 QUANTRA_INVALID_ARGUMENT("HullWhiteLattice requires lattice_steps > 0");
             }
             auto hwModel = std::make_shared<QuantLib::HullWhite>(discountCurve, a, sigma);
+            if (fdHullWhite) {
+                // lattice_steps time steps; QuantLib's defaults for the rest
+                // (100 short-rate points, no damping steps, mesher epsilon
+                // 1e-5, Douglas scheme).
+                return std::make_shared<QuantLib::FdHullWhiteSwaptionEngine>(
+                    hwModel, static_cast<QuantLib::Size>(model.lattice_steps));
+            }
             return std::make_shared<QuantLib::TreeSwaptionEngine>(hwModel, model.lattice_steps);
         }
     }
@@ -479,12 +567,19 @@ SwaptionResult SwaptionEvaluator::evaluate(
         }
 
         validateTradeAgainstModel(trade, *modelDomain, reg);
+        const bool fdHullWhite = usesFdHullWhite(trade, *modelDomain);
 
         // Build the base QL Swaption against the (un-bumped) forwarding curve.
         QuantLib::Handle<QuantLib::YieldTermStructure> forwardingHandle(fIt->second->currentLink());
         QuantLib::Handle<QuantLib::YieldTermStructure> discountHandle(dIt->second->currentLink());
+        if (fdHullWhite) {
+            requireFdHullWhiteCurves(trade, discountHandle, forwardingHandle);
+        }
         auto swaption =
             buildSwaptionInstrument(trade.instrument, reg.rates.indices, forwardingHandle);
+        if (fdHullWhite) {
+            requireFdHullWhiteTrade(trade, *swaption);
+        }
 
         // Resolve the vol entry (finalize SABR/spread-from-ATM surfaces with
         // server-computed ATM forwards). Run once per trade for the base path.
@@ -517,8 +612,8 @@ SwaptionResult SwaptionEvaluator::evaluate(
             calibratedHw = &cacheIt->second;
         }
 
-        auto engine =
-            buildEngine(trade.modelId, *modelDomain, discountHandle, volEntry, calibratedHw);
+        auto engine = buildEngine(
+            trade.modelId, *modelDomain, discountHandle, volEntry, calibratedHw, fdHullWhite);
         swaption->setPricingEngine(engine);
 
         const double npv = swaption->NPV();
@@ -621,8 +716,11 @@ SwaptionResult SwaptionEvaluator::evaluate(
             volEntryBumped = finalizeVolEntry(
                 volEntryBumped, reg, bDiscount, bForwarding, forceAtmRecompute, trade);
 
-            auto bumpEngine =
-                buildEngine(trade.modelId, *modelDomain, bDiscount, volEntryBumped, calibratedHw);
+            if (fdHullWhite) {
+                requireFdHullWhiteCurves(trade, bDiscount, bForwarding);
+            }
+            auto bumpEngine = buildEngine(
+                trade.modelId, *modelDomain, bDiscount, volEntryBumped, calibratedHw, fdHullWhite);
             bumpSwap->setPricingEngine(bumpEngine);
             return bumpSwap->NPV();
         };
