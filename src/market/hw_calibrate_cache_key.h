@@ -60,6 +60,10 @@ struct HwCalibrateKeyInputs {
     int iborFixingDays = 0;
     // The helper builds an overnight-indexed swap on an overnight index.
     bool iborIsOvernight = false;
+    // The helpers are priced on FdHullWhiteSwaptionEngine (forwarding curve id
+    // differs from the discount curve id) rather than Jamshidian. Two curve ids
+    // can share one content key, so the curve keys alone do not decide it.
+    bool fdHelperEngine = false;
 
     // Calibration spec. Iteration/eval counts are the CLAMPED values actually
     // handed to the optimizer (a client cannot vary a cache entry by asking for

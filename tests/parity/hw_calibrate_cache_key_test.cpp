@@ -72,4 +72,13 @@ TEST(HwCalibrateCacheKey, OvernightIndexIsPartOfTheKey) {
     EXPECT_NE(key(baseInputs()), key(other));
 }
 
+// Helpers projecting on a forwarding curve other than the discount curve are
+// priced on the FD engine. Two curve ids can share one content key, so the
+// engine choice must be part of the key.
+TEST(HwCalibrateCacheKey, FdHelperEngineIsPartOfTheKey) {
+    HwCalibrateKeyInputs other = baseInputs();
+    other.fdHelperEngine = true;
+    EXPECT_NE(key(baseInputs()), key(other));
+}
+
 }}} // namespace quantra::testing

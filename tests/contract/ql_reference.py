@@ -2707,10 +2707,14 @@ def build_swaption_ql(request: dict) -> dict:
     if model_type == "HullWhiteLattice":
         # Mirrors the server's HullWhiteLattice engine branch: a Hull-White
         # one-factor model on the discount curve with the explicit hw_a /
-        # hw_sigma parameters, priced on a TreeSwaptionEngine with
-        # lattice_steps time steps (schema defaults: a=0.03, sigma=0.01,
-        # steps=50). param_mode=Calibrate would need the server's
-        # calibration routine reproduced here, so it is not supported.
+        # hw_sigma parameters (schema defaults: a=0.03, sigma=0.01,
+        # steps=50). When the floating / overnight leg's forwarding curve is
+        # the discounting curve, a TreeSwaptionEngine with lattice_steps time
+        # steps; when it names another curve, QuantLib's
+        # FdHullWhiteSwaptionEngine with lattice_steps time steps and its
+        # default space grid, which projects the index on that curve.
+        # param_mode=Calibrate would need the server's calibration routine
+        # reproduced here, so it is not supported.
         if model_spec.get("param_mode", "Explicit") != "Explicit":
             raise ValueError(
                 "Reference pricer only supports HullWhiteLattice with "
@@ -2718,8 +2722,11 @@ def build_swaption_ql(request: dict) -> dict:
         hw_model = ql.HullWhite(curve,
                                 model_spec.get("hw_a", 0.03),
                                 model_spec.get("hw_sigma", 0.01))
-        swaption.setPricingEngine(
-            ql.TreeSwaptionEngine(hw_model, int(model_spec.get("lattice_steps", 50))))
+        steps = int(model_spec.get("lattice_steps", 50))
+        if floating.forwarding_curve != fixed.discounting_curve:
+            swaption.setPricingEngine(ql.FdHullWhiteSwaptionEngine(hw_model, steps))
+        else:
+            swaption.setPricingEngine(ql.TreeSwaptionEngine(hw_model, steps))
     elif model_type == "Bachelier":
         swaption.setPricingEngine(ql.BachelierSwaptionEngine(curve, vol_handle))
     else:
@@ -4599,7 +4606,9 @@ def calibrate_swaption_model_ql(request: dict) -> dict:
     per (expiry, tenor) grid node quoted at the surface's vol for that node
     (constant vol, or the ATM matrix interpolated at the node), priced on a
     JamshidianSwaptionEngine over HullWhite(discount_curve, a_init,
-    sigma_init), calibrated with LevenbergMarquardt under
+    sigma_init) — on QuantLib's FdHullWhiteSwaptionEngine (default grid) when
+    forwarding_curve_id names another curve — calibrated with
+    LevenbergMarquardt under
     EndCriteria(function_evaluations, max_iterations, eps, eps, eps) and the
     spec's calibrate_a/calibrate_sigma fixed-parameter flags. The helper error
     metric follows the server's vol-type pairing: PriceError for Normal vols,
@@ -4696,7 +4705,13 @@ def calibrate_swaption_model_ql(request: dict) -> dict:
 
     hw = ql.HullWhite(discount, calib.get("a_init", 0.03),
                       calib.get("sigma_init", 0.01))
-    engine = ql.JamshidianSwaptionEngine(hw)
+    if calib["forwarding_curve_id"] != calib["discount_curve_id"]:
+        # The server prices the helpers on QuantLib's FdHullWhiteSwaptionEngine
+        # (default grid) when they project on a curve other than the discount
+        # curve; Jamshidian would value the floating leg off the discount curve.
+        engine = ql.FdHullWhiteSwaptionEngine(hw)
+    else:
+        engine = ql.JamshidianSwaptionEngine(hw)
     for helper in helpers:
         helper.setPricingEngine(engine)
 

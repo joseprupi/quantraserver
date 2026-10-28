@@ -140,6 +140,12 @@ VOL_SURFACE_TOLERANCE = 1e-6
 # stricter per-field rule, 1e-9 relative + 1e-11 absolute, is in
 # tests/contract/structured_note_parity_test.py).
 STRUCTURED_NOTE_TOLERANCE = 1e-9
+# Hull-White swaption on a forwarding curve other than the discount curve:
+# both sides run QuantLib's FdHullWhiteSwaptionEngine on the same grid and
+# identically bootstrapped curves and agree bit for bit. 1e-6 (3e-11 relative
+# on an NPV of ~3e4) leaves room for compiler or QuantLib-build noise, far
+# below the ~4,500 the 20bp basis moves the price.
+HW_FD_TOLERANCE = 1e-6
 
 CASES = [
     # ------------------------------------------------------------------
@@ -1799,6 +1805,31 @@ CASES = [
         "tolerance": DEFAULT_TOLERANCE,
         "exercises": ["American", "payer", "2Y exercise window",
                       "Hull-White explicit", "tree engine 100 steps"],
+    },
+    {
+        "id": "swpt_eur_bermudan_3ex_into_5y_hw_explicit_fwd_basis_20bp",
+        "product": "swaption",
+        "family": "Swaption",
+        "title": "EUR Bermudan payer swaption, Hull-White, Euribor projected 20bp over discount",
+        "description": (
+            "The 3-exercise Bermudan above with the Euribor 6M leg projected "
+            "on its own forwarding curve (the discount curve's helpers quoted "
+            "20bp higher). A forwarding curve other than the discount curve "
+            "switches Hull-White to QuantLib's FdHullWhiteSwaptionEngine (100 "
+            "time steps = lattice_steps, 100 short-rate points), which "
+            "discounts on the model's curve and projects the index on its "
+            "own; the tree would value the floating leg off the discount "
+            "curve. The basis adds about 4,470 to the single-curve price."
+        ),
+        "request": "swaption/swpt_eur_bermudan_3ex_into_5y_hw_explicit_fwd_basis_20bp.json",
+        "list_key": "swaptions",
+        "ql_pricer": "price_swaption_ql",
+        "tolerance": HW_FD_TOLERANCE,
+        "differs_from": "swpt_eur_bermudan_3ex_into_5y_hw_explicit",
+        "min_twin_gap": 1000.0,
+        "exercises": ["Bermudan", "payer", "Hull-White explicit",
+                      "forwarding curve != discount curve",
+                      "FdHullWhiteSwaptionEngine", "20bp basis"],
     },
 
     # ------------------------------------------------------------------
@@ -3605,6 +3636,28 @@ CASES = [
         "exercises": ["Hull-White", "sigma-only", "normal vol 80bp",
                       "price-error metric", "explicit calibration grid",
                       "constant vol target"],
+    },
+    {
+        "id": "hwcal_eur_atm_matrix_sigma_only_fwd_basis_20bp",
+        "product": "calibrate_swaption_model",
+        "family": "Vol / Calibration",
+        "title": "Hull-White sigma-only fit, Euribor projected 20bp over discount",
+        "description": (
+            "The sigma-only fit above with forwarding_curve_id naming a "
+            "curve 20bp over the discount curve. The helpers' ATM strikes "
+            "and Black prices already project on that curve; their model "
+            "prices now do too: a forwarding curve other than the discount "
+            "curve switches the helpers from Jamshidian to QuantLib's "
+            "FdHullWhiteSwaptionEngine (default 100 x 100 grid) on both "
+            "sides. Sigma moves from 0.00822 to 0.00870."
+        ),
+        "request": "vol/hwcal_eur_atm_matrix_sigma_only_fwd_basis_20bp.json",
+        "ql_pricer": "calibrate_swaption_model_ql",
+        "tolerance": CALIBRATION_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["Hull-White", "sigma-only",
+                      "forwarding curve != discount curve",
+                      "FdHullWhiteSwaptionEngine helpers", "ATM matrix target"],
     },
 
     # ------------------------------------------------------------------

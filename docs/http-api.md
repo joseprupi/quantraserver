@@ -895,7 +895,9 @@ leg by market convention), the other leg held fixed. Worked examples:
 `"underlying"`). The swaption's curves are the underlying legs': both legs
 must name the same `discounting_curve` (the swaption is priced on one
 discount curve, `400` otherwise) and the floating / overnight leg's
-`forwarding_curve` projects the index; the request wrapper keeps only the
+`forwarding_curve` projects the index (on a `HullWhiteLattice` model, see
+"Hull-White engines and the forwarding curve" for the engine this
+selects); the request wrapper keeps only the
 swaption-specific references (`volatility`, `model`). The underlying is
 priced from QuantLib's own `VanillaSwap` / `OvernightIndexedSwap` built from
 the two legs, which takes the fixed leg's notional for both legs, adjusts
@@ -2136,11 +2138,63 @@ three-series set to the JPMorgan note's date with Ledoit-Wolf shrinkage.
 The workflow example (`examples/structured_note_workflow/`, `--closes`)
 runs this endpoint ahead of the forwards and the surface.
 
+## Hull-White engines and the forwarding curve
+
+A `HullWhiteLattice` model (`SwaptionModelSpec`) is a one-factor Hull-White
+model on the discount curve. The QuantLib engine that prices with it depends
+on the curve the underlying's index projects on:
+
+| The index projects on | `/price-swaption` | Calibration helpers (`/calibrate-swaption-model`, `param_mode: Calibrate`) |
+| --- | --- | --- |
+| the discount curve: the floating / overnight leg's `forwarding_curve` names its `discounting_curve` (in `SwaptionHwCalibrationSpec`, `forwarding_curve_id` equals `discount_curve_id`) | `TreeSwaptionEngine`, `lattice_steps` time steps | `JamshidianSwaptionEngine` |
+| another curve: the two ids differ | `FdHullWhiteSwaptionEngine`, `lattice_steps` time steps | `FdHullWhiteSwaptionEngine`, 100 time steps |
+
+The rule compares curve ids, not contents: a forwarding curve defined like
+the discount curve under another id takes the second row. QuantLib's tree and
+Jamshidian engines value the floating leg off the model's own curve, so a
+separate forwarding curve would have no effect on them.
+`FdHullWhiteSwaptionEngine` discounts on the model's curve and projects the
+index on its forwarding curve through a second Hull-White model with the same
+`a` and `sigma` (a deterministic basis between the two curves). It prices
+`VanillaSwap` and `OisSwap` underlyings (QuantLib rebuilds the swap on the
+forwarding curve) with European or Bermudan exercise. Both FD rows
+use QuantLib's defaults for the rest of the grid: 100 short-rate points, no
+damping steps, mesher epsilon `1e-5`, Douglas scheme. The calibration spec
+has no grid field, so the helpers run on QuantLib's default 100 time steps.
+The rebump greeks reprice on the same engine as the base price. The response
+does not name the engine; `used_hw_*` report the parameters as before.
+
+FD helpers cost about 10 to 20 times a Jamshidian helper. Through the JSON
+gateway the shipped 2x2 calibration examples take 0.3 to 0.8 s instead of
+about 0.2 s, a sigma-only fit on 50 helpers about 1.2 s (200 helpers: 4.7 s)
+and a joint fit on a 4x4 grid about 3 s; a joint fit on 50 helpers or more
+runs past the gateway's 10 s deadline (`504`). Calibrate `sigma` only, as
+recommended under "Hull-White calibration", or keep the grid small.
+
+A callable bond's coupons are fixed and need no forwarding curve: it is
+priced on `TreeCallableFixedRateBondEngine` with `tree_steps` either way.
+Only a `param_mode: Calibrate` model whose `hw_calibration` names a
+forwarding curve calibrates on the FD helpers above.
+
+### Rejected requests on a forwarding curve
+
+None of these falls back to the tree.
+
+| Request | Status |
+| --- | --- |
+| `forwarding_curve` and `discounting_curve` (or `forwarding_curve_id` and `discount_curve_id`) with different day counters or reference dates: `FdHullWhiteSwaptionEngine` requires them equal | `400` naming both curves |
+| `exercise_type: American`: the FD engine looks each exercise date up by its time and prices European and Bermudan exercise only | `400` naming `Swaption.exercise_type` |
+| `settlement_type: Cash` with `settlement_method: ParYieldCurve`: the FD engine values the swap itself at exercise (physical or collateralized cash settlement) | `400` naming `Swaption.settlement_method` |
+| an OIS underlying whose `lookback_days` makes a coupon starting on or after an exercise date observe rates before that date: the FD engine projects each coupon from the exercise date | `400` naming `Swaption.underlying.overnight_leg.coupons.lookback_days` |
+
 ## Hull-White calibration
 
 `POST /calibrate-swaption-model`, and a swaption or callable bond whose model
 has `param_mode: Calibrate`, fit Hull-White `(a, sigma)` to an ATM swaption
-matrix with Levenberg-Marquardt (`SwaptionHwCalibrationSpec`).
+matrix with Levenberg-Marquardt (`SwaptionHwCalibrationSpec`). The helpers
+are priced on `JamshidianSwaptionEngine`, or on `FdHullWhiteSwaptionEngine`
+when `forwarding_curve_id` names another curve than `discount_curve_id` (see
+"Hull-White engines and the forwarding curve").
 
 **Recommendation for production use: `calibrate_a: false` with a market
 mean reversion in `a_init`, calibrating `sigma` only.** On a market ATM

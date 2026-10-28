@@ -59,6 +59,9 @@ CallableFixedRateBondResult CallableFixedRateBondEvaluator::evaluate(
         }
 
         // Resolve the Hull-White parameters: explicit or (cached) calibration.
+        // The coupons are fixed, so the tree below needs no forwarding curve;
+        // a calibration whose helpers project on one prices them on the FD
+        // engine (calibrateHullWhiteFromSwaptionVol).
         double a = modelDomain->hw_a;
         double sigma = modelDomain->hw_sigma;
         if (modelDomain->param_mode == ModelParamModeKind::Calibrate) {

@@ -4,11 +4,14 @@
 #include "model_domain.h"
 #include "pricing_registry.h"
 
+#include <ql/handle.hpp>
 #include <ql/math/array.hpp>
 #include <ql/math/optimization/constraint.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 
 #include <limits>
 #include <optional>
+#include <string>
 
 namespace quantra {
 
@@ -67,6 +70,15 @@ struct HwCalibResult {
 
 /// a_flatness below this value flags the calibrated "a" as poorly identified.
 constexpr double kHwAFlatnessThreshold = 1.0e-2;
+
+/// QuantLib's FdHullWhiteSwaptionEngine projects the index through a second
+/// Hull-White model on the forwarding curve and requires both curves to share
+/// day counter and reference date. Empty when they do; otherwise names what
+/// differs with both values, e.g. "the same day counter (Actual/360 vs
+/// Actual/365 (Fixed))".
+std::string fdHullWhiteCurveMismatch(
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& forwarding,
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& discount);
 
 /// Calibrates Hull-White to the swaption vol surface named in calibSpec, the
 /// plain-domain mirror of SwaptionHwCalibrationSpec.

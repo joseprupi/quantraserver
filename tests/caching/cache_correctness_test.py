@@ -831,6 +831,74 @@ def test_hw_calib_ibor_fixing_days_not_served_from_another_entry(
           f"0 days {_hw_sigma(off_zero)}; cache-ON == cache-OFF for both")
 
 
+# ---------------------------------------------------------------------------
+# Hull-White calibration on a forwarding curve
+#
+# Helpers whose forwarding_curve_id differs from discount_curve_id are priced
+# on QuantLib's FdHullWhiteSwaptionEngine instead of Jamshidian. An identical
+# copy of the discount curve under another id has the discount curve's content
+# key, so only the calibration key's engine marker tells the two apart.
+# ---------------------------------------------------------------------------
+
+def _with_forwarding_copy(request: dict, suffix: str) -> dict:
+    """The request with its Hull-White calibration (and swaption floating leg)
+    projecting on an identical copy of the discount curve under another id."""
+    out = copy.deepcopy(request)
+    rates = out["pricing"]["rates"]
+    spec = next(m["payload"]["hw_calibration"]
+                for m in out["pricing"]["volatility"]["models"]
+                if "hw_calibration" in m.get("payload", {}))
+    disc = next(c for c in rates["curves"] if c["id"] == spec["discount_curve_id"])
+    twin = dict(copy.deepcopy(disc), id=f"{disc['id']}_fwd_copy_{suffix}")
+    rates["curves"].append(twin)
+    spec["forwarding_curve_id"] = twin["id"]
+    for entry in out.get("swaptions", []):
+        entry["swaption"]["underlying"]["floating_leg"]["forwarding_curve"] = twin["id"]
+    return out
+
+
+@pytest.mark.parametrize("case", HW_FIXING_DAYS_CASES,
+                         ids=[c.id for c in HW_FIXING_DAYS_CASES])
+def test_hw_calib_fd_engine_not_served_from_same_curve_entry(
+        case, nocache_client, cache_client, data_dir, cache_log_path):
+    """Calibrate on one curve (Jamshidian), then with the forwarding curve an
+    identical copy under another id (FD engine): the second answer must be
+    the cache-OFF FD one, not the Jamshidian entry."""
+    same = load_json(data_dir / case.filename)
+    fwd = _with_forwarding_copy(same, case.id)
+
+    off_same = nocache_client.price(case.product, same)
+    off_fwd = nocache_client.price(case.product, fwd)
+    assert _hw_sigma(off_same) != _hw_sigma(off_fwd), (
+        f"{case.id}: FD and Jamshidian helpers calibrate to the same sigma, so "
+        f"this case cannot detect a stale cache entry"
+    )
+
+    cache_client.price(case.product, same)               # populate
+    before = _count_hits(cache_log_path, "hw")
+    warm = cache_client.price(case.product, same)        # must hit
+    assert _canonical(warm) == _canonical(off_same)
+    after = before
+    for _ in range(20):
+        after = _count_hits(cache_log_path, "hw")
+        if after > before:
+            break
+        time.sleep(0.1)
+    assert after > before, (
+        f"{case.id}: the repeated request logged no HwCalibCache hit, so the "
+        f"calibration is not cached and this case proves nothing"
+    )
+
+    got = cache_client.price(case.product, fwd)
+    assert _canonical(got) == _canonical(off_fwd), (
+        f"{case.id}: the forwarding-curve request was served the same-curve "
+        f"calibration (sigma {_hw_sigma(got)}; cache-OFF {_hw_sigma(off_fwd)}, "
+        f"same curve {_hw_sigma(off_same)})"
+    )
+    print(f"[cache] {case.id}: sigma same curve {_hw_sigma(off_same)}, "
+          f"forwarding copy {_hw_sigma(off_fwd)}; cache-ON == cache-OFF for both")
+
+
 
 # ---------------------------------------------------------------------------
 # Cross-currency basis pillars

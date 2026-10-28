@@ -96,6 +96,12 @@ std::string buildHwCalibrateCacheKey(const HwCalibrateKeyInputs& in) {
     // Evaluation date.
     buf.writeI32(static_cast<int32_t>(in.asOf.serialNumber()));
 
+    // Helper engine. Written only for the FD engine, so same-curve keys are
+    // unchanged.
+    if (in.fdHelperEngine) {
+        buf.writeTag("FDHW");
+    }
+
     // Active calendar holiday overrides (absent when there are none). The
     // calendars above are keyed by name only; the helper grid is built on
     // their holidays, so an override changes the calibration.
