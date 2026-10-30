@@ -61,8 +61,9 @@ class DiscountFactorPoint(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
-    # Discount factor to this maturity. Required; must be in (0, 1]. The first
-    # point (reference date) must carry a discount factor of exactly 1.0.
+    # Discount factor to this maturity. Required; must be > 0 (above 1 under
+    # negative rates). The first point (reference date) must carry a discount
+    # factor of exactly 1.0.
     # DiscountFactorPoint
     def DiscountFactor(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))

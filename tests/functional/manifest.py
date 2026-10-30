@@ -911,6 +911,31 @@ CASES = [
                       "DiscountFactorPoint"],
     },
     {
+        "id": "frb_chf_5y_on_negative_rate_discount_factor_curve",
+        "product": "fixed_rate_bond",
+        "family": "Bonds",
+        "title": "CHF 5Y bond discounted on a negative-rate discount-factor curve",
+        "description": (
+            "A 5Y 0.25% annual bond (30/360, 1m face) discounted on an "
+            "illustrative negative-rate curve defined directly by ten "
+            "explicit discount factors (InterpolatedDiscount, LogLinear): "
+            "zero rates of about -0.75% at the short end rising to +0.35% "
+            "at 20Y, so seven of the nine pillars carry a discount factor "
+            "above 1. Exercises DiscountFactorPoint values above 1 feeding "
+            "a QuantLib InterpolatedDiscountCurve as a bond discounting "
+            "curve; the pillars span past the final cash flow so no "
+            "extrapolation is needed. TARGET calendar for the schedule."
+        ),
+        "request": "bonds/frb_chf_5y_on_negative_rate_discount_factor_curve.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["fixed coupon", "annual 30/360",
+                      "InterpolatedDiscount discount curve",
+                      "DiscountFactorPoint", "discount factors above 1",
+                      "negative rates"],
+    },
+    {
         "id": "frb_usd_5y_on_forward_rate_curve",
         "product": "fixed_rate_bond",
         "family": "Bonds",
@@ -2439,6 +2464,33 @@ CASES = [
         "exercises": ["explicit discount-factor curve", "LogLinear DF interpolation",
                       "InterpolatedDiscount trait", "discount factors",
                       "zero rates"],
+    },
+    {
+        "id": "curves_chf_negative_rate_discount_curve_loglinear_df_zero",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "CHF negative-rate explicit discount-factor curve (LogLinear), DF and zero rates",
+        "description": (
+            "An illustrative negative-rate curve defined directly by ten "
+            "explicit discount factors (no bootstrap): zero rates of about "
+            "-0.75% at the short end rising to +0.35% at 20Y, so seven of "
+            "the nine pillars carry a discount factor above 1 (LogLinear "
+            "interpolation of the discount factors). Sampled for discount "
+            "factors and continuous zero rates at twelve tenors, seven on "
+            "pillars and five between them (TARGET calendar). Exercises "
+            "DiscountFactorPoint values above 1 feeding a QuantLib "
+            "InterpolatedDiscountCurve<LogLinear> (native ql.DiscountCurve "
+            "reference), negative zero rates out, and the DF=1.0 "
+            "reference-date anchor."
+        ),
+        "request": "curves/curves_chf_negative_rate_discount_curve_loglinear_df_zero.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["explicit discount-factor curve", "LogLinear DF interpolation",
+                      "InterpolatedDiscount trait", "discount factors above 1",
+                      "negative rates", "discount factors", "zero rates"],
     },
     {
         "id": "curves_usd_discount_curve_linear_df_zero",

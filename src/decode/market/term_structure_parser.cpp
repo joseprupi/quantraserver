@@ -138,11 +138,10 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
                 if (!std::isfinite(df)) {
                     QUANTRA_INVALID_ARGUMENT("DiscountFactorPoint.discount_factor must be finite");
                 }
-                // A discount factor must be positive and no greater than 1 for a sane
-                // discount curve (DF(0)=1, monotonically decaying with a positive rate).
-                if (df <= 0.0 || df > 1.0) {
-                    QUANTRA_INVALID_ARGUMENT(
-                        "DiscountFactorPoint.discount_factor must be in (0, 1]");
+                // A discount factor must be positive (QuantLib's InterpolatedDiscountCurve
+                // requires it). Values above 1 are negative rates and are valid.
+                if (df <= 0.0) {
+                    QUANTRA_INVALID_ARGUMENT("DiscountFactorPoint.discount_factor must be > 0");
                 }
                 // QuantLib's InterpolatedDiscountCurve uses the first pillar as the
                 // reference date and requires its discount factor to be exactly 1.0.

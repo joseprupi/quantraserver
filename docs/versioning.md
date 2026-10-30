@@ -26,6 +26,24 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.16.3 (October 2026) — discount factors above one (negative rates)
+
+`v0.16.3` is a PATCH release: no request or response shape changes and no
+change to the binary or JSON wire. Every request that priced on 0.16.2
+returns the same result; the only change is that requests that were
+rejected now price. QuantLib stays at 1.44.
+
+**Discount-factor points above 1 are accepted.** The points of an
+`InterpolatedDiscount` curve (`DiscountFactorPoint.discount_factor`) were
+limited to `(0, 1]`. Under negative rates discount factors are above 1, so
+such curves were rejected with a 400, including the discount factors that
+`/bootstrap-curves` returns for a negative-rate curve when they are sent
+back as points. QuantLib's `InterpolatedDiscountCurve` requires only a
+positive discount factor and a discount factor of exactly 1.0 on the first
+(reference-date) point. Both checks remain, each a 400 naming the field;
+the upper bound is gone, as it always was for zero-rate and forward-rate
+points. Reported by a user building negative-rate curves.
+
 ## Version 0.16.2 (October 2026) — multi-curve Hull-White, CMS on smile and SABR surfaces
 
 `v0.16.2` is a PATCH release: fixes only, no request or response shape

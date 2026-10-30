@@ -907,7 +907,7 @@
               },
         "discount_factor" : {
                 "type" : "number",
-                "description" : "Discount factor to this maturity. Required; must be in (0, 1]. The first\npoint (reference date) must carry a discount factor of exactly 1.0."
+                "description" : "Discount factor to this maturity. Required; must be > 0 (above 1 under\nnegative rates). The first point (reference date) must carry a discount\nfactor of exactly 1.0."
               }
       },
       "additionalProperties" : false
