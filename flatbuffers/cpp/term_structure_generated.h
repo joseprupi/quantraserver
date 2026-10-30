@@ -2206,8 +2206,9 @@ struct DiscountFactorPoint FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention() const {
     return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_BUSINESS_DAY_CONVENTION);
   }
-  /// Discount factor to this maturity. Required; must be in (0, 1]. The first
-  /// point (reference date) must carry a discount factor of exactly 1.0.
+  /// Discount factor to this maturity. Required; must be > 0 (above 1 under
+  /// negative rates). The first point (reference date) must carry a discount
+  /// factor of exactly 1.0.
   ::flatbuffers::Optional<double> discount_factor() const {
     return GetOptional<double, double>(VT_DISCOUNT_FACTOR);
   }

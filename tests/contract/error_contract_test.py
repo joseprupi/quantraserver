@@ -243,7 +243,8 @@ def _ec_curve_make_discount_factor(trait="InterpolatedDiscount", mutate=None):
     (DiscountFactorPoints) under the given bootstrap_trait, then optionally
     mutate the points list. Used to drive DiscountFactorPoint validation: the
     trait must be InterpolatedDiscount, every discount_factor must be present
-    and in (0, 1], and a bootstrap trait must reject a DiscountFactorPoint."""
+    and positive (above 1 is valid: negative rates), and a bootstrap trait
+    must reject a DiscountFactorPoint."""
     def f(req):
         curve = req["pricing"]["rates"]["curves"][0]
         curve["interpolator"] = "LogLinear"
@@ -2066,16 +2067,16 @@ SCENARIOS = [
      _ec_curve_make_discount_factor(
          mutate=lambda pts: pts[1]["point"].pop("discount_factor", None)),
      _ec_body_contains("DiscountFactorPoint.discount_factor is required")),
-    ("ec:400 curve DiscountFactorPoint discount_factor above one", "fixed_rate_bond",
-     "bonds/fixed_rate_bond_request.json", 400,
-     _ec_curve_make_discount_factor(
-         mutate=lambda pts: pts[1]["point"].__setitem__("discount_factor", 1.5)),
-     _ec_body_contains("DiscountFactorPoint.discount_factor must be in (0, 1]")),
     ("ec:400 curve DiscountFactorPoint discount_factor not positive", "fixed_rate_bond",
      "bonds/fixed_rate_bond_request.json", 400,
      _ec_curve_make_discount_factor(
          mutate=lambda pts: pts[1]["point"].__setitem__("discount_factor", -0.1)),
-     _ec_body_contains("DiscountFactorPoint.discount_factor must be in (0, 1]")),
+     _ec_body_contains("DiscountFactorPoint.discount_factor must be > 0")),
+    ("ec:400 curve DiscountFactorPoint discount_factor zero", "fixed_rate_bond",
+     "bonds/fixed_rate_bond_request.json", 400,
+     _ec_curve_make_discount_factor(
+         mutate=lambda pts: pts[1]["point"].__setitem__("discount_factor", 0.0)),
+     _ec_body_contains("DiscountFactorPoint.discount_factor must be > 0")),
     ("ec:400 curve Discount trait with a DiscountFactorPoint", "fixed_rate_bond",
      "bonds/fixed_rate_bond_request.json", 400,
      _ec_curve_make_discount_factor(trait="Discount"),
