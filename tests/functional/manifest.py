@@ -4776,6 +4776,63 @@ CASES = [
                       "vanilla repricing", "same-stream Monte Carlo parity"],
     },
     {
+        "id": "structured_note_synthetic_ndx_rty_5y_autocall_svi_flat_local_vol",
+        "product": "structured_note",
+        "family": "Structured Notes",
+        "title": "Five-year worst-of autocall on NDX/RTY beyond the last SVI slice (local_vol_time_extrapolation FlatLocalVol)",
+        "description": (
+            "A hypothetical five-year version of the Scotia structure (annual "
+            "100 % autocall dates with a growing premium, 75 % European "
+            "barrier, upside at maturity) on the same synthetic SVI slices, "
+            "whose last expiry is 2027-12-17: the note runs almost four years "
+            "beyond the surface. Both surfaces set local_vol_time_extrapolation "
+            "FlatLocalVol, so the Dupire local vol is held at its value 0.001 "
+            "years before the last slice for every later time (with the default "
+            "flat implied vol the skewed slices make the local variance "
+            "negative there and the note is a 400). Dupire local vol on 252 "
+            "steps per year, 2048 Sobol paths with Brownian bridge and "
+            "antithetic variates. Synthetic vols; the price is not a market "
+            "value. Same-stream Monte Carlo parity on every reported scalar "
+            "(the reference applies the same time clamp in Python)."
+        ),
+        "request": "structured_note/synthetic_ndx_rty_5y_autocall_on_svi_flat_local_vol.json",
+        "ql_pricer": "price_structured_note_ql",
+        "tolerance": STRUCTURED_NOTE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["structured note", "worst-of", "SVI slices", "SviVolSpec",
+                      "Dupire local vol", "local_vol_time_extrapolation", "steps_per_year",
+                      "same-stream Monte Carlo parity"],
+    },
+    {
+        "id": "structured_note_synthetic_spx_2y_autocall_svi_quoted_strike_edges",
+        "product": "structured_note",
+        "family": "Structured Notes",
+        "title": "Two-year autocall on SPX under SVI slices fitted to 60-115 % quotes (strike_min / strike_max edges)",
+        "description": (
+            "A single-underlying two-year autocall (100 % call after one year, "
+            "60 % European barrier) on the eight SVI slices that "
+            "/calibrate-vol-surface fits to a synthetic SPX-like sheet quoted "
+            "only from 60 % to 115 % of the spot (examples/data/vol_surface/"
+            "synthetic_spx_steep_wings_sheet_svi.json). The raw SVI wings beyond "
+            "the quotes carry butterfly arbitrage; the slices carry the quoted "
+            "strike range (strike_min / strike_max) and the Dupire local vol is "
+            "held at the edge beyond it, as for a grid (without the edges the "
+            "note is a 400: negative local variance at 30 % of the spot inside "
+            "the expiry range). Dupire local vol on 252 steps per year, 4096 "
+            "Sobol paths with Brownian bridge and antithetic variates. "
+            "Synthetic vols; the price is not a market value. Same-stream Monte "
+            "Carlo parity on every reported scalar (the reference applies the "
+            "same strike clamp in Python)."
+        ),
+        "request": "structured_note/synthetic_spx_2y_autocall_on_svi_quoted_strike_edges.json",
+        "ql_pricer": "price_structured_note_ql",
+        "tolerance": STRUCTURED_NOTE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["structured note", "single underlying", "SVI slices", "SviVolSpec",
+                      "strike_min / strike_max", "Dupire local vol", "steps_per_year",
+                      "same-stream Monte Carlo parity"],
+    },
+    {
         "id": "structured_note_jpm_review_notes_ndx_rty_spx_46661pt64",
         "product": "structured_note",
         "family": "Structured Notes",

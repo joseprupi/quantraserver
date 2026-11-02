@@ -2013,6 +2013,10 @@ BlackVolEntry parseBlackVol(
     entry.businessDayConvention = bdc;
     entry.businessDayConventionFb = b->business_day_convention().value();
     entry.dayCounter = dc;
+    entry.flatLocalVolBeyondLastExpiry =
+        payload->local_vol_time_extrapolation().value_or(
+            quantra::enums::LocalVolTimeExtrapolation_FlatImpliedVol) ==
+        quantra::enums::LocalVolTimeExtrapolation_FlatLocalVol;
     entry.allowExtrapolation = payload->allow_extrapolation();
     if (payload->allow_extrapolation()) {
         entry.handle->enableExtrapolation();
@@ -2135,6 +2139,9 @@ BlackVolEntry parseSviVol(const quantra::VolSurfaceSpec* spec) {
 
     std::vector<QuantLib::Date> dates;
     std::vector<SviSliceParams> params;
+    // Surface strike range: min of the slices' strike_min, max of their
+    // strike_max; a slice without one leaves that side open (0 / QL_MAX_REAL).
+    double surfaceMinStrike = QL_MAX_REAL, surfaceMaxStrike = 0.0;
     for (flatbuffers::uoffset_t i = 0; i < payload->slices()->size(); ++i) {
         const auto* sl = payload->slices()->Get(i);
         const std::string path = "SviVolSpec.slices[" + std::to_string(i) + "]";
@@ -2182,6 +2189,21 @@ BlackVolEntry parseSviVol(const quantra::VolSurfaceSpec* spec) {
                 "is negative) for vol id: " +
                 id);
         }
+        const auto kMin = sl->strike_min();
+        const auto kMax = sl->strike_max();
+        for (const auto& [v, name] :
+             {std::make_pair(kMin, ".strike_min"), std::make_pair(kMax, ".strike_max")}) {
+            if (v.has_value() && !(std::isfinite(*v) && *v > 0.0)) {
+                QUANTRA_INVALID_ARGUMENT(
+                    path + name + " must be a finite strike > 0 for vol id: " + id);
+            }
+        }
+        if (kMin.has_value() && kMax.has_value() && !(*kMin < *kMax)) {
+            QUANTRA_INVALID_ARGUMENT(
+                path + ".strike_min must be below strike_max for vol id: " + id);
+        }
+        surfaceMinStrike = std::min(surfaceMinStrike, kMin.has_value() ? *kMin : 0.0);
+        surfaceMaxStrike = std::max(surfaceMaxStrike, kMax.has_value() ? *kMax : QL_MAX_REAL);
         dates.push_back(d);
         params.push_back(p);
     }
@@ -2189,6 +2211,9 @@ BlackVolEntry parseSviVol(const quantra::VolSurfaceSpec* spec) {
     BlackVolEntry entry;
     entry.handle = QuantLib::Handle<QuantLib::BlackVolTermStructure>(
         makeSviSurface(ref, cal, bdc, dc, dates, params));
+    if (surfaceMinStrike > 0.0 || surfaceMaxStrike < QL_MAX_REAL) {
+        entry.localVolStrikeRange = std::make_pair(surfaceMinStrike, surfaceMaxStrike);
+    }
     entry.constantVol = std::numeric_limits<double>::quiet_NaN();
     entry.shapeFb = quantra::enums::VolSurfaceShape_SviSlices;
     entry.referenceDate = ref;
@@ -2198,6 +2223,10 @@ BlackVolEntry parseSviVol(const quantra::VolSurfaceSpec* spec) {
     entry.businessDayConventionFb = b->business_day_convention().value();
     entry.dayCounter = dc;
     entry.pillarDates = dates;
+    entry.flatLocalVolBeyondLastExpiry =
+        payload->local_vol_time_extrapolation().value_or(
+            quantra::enums::LocalVolTimeExtrapolation_FlatImpliedVol) ==
+        quantra::enums::LocalVolTimeExtrapolation_FlatLocalVol;
     entry.allowExtrapolation = payload->allow_extrapolation();
     if (payload->allow_extrapolation()) {
         entry.handle->enableExtrapolation();

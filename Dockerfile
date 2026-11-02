@@ -287,9 +287,10 @@ ENV QUANTRA_FBS_INCLUDE_DIR=/app/flatbuffers/fbs
 ENV QUANTRA_CURVE_CACHE_ENABLED=1
 ENV QUANTRA_SABR_CACHE_ENABLED=1
 ENV QUANTRA_HW_CACHE_ENABLED=1
-# Per-request server-side compute budget. Set slightly above the Envoy route
-# timeout (30s) so a worker frees itself even if Envoy has already returned 504
-# to the client, preventing a slow request from pinning a single-threaded worker.
+# Per-request server-side compute budget, so a worker frees itself even if the
+# gateway or Envoy has already returned 504 to the client, preventing a slow
+# request from pinning a single-threaded worker. Raise it together with
+# QUANTRA_GATEWAY_DEADLINE_MS for long requests (docs/configuration.md).
 ENV QUANTRA_REQUEST_BUDGET_MS=35000
 
 EXPOSE 50051 8080

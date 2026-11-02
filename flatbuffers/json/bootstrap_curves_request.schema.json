@@ -17,6 +17,10 @@
       "type" : "string",
       "enum": ["LinearTotalVariance"]
     },
+    "quantra_enums_LocalVolTimeExtrapolation" : {
+      "type" : "string",
+      "enum": ["FlatImpliedVol", "FlatLocalVol"]
+    },
     "quantra_enums_BootstrapTrait" : {
       "type" : "string",
       "enum": ["Discount", "FwdRate", "InterpolatedDiscount", "InterpolatedFwd", "InterpolatedZero", "ZeroRate"]
@@ -1497,6 +1501,10 @@
         "strike_interpolator" : {
                 "$ref" : "#/definitions/quantra_enums_Interpolator",
                 "description" : "Deprecated for BlackVolSpec surfaces; retained for backward compatibility.\nMapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic."
+              },
+        "local_vol_time_extrapolation" : {
+                "$ref" : "#/definitions/quantra_enums_LocalVolTimeExtrapolation",
+                "description" : "Optional. For a strike-dependent surface simulated as Dupire local\nvol by a structured note: how the local vol is extended beyond the\nlast expiry (see the enum). Absent = FlatImpliedVol (the local vol of\nthe flat-implied-vol extension). `/calibrate-vol-surface` returns\nFlatLocalVol. No effect on a Constant or AtmMatrix2D vol, nor on any\nBlack vol read (vanilla options, diagnostics)."
               }
       },
       "additionalProperties" : false
@@ -1535,7 +1543,7 @@
     },
     "quantra_SviSlice" : {
       "type" : "object",
-      "description" : "One expiry of an `SviVolSpec`: the raw SVI total variance\nw(k) = a + b (rho (k - m) + sqrt((k - m)^2 + sigma^2)), k = ln(K / forward)\n(Gatheral's raw parameterisation, QuantLib `SviSmileSection`), the Black\nvol being sqrt(w(k) / T) with T the base day counter's year fraction from\nthe reference date to `expiry`. The formula is global in strike: no\nstrike extrapolation exists or is needed.",
+      "description" : "One expiry of an `SviVolSpec`: the raw SVI total variance\nw(k) = a + b (rho (k - m) + sqrt((k - m)^2 + sigma^2)), k = ln(K / forward)\n(Gatheral's raw parameterisation, QuantLib `SviSmileSection`), the Black\nvol being sqrt(w(k) / T) with T the base day counter's year fraction from\nthe reference date to `expiry`. The formula is global in strike: the\nBlack vol read (vanilla options, diagnostics) has no strike edge.",
       "properties" : {
         "expiry" : {
                 "type" : "string",
@@ -1562,6 +1570,13 @@
               },
         "m" : {
                 "type" : "number"
+              },
+        "strike_min" : {
+                "type" : "number",
+                "description" : "Optional: the lowest and highest strike (absolute, same units as\n`forward`) of the quotes the slice was fitted to; `/calibrate-vol-surface`\nfills both. A raw SVI wing beyond the quotes is an extrapolation that\ncan carry butterfly arbitrage (Durrleman's g < 0, a negative Dupire\nlocal variance). When present, a structured note holds the local vol\nat the strike edge beyond them, as for a grid: the local vol strike\nrange is [min of every slice's strike_min, max of every slice's\nstrike_max] (a slice without one leaves that side open), and a\nsimulated level beyond it reads the local vol at the edge. No Black\nvol read is affected (vanilla options read the formula at every\nstrike). Absent: no edge. Each > 0 and strike_min < strike_max when\nboth are given (400 otherwise)."
+              },
+        "strike_max" : {
+                "type" : "number"
               }
       },
       "required" : ["expiry"],
@@ -1584,6 +1599,10 @@
         "allow_extrapolation" : {
                 "type" : "boolean",
                 "description" : "Whether an expiry beyond the last slice may be read at all (flat\nimplied vol); strikes need no flag, the formula is global."
+              },
+        "local_vol_time_extrapolation" : {
+                "$ref" : "#/definitions/quantra_enums_LocalVolTimeExtrapolation",
+                "description" : "Optional. How the Dupire local vol a structured note simulates is\nextended beyond the last slice (see the enum). Absent =\nFlatImpliedVol. `/calibrate-vol-surface` returns FlatLocalVol. No\neffect on any Black vol read (vanilla options, diagnostics)."
               }
       },
       "required" : ["slices"],

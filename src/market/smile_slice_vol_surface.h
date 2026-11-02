@@ -34,7 +34,11 @@
  *     w(k) = a + b (rho (k - m) + sqrt((k - m)^2 + sigma^2)), k = ln(K / F),
  *     the parameterisation of QuantLib's SviSmileSection and of the
  *     `/calibrate-vol-surface` SviPerExpiry fit; global in strike, no
- *     extrapolation (the strike is floored at 1e-6 as QuantLib does).
+ *     extrapolation (the strike is floored at 1e-6 as QuantLib does). The
+ *     quoted strike range a payload may carry (`strike_min` / `strike_max`)
+ *     is not part of the surface: it travels on the BlackVolEntry to the
+ *     structured note's local vol (src/mc/basket_model.h), which holds its
+ *     edge value beyond it; every Black vol read ignores it.
  *
  * The surface is strike-dependent, so a structured note simulates it as
  * Dupire local vol (QuantLib LocalVolSurface over this object; see

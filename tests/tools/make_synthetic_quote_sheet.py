@@ -182,6 +182,31 @@ SYNTHETIC_FLAT_20.update({
     "vol_surface_id": "NDX_SYN_FLAT20_VOL",
 })
 
+# SPX-like with quotes only from 60 % to 115 % of the spot out to 2.5 years:
+# an equity smile whose skew and curvature decay like 1 / sqrt(T)
+# (sigma = atm + skew k / sqrt(T) + curv k^2 / sqrt(T), the `poly_sqrt_t`
+# kind). The SVI slices fitted to it are butterfly-free on the default
+# output strike range (50 % to 150 %) but their raw wings beyond the quotes
+# are not: the reproduction of a local vol that fails inside the expiry
+# range where a path leaves the quoted strikes (see
+# tests/contract/structured_note_local_vol_extension_test.py).
+SYNTHETIC_SPX_STEEP_WINGS = copy.deepcopy(SYNTHETIC_NDX_LIKE)
+SYNTHETIC_SPX_STEEP_WINGS.update({
+    "underlying_id": "SPX_SYN",
+    "spot": 7663.0,
+    "sheet_id": "SPX_SYN_STEEP_WINGS_2026-09-30",
+    "dividend_curve_id": "SPX_SYN_DIV_IMPLIED",
+    "vol_surface_id": "SPX_SYN_VOL",
+    "expiries": [("2026-10-16", 0.012), ("2026-12-18", 0.012), ("2027-03-19", 0.012),
+                 ("2027-06-18", 0.012), ("2027-12-17", 0.012), ("2028-06-16", 0.012),
+                 ("2028-12-15", 0.012), ("2029-03-16", 0.012)],
+    "smile": {"type": "poly_sqrt_t", "atm": 0.18, "skew": -0.20, "curv": 0.25,
+              "vol_floor": 0.05, "vol_cap": 1.5},
+    "strike_grid": {"lo": 0.60, "hi": 1.15, "step": 0.025},
+    "filter": {"max_relative_spread": 0.05, "min_quotes_per_expiry": 4,
+               "moneyness_window": 0.45},
+})
+
 PRESETS = {
     "ndx_like": SYNTHETIC_NDX_LIKE,
     "svi": SYNTHETIC_SVI_NDX_LIKE,
@@ -189,6 +214,7 @@ PRESETS = {
     "svi_scotia_ndx": SYNTHETIC_SVI_SCOTIA_NDX,
     "svi_scotia_rty": SYNTHETIC_SVI_SCOTIA_RTY,
     "flat": SYNTHETIC_FLAT_20,
+    "spx_steep_wings": SYNTHETIC_SPX_STEEP_WINGS,
 }
 
 
@@ -271,6 +297,10 @@ def smile_vol(preset: dict, k: float, expiry: str = None) -> float:
     if kind == "ssvi":
         t = year_fraction(preset["as_of"], expiry)
         return math.sqrt(svi_total_variance(svi_params(preset, expiry), k) / t)
+    if kind == "poly_sqrt_t":
+        rt = math.sqrt(year_fraction(preset["as_of"], expiry))
+        v = s["atm"] + s["skew"] / rt * k + s["curv"] / rt * k * k
+        return min(max(v, s["vol_floor"]), s["vol_cap"])
     v = s["atm"] + s["skew"] * k + s["curv"] * k * k
     return min(max(v, s["vol_floor"]), s["vol_cap"])
 

@@ -1383,10 +1383,12 @@ small even where the price's is not. Cost: `1 + 2N + N + 3` simulations for
 `N` underlyings (`1 + 2 + 1 + 2` for a single underlying, which has no
 correlation sensitivity): the BNP note (4 underlyings) is 16 runs, about
 21 s of engine time at 65 536 Sobol paths against 1.5 s for the plain
-price. The JSON gateway's RPC deadline is 10 s and a deployment adds its
-own (`QUANTRA_REQUEST_BUDGET_MS`, the proxy's route timeout; the engine
-checks the budget before every extra run and returns `504` when it has
-expired), so size the paths of a Greeks request to the deadline: the BNP
+price. The JSON gateway's RPC deadline is 10 s by default
+(`QUANTRA_GATEWAY_DEADLINE_MS`) and a deployment adds its own
+(`QUANTRA_REQUEST_BUDGET_MS`, the proxy's cap; the engine checks the budget
+before every extra run and returns `504` when it has expired; see
+"Which limit binds" in `configuration.md`), so size the paths of a Greeks
+request to the deadline or raise it: the BNP
 Greeks example uses 16 384 paths (about 6 s through the gateway). Every
 sensitivity is in the note currency,
 scaled to the unit move, and carries `<name>_standard_error`, the Monte
@@ -1454,7 +1456,23 @@ there is no adapter around the original object).
   with the edge strike's local vol and the stencil never straddles the
   extrapolation kink (where constant extrapolation would make the total
   variance concave and the local variance negative). An SVI payload is
-  global in strike: no edge, the clamp is a no-op. One local-vol object
+  global in strike: no edge, the clamp is a no-op, unless its slices
+  carry `strike_min` / `strike_max` (what `/calibrate-vol-surface`
+  returns): the clamp then uses `[min strike_min, max strike_max]` over the
+  slices (a slice without one leaves that side open), because a raw SVI
+  wing beyond the quotes can carry butterfly arbitrage. The Black vol is
+  never clamped (vanilla options read the SVI formula at every strike).
+  Beyond the last expiry, `local_vol_time_extrapolation` on the vol spec
+  decides: absent or `FlatImpliedVol`, the local vol of the flat implied
+  vol extension, which on a skew is not arbitrage-free at long horizons
+  (with `w = v(k) t` Durrleman's `−w′²/16` term grows like `t²`: a note
+  maturing years after the last expiry is a 400 "negative local vol^2");
+  `FlatLocalVol`, the local vol is held time-homogeneous, read at
+  `min(t, T_last − 0.001)` years (`T_last` the last expiry's year fraction in
+  the surface's day counter; the margin keeps QuantLib's
+  `LocalVolSurface` time stencil, `t ± min(1e-4, t/2)`, inside the quoted
+  expiries) at the simulated level. Before `T_last − 0.001` both are the
+  same, bit for bit. `/calibrate-vol-surface` returns `FlatLocalVol`. One local-vol object
   per distinct (vol, spot, dividend, discount) market is shared by every
   process array of the request. A `Bilinear` grid is the documented
   limit: between two grid strikes its variance is linear, so the smile's
@@ -1824,7 +1842,18 @@ violation (`butterfly_violation`, `butterfly_min_g`). With
 by Levenberg-Marquardt on the same weighted residuals plus a penalty
 `100 · max(0, −g(k_j))` per point; `butterfly_action` carries `min g`
 before and after (`"refit with penalty: min g -0.41 -> 0.0012"`). Grid vols
-are `sqrt(w(k) / T)`.
+are `sqrt(w(k) / T)`. The raw SVI wing beyond the output strike range is
+also scanned, out to the levels a simulation reaches (`k = ±5 σ_ATM √T`,
+`σ_ATM = sqrt(w(0) / T)`); a negative `g` there is REPORTED, never
+enforced and not counted in `butterfly_min_g` / `butterfly_violation`:
+`butterfly_action` gets `"; beyond the output strike range (reported only,
+up to k = +/-1.18): min g -0.042 at k -1.18"` appended. A slice is fitted to
+the quotes, and its wings beyond them are an extrapolation: on an
+SPX-like sheet quoted from 60 % to 115 % of the spot the slices are clean
+on 50 % .. 150 % and negative beyond. Each returned slice therefore
+carries `strike_min` / `strike_max`, the lowest and highest strike of its
+used quotes, and a structured note holds the local vol at that edge
+(see "Structured notes" > local vol).
 
 **Calendar check (both methods).** At every grid strike total variance
 `σ² T` must not decrease from one grid expiry to the next; a point where
@@ -1881,7 +1910,8 @@ inside its bid/ask under both methods.
       "expiries": [{"n": 16, "unit": "Days"}, {"n": 51, "unit": "Days"}, "..."],
       "strikes": [12000.0, 12600.0, "..."],
       "surface_vols": {"n_rows": 8, "n_cols": 41, "values": ["row-major by expiry then strike"]},
-      "allow_extrapolation": true, "surface_interpolator": "CubicStrikeLinearTime"
+      "allow_extrapolation": true, "surface_interpolator": "CubicStrikeLinearTime",
+      "local_vol_time_extrapolation": "FlatLocalVol"
     }
   },
   "vol_surface_spec_svi": {
@@ -1890,8 +1920,10 @@ inside its bid/ask under both methods.
       "base": {"reference_date": "2026-09-30", "calendar": "NullCalendar",
                "business_day_convention": "Unadjusted", "day_counter": "Actual365Fixed"},
       "slices": [{"expiry": "2026-10-16", "forward": 24033.597,
-                  "a": 0.000591, "b": 0.024078, "sigma": 0.034390, "rho": -0.7, "m": 0.033709}, "..."],
-      "time_interpolation": "LinearTotalVariance", "allow_extrapolation": true
+                  "a": 0.000591, "b": 0.024078, "sigma": 0.034390, "rho": -0.7, "m": 0.033709,
+                  "strike_min": 19200.0, "strike_max": 28800.0}, "..."],
+      "time_interpolation": "LinearTotalVariance", "allow_extrapolation": true,
+      "local_vol_time_extrapolation": "FlatLocalVol"
     }
   },
   "vanilla_repricing": {
@@ -1912,8 +1944,15 @@ surface's expiries are calendar-day periods on a NullCalendar so that the
 pricers' `calendar.advance(reference_date, period, Unadjusted)` lands on
 the grid dates exactly. `vol_surface_spec_svi` is present with
 `SviPerExpiry` only (one slice per fitted expiry: the forward the slice is
-written against and its final `a, b, sigma, rho, m`, after the butterfly
-refit; the grid's calendar clip is not applied to the slices); with
+written against, its final `a, b, sigma, rho, m`, after the butterfly
+refit, and `strike_min` / `strike_max`, the strike range of its used
+quotes; the grid's calendar clip is not applied to the slices, so two
+slices whose unquoted wings cross are a calendar arbitrage the slices keep
+— a note whose paths reach the crossing is a 400 "decreasing variance").
+Both specs set `local_vol_time_extrapolation: FlatLocalVol`, so a
+structured note maturing after the last quoted expiry can be priced on
+them as returned (see "Structured notes" > local vol); with
+
 `AndreasenHuge` it is absent and `vol_surface_spec_svi_note` says why (a
 piecewise local volatility has no closed-form slices).
 
@@ -1921,8 +1960,8 @@ piecewise local volatility has no closed-form slices).
 
 | Payload | Reading | Use |
 |---|---|---|
-| `BlackVolSpec` `SmileCube3D` (the grid, `vol_surface_spec`) | `surface_interpolator`: `Bilinear` (default of a supplied grid — QuantLib `BlackVarianceSurface`, linear in total variance inside every cell, so the smile's curvature is lost between nodes and a Dupire local vol derived from it misprices vanillas by 2 to 3 vol points at a year), `Bicubic` (QuantLib's 2-D spline, a spline in time too through the zero-variance column at t = 0, which distorts the short end; ~15x the cost), `CubicStrikeLinearTime` (what `/calibrate-vol-surface` returns: per expiry a natural cubic spline of total variance in log-strike — C2, every node reproduced, the curvature kept between nodes — linear in total variance between expiries at fixed strike, constant beyond the first and last strike, flat implied vol beyond the last expiry; two 1-D evaluations per read). A grid you supply yourself keeps `Bilinear` unless it says otherwise: no existing request changes. | Any grid, from this endpoint or elsewhere. |
-| `SviVolSpec` (the slices, `vol_surface_spec_svi`) | The raw SVI total variance of each slice, `w(k) = a + b (ρ (k − m) + sqrt((k − m)² + σ²))`, `k = ln(K / forward)`, Black vol `sqrt(w / T)`; linear in total variance between the bracketing slices at fixed strike (`time_interpolation: LinearTotalVariance`, the only value), `w(T₁, K) t / T₁` before the first slice and `w(Tₙ, K) t / Tₙ` after the last (flat implied vol on both ends; `allow_extrapolation` gates reading past the last slice). The formula is global in strike: no strike extrapolation exists or is needed. The exact surface the quotes were fitted to, with its exact curvature. `base.shape`, `constant_vol` and `quote_id` must be absent (`400`); slices strictly increasing after `reference_date`, `forward > 0`, `b ≥ 0`, `σ > 0`, `|ρ| < 1`, `a + bσ sqrt(1 − ρ²) ≥ 0` (`400` naming the slice). | Everywhere a Black vol is referenced: `volatility` on an equity option (a European option prices at the Black price of the slice's vol), `underlyings[].volatility_id` on a structured note (strike-dependent: Dupire local vol, `steps_per_year` required; vega bumps shift every vol by the bump — a shifted SVI smile is no SVI slice, so the shift is applied at every read), `/sample-vol-surfaces` `EquityBlack`. |
+| `BlackVolSpec` `SmileCube3D` (the grid, `vol_surface_spec`) | `surface_interpolator`: `Bilinear` (default of a supplied grid — QuantLib `BlackVarianceSurface`, linear in total variance inside every cell, so the smile's curvature is lost between nodes and a Dupire local vol derived from it misprices vanillas by 2 to 3 vol points at a year), `Bicubic` (QuantLib's 2-D spline, a spline in time too through the zero-variance column at t = 0, which distorts the short end; ~15x the cost), `CubicStrikeLinearTime` (what `/calibrate-vol-surface` returns: per expiry a natural cubic spline of total variance in log-strike — C2, every node reproduced, the curvature kept between nodes — linear in total variance between expiries at fixed strike, constant beyond the first and last strike, flat implied vol beyond the last expiry; two 1-D evaluations per read). Optional `local_vol_time_extrapolation` (`FlatImpliedVol` when absent, `FlatLocalVol` from this endpoint): how a structured note's local vol continues beyond the last expiry. A grid you supply yourself keeps `Bilinear` unless it says otherwise: no existing request changes. | Any grid, from this endpoint or elsewhere. |
+| `SviVolSpec` (the slices, `vol_surface_spec_svi`) | The raw SVI total variance of each slice, `w(k) = a + b (ρ (k − m) + sqrt((k − m)² + σ²))`, `k = ln(K / forward)`, Black vol `sqrt(w / T)`; linear in total variance between the bracketing slices at fixed strike (`time_interpolation: LinearTotalVariance`, the only value), `w(T₁, K) t / T₁` before the first slice and `w(Tₙ, K) t / Tₙ` after the last (flat implied vol on both ends; `allow_extrapolation` gates reading past the last slice). The formula is global in strike: no strike extrapolation exists or is needed for a Black vol read. Optional per slice: `strike_min` / `strike_max`, the quoted strike range (`/calibrate-vol-surface` fills them; `> 0`, `strike_min < strike_max`, else `400`), where a structured note's local vol holds its edge value. Optional `local_vol_time_extrapolation` (`FlatImpliedVol` when absent, `FlatLocalVol` from `/calibrate-vol-surface`): how a structured note's local vol continues beyond the last slice. The exact surface the quotes were fitted to, with its exact curvature. `base.shape`, `constant_vol` and `quote_id` must be absent (`400`); slices strictly increasing after `reference_date`, `forward > 0`, `b ≥ 0`, `σ > 0`, `|ρ| < 1`, `a + bσ sqrt(1 − ρ²) ≥ 0` (`400` naming the slice). | Everywhere a Black vol is referenced: `volatility` on an equity option (a European option prices at the Black price of the slice's vol), `underlyings[].volatility_id` on a structured note (strike-dependent: Dupire local vol, `steps_per_year` required; vega bumps shift every vol by the bump — a shifted SVI smile is no SVI slice, so the shift is applied at every read), `/sample-vol-surfaces` `EquityBlack`. |
 
 ### Using the surface
 
@@ -2168,7 +2207,8 @@ FD helpers cost about 10 to 20 times a Jamshidian helper. Through the JSON
 gateway the shipped 2x2 calibration examples take 0.3 to 0.8 s instead of
 about 0.2 s, a sigma-only fit on 50 helpers about 1.2 s (200 helpers: 4.7 s)
 and a joint fit on a 4x4 grid about 3 s; a joint fit on 50 helpers or more
-runs past the gateway's 10 s deadline (`504`). Calibrate `sigma` only, as
+runs past the gateway's default 10 s deadline (`504`; raise
+`QUANTRA_GATEWAY_DEADLINE_MS`, see `configuration.md`). Calibrate `sigma` only, as
 recommended under "Hull-White calibration", or keep the grid small.
 
 A callable bond's coupons are fixed and need no forwarding curve: it is

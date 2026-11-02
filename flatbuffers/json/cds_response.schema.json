@@ -17,6 +17,10 @@
       "type" : "string",
       "enum": ["LinearTotalVariance"]
     },
+    "quantra_enums_LocalVolTimeExtrapolation" : {
+      "type" : "string",
+      "enum": ["FlatImpliedVol", "FlatLocalVol"]
+    },
     "quantra_enums_BootstrapTrait" : {
       "type" : "string",
       "enum": ["Discount", "FwdRate", "InterpolatedDiscount", "InterpolatedFwd", "InterpolatedZero", "ZeroRate"]

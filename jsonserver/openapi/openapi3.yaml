@@ -51,7 +51,7 @@ info:
     curl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type:\
     \ application/json\" \\\n  -d @examples/data/bonds/fixed_rate_bond_request.json\n\
     ```\n"
-  version: 0.16.3
+  version: 0.16.4
   contact:
     name: Quantra API Support
     url: https://github.com/joseprupi/quantraserver
@@ -1450,6 +1450,11 @@ components:
       type: string
       enum:
       - LinearTotalVariance
+    quantra_enums_LocalVolTimeExtrapolation:
+      type: string
+      enum:
+      - FlatImpliedVol
+      - FlatLocalVol
     quantra_enums_BootstrapTrait:
       type: string
       enum:
@@ -3717,6 +3722,8 @@ components:
           $ref: '#/components/schemas/quantra_enums_Interpolator'
         strike_interpolator:
           $ref: '#/components/schemas/quantra_enums_Interpolator'
+        local_vol_time_extrapolation:
+          $ref: '#/components/schemas/quantra_enums_LocalVolTimeExtrapolation'
       additionalProperties: false
     quantra_YoYOptionletVolSpec:
       type: object
@@ -3766,9 +3773,9 @@ components:
 
         vol being sqrt(w(k) / T) with T the base day counter''s year fraction from
 
-        the reference date to `expiry`. The formula is global in strike: no
+        the reference date to `expiry`. The formula is global in strike: the
 
-        strike extrapolation exists or is needed.'
+        Black vol read (vanilla options, diagnostics) has no strike edge.'
       properties:
         expiry:
           type: string
@@ -3795,6 +3802,34 @@ components:
           type: number
           description: -1 < rho < 1.
         m:
+          type: number
+        strike_min:
+          type: number
+          description: 'Optional: the lowest and highest strike (absolute, same units
+            as
+
+            `forward`) of the quotes the slice was fitted to; `/calibrate-vol-surface`
+
+            fills both. A raw SVI wing beyond the quotes is an extrapolation that
+
+            can carry butterfly arbitrage (Durrleman''s g < 0, a negative Dupire
+
+            local variance). When present, a structured note holds the local vol
+
+            at the strike edge beyond them, as for a grid: the local vol strike
+
+            range is [min of every slice''s strike_min, max of every slice''s
+
+            strike_max] (a slice without one leaves that side open), and a
+
+            simulated level beyond it reads the local vol at the edge. No Black
+
+            vol read is affected (vanilla options read the formula at every
+
+            strike). Absent: no edge. Each > 0 and strike_min < strike_max when
+
+            both are given (400 otherwise).'
+        strike_max:
           type: number
       required:
       - expiry
@@ -3841,6 +3876,8 @@ components:
             (flat
 
             implied vol); strikes need no flag, the formula is global.'
+        local_vol_time_extrapolation:
+          $ref: '#/components/schemas/quantra_enums_LocalVolTimeExtrapolation'
       required:
       - slices
       additionalProperties: false

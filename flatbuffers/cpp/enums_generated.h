@@ -205,6 +205,47 @@ inline const char *EnumNameSviTimeInterpolation(SviTimeInterpolation e) {
   return EnumNamesSviTimeInterpolation()[index];
 }
 
+/// How the Dupire local vol that a structured note simulates on a
+/// strike-dependent Black surface (a strike x expiry grid or an SviVolSpec)
+/// is extended in time beyond the surface's last expiry.
+///   FlatImpliedVol: the local vol of the surface's own extension, a flat
+///     implied vol in time (w(t, K) = w(T, K) t / T). With a skew it turns
+///     negative at long horizons (the note is then a 400).
+///   FlatLocalVol: the local vol is held time-homogeneous: every time after
+///     the last expiry reads the local vol at T - 0.001 years (T the last
+///     expiry's year fraction), at the simulated level.
+/// The Black vol itself (vanilla pricing, diagnostics) is the flat implied
+/// vol beyond the last expiry under both.
+enum LocalVolTimeExtrapolation : int8_t {
+  LocalVolTimeExtrapolation_FlatImpliedVol = 0,
+  LocalVolTimeExtrapolation_FlatLocalVol = 1,
+  LocalVolTimeExtrapolation_MIN = LocalVolTimeExtrapolation_FlatImpliedVol,
+  LocalVolTimeExtrapolation_MAX = LocalVolTimeExtrapolation_FlatLocalVol
+};
+
+inline const LocalVolTimeExtrapolation (&EnumValuesLocalVolTimeExtrapolation())[2] {
+  static const LocalVolTimeExtrapolation values[] = {
+    LocalVolTimeExtrapolation_FlatImpliedVol,
+    LocalVolTimeExtrapolation_FlatLocalVol
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesLocalVolTimeExtrapolation() {
+  static const char * const names[3] = {
+    "FlatImpliedVol",
+    "FlatLocalVol",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameLocalVolTimeExtrapolation(LocalVolTimeExtrapolation e) {
+  if (::flatbuffers::IsOutRange(e, LocalVolTimeExtrapolation_FlatImpliedVol, LocalVolTimeExtrapolation_FlatLocalVol)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesLocalVolTimeExtrapolation()[index];
+}
+
 /// Bootstrap trait for curve construction.
 enum BootstrapTrait : int8_t {
   BootstrapTrait_Discount = 0,

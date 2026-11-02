@@ -5028,6 +5028,9 @@ class _SliceSurface:
     def maxDate(self):
         return self.dates[-1]
 
+    def maxTime(self):
+        return self.dc.yearFraction(self.ref, self.dates[-1])
+
     def minStrike(self):
         return self._min
 
@@ -5075,6 +5078,9 @@ class _ShiftedSurface:
 
     def maxStrike(self):
         return self.inner.maxStrike()
+
+    def maxTime(self):
+        return self.inner.maxTime()
 
     def blackVariance(self, t, strike, extrapolate=False):
         if not isinstance(t, float):
@@ -5176,6 +5182,30 @@ class _PyLocalVol:
         if not result >= 0.0:
             raise ValueError(f"negative local vol^2 at strike {strike} and time {t}")
         return math.sqrt(result)
+
+
+def _sn_local_vol_strike_range(pricing: dict, vol_id: str):
+    """The quoted strike range of an SviVolSpec payload, (min strike_min,
+    max strike_max) over the slices, a slice without one leaving that side
+    open (0 / max float); None when no slice carries either (the engine's
+    BlackVolEntry::localVolStrikeRange)."""
+    spec = _find_vol_surface_spec(pricing, vol_id)
+    if spec.get("payload_type") != "SviVolSpec":
+        return None
+    slices = spec["payload"]["slices"]
+    lo = min(float(sl.get("strike_min", 0.0)) for sl in slices)
+    hi = max(float(sl.get("strike_max", sys.float_info.max)) for sl in slices)
+    if lo > 0.0 or hi < sys.float_info.max:
+        return lo, hi
+    return None
+
+
+def _sn_flat_local_vol(pricing: dict, vol_id: str) -> bool:
+    """`local_vol_time_extrapolation: FlatLocalVol` on the referenced Black
+    vol spec (BlackVolSpec or SviVolSpec); absent = FlatImpliedVol."""
+    spec = _find_vol_surface_spec(pricing, vol_id)
+    payload = spec.get("payload") or {}
+    return payload.get("local_vol_time_extrapolation", "FlatImpliedVol") == "FlatLocalVol"
 
 
 def _sn_black_vol(pricing: dict, vol_id: str, shift: float = 0.0):
@@ -5319,9 +5349,27 @@ def _sn_gaussian_source(sequence: str, brownian_bridge: bool, seed: int,
     dimension = assets * steps
     if sequence == "Sobol":
         if brownian_bridge:
-            # QuantLib defaults = Diagonal ordering, seed 0, JoeKuoD7; the
-            # seed only enters beyond the tabulated dimensions.
-            rsg = ql.SobolBrownianBridgeRsg(assets, steps)
+            # Diagonal ordering and JoeKuoD7 as the engine; the seed enters
+            # only beyond the tabulated direction integers (the dimensions
+            # past the table are initialised from a Mersenne Twister on it),
+            # so it must be the engine's: QuantLib's default 0 would draw a
+            # clock seed there and the reference would not be repeatable on
+            # a long fine grid (assets x steps beyond the table).
+            # The bindings' SobolBrownianBridgeRsg takes no seed: drive the
+            # SobolBrownianGenerator it wraps the way its nextSequence does
+            # (one path, then each step's factors, time-major).
+            gen = ql.SobolBrownianGenerator(assets, steps, ql.SobolBrownianGenerator.Diagonal,
+                                            seed, ql.SobolRsg.JoeKuoD7)
+            step_out = ql.DoubleVector(assets)
+
+            def bridge_draw():
+                gen.nextPath()
+                out = []
+                for _ in range(steps):
+                    gen.nextStep(step_out)
+                    out.extend(step_out)
+                return out
+            return bridge_draw
         else:
             rsg = ql.InvCumulativeSobolGaussianRsg(
                 ql.SobolRsg(dimension, seed, ql.SobolRsg.JoeKuoD7))
@@ -5472,6 +5520,8 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
         und.append({"spot": float(spot_value), "spot_handle": spot, "dividend": dividend,
                     "plain_dividend": plain_dividend, "local_curve": local_curve, "vol": vol,
                     "vol_id": u["volatility_id"], "level": level, "exact": exact,
+                    "flat_lv": _sn_flat_local_vol(pricing, u["volatility_id"]),
+                    "lv_range": _sn_local_vol_strike_range(pricing, u["volatility_id"]),
                     "quanto": quanto is not None, "fx_vol": fx_vol, "fx_spot": fx_rate,
                     "rho": rho})
 
@@ -5511,12 +5561,17 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
         correlation, correlation_markup_repaired = _sn_bump_correlation(
             correlation, float(correlation_markup))
 
-    def make_asset(spot_handle, dividend, risk_free, vol, exact):
+    def make_asset(spot_handle, dividend, risk_free, vol, exact, flat_lv=False, lv_range=None):
         """One simulated asset: the GeneralizedBlackScholesProcess(spot,
         dividend, riskFree, vol) and, for a strike x expiry surface, the
         engine's edge-clamped Dupire local vol (src/mc/basket_model.h):
         QuantLib's LocalVolSurface on the same handles, read at the level
-        clamped to [minStrike e^1e-3, maxStrike e^-1e-3]."""
+        clamped to [minStrike e^1e-3, maxStrike e^-1e-3] (`lv_range`, the
+        quoted strike range of an SVI payload, in place of the vol's
+        minStrike / maxStrike when given) and, with
+        `flat_lv` (local_vol_time_extrapolation FlatLocalVol), at the time
+        clamped to maxTime - 1e-3 (maxTime the Black surface's last expiry
+        as a year fraction; no clamp when maxTime <= 2e-3)."""
         python_surface = isinstance(vol, (_SliceSurface, _ShiftedSurface))
         a = {"process": None if python_surface else
              ql.GeneralizedBlackScholesProcess(spot_handle, dividend, risk_free, vol),
@@ -5529,14 +5584,21 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
                        else ql.LocalVolSurface(vol, risk_free, dividend, spot_handle))
             a["risk_free"] = risk_free
             a["dividend"] = dividend
-            a["lower"] = vol.minStrike() * math.exp(1.0e-3)
-            a["upper"] = vol.maxStrike() * math.exp(-1.0e-3)
+            k_min, k_max = lv_range if lv_range else (vol.minStrike(), vol.maxStrike())
+            a["lower"] = k_min * math.exp(1.0e-3)
+            a["upper"] = k_max * math.exp(-1.0e-3)
             if not a["lower"] < a["upper"]:
-                a["lower"], a["upper"] = vol.minStrike(), vol.maxStrike()
+                a["lower"], a["upper"] = k_min, k_max
+            a["t_cap"] = sys.float_info.max
+            if flat_lv:
+                max_time = vol.maxTime()
+                if max_time > 2.0 * 1.0e-3:
+                    a["t_cap"] = max_time - 1.0e-3
         return a
 
     def base_assets():
-        return [make_asset(u["spot_handle"], u["dividend"], note_curve, u["vol"], u["exact"])
+        return [make_asset(u["spot_handle"], u["dividend"], note_curve, u["vol"], u["exact"],
+                           u["flat_lv"], u["lv_range"])
                 for u in und]
 
     # --- events ---------------------------------------------------------------
@@ -5844,7 +5906,8 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
             def step(a, t0, x, dt, dz):
                 if a["exact"]:
                     return a["process"].evolve(t0, x, dt, dz)
-                sigma = a["lv"].localVol(t0, min(max(x, a["lower"]), a["upper"]), True)
+                sigma = a["lv"].localVol(min(t0, a["t_cap"]),
+                                         min(max(x, a["lower"]), a["upper"]), True)
                 t1 = t0 + 0.0001
                 drift = (a["risk_free"].forwardRate(t0, t1, ql.Continuous, ql.NoFrequency,
                                                     True).rate()
@@ -6272,7 +6335,8 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
                     dividend = ql.YieldTermStructureHandle(ql.QuantoTermStructure(
                         u["plain_dividend"], risk_free, u["local_curve"], vol, u["level"],
                         u["fx_vol"], u["fx_spot"], u["rho"]))
-                assets.append(make_asset(spot, dividend, risk_free, vol, u["exact"]))
+                assets.append(make_asset(spot, dividend, risk_free, vol, u["exact"],
+                                         u["flat_lv"], u["lv_range"]))
             totals = []
             simulate(assets, matrix, disc, None, totals)
             return sample_values(totals, disc)
@@ -6857,6 +6921,8 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
             fields[stem + "forward"] = w["fwd"]
             for name in ("a", "b", "sigma", "rho", "m"):
                 fields[stem + name] = w["svi"][name]
+            fields[stem + "strike_min"] = min(u["strike"] for u in w["used"])
+            fields[stem + "strike_max"] = max(u["strike"] for u in w["used"])
     fields["grid_strikes"] = strikes
     fields["vol_surface_spec.payload.surface_vols.values"] = \
         [vols[i][j] for i in range(n_exp) for j in range(n_str)]

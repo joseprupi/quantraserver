@@ -13,6 +13,7 @@ generator; it must emit the same config.
 import importlib.machinery
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -110,3 +111,63 @@ def test_request_timeout_override_changes_route_timeout():
     # The cap on the client grpc-timeout header is independent of the route
     # timeout override.
     assert route["max_stream_duration"]["grpc_timeout_header_max"] == "60s"
+
+
+def _generate_env(env_value, *extra_args):
+    """Run the generator with QUANTRA_ROUTE_TIMEOUT_MS set (or removed when
+    None); returns (config, stderr)."""
+    env = dict(os.environ)
+    env.pop("QUANTRA_ROUTE_TIMEOUT_MS", None)
+    if env_value is not None:
+        env["QUANTRA_ROUTE_TIMEOUT_MS"] = env_value
+    cmd = [sys.executable, str(ENVOY_CONFIG_SCRIPT), "--workers", "2", "--format", "json",
+           *extra_args]
+    result = subprocess.run(cmd, capture_output=True, text=True, check=True, env=env)
+    return json.loads(result.stdout), result.stderr
+
+
+@pytest.mark.parametrize("value,expected,cap", [
+    ("45000", "45s", "60s"), ("120000", "120s", "120s"), ("1500", "1.5s", "60s"),
+    ("30000", "30s", "60s"), ("90500", "90.5s", "90.5s"),
+])
+def test_route_timeout_env_knob_sets_route_timeout(value, expected, cap):
+    # Envoy bounds a gRPC request by the caller's grpc-timeout header capped at
+    # grpc_timeout_header_max (the route timeout is not applied to it), so the
+    # cap follows the knob above 60s: max(60s, route timeout).
+    config, _ = _generate_env(value)
+    route = _route(config)
+    assert route["timeout"] == expected
+    assert route["max_stream_duration"]["grpc_timeout_header_max"] == cap
+
+
+@pytest.mark.parametrize("value", ["0", "-5", "abc", "30s", ""])
+def test_route_timeout_env_knob_invalid_keeps_default(value):
+    config, stderr = _generate_env(value)
+    assert _route(config)["timeout"] == "30s"
+    if value.strip():
+        assert "QUANTRA_ROUTE_TIMEOUT_MS" in stderr
+
+
+def test_request_timeout_flag_wins_over_env_knob():
+    config, _ = _generate_env("45000", "--request-timeout", "12s")
+    assert _route(config)["timeout"] == "12s"
+
+
+@pytest.mark.parametrize("value", [None, "45000", "1500", "bogus"])
+def test_manager_reads_the_same_route_timeout_knob(value, monkeypatch):
+    pytest.importorskip("yaml")
+    if value is None:
+        monkeypatch.delenv("QUANTRA_ROUTE_TIMEOUT_MS", raising=False)
+    else:
+        monkeypatch.setenv("QUANTRA_ROUTE_TIMEOUT_MS", value)
+    generator = _load_module("envoy_config_under_test_env", ENVOY_CONFIG_SCRIPT)
+    manager = _load_module("quantra_manager_under_test_env", MANAGER_SCRIPT)
+    assert manager.route_timeout_from_env() == generator.route_timeout_from_env()
+    assert manager.generate_envoy_config(50051, 50055, 2, 9901) == \
+        generator.generate_envoy_config(port=50051, base_port=50055, workers=2, admin_port=9901)
+    expected = {None: "30s", "45000": "45s", "1500": "1.5s", "bogus": "30s"}[value]
+    assert _route(manager.generate_envoy_config(50051, 50055, 2, 9901))["timeout"] == expected
+    monkeypatch.setenv("QUANTRA_ROUTE_TIMEOUT_MS", "180000")
+    route = _route(manager.generate_envoy_config(50051, 50055, 2, 9901))
+    assert route["timeout"] == "180s"
+    assert route["max_stream_duration"]["grpc_timeout_header_max"] == "180s"

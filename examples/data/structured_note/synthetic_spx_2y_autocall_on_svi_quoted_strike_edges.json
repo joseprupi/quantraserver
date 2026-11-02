@@ -1,0 +1,261 @@
+{
+  "pricing": {
+    "as_of_date": "2026-09-30",
+    "quotes": [
+      {
+        "id": "SPX_SYN_SPOT",
+        "kind": "Price",
+        "value": 7663.0,
+        "quote_type": "Curve"
+      }
+    ],
+    "rates": {
+      "curves": [
+        {
+          "id": "USD_OIS_SYN",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2026-09-30",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "date": "2026-09-30",
+                "zero_rate": 0.04,
+                "compounding": "Continuous",
+                "frequency": "Annual"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "date": "2027-09-30",
+                "zero_rate": 0.038,
+                "compounding": "Continuous",
+                "frequency": "Annual"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "date": "2029-09-30",
+                "zero_rate": 0.037,
+                "compounding": "Continuous",
+                "frequency": "Annual"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "date": "2036-09-30",
+                "zero_rate": 0.04,
+                "compounding": "Continuous",
+                "frequency": "Annual"
+              }
+            }
+          ]
+        },
+        {
+          "id": "SPX_SYN_DIV_PLACEHOLDER",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2026-09-30",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "date": "2026-09-30",
+                "zero_rate": 0.0,
+                "compounding": "Continuous",
+                "frequency": "Annual"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "date": "2036-09-30",
+                "zero_rate": 0.0,
+                "compounding": "Continuous",
+                "frequency": "Annual"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "equity": {
+      "equity_underlyings": [
+        {
+          "id": "SPX_SYN",
+          "currency": "USD",
+          "spot_quote_id": "SPX_SYN_SPOT",
+          "dividend_yield_curve_id": "SPX_SYN_DIV_PLACEHOLDER"
+        }
+      ]
+    },
+    "volatility": {
+      "vol_surfaces": [
+        {
+          "id": "SPX_SYN_VOL",
+          "payload_type": "SviVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-09-30",
+              "calendar": "NullCalendar",
+              "business_day_convention": "Unadjusted",
+              "day_counter": "Actual365Fixed"
+            },
+            "slices": [
+              {
+                "expiry": "2026-10-16",
+                "forward": 7672.381833777797,
+                "a": -0.100920090859,
+                "b": 0.184035351075,
+                "sigma": 0.732334398375,
+                "rho": -0.662785473369,
+                "m": -0.495137015332,
+                "strike_min": 4597.8,
+                "strike_max": 8237.725
+              },
+              {
+                "expiry": "2026-12-18",
+                "forward": 7708.858597882826,
+                "a": -0.081354354284,
+                "b": 0.252209646394,
+                "sigma": 0.557962149806,
+                "rho": -0.798407641195,
+                "m": -0.499246438519,
+                "strike_min": 4597.8,
+                "strike_max": 8812.45
+              },
+              {
+                "expiry": "2027-03-19",
+                "forward": 7760.220861887292,
+                "a": -0.089293454046,
+                "b": 0.372406021796,
+                "sigma": 0.54091577681,
+                "rho": -0.877985730173,
+                "m": -0.60558371876,
+                "strike_min": 4597.8,
+                "strike_max": 8812.45
+              },
+              {
+                "expiry": "2027-06-18",
+                "forward": 7809.9832869701,
+                "a": -0.126622815406,
+                "b": 0.474794163264,
+                "sigma": 0.603372012794,
+                "rho": -0.873897861315,
+                "m": -0.674993035748,
+                "strike_min": 4597.8,
+                "strike_max": 8812.45
+              },
+              {
+                "expiry": "2027-12-17",
+                "forward": 7907.646564590046,
+                "a": -0.20946219511,
+                "b": 0.675620773633,
+                "sigma": 0.698501502193,
+                "rho": -0.868147729956,
+                "m": -0.793788144865,
+                "strike_min": 4597.8,
+                "strike_max": 8812.45
+              },
+              {
+                "expiry": "2028-06-16",
+                "forward": 8006.991229292144,
+                "a": -0.302442523604,
+                "b": 0.879071088136,
+                "sigma": 0.771898980509,
+                "rho": -0.865318897422,
+                "m": -0.897471903464,
+                "strike_min": 4597.8,
+                "strike_max": 8812.45
+              },
+              {
+                "expiry": "2028-12-15",
+                "forward": 8105.571174897446,
+                "a": -0.404075027184,
+                "b": 1.087299195948,
+                "sigma": 0.832113736802,
+                "rho": -0.864282893143,
+                "m": -0.991024139864,
+                "strike_min": 4597.8,
+                "strike_max": 8812.45
+              },
+              {
+                "expiry": "2029-03-16",
+                "forward": 8154.556050202696,
+                "a": -0.457697798756,
+                "b": 1.193259362156,
+                "sigma": 0.858621345088,
+                "rho": -0.864191960814,
+                "m": -1.034755678807,
+                "strike_min": 4597.8,
+                "strike_max": 8812.45
+              }
+            ],
+            "time_interpolation": "LinearTotalVariance",
+            "allow_extrapolation": true,
+            "local_vol_time_extrapolation": "FlatLocalVol"
+          }
+        }
+      ]
+    }
+  },
+  "notes": [
+    {
+      "trade_id": "SYNTHETIC_SPX_2Y_AUTOCALL",
+      "currency": "USD",
+      "notional": 1000.0,
+      "underlyings": [
+        {
+          "underlying_id": "SPX_SYN",
+          "volatility_id": "SPX_SYN_VOL",
+          "initial_level": 7663.0
+        }
+      ],
+      "performance_rule": "WorstOf",
+      "events": [
+        {
+          "observation_date": "2027-09-30",
+          "payment_date": "2027-10-05",
+          "autocall_trigger": 1.0,
+          "coupon": 0.08
+        },
+        {
+          "observation_date": "2028-09-29",
+          "payment_date": "2028-10-04",
+          "is_final": true
+        }
+      ],
+      "coupon_rule": {
+        "memory": false,
+        "pay_only_on_call": true
+      },
+      "capital": {
+        "barrier": 0.6,
+        "monitoring": "European",
+        "put_strike": 1.0,
+        "participation": 1.0
+      },
+      "upside": {
+        "strike": 1.0,
+        "participation": 1.0
+      },
+      "maturity_payment_date": "2028-10-04",
+      "discounting_curve": "USD_OIS_SYN",
+      "funding_spread_bp": 0.0,
+      "monte_carlo": {
+        "paths": 4096,
+        "seed": 42,
+        "sequence": "Sobol",
+        "antithetic": true,
+        "brownian_bridge": true,
+        "steps_per_year": 252
+      }
+    }
+  ]
+}

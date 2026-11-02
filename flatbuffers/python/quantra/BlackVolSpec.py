@@ -281,8 +281,21 @@ class BlackVolSpec(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 2
 
+    # Optional. For a strike-dependent surface simulated as Dupire local
+    # vol by a structured note: how the local vol is extended beyond the
+    # last expiry (see the enum). Absent = FlatImpliedVol (the local vol of
+    # the flat-implied-vol extension). `/calibrate-vol-surface` returns
+    # FlatLocalVol. No effect on a Constant or AtmMatrix2D vol, nor on any
+    # Black vol read (vanilla options, diagnostics).
+    # BlackVolSpec
+    def LocalVolTimeExtrapolation(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(46))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return None
+
 def BlackVolSpecStart(builder):
-    builder.StartObject(21)
+    builder.StartObject(22)
 
 def Start(builder):
     BlackVolSpecStart(builder)
@@ -437,6 +450,12 @@ def BlackVolSpecAddStrikeInterpolator(builder, strikeInterpolator):
 def AddStrikeInterpolator(builder, strikeInterpolator):
     BlackVolSpecAddStrikeInterpolator(builder, strikeInterpolator)
 
+def BlackVolSpecAddLocalVolTimeExtrapolation(builder, localVolTimeExtrapolation):
+    builder.PrependInt8Slot(21, localVolTimeExtrapolation, None)
+
+def AddLocalVolTimeExtrapolation(builder, localVolTimeExtrapolation):
+    BlackVolSpecAddLocalVolTimeExtrapolation(builder, localVolTimeExtrapolation)
+
 def BlackVolSpecEnd(builder):
     return builder.EndObject()
 
@@ -473,6 +492,7 @@ class BlackVolSpecT(object):
         self.surfaceInterpolator = 0  # type: int
         self.expiryInterpolator = 2  # type: int
         self.strikeInterpolator = 2  # type: int
+        self.localVolTimeExtrapolation = None  # type: Optional[int]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -542,6 +562,7 @@ class BlackVolSpecT(object):
         self.surfaceInterpolator = blackVolSpec.SurfaceInterpolator()
         self.expiryInterpolator = blackVolSpec.ExpiryInterpolator()
         self.strikeInterpolator = blackVolSpec.StrikeInterpolator()
+        self.localVolTimeExtrapolation = blackVolSpec.LocalVolTimeExtrapolation()
 
     # BlackVolSpecT
     def Pack(self, builder):
@@ -624,5 +645,6 @@ class BlackVolSpecT(object):
         BlackVolSpecAddSurfaceInterpolator(builder, self.surfaceInterpolator)
         BlackVolSpecAddExpiryInterpolator(builder, self.expiryInterpolator)
         BlackVolSpecAddStrikeInterpolator(builder, self.strikeInterpolator)
+        BlackVolSpecAddLocalVolTimeExtrapolation(builder, self.localVolTimeExtrapolation)
         blackVolSpec = BlackVolSpecEnd(builder)
         return blackVolSpec

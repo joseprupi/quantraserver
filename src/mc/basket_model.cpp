@@ -51,10 +51,14 @@ BasketAsset MakeBasketAsset(
 EdgeClampedLocalVol::EdgeClampedLocalVol(
     std::shared_ptr<QuantLib::LocalVolTermStructure> inner,
     QuantLib::Real minStrike,
-    QuantLib::Real maxStrike)
+    QuantLib::Real maxStrike,
+    QuantLib::Time maxTime)
     : QuantLib::LocalVolTermStructure(inner->businessDayConvention(), inner->dayCounter()),
       inner_(std::move(inner)), lower_(minStrike * std::exp(kEdgeMargin)),
-      upper_(maxStrike * std::exp(-kEdgeMargin)) {
+      upper_(maxStrike * std::exp(-kEdgeMargin)), tMax_(QL_MAX_REAL) {
+    if (maxTime != QuantLib::Null<QuantLib::Time>() && maxTime > 2.0 * kTimeMargin) {
+        tMax_ = maxTime - kTimeMargin;
+    }
     if (!(lower_ < upper_)) {
         // A strike range narrower than twice the margin (or unbounded on
         // one side only): no interior to clamp to, evaluate as is.
@@ -68,8 +72,12 @@ QuantLib::Real EdgeClampedLocalVol::clampedLevel(QuantLib::Real s) const {
     return std::min(std::max(s, lower_), upper_);
 }
 
+QuantLib::Time EdgeClampedLocalVol::clampedTime(QuantLib::Time t) const {
+    return std::min(t, tMax_);
+}
+
 QuantLib::Volatility EdgeClampedLocalVol::localVolImpl(QuantLib::Time t, QuantLib::Real s) const {
-    return inner_->localVol(t, clampedLevel(s), true);
+    return inner_->localVol(clampedTime(t), clampedLevel(s), true);
 }
 
 void LocalVolCache::attach(BasketAsset& asset) {
@@ -81,22 +89,38 @@ void LocalVolCache::attach(BasketAsset& asset) {
         QUANTRA_ERROR(
             "basket model: every spot, curve and vol handle must be linked for asset: " + asset.id);
     }
+    const QuantLib::Real minStrike =
+        asset.localVolStrikeRange ? asset.localVolStrikeRange->first : asset.vol->minStrike();
+    const QuantLib::Real maxStrike =
+        asset.localVolStrikeRange ? asset.localVolStrikeRange->second : asset.vol->maxStrike();
+    if (!(minStrike < maxStrike)) {
+        QUANTRA_ERROR("basket model: empty local vol strike range for asset: " + asset.id);
+    }
     const Key key{
-        asset.vol.currentLink().get(), asset.spot.currentLink().get(),
-        asset.dividend.currentLink().get(), asset.riskFree.currentLink().get()};
+        asset.vol.currentLink().get(),
+        asset.spot.currentLink().get(),
+        asset.dividend.currentLink().get(),
+        asset.riskFree.currentLink().get(),
+        static_cast<int>(asset.localVolTime),
+        minStrike,
+        maxStrike};
     auto it = cache_.find(key);
     if (it == cache_.end()) {
         // The very object GeneralizedBlackScholesProcess::localVolatility()
         // would build (ql/processes/blackscholesprocess.cpp): LocalVolSurface
         // on the Black vol, the risk-free and dividend curves and the spot;
-        // read at the level clamped to the interior of the strike grid.
+        // read at the level clamped to the interior of the strike grid and,
+        // with FlatLocalVol, at the time clamped below the last expiry.
         auto inner = std::make_shared<QuantLib::LocalVolSurface>(
             asset.vol, asset.riskFree, asset.dividend, asset.spot);
+        const QuantLib::Time maxTime = asset.localVolTime == LocalVolTimeExtrapolation::FlatLocalVol
+                                           ? asset.vol->maxTime()
+                                           : QuantLib::Null<QuantLib::Time>();
         it = cache_
                  .emplace(
                      key, QuantLib::Handle<QuantLib::LocalVolTermStructure>(
                               std::make_shared<EdgeClampedLocalVol>(
-                                  inner, asset.vol->minStrike(), asset.vol->maxStrike())))
+                                  inner, minStrike, maxStrike, maxTime)))
                  .first;
     }
     asset.localVol = it->second;
