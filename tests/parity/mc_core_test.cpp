@@ -35,6 +35,7 @@
 #include "error.h"
 #include "path_engine.h"
 #include "quanto_builder.h"
+#include "smile_slice_vol_surface.h"
 #include "time_grid.h"
 
 #include <ql/exercise.hpp>
@@ -841,6 +842,138 @@ TEST(McCoreTest, SharedLocalVolIsBitIdenticalInsideTheGridAndHoldsTheEdgeOutside
         EXPECT_TRUE(asset.localVol.empty());
         EXPECT_EQ(cache.size(), 0u);
     }
+}
+
+// The time clamp of FlatLocalVol on a skewed SVI surface whose last slice
+// is at 2 years: beyond it the flat implied vol of the surface's own
+// extension makes the Dupire local variance negative on the put wing by
+// 5 years (FlatImpliedVol: QuantLib's error, unchanged); FlatLocalVol reads
+// the local vol at T_last - kTimeMargin for every later time, bit for bit
+// QuantLib's LocalVolSurface there, and is QuantLib's own before it.
+TEST(McCoreTest, FlatLocalVolHoldsTheLocalVolBeyondTheLastExpiry) {
+    McMarket m;
+    const Real S = 100.0, r = 0.03, q = 0.01;
+    const std::vector<Date> expiries = {m.plusDays(365), m.plusDays(730)};
+    std::vector<quantra::SviSliceParams> params(2);
+    params[0].forward = S * std::exp((r - q) * 1.0);
+    params[0].a = 0.02;
+    params[0].b = 0.1;
+    params[0].sigma = 0.1;
+    params[0].rho = -0.7;
+    params[0].m = 0.0;
+    params[1] = params[0];
+    params[1].forward = S * std::exp((r - q) * 2.0);
+    params[1].a = 0.04;
+    params[1].b = 0.2;
+    auto surface =
+        quantra::makeSviSurface(m.valuation, m.cal, QuantLib::Unadjusted, m.dc, expiries, params);
+    surface->enableExtrapolation();
+    const Handle<QuantLib::BlackVolTermStructure> vol(surface);
+    const QuantLib::Time tLast = surface->maxTime();
+    ASSERT_DOUBLE_EQ(tLast, 2.0);
+
+    const auto base = mc::MakeBasketAsset("SVI", m.spot(S), m.flat(q), m.flat(r), vol);
+    ASSERT_FALSE(base.exactStepCapable);
+    QuantLib::LocalVolSurface plain(vol, base.riskFree, base.dividend, base.spot);
+
+    // FlatImpliedVol (the default): no time clamp, QuantLib's local vol.
+    auto implied = base;
+    EXPECT_EQ(implied.localVolTime, mc::LocalVolTimeExtrapolation::FlatImpliedVol);
+    mc::LocalVolCache cache;
+    cache.attach(implied);
+    const auto* impliedLv =
+        dynamic_cast<const mc::EdgeClampedLocalVol*>(implied.localVol.currentLink().get());
+    ASSERT_NE(impliedLv, nullptr);
+    EXPECT_EQ(impliedLv->clampedTime(5.0), 5.0);
+    EXPECT_EQ(implied.localVol->localVol(1.5, 80.0, true), plain.localVol(1.5, 80.0, true));
+    EXPECT_THROW(plain.localVol(5.0, 80.0, true), std::exception);
+    EXPECT_THROW(implied.localVol->localVol(5.0, 80.0, true), std::exception);
+
+    // FlatLocalVol: another cache entry (the flag is part of the key).
+    auto flat = base;
+    flat.localVolTime = mc::LocalVolTimeExtrapolation::FlatLocalVol;
+    cache.attach(flat);
+    EXPECT_EQ(cache.size(), 2u);
+    ASSERT_NE(flat.localVol.currentLink().get(), implied.localVol.currentLink().get());
+    const auto* flatLv =
+        dynamic_cast<const mc::EdgeClampedLocalVol*>(flat.localVol.currentLink().get());
+    ASSERT_NE(flatLv, nullptr);
+    const QuantLib::Time tClamp = tLast - mc::EdgeClampedLocalVol::kTimeMargin;
+    EXPECT_EQ(flatLv->clampedTime(5.0), tClamp);
+    EXPECT_EQ(flatLv->clampedTime(1.5), 1.5);
+    for (Real K : {40.0, 60.0, 80.0, 100.0, 150.0}) {
+        const Real atClamp = plain.localVol(tClamp, K, true);
+        EXPECT_GT(atClamp, 0.0) << K;
+        for (QuantLib::Time t : {tClamp, tLast, 2.5, 5.0, 10.0}) {
+            EXPECT_EQ(flat.localVol->localVol(t, K, true), atClamp) << "K " << K << " t " << t;
+        }
+        // Inside the expiry range the value is QuantLib's own.
+        EXPECT_EQ(flat.localVol->localVol(1.5, K, true), plain.localVol(1.5, K, true)) << K;
+    }
+
+    // A 5-year simulation on the FlatLocalVol asset prices.
+    const auto grid = mc::BuildSimulationGrid(m.valuation, {m.plusDays(5 * 365)}, Size(12));
+    const mc::PathFunctor terminal = [&](const QuantLib::MultiPath& path, std::vector<Real>& acc) {
+        acc[0] = path[0].back();
+    };
+    const auto res = mc::RunPaths(
+        mc::BasketModel::build({flat}, identity(1)), grid.grid, config(1024, kSobol, true, true), 1,
+        terminal);
+    EXPECT_TRUE(std::isfinite(res.mean[0]));
+    EXPECT_THROW(
+        mc::RunPaths(
+            mc::BasketModel::build({implied}, identity(1)), grid.grid,
+            config(1024, kSobol, true, true), 1, terminal),
+        std::exception);
+}
+
+// An SVI surface whose payload carries its quoted strike range (strike_min /
+// strike_max, BasketAsset::localVolStrikeRange): the surface stays global in
+// strike (minStrike 0, maxStrike QL_MAX_REAL, every Black vol read
+// unchanged) and the shared local vol holds the edge value beyond the range
+// exactly as for a grid. Without the range the clamp is a no-op and a wing
+// with butterfly arbitrage fails beyond the quotes.
+TEST(McCoreTest, SviQuotedStrikeRangeClampsTheLocalVol) {
+    McMarket m;
+    const Real S = 100.0, r = 0.03, q = 0.01;
+    const std::vector<Date> expiries = {m.plusDays(365)};
+    std::vector<quantra::SviSliceParams> params(1);
+    params[0].forward = S * std::exp((r - q) * 1.0);
+    // A steep put wing (left slope b (1 - rho) = 1.52): the local variance
+    // is negative between 30 and 40 (Durrleman's g < 0), positive on the
+    // quoted range 60 .. 115.
+    params[0].a = 0.01;
+    params[0].b = 0.8;
+    params[0].sigma = 0.3;
+    params[0].rho = -0.9;
+    params[0].m = -0.2;
+    auto surface =
+        quantra::makeSviSurface(m.valuation, m.cal, QuantLib::Unadjusted, m.dc, expiries, params);
+    EXPECT_EQ(surface->minStrike(), 0.0);
+    EXPECT_EQ(surface->maxStrike(), QL_MAX_REAL);
+    const Handle<QuantLib::BlackVolTermStructure> vol(surface);
+
+    auto open = mc::MakeBasketAsset("O", m.spot(S), m.flat(q), m.flat(r), vol);
+    auto edged = open;
+    edged.localVolStrikeRange = std::make_pair(60.0, 115.0);
+    mc::LocalVolCache cache;
+    cache.attach(open);
+    cache.attach(edged);
+    EXPECT_EQ(cache.size(), 2u);
+    QuantLib::LocalVolSurface plain(vol, open.riskFree, open.dividend, open.spot);
+    // Far down the put wing the raw SVI local variance is negative.
+    EXPECT_THROW(plain.localVol(0.5, 35.0, true), std::exception);
+    EXPECT_THROW(open.localVol->localVol(0.5, 35.0, true), std::exception);
+    const Real lo = 60.0 * std::exp(mc::EdgeClampedLocalVol::kEdgeMargin);
+    const Real hi = 115.0 * std::exp(-mc::EdgeClampedLocalVol::kEdgeMargin);
+    EXPECT_GT(plain.localVol(0.5, lo, true), 0.0);
+    EXPECT_EQ(edged.localVol->localVol(0.5, 35.0, true), plain.localVol(0.5, lo, true));
+    EXPECT_EQ(edged.localVol->localVol(0.5, 400.0, true), plain.localVol(0.5, hi, true));
+    EXPECT_EQ(edged.localVol->localVol(0.5, 100.0, true), plain.localVol(0.5, 100.0, true));
+
+    auto empty = open;
+    empty.localVolStrikeRange = std::make_pair(115.0, 60.0);
+    EXPECT_THROW(cache.attach(empty), std::exception);
 }
 
 TEST(McCoreTest, TimeGridMandatoryOnlyAndRefined) {

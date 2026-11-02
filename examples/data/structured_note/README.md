@@ -21,6 +21,8 @@ an in-request comment.
 | `synthetic_two_asset_worst_of_flat_vol_autocall.json` | Synthetic: two USD indices (flat 25 % / 30 % vols, rho 0.7), worst-of, four semi-annual 100 % autocalls with 5 % snowball coupons, 70 % European barrier, 1024 paths | none (test case) |
 | `scotia_autocallable_trigger_ndx_rty_us06419jme72_with_synthetic_surface.json` | The Scotia request with **synthetic** strike x expiry vol surfaces for NDX and RTY in place of the flat VXN/RVX vols: `/calibrate-vol-surface` (SVI method) on the generator's `svi_scotia_ndx` / `svi_scotia_rty` presets, SSVI smiles written on the note's own market (its spots, its Treasury curve read at the sheet expiries, its flat dividend yields) so the forwards the quotes imply are the forwards the note simulates — see `examples/data/vol_surface/README.md`; `steps_per_year: 252` (Dupire local vol), 2048 paths; the two sheets are pasted under `diagnostics.vanilla_repricing_sheets` with `vanilla_repricing: true`, the acceptance check of the quotes -> surface -> simulation chain (see "Diagnostics" in `docs/http-api.md`; the grids are read `CubicStrikeLinearTime` and pass it). It shows the shape of a surface-priced note; its price is not a market value | US06419JME72 (synthetic vols) |
 | `scotia_autocallable_trigger_ndx_rty_us06419jme72_with_synthetic_svi.json` | The same request with the surfaces as `SviVolSpec` payloads (`vol_surface_spec_svi` of the same two calibrations: the eight fitted SVI slices per index with their forwards, the exact surfaces the sheets were generated from) in place of the grids; same sheets, same diagnostic. Synthetic vols, not a market value | US06419JME72 (synthetic vols) |
+| `synthetic_ndx_rty_5y_autocall_on_svi_flat_local_vol.json` | A hypothetical five-year version of the Scotia structure (annual 100 % autocall dates with a growing premium, 75 % European barrier, upside at maturity) on the same SVI slices, whose last expiry is 2027-12-17. Both surfaces set `local_vol_time_extrapolation: FlatLocalVol`: beyond the last expiry the Dupire local vol is held at its value 0.001 years before it. Without the field (flat implied vol in time) the skew makes the local variance negative a few years out and the note is a 400. Synthetic vols, not a market value | SYNTHETIC_NDX_RTY_5Y_AUTOCALL |
+| `synthetic_spx_2y_autocall_on_svi_quoted_strike_edges.json` | A two-year single-underlying autocall on the SVI slices `/calibrate-vol-surface` fits to `examples/data/vol_surface/synthetic_spx_steep_wings_sheet_svi.json` (quotes only from 60 % to 115 % of the spot). The slices carry `strike_min` / `strike_max`, the quoted strike range, and the local vol is held at the quoted edge beyond it; without them a path at 30 % of the spot reads the raw SVI put wing, whose local variance is negative there, and the note is a 400. Synthetic vols, not a market value | SYNTHETIC_SPX_2Y_AUTOCALL |
 | `single_underlying_reverse_convertible.json` | Synthetic reverse convertible on SPX alone: eight quarterly 2 % coupons paid unconditionally (`coupon_trigger: 0.0`, no `autocall_trigger`, no memory), 70 % European barrier at the final observation, SOFR + 80 bp; no `correlation_id` (a single underlying is simulated on the 1 x 1 unit matrix) | none (test case) |
 
 How the market data of a note is built up, from flat vols to calibrated surfaces,
@@ -216,8 +218,10 @@ comments of `flatbuffers/fbs/structured_note_response.fbs` and in
 
 (the defaults; `"greeks": {}` is the same request) to the BNP request, with
 `monte_carlo.paths` lowered to 16 384 so that the 16 simulations fit the
-JSON gateway's 10 s RPC deadline (at 65 536 paths they take about 21 s of
-engine time; the gateway would return a 504). The
+JSON gateway's default 10 s RPC deadline (at 65 536 paths they take about
+21 s of engine time; the gateway would return a 504 unless
+`QUANTRA_GATEWAY_DEADLINE_MS` and `QUANTRA_REQUEST_BUDGET_MS` are raised, see
+`docs/configuration.md`). The
 response then carries `greeks`: per underlying `delta` (per +1 % of spot,
 central), `gamma` (per +1 %^2) and `vega` (per +1 vol point) with the
 standard error of each, `correlation_sensitivity` (per +0.01 on every

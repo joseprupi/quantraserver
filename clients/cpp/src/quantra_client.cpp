@@ -9,19 +9,48 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cerrno>
 #include <cstdio>
+#include <cstdlib>
 #include <iostream>
 #include <stdexcept>
 #include <string_view>
 
 namespace quantra {
 
+long ParseGatewayDeadlineMs(const char* value, bool* valid) {
+    if (valid != nullptr) *valid = false;
+    if (value == nullptr || *value == '\0') return kDefaultGatewayDeadlineMs;
+    errno = 0;
+    char* end = nullptr;
+    const long ms = std::strtol(value, &end, 10);
+    if (end == value || *end != '\0' || errno == ERANGE || ms <= 0) {
+        return kDefaultGatewayDeadlineMs;
+    }
+    if (valid != nullptr) *valid = true;
+    return ms;
+}
+
+std::chrono::milliseconds GatewayDeadline() {
+    static const std::chrono::milliseconds deadline = [] {
+        const char* env = std::getenv("QUANTRA_GATEWAY_DEADLINE_MS");
+        bool valid = false;
+        const long ms = ParseGatewayDeadlineMs(env, &valid);
+        if (env != nullptr && *env != '\0' && !valid) {
+            std::cerr << "[gateway] QUANTRA_GATEWAY_DEADLINE_MS='" << env
+                      << "' is not a positive integer; using " << ms << " ms" << std::endl;
+        } else {
+            std::cerr << "[gateway] RPC deadline " << ms << " ms" << std::endl;
+        }
+        return std::chrono::milliseconds(ms);
+    }();
+    return deadline;
+}
+
 namespace {
 
-constexpr std::chrono::milliseconds kDefaultRpcDeadline{10000};
-
 void SetDefaultDeadline(grpc::ClientContext& context) {
-    context.set_deadline(std::chrono::system_clock::now() + kDefaultRpcDeadline);
+    context.set_deadline(std::chrono::system_clock::now() + GatewayDeadline());
 }
 
 std::string JsonEscape(std::string_view input) {
@@ -261,11 +290,17 @@ private:
 // QuantraClient Public Interface
 // =============================================================================
 
+// Both constructors resolve the RPC deadline up front so the configured value
+// (or the warning about an invalid one) is logged at startup.
 QuantraClient::QuantraClient(const std::string& address)
-    : impl_(std::make_unique<Impl>(address, false)) {}
+    : impl_(std::make_unique<Impl>(address, false)) {
+    (void)GatewayDeadline();
+}
 
 QuantraClient::QuantraClient(const std::string& address, bool use_tls)
-    : impl_(std::make_unique<Impl>(address, use_tls)) {}
+    : impl_(std::make_unique<Impl>(address, use_tls)) {
+    (void)GatewayDeadline();
+}
 
 QuantraClient::~QuantraClient() = default;
 

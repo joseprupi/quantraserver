@@ -78,6 +78,21 @@ struct Config {
     static std::string GetFbsIncludeDir();
 };
 
+// Default deadline the client sets on every RPC to the engine, in
+// milliseconds, when QUANTRA_GATEWAY_DEADLINE_MS is unset or invalid.
+constexpr long kDefaultGatewayDeadlineMs = 10000;
+
+// Parses a QUANTRA_GATEWAY_DEADLINE_MS value. Returns the value when it is a
+// positive integer (whole string), otherwise kDefaultGatewayDeadlineMs; a null
+// or empty value is "unset". `valid` (optional) reports whether the value was
+// used as given.
+long ParseGatewayDeadlineMs(const char* value, bool* valid = nullptr);
+
+// Deadline applied to every RPC this client sends: QUANTRA_GATEWAY_DEADLINE_MS,
+// read once per process on first use (an invalid value logs one line and keeps
+// the default).
+std::chrono::milliseconds GatewayDeadline();
+
 class JsonParseException : public std::runtime_error {
 public:
     using std::runtime_error::runtime_error;

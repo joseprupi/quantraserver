@@ -26,6 +26,95 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.16.4 (November 2026) — local vol beyond the quoted surface, configurable time limits
+
+`v0.16.4` is additive: new optional fields and new runtime knobs, no
+existing request changes. Every request that priced on 0.16.3 returns the
+same result; a client has nothing to do. The responses of
+`/calibrate-vol-surface` carry new fields (below), which a structured note
+reads when the specs are pasted as returned. QuantLib stays at 1.44.
+
+**Local vol beyond the last expiry: `local_vol_time_extrapolation`.** A
+strike-dependent surface (a `CubicStrikeLinearTime` grid, an `SviVolSpec`)
+extends its implied vol flat in time beyond its last expiry. With a skew
+that is not arbitrage-free at long horizons: with total variance
+`w = v(k) t` the `−w′²/16` term of Durrleman's condition grows like `t²`,
+the Dupire local variance turns negative, and a note maturing years after
+the last quoted expiry was a 400 ("negative local vol^2 at strike ... and
+time ..."). New enum `LocalVolTimeExtrapolation { FlatImpliedVol,
+FlatLocalVol }` and an optional field `local_vol_time_extrapolation` on
+`BlackVolSpec` and `SviVolSpec`:
+
+- absent or `FlatImpliedVol`: today's behaviour;
+- `FlatLocalVol`: the local vol a structured note simulates is held
+  time-homogeneous beyond the last expiry, read at
+  `min(t, T_last − 0.001)` years at the simulated level. The 0.001-year
+  margin keeps QuantLib's `LocalVolSurface` time stencil (`t ± dt`,
+  `dt ≤ 1e-4`) inside the quoted expiries. Before `T_last − 0.001` the
+  local vol is unchanged, bit for bit;
+- the Black vol itself (vanilla options, diagnostics) is unchanged: flat
+  implied vol beyond the last expiry under both;
+- `/calibrate-vol-surface` sets `FlatLocalVol` on both specs it returns
+  (`vol_surface_spec` and `vol_surface_spec_svi`), so a calibrated surface
+  prices a long note as returned. On a two-asset note running to five
+  years on surfaces that end after 1.2 years, the request goes from a 400 to
+  954.05 ± 7.56 (example
+  `structured_note/synthetic_ndx_rty_5y_autocall_on_svi_flat_local_vol.json`).
+
+**SVI wings beyond the quotes: `strike_min` / `strike_max`.** A reported
+note on an SVI surface (both arbitrage options on) failed the same check
+at 132 % of the spot, inside the expiry range. The cause, reproduced on a
+synthetic SPX-like sheet quoted from 60 % to 115 % of the spot: the
+calibrator checked and enforced Durrleman's `g ≥ 0` on its output strike
+range only (50 % to 150 % by default), while an SVI slice is global in
+strike and a structured note read its raw wing wherever a path went. The
+fitted slices were clean on the output range and not beyond it (the
+2028-06-16 slice: `min g −0.042` at `k = −1.18`), and a two-year note was a
+400 at 30 % of the spot at `t = 1.63` years. Changes:
+
+- `SviSlice` gets optional `strike_min` / `strike_max` (absolute strikes,
+  `> 0`, `strike_min < strike_max`, 400 otherwise);
+  `/calibrate-vol-surface` fills them with the strike range of each
+  slice's used quotes;
+- a structured note clamps the local vol of an SVI payload to
+  `[min strike_min, max strike_max]` over the slices exactly as it does
+  for a grid (the edge local vol beyond); a slice without one leaves that
+  side open; absent on every slice = no clamp, today's behaviour. No Black
+  vol read changes. The reproduction now prices (example
+  `structured_note/synthetic_spx_2y_autocall_on_svi_quoted_strike_edges.json`,
+  sheet `vol_surface/synthetic_spx_steep_wings_sheet_svi.json`);
+- the calibrator also scans each slice beyond its output range out to
+  `k = ±5 σ_ATM √T` and REPORTS a negative `g` there in `butterfly_action`
+  (appended text); `butterfly_min_g` and `butterfly_violation` keep
+  covering the output range only, and nothing beyond it is enforced.
+
+Not changed, documented: the slices are not calendar-clipped (only the
+grid is), so two fitted slices whose unquoted wings cross are a calendar
+arbitrage the slices keep. On a sheet with a strong call-wing upturn the
+2026-12-18 and 2027-03-19 slices cross inside the quoted range and a note
+is a 400 "decreasing variance at strike 5126.23 between time 0.444444 and
+time 0.444544"; the fix is on the quotes or the fit, not in the
+simulation.
+
+**Request time limits are configurable.** A long request (a calibration on
+thousands of quotes, a 65,536-path local-vol note at 252 steps per year)
+hit the gateway's fixed 10 s deadline. New knobs, documented in
+`configuration.md` ("Which limit binds"):
+
+- `QUANTRA_GATEWAY_DEADLINE_MS` (gateway, default 10000): the deadline the
+  JSON gateway sets on every call to the engine; read once at startup and
+  logged; an invalid value logs a line and keeps the default;
+- `QUANTRA_ROUTE_TIMEOUT_MS` (process manager and
+  `scripts/envoy_config.py`, default 30000): Envoy's route timeout. For gRPC
+  traffic Envoy applies the caller's deadline capped at
+  `grpc_timeout_header_max` instead of the route timeout, so that cap is
+  now `max(60 s, route timeout)`; the generated config is unchanged at the
+  defaults.
+
+The smallest of the Envoy cap, the gateway deadline and the engine budget
+(`QUANTRA_REQUEST_BUDGET_MS`) wins; for a long batch raise the gateway
+deadline and the engine budget together (and the Envoy cap past 60 s).
+
 ## Version 0.16.3 (October 2026) — discount factors above one (negative rates)
 
 `v0.16.3` is a PATCH release: no request or response shape changes and no

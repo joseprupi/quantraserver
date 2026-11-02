@@ -564,7 +564,36 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
             } else {
                 e.butterflyAction = "none";
             }
+            // Report only: the raw SVI wing beyond the output strike range,
+            // out to the levels a simulation reaches (k = +/- 5 sigma_ATM
+            // sqrt(T)). A structured note holds the local vol at the quoted
+            // strike edge (strike_min / strike_max on the slice), so a
+            // violation there does not reach a price; it is reported.
+            {
+                const double atmVol = std::sqrt(std::max(0.0, sviTotalVariance(p, 0.0)) / w.time);
+                const double reach = 5.0 * atmVol * std::sqrt(w.time);
+                double outMinG = std::numeric_limits<double>::infinity(), outK = 0.0;
+                auto scanOutside = [&](double a, double b) {
+                    if (!(a < b)) return;
+                    for (double k : butterflyGrid(a, b)) {
+                        const double g = sviDurrlemanG(p, k);
+                        if (g < outMinG) {
+                            outMinG = g;
+                            outK = k;
+                        }
+                    }
+                };
+                scanOutside(-reach, kLo);
+                scanOutside(kHi, reach);
+                if (outMinG < 0.0) {
+                    e.butterflyAction +=
+                        "; beyond the output strike range (reported only, up to k = +/-" +
+                        fmt(reach) + "): min g " + fmt(outMinG) + " at k " + fmt(outK);
+                }
+            }
             e.butterflyMinG = minG;
+            e.strikeMin = w.used.front().strike;
+            e.strikeMax = w.used.back().strike;
             e.svi = p;
             w.svi = p;
             // Fit error against the market vols.

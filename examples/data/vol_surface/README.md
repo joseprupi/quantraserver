@@ -13,6 +13,7 @@ this shape.
 | `synthetic_svi_sheet_2026-09-30_andreasen_huge.json` | The SVI sheet, `method: AndreasenHuge` (default grid, forwards fitted internally). |
 | `synthetic_svi_sheet_2026-09-30_svi.json` | The same sheet, `method: SviPerExpiry` (butterfly and calendar enforcement on). |
 | `synthetic_scotia_ndx_sheet.json`, `synthetic_scotia_rty_sheet.json` | The two quote sheets of the Scotia structured-note example as files (`{as_of_date, spot, sheet}`, the shape `tools/option_quotes/cboe_eod_to_quote_sheet.py` writes): the `svi_scotia_ndx` / `svi_scotia_rty` presets, read by `examples/structured_note_workflow/price_note_from_quotes.py`. |
+| `synthetic_spx_steep_wings_sheet_svi.json` | An SPX-like sheet quoted only from 60 % to 115 % of the spot out to 2.5 years (preset `spx_steep_wings`: σ = 18 % − 0.20 k/√T + 0.25 k²/√T), `method: SviPerExpiry`. The fitted slices are butterfly-free on the default output range (50 % to 150 %) and not beyond it: the response returns each slice's quoted strike range (`strike_min` / `strike_max`) and reports the violations beyond the output range in `butterfly_action`. Used by `examples/data/structured_note/synthetic_spx_2y_autocall_on_svi_quoted_strike_edges.json`. Produced by `--preset spx_steep_wings --endpoint vol-surface --method SviPerExpiry`. |
 
 The first two are produced by
 

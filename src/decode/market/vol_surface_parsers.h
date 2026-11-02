@@ -135,6 +135,16 @@ struct BlackVolEntry {
     QuantLib::Matrix surfaceVols;
     BlackSurfaceInterpolation surfaceInterpolation = BlackSurfaceInterpolation::Bilinear;
     bool allowExtrapolation = false;
+    /// `local_vol_time_extrapolation` of the spec: true for FlatLocalVol
+    /// (a structured note holds the local vol flat beyond the last expiry);
+    /// false when absent or FlatImpliedVol.
+    bool flatLocalVolBeyondLastExpiry = false;
+    /// SviSlices with `strike_min` / `strike_max`: [min strike_min, max
+    /// strike_max] over the slices (a slice without one leaves that side at
+    /// 0 / QL_MAX_REAL), the strike range a structured note's local vol is
+    /// clamped to. Empty when no slice carries either; never read by a Black
+    /// vol (the SVI formula is global in strike).
+    std::optional<std::pair<double, double>> localVolStrikeRange;
 };
 
 /**
@@ -260,7 +270,11 @@ BlackVolEntry parseBlackVol(
  * missing base convention, a base `shape` / `constant_vol` / `quote_id`
  * (not part of this payload), no slices, an expiry not after the reference
  * date or not increasing, a non-positive forward, or an inadmissible slice
- * (b < 0, sigma <= 0, |rho| >= 1, negative minimum variance).
+ * (b < 0, sigma <= 0, |rho| >= 1, negative minimum variance), a
+ * `strike_min` / `strike_max` that is not a finite strike > 0, or
+ * strike_min >= strike_max. [min strike_min, max strike_max] over the
+ * slices goes to `localVolStrikeRange` (a slice without one leaves that
+ * side open); the surface itself stays global in strike.
  */
 BlackVolEntry parseSviVol(const quantra::VolSurfaceSpec* spec);
 

@@ -70,7 +70,26 @@
  * = 1e-3 in log-strike, wider than the stencil) before LocalVolSurface is
  * asked, so a path beyond the quoted strikes evolves with the edge
  * strike's local vol and the stencil never leaves the grid. Inside that
- * interior the value is LocalVolSurface's own, bit for bit.
+ * interior the value is LocalVolSurface's own, bit for bit. An SVI surface
+ * is global in strike (minStrike 0, maxStrike QL_MAX_REAL: no clamp) unless
+ * its payload carries the quoted strike range (`strike_min` /
+ * `strike_max`), passed as `BasketAsset::localVolStrikeRange`: a raw SVI
+ * wing beyond the quotes can carry butterfly arbitrage, so the local vol
+ * is then held at the quoted edge exactly as for a grid.
+ *
+ * Local vol beyond the last expiry. A strike x expiry surface extends its
+ * IMPLIED vol flat in time beyond its last expiry (w(t, K) = w(T, K) t / T).
+ * With a skew that is not arbitrage-free at long horizons: the Dupire
+ * denominator carries -t^2 v_k^2 / 16 (v = w / t the implied variance, k
+ * the log-strike), which eventually dominates and turns the local variance
+ * negative ("negative local vol^2 at strike ... and time ..."). With
+ * `BasketAsset::localVolTime == FlatLocalVol` the local vol is instead held
+ * time-homogeneous beyond the last expiry: it is read at
+ * min(t, T_last - kTimeMargin), T_last the Black surface's maxTime(), the
+ * margin (1e-3 years) wider than LocalVolSurface's time stencil (t +/- dt,
+ * dt = min(1e-4, t / 2)) so the stencil stays inside the quoted expiries.
+ * Before that time the value is LocalVolSurface's own, bit for bit. The
+ * Black vol itself (vanilla pricing, diagnostics) is unchanged.
  *
  * Sharing. A request builds several process arrays from the same market
  * (the price, the correlation limits of `checks`, the repricing run, the
@@ -94,14 +113,27 @@
 #include <ql/termstructures/volatility/equityfx/localvoltermstructure.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/timegrid.hpp>
+#include <ql/utilities/null.hpp>
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 namespace quantra { namespace mc {
+
+/// How the local vol of a strike-dependent vol is extended in time beyond
+/// the Black surface's last expiry (see the file comment).
+enum class LocalVolTimeExtrapolation {
+    /// The local vol derived from the surface's own flat-implied-vol
+    /// extension (no time clamp).
+    FlatImpliedVol,
+    /// The local vol at T_last - kTimeMargin for every later time.
+    FlatLocalVol
+};
 
 /// One simulated asset. All handles must be linked.
 struct BasketAsset {
@@ -126,6 +158,13 @@ struct BasketAsset {
     /// process derives its own on first use. Must be empty for an
     /// exact-step asset (QUANTRA_ERROR otherwise: caller wiring bug).
     QuantLib::Handle<QuantLib::LocalVolTermStructure> localVol;
+    /// Time extension of the local vol of a strike-dependent `vol`
+    /// (ignored for an exact-step asset). LocalVolCache applies it.
+    LocalVolTimeExtrapolation localVolTime = LocalVolTimeExtrapolation::FlatImpliedVol;
+    /// Optional: the strike range the local vol of a strike-dependent `vol`
+    /// is clamped to (the quoted strikes of an SVI payload). Empty = the
+    /// vol's minStrike() / maxStrike(). LocalVolCache applies it.
+    std::optional<std::pair<QuantLib::Real, QuantLib::Real>> localVolStrikeRange;
 };
 
 /**
@@ -147,21 +186,31 @@ BasketAsset MakeBasketAsset(
 
 /**
  * QuantLib's LocalVolSurface evaluated at the level clamped to the interior
- * of the Black surface's strike grid (see the file comment). Every term
+ * of the Black surface's strike grid and, optionally, at the time clamped
+ * below the surface's last expiry (see the file comment). Every term
  * structure property is the inner surface's.
  */
 class EdgeClampedLocalVol : public QuantLib::LocalVolTermStructure {
 public:
     /// Clamp margin in log-strike on each side of the quoted strike range.
     static constexpr double kEdgeMargin = 1.0e-3;
+    /// Clamp margin in years below the last expiry (FlatLocalVol): wider
+    /// than LocalVolSurface's time stencil (dt <= 1e-4).
+    static constexpr double kTimeMargin = 1.0e-3;
 
+    /// `maxTime`: the Black surface's maxTime() to hold the local vol flat
+    /// beyond (FlatLocalVol), or QuantLib::Null<Time>() for no time clamp. A
+    /// maxTime not above 2 kTimeMargin leaves no interior: no time clamp.
     EdgeClampedLocalVol(
         std::shared_ptr<QuantLib::LocalVolTermStructure> inner,
         QuantLib::Real minStrike,
-        QuantLib::Real maxStrike);
+        QuantLib::Real maxStrike,
+        QuantLib::Time maxTime = QuantLib::Null<QuantLib::Time>());
 
     /// The level the inner local vol is read at for a simulated level `s`.
     QuantLib::Real clampedLevel(QuantLib::Real s) const;
+    /// The time the inner local vol is read at for a simulation time `t`.
+    QuantLib::Time clampedTime(QuantLib::Time t) const;
 
     const QuantLib::Date& referenceDate() const override { return inner_->referenceDate(); }
     QuantLib::DayCounter dayCounter() const override { return inner_->dayCounter(); }
@@ -175,6 +224,8 @@ protected:
 private:
     std::shared_ptr<QuantLib::LocalVolTermStructure> inner_;
     QuantLib::Real lower_, upper_;
+    /// Latest time read (QL_MAX_REAL: no time clamp).
+    QuantLib::Time tMax_;
 };
 
 /**
@@ -192,7 +243,14 @@ public:
     std::size_t size() const { return cache_.size(); }
 
 private:
-    using Key = std::tuple<const void*, const void*, const void*, const void*>;
+    using Key = std::tuple<
+        const void*,
+        const void*,
+        const void*,
+        const void*,
+        int,
+        QuantLib::Real,
+        QuantLib::Real>;
     std::map<Key, QuantLib::Handle<QuantLib::LocalVolTermStructure>> cache_;
 };
 

@@ -89,8 +89,19 @@ class SviVolSpec(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
+    # Optional. How the Dupire local vol a structured note simulates is
+    # extended beyond the last slice (see the enum). Absent =
+    # FlatImpliedVol. `/calibrate-vol-surface` returns FlatLocalVol. No
+    # effect on any Black vol read (vanilla options, diagnostics).
+    # SviVolSpec
+    def LocalVolTimeExtrapolation(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return None
+
 def SviVolSpecStart(builder):
-    builder.StartObject(4)
+    builder.StartObject(5)
 
 def Start(builder):
     SviVolSpecStart(builder)
@@ -125,6 +136,12 @@ def SviVolSpecAddAllowExtrapolation(builder, allowExtrapolation):
 def AddAllowExtrapolation(builder, allowExtrapolation):
     SviVolSpecAddAllowExtrapolation(builder, allowExtrapolation)
 
+def SviVolSpecAddLocalVolTimeExtrapolation(builder, localVolTimeExtrapolation):
+    builder.PrependInt8Slot(4, localVolTimeExtrapolation, None)
+
+def AddLocalVolTimeExtrapolation(builder, localVolTimeExtrapolation):
+    SviVolSpecAddLocalVolTimeExtrapolation(builder, localVolTimeExtrapolation)
+
 def SviVolSpecEnd(builder):
     return builder.EndObject()
 
@@ -144,6 +161,7 @@ class SviVolSpecT(object):
         self.slices = None  # type: List[SviSliceT]
         self.timeInterpolation = 0  # type: int
         self.allowExtrapolation = False  # type: bool
+        self.localVolTimeExtrapolation = None  # type: Optional[int]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -178,6 +196,7 @@ class SviVolSpecT(object):
                     self.slices.append(sviSlice_)
         self.timeInterpolation = sviVolSpec.TimeInterpolation()
         self.allowExtrapolation = sviVolSpec.AllowExtrapolation()
+        self.localVolTimeExtrapolation = sviVolSpec.LocalVolTimeExtrapolation()
 
     # SviVolSpecT
     def Pack(self, builder):
@@ -198,5 +217,6 @@ class SviVolSpecT(object):
             SviVolSpecAddSlices(builder, slices)
         SviVolSpecAddTimeInterpolation(builder, self.timeInterpolation)
         SviVolSpecAddAllowExtrapolation(builder, self.allowExtrapolation)
+        SviVolSpecAddLocalVolTimeExtrapolation(builder, self.localVolTimeExtrapolation)
         sviVolSpec = SviVolSpecEnd(builder)
         return sviVolSpec

@@ -1,0 +1,519 @@
+{
+  "pricing": {
+    "as_of_date": "2026-09-30",
+    "quotes": [
+      {
+        "id": "NDX_SPOT",
+        "kind": "Price",
+        "value": 30408.5,
+        "quote_type": "Curve"
+      },
+      {
+        "id": "RTY_SPOT",
+        "kind": "Price",
+        "value": 2796.864,
+        "quote_type": "Curve"
+      }
+    ],
+    "rates": {
+      "curves": [
+        {
+          "id": "USD_TSY",
+          "reference_date": "2026-09-30",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.040133,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-09-30"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.040133,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 1,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.041781,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 3,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.042838,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 6,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.044916,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 1,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.04661,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 18,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.048319,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 2,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.048915,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 30,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.04952,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 3,
+                  "unit": "Years"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "NDX_DIV",
+          "reference_date": "2026-09-30",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0043,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-09-30"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0043,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "RTY_DIV",
+          "reference_date": "2026-09-30",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0098,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2026-09-30"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0098,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "equity": {
+      "equity_underlyings": [
+        {
+          "id": "NDX",
+          "currency": "USD",
+          "spot_quote_id": "NDX_SPOT",
+          "dividend_yield_curve_id": "NDX_DIV"
+        },
+        {
+          "id": "RTY",
+          "currency": "USD",
+          "spot_quote_id": "RTY_SPOT",
+          "dividend_yield_curve_id": "RTY_DIV"
+        }
+      ]
+    },
+    "volatility": {
+      "vol_surfaces": [
+        {
+          "id": "NDX_VOL",
+          "payload_type": "SviVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-09-30",
+              "calendar": "NullCalendar",
+              "business_day_convention": "Unadjusted",
+              "day_counter": "Actual365Fixed"
+            },
+            "slices": [
+              {
+                "expiry": "2026-10-16",
+                "forward": 30456.302038422335,
+                "a": 0.000591320548,
+                "b": 0.024077500437,
+                "sigma": 0.034389549217,
+                "rho": -0.700000000146,
+                "m": 0.033708500611
+              },
+              {
+                "expiry": "2026-11-20",
+                "forward": 30563.553900505998,
+                "a": 0.001803775685,
+                "b": 0.04205243791,
+                "sigma": 0.060062895115,
+                "rho": -0.700000000017,
+                "m": 0.058873413075
+              },
+              {
+                "expiry": "2026-12-18",
+                "forward": 30654.035939947207,
+                "a": 0.002671282192,
+                "b": 0.051175229453,
+                "sigma": 0.073092847689,
+                "rho": -0.700000000008,
+                "m": 0.071645321234
+              },
+              {
+                "expiry": "2027-01-15",
+                "forward": 30746.151799386753,
+                "a": 0.003455477055,
+                "b": 0.058204145923,
+                "sigma": 0.083132148468,
+                "rho": -0.700000000024,
+                "m": 0.081485804293
+              },
+              {
+                "expiry": "2027-03-19",
+                "forward": 30957.373501657665,
+                "a": 0.005237630137,
+                "b": 0.071658436397,
+                "sigma": 0.102348718968,
+                "rho": -0.699999999992,
+                "m": 0.100321810956
+              },
+              {
+                "expiry": "2027-06-18",
+                "forward": 31278.33023507913,
+                "a": 0.008041302739,
+                "b": 0.088789808748,
+                "sigma": 0.126817212873,
+                "rho": -0.699999999948,
+                "m": 0.124305732248
+              },
+              {
+                "expiry": "2027-09-17",
+                "forward": 31618.740264361037,
+                "a": 0.010844975345,
+                "b": 0.103113184249,
+                "sigma": 0.14727508507,
+                "rho": -0.700000000084,
+                "m": 0.144358457949
+              },
+              {
+                "expiry": "2027-12-17",
+                "forward": 31973.227223897167,
+                "a": 0.013648647943,
+                "b": 0.115676390844,
+                "sigma": 0.165218933217,
+                "rho": -0.699999999927,
+                "m": 0.16194694718
+              }
+            ],
+            "time_interpolation": "LinearTotalVariance",
+            "allow_extrapolation": true,
+            "local_vol_time_extrapolation": "FlatLocalVol"
+          }
+        },
+        {
+          "id": "RTY_VOL",
+          "payload_type": "SviVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2026-09-30",
+              "calendar": "NullCalendar",
+              "business_day_convention": "Unadjusted",
+              "day_counter": "Actual365Fixed"
+            },
+            "slices": [
+              {
+                "expiry": "2026-10-16",
+                "forward": 2800.585367817173,
+                "a": 0.000922734246,
+                "b": 0.028264891821,
+                "sigma": 0.042958916344,
+                "rho": -0.649999999978,
+                "m": 0.036744359366
+              },
+              {
+                "expiry": "2026-11-20",
+                "forward": 2808.965797091884,
+                "a": 0.002833290154,
+                "b": 0.049528426874,
+                "sigma": 0.075276691672,
+                "rho": -0.649999999969,
+                "m": 0.064386954936
+              },
+              {
+                "expiry": "2026-12-18",
+                "forward": 2816.093204608695,
+                "a": 0.004224768493,
+                "b": 0.060479816627,
+                "sigma": 0.091921363059,
+                "rho": -0.650000000001,
+                "m": 0.078623761613
+              },
+              {
+                "expiry": "2027-01-15",
+                "forward": 2823.364129976034,
+                "a": 0.005504188099,
+                "b": 0.069032824235,
+                "sigma": 0.104920809178,
+                "rho": -0.649999999999,
+                "m": 0.089742671506
+              },
+              {
+                "expiry": "2027-03-19",
+                "forward": 2840.062846531936,
+                "a": 0.008405393835,
+                "b": 0.085307662379,
+                "sigma": 0.12965642164,
+                "rho": -0.649999999979,
+                "m": 0.110899961091
+              },
+              {
+                "expiry": "2027-06-18",
+                "forward": 2865.575696673057,
+                "a": 0.01269910159,
+                "b": 0.10485653604,
+                "sigma": 0.159368137267,
+                "rho": -0.650000000021,
+                "m": 0.136313496853
+              },
+              {
+                "expiry": "2027-09-17",
+                "forward": 2892.793072520466,
+                "a": 0.016851633535,
+                "b": 0.120789730126,
+                "sigma": 0.183584495715,
+                "rho": -0.649999999998,
+                "m": 0.157026649166
+              },
+              {
+                "expiry": "2027-12-17",
+                "forward": 2921.216607215288,
+                "a": 0.021036090158,
+                "b": 0.134955789301,
+                "sigma": 0.205115041639,
+                "rho": -0.650000000118,
+                "m": 0.17544252609
+              }
+            ],
+            "time_interpolation": "LinearTotalVariance",
+            "allow_extrapolation": true,
+            "local_vol_time_extrapolation": "FlatLocalVol"
+          }
+        }
+      ]
+    },
+    "correlations": {
+      "matrices": [
+        {
+          "id": "NDX_RTY",
+          "labels": [
+            "NDX",
+            "RTY"
+          ],
+          "values": {
+            "n_rows": 2,
+            "n_cols": 2,
+            "values": [
+              1.0,
+              0.747,
+              0.747,
+              1.0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "notes": [
+    {
+      "trade_id": "SYNTHETIC_NDX_RTY_5Y_AUTOCALL",
+      "currency": "USD",
+      "notional": 1000.0,
+      "underlyings": [
+        {
+          "underlying_id": "NDX",
+          "volatility_id": "NDX_VOL",
+          "initial_level": 30408.5
+        },
+        {
+          "underlying_id": "RTY",
+          "volatility_id": "RTY_VOL",
+          "initial_level": 2796.864
+        }
+      ],
+      "performance_rule": "WorstOf",
+      "events": [
+        {
+          "observation_date": "2027-09-30",
+          "payment_date": "2027-10-05",
+          "autocall_trigger": 1.0,
+          "coupon": 0.1475
+        },
+        {
+          "observation_date": "2028-10-02",
+          "payment_date": "2028-10-05",
+          "autocall_trigger": 1.0,
+          "coupon": 0.295
+        },
+        {
+          "observation_date": "2029-10-01",
+          "payment_date": "2029-10-04",
+          "autocall_trigger": 1.0,
+          "coupon": 0.4425
+        },
+        {
+          "observation_date": "2030-09-30",
+          "payment_date": "2030-10-03",
+          "autocall_trigger": 1.0,
+          "coupon": 0.59
+        },
+        {
+          "observation_date": "2031-09-30",
+          "payment_date": "2031-10-03",
+          "is_final": true
+        }
+      ],
+      "coupon_rule": {
+        "memory": false,
+        "pay_only_on_call": true
+      },
+      "capital": {
+        "barrier": 0.75,
+        "monitoring": "European",
+        "put_strike": 1.0,
+        "participation": 1.0
+      },
+      "upside": {
+        "strike": 1.0,
+        "participation": 2.5
+      },
+      "maturity_payment_date": "2031-10-03",
+      "discounting_curve": "USD_TSY",
+      "funding_spread_bp": 0.0,
+      "correlation_id": "NDX_RTY",
+      "monte_carlo": {
+        "paths": 2048,
+        "seed": 42,
+        "sequence": "Sobol",
+        "antithetic": true,
+        "brownian_bridge": true,
+        "steps_per_year": 252
+      }
+    }
+  ]
+}

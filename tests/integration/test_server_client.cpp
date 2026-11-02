@@ -6,6 +6,7 @@
 #include "../parity/swap_leg_builders.h"
 #include "call_data_base.h"
 #include "non_finite_scan.h"
+#include "quantra_client.h"
 #include "request_budget.h"
 
 #include "basis_swap_response_generated.h"
@@ -2101,4 +2102,33 @@ TEST(NonFiniteScan, FirstOffenderWinsAndRootScalar) {
     auto root = quantra::FindNonFiniteValue("inf");
     ASSERT_TRUE(root.has_value());
     EXPECT_EQ(*root, "<root>");
+}
+
+// QUANTRA_GATEWAY_DEADLINE_MS parsing: a positive whole integer is used as
+// given; anything else (unset, empty, zero, negative, trailing junk, overflow)
+// keeps the 10 s default.
+TEST(GatewayDeadline, ParsesPositiveIntegerAndRejectsTheRest) {
+    bool valid = true;
+    EXPECT_EQ(quantra::ParseGatewayDeadlineMs(nullptr, &valid), 10000);
+    EXPECT_FALSE(valid);
+    EXPECT_EQ(quantra::ParseGatewayDeadlineMs("", &valid), 10000);
+    EXPECT_FALSE(valid);
+    EXPECT_EQ(quantra::ParseGatewayDeadlineMs("60000", &valid), 60000);
+    EXPECT_TRUE(valid);
+    EXPECT_EQ(quantra::ParseGatewayDeadlineMs("1"), 1);
+    for (const char* bad : {"0", "-5", "abc", "30s", "12.5", "99999999999999999999999"}) {
+        EXPECT_EQ(quantra::ParseGatewayDeadlineMs(bad, &valid), 10000) << bad;
+        EXPECT_FALSE(valid) << bad;
+    }
+    EXPECT_EQ(quantra::kDefaultGatewayDeadlineMs, 10000);
+}
+
+// The value the client actually applies is the environment's, read once.
+// The gate runs without the variable set, so this is the default; when it is
+// set (e.g. QUANTRA_GATEWAY_DEADLINE_MS=60000 ./test_server_client) the test
+// checks that value instead.
+TEST(GatewayDeadline, ClientUsesEnvironmentValue) {
+    const long expected =
+        quantra::ParseGatewayDeadlineMs(std::getenv("QUANTRA_GATEWAY_DEADLINE_MS"));
+    EXPECT_EQ(quantra::GatewayDeadline().count(), expected);
 }

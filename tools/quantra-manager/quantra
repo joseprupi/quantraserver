@@ -26,6 +26,7 @@ Environment:
     QUANTRA_HOME       Where to look for the `sync_server` binary/build (default: /workspace)
     QUANTRA_STATE_DIR  Where to store runtime state: pid/logs/envoy.yaml (default: /workspace/.quantra)
     QUANTRA_FOREGROUND If set to 1/true/yes, `start` defaults to foreground when no mode is given.
+    QUANTRA_ROUTE_TIMEOUT_MS  Envoy per-request route timeout in milliseconds (default: 30000).
 """
 
 import argparse
@@ -151,12 +152,73 @@ def preflight_ports(port: int, base_port: int, workers: int, admin_port: int):
 # ----------------------------
 # Envoy config generation
 # ----------------------------
+DEFAULT_ROUTE_TIMEOUT_MS = 30000
+
+
+def envoy_duration(ms: int) -> str:
+    """Milliseconds as an Envoy duration string: 30000 -> "30s", 1500 -> "1.5s"."""
+    if ms % 1000 == 0:
+        return f"{ms // 1000}s"
+    return f"{ms / 1000:.3f}".rstrip("0") + "s"
+
+
+def route_timeout_from_env(environ=None) -> str:
+    """Envoy route timeout from QUANTRA_ROUTE_TIMEOUT_MS (default 30000 ms).
+
+    A non-positive or unparseable value logs one line to stderr and keeps the
+    default. Kept in lockstep with the inline copy in scripts/envoy_config.py.
+    """
+    env = os.environ if environ is None else environ
+    raw = str(env.get("QUANTRA_ROUTE_TIMEOUT_MS", "")).strip()
+    ms = DEFAULT_ROUTE_TIMEOUT_MS
+    if raw:
+        try:
+            value = int(raw)
+        except ValueError:
+            value = 0
+        if value > 0:
+            ms = value
+        else:
+            print(f"QUANTRA_ROUTE_TIMEOUT_MS={raw!r} is not a positive integer; "
+                  f"using {DEFAULT_ROUTE_TIMEOUT_MS} ms", file=sys.stderr)
+    return envoy_duration(ms)
+
+
+DEFAULT_GRPC_TIMEOUT_HEADER_MAX_MS = 60000
+
+
+def duration_ms(duration: str) -> float:
+    """An Envoy duration string ("30s", "1.5s", "250ms") in milliseconds."""
+    d = duration.strip()
+    if d.endswith("ms"):
+        return float(d[:-2])
+    if d.endswith("s"):
+        return float(d[:-1]) * 1000.0
+    raise ValueError(f"not an Envoy duration in s or ms: {duration!r}")
+
+
+def grpc_timeout_header_max_for(route_timeout: str) -> str:
+    """Cap on a caller's grpc-timeout header: max(60s, route timeout).
+
+    For gRPC requests Envoy uses the caller's grpc-timeout header (capped
+    here) instead of the route timeout, so a route timeout above 60s only
+    takes effect for gRPC traffic when the cap follows it. Kept in lockstep
+    with the inline copy in scripts/envoy_config.py.
+    """
+    ms = max(DEFAULT_GRPC_TIMEOUT_HEADER_MAX_MS, duration_ms(route_timeout))
+    return envoy_duration(int(round(ms)))
+
+
 def least_request_choice_count(workers: int) -> int:
     # Kept in lockstep with scripts/envoy_config.py.
     return max(2, 4 * workers)
 
 
-def generate_envoy_config(port: int, base_port: int, workers: int, admin_port: int) -> dict:
+def generate_envoy_config(port: int, base_port: int, workers: int, admin_port: int,
+                          route_timeout: Optional[str] = None) -> dict:
+    if route_timeout is None:
+        route_timeout = route_timeout_from_env()
+    grpc_timeout_header_max = grpc_timeout_header_max_for(route_timeout)
     endpoints = []
     for i in range(workers):
         endpoints.append({
@@ -201,8 +263,8 @@ def generate_envoy_config(port: int, base_port: int, workers: int, admin_port: i
                                         "match": {"prefix": "/"},
                                         "route": {
                                             "cluster": "quantra_workers",
-                                            "timeout": "30s",
-                                            "max_stream_duration": {"grpc_timeout_header_max": "60s"},
+                                            "timeout": route_timeout,
+                                            "max_stream_duration": {"grpc_timeout_header_max": grpc_timeout_header_max},
                                         },
                                     }],
                                 }],
@@ -425,7 +487,8 @@ def cmd_start(args):
     print()
 
     # Envoy config
-    envoy_config = generate_envoy_config(port, base_port, workers, admin_port)
+    route_timeout = route_timeout_from_env()
+    envoy_config = generate_envoy_config(port, base_port, workers, admin_port, route_timeout)
     with open(ENVOY_CONFIG, "w") as f:
         yaml.dump(envoy_config, f, default_flow_style=False)
     print(f"Generated Envoy config: {ENVOY_CONFIG}")

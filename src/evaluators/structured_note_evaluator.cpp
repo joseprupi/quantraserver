@@ -160,6 +160,13 @@ struct ResolvedUnderlying {
     double rho = 0.0;
 };
 
+/// The local vol time extension the underlying's vol spec asks for.
+mc::LocalVolTimeExtrapolation localVolTimeOf(const ResolvedUnderlying& u) {
+    return u.volEntry != nullptr && u.volEntry->flatLocalVolBeyondLastExpiry
+               ? mc::LocalVolTimeExtrapolation::FlatLocalVol
+               : mc::LocalVolTimeExtrapolation::FlatImpliedVol;
+}
+
 /// The funding-spreaded discount curve of the note: ZeroSpreadedTermStructure
 /// (curve, spread, Continuous, Annual, Actual/365 (Fixed)), extrapolating.
 std::shared_ptr<QuantLib::YieldTermStructure> spreadedCurve(
@@ -786,6 +793,9 @@ NoteResultRow priceNote(
             mc::MakeBasketAsset(
                 trade.underlyings[k].underlyingId, und[k].spot, und[k].dividend, noteCurve,
                 und[k].vol));
+        assets.back().localVolTime = localVolTimeOf(und[k]);
+        if (und[k].volEntry)
+            assets.back().localVolStrikeRange = und[k].volEntry->localVolStrikeRange;
         localVols.attach(assets.back());
     }
     auto processes = mc::BasketModel::build(assets, correlation);
@@ -967,7 +977,9 @@ NoteResultRow priceNote(
                 "); the surface is not arbitrage-free where the paths went (negative local "
                 "variance from the strike curvature, or total variance decreasing in time): "
                 "recalibrate it (/calibrate-vol-surface returns arbitrage-free surfaces) or "
-                "smooth the quoted vols");
+                "smooth the quoted vols; beyond the surface's last expiry, set "
+                "local_vol_time_extrapolation: FlatLocalVol on it (the flat implied vol of the "
+                "default extension is not arbitrage-free on a skew at long horizons)");
         }
         return mc::PathEngineResult{};
     };
@@ -1452,6 +1464,9 @@ NoteResultRow priceNote(
                 bumped.push_back(
                     mc::MakeBasketAsset(
                         trade.underlyings[k].underlyingId, spot, dividend, riskFree, vol));
+                bumped.back().localVolTime = localVolTimeOf(und[k]);
+                if (und[k].volEntry)
+                    bumped.back().localVolStrikeRange = und[k].volEntry->localVolStrikeRange;
                 localVols.attach(bumped.back());
             }
             std::vector<double> totals(static_cast<std::size_t>(cfg.paths), 0.0);

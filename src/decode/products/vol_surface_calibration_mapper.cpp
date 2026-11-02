@@ -218,6 +218,7 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
     vb.add_surface_vols(matrixOff);
     vb.add_allow_extrapolation(true);
     vb.add_surface_interpolator(quantra::enums::SurfaceInterpolator2D_CubicStrikeLinearTime);
+    vb.add_local_vol_time_extrapolation(quantra::enums::LocalVolTimeExtrapolation_FlatLocalVol);
     auto payloadOff = vb.Finish();
     auto specIdOff = b.CreateString(r.volSurfaceId);
     quantra::VolSurfaceSpecBuilder sb(b);
@@ -243,6 +244,8 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
             slb.add_sigma(e.svi->sigma);
             slb.add_rho(e.svi->rho);
             slb.add_m(e.svi->m);
+            if (e.strikeMin) slb.add_strike_min(*e.strikeMin);
+            if (e.strikeMax) slb.add_strike_max(*e.strikeMax);
             slices.push_back(slb.Finish());
         }
         auto slicesOff = b.CreateVector(slices);
@@ -258,6 +261,8 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
         svb.add_slices(slicesOff);
         svb.add_time_interpolation(quantra::enums::SviTimeInterpolation_LinearTotalVariance);
         svb.add_allow_extrapolation(true);
+        svb.add_local_vol_time_extrapolation(
+            quantra::enums::LocalVolTimeExtrapolation_FlatLocalVol);
         auto sviPayloadOff = svb.Finish();
         auto sviIdOff = b.CreateString(r.volSurfaceId);
         quantra::VolSurfaceSpecBuilder ssb(b);

@@ -17,6 +17,7 @@ Usage:
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -26,6 +27,63 @@ try:
     HAS_YAML = True
 except ImportError:
     HAS_YAML = False
+
+
+DEFAULT_ROUTE_TIMEOUT_MS = 30000
+
+
+def envoy_duration(ms: int) -> str:
+    """Milliseconds as an Envoy duration string: 30000 -> "30s", 1500 -> "1.5s"."""
+    if ms % 1000 == 0:
+        return f"{ms // 1000}s"
+    return f"{ms / 1000:.3f}".rstrip("0") + "s"
+
+
+def route_timeout_from_env(environ=None) -> str:
+    """Envoy route timeout from QUANTRA_ROUTE_TIMEOUT_MS (default 30000 ms).
+
+    A non-positive or unparseable value logs one line to stderr and keeps the
+    default. Kept in lockstep with the inline copy in tools/quantra-manager/quantra.
+    """
+    env = os.environ if environ is None else environ
+    raw = str(env.get("QUANTRA_ROUTE_TIMEOUT_MS", "")).strip()
+    ms = DEFAULT_ROUTE_TIMEOUT_MS
+    if raw:
+        try:
+            value = int(raw)
+        except ValueError:
+            value = 0
+        if value > 0:
+            ms = value
+        else:
+            print(f"QUANTRA_ROUTE_TIMEOUT_MS={raw!r} is not a positive integer; "
+                  f"using {DEFAULT_ROUTE_TIMEOUT_MS} ms", file=sys.stderr)
+    return envoy_duration(ms)
+
+
+DEFAULT_GRPC_TIMEOUT_HEADER_MAX_MS = 60000
+
+
+def duration_ms(duration: str) -> float:
+    """An Envoy duration string ("30s", "1.5s", "250ms") in milliseconds."""
+    d = duration.strip()
+    if d.endswith("ms"):
+        return float(d[:-2])
+    if d.endswith("s"):
+        return float(d[:-1]) * 1000.0
+    raise ValueError(f"not an Envoy duration in s or ms: {duration!r}")
+
+
+def grpc_timeout_header_max_for(route_timeout: str) -> str:
+    """Cap on a caller's grpc-timeout header: max(60s, route timeout).
+
+    For gRPC requests Envoy uses the caller's grpc-timeout header (capped
+    here) instead of the route timeout, so a route timeout above 60s only
+    takes effect for gRPC traffic when the cap follows it. Kept in lockstep
+    with the inline copy in tools/quantra-manager/quantra.
+    """
+    ms = max(DEFAULT_GRPC_TIMEOUT_HEADER_MAX_MS, duration_ms(route_timeout))
+    return envoy_duration(int(round(ms)))
 
 
 def least_request_choice_count(workers: int) -> int:
@@ -43,8 +101,8 @@ def generate_envoy_config(
     admin_port: int = 9901,
     connect_timeout: str = "0.25s",
     health_check_interval: str = "1s",
-    route_timeout: str = "30s",
-    grpc_timeout_header_max: str = "60s",
+    route_timeout: Optional[str] = None,
+    grpc_timeout_header_max: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Generate Envoy configuration for load balancing across Quantra workers.
@@ -58,14 +116,23 @@ def generate_envoy_config(
         health_check_interval: Health check interval
         route_timeout: Overall per-request route timeout. Envoy aborts the
             request (504 to the client) once this elapses, so a worker stuck on
-            a slow computation cannot pin the connection indefinitely.
+            a slow computation cannot pin the connection indefinitely. None
+            (the default) reads QUANTRA_ROUTE_TIMEOUT_MS (default 30s).
         grpc_timeout_header_max: Upper bound applied to a client-supplied
             grpc-timeout header. The client's own deadline is still honored, but
-            it can never exceed this cap.
+            it can never exceed this cap. For gRPC requests this, not the
+            route timeout, bounds the request (Envoy replaces the route timeout
+            with the caller's grpc-timeout, capped here). None (the default) is
+            max(60s, route_timeout).
 
     Returns:
         Envoy configuration dictionary
     """
+    if route_timeout is None:
+        route_timeout = route_timeout_from_env()
+    if grpc_timeout_header_max is None:
+        grpc_timeout_header_max = grpc_timeout_header_max_for(route_timeout)
+
     # Build endpoint list for all workers
     endpoints = []
     for i in range(workers):
@@ -311,12 +378,13 @@ Examples:
                         help="First worker port (default: 50055)")
     parser.add_argument("--admin-port", type=int, default=9901,
                         help="Envoy admin port (default: 9901)")
-    parser.add_argument("--request-timeout", type=str, default="30s",
-                        help="Per-request route timeout; Envoy returns 504 once "
-                             "it elapses (default: 30s)")
-    parser.add_argument("--grpc-timeout-header-max", type=str, default="60s",
+    parser.add_argument("--request-timeout", type=str, default=None,
+                        help="Per-request route timeout as an Envoy duration "
+                             "(e.g. 30s); Envoy returns 504 once it elapses "
+                             "(default: QUANTRA_ROUTE_TIMEOUT_MS, else 30s)")
+    parser.add_argument("--grpc-timeout-header-max", type=str, default=None,
                         help="Cap applied to a client-supplied grpc-timeout "
-                             "header (default: 60s)")
+                             "header (default: max(60s, route timeout))")
     parser.add_argument("-o", "--output", type=str, default=None,
                         help="Output file path (default: stdout)")
     parser.add_argument("--format", choices=["yaml", "json"], default="yaml",

@@ -145,6 +145,9 @@ struct VolSurfaceExpiryReportData {
     std::optional<double> rmseVol;
     std::optional<double> maxAbsErrorVol;
     std::optional<SviParams> svi;
+    /// SviPerExpiry: the lowest / highest strike of the quotes the slice was
+    /// fitted to (the slice's strike_min / strike_max).
+    std::optional<double> strikeMin, strikeMax;
     std::optional<double> butterflyMinG;
     bool butterflyViolation = false;
     std::string butterflyAction;

@@ -10,8 +10,8 @@ np = import_numpy()
 # w(k) = a + b (rho (k - m) + sqrt((k - m)^2 + sigma^2)), k = ln(K / forward)
 # (Gatheral's raw parameterisation, QuantLib `SviSmileSection`), the Black
 # vol being sqrt(w(k) / T) with T the base day counter's year fraction from
-# the reference date to `expiry`. The formula is global in strike: no
-# strike extrapolation exists or is needed.
+# the reference date to `expiry`. The formula is global in strike: the
+# Black vol read (vanilla options, diagnostics) has no strike edge.
 class SviSlice(object):
     __slots__ = ['_tab']
 
@@ -86,8 +86,34 @@ class SviSlice(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Optional: the lowest and highest strike (absolute, same units as
+    # `forward`) of the quotes the slice was fitted to; `/calibrate-vol-surface`
+    # fills both. A raw SVI wing beyond the quotes is an extrapolation that
+    # can carry butterfly arbitrage (Durrleman's g < 0, a negative Dupire
+    # local variance). When present, a structured note holds the local vol
+    # at the strike edge beyond them, as for a grid: the local vol strike
+    # range is [min of every slice's strike_min, max of every slice's
+    # strike_max] (a slice without one leaves that side open), and a
+    # simulated level beyond it reads the local vol at the edge. No Black
+    # vol read is affected (vanilla options read the formula at every
+    # strike). Absent: no edge. Each > 0 and strike_min < strike_max when
+    # both are given (400 otherwise).
+    # SviSlice
+    def StrikeMin(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
+    # SviSlice
+    def StrikeMax(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
 def SviSliceStart(builder):
-    builder.StartObject(7)
+    builder.StartObject(9)
 
 def Start(builder):
     SviSliceStart(builder)
@@ -134,6 +160,18 @@ def SviSliceAddM(builder, m):
 def AddM(builder, m):
     SviSliceAddM(builder, m)
 
+def SviSliceAddStrikeMin(builder, strikeMin):
+    builder.PrependFloat64Slot(7, strikeMin, None)
+
+def AddStrikeMin(builder, strikeMin):
+    SviSliceAddStrikeMin(builder, strikeMin)
+
+def SviSliceAddStrikeMax(builder, strikeMax):
+    builder.PrependFloat64Slot(8, strikeMax, None)
+
+def AddStrikeMax(builder, strikeMax):
+    SviSliceAddStrikeMax(builder, strikeMax)
+
 def SviSliceEnd(builder):
     return builder.EndObject()
 
@@ -152,6 +190,8 @@ class SviSliceT(object):
         self.sigma = 0.0  # type: float
         self.rho = 0.0  # type: float
         self.m = 0.0  # type: float
+        self.strikeMin = None  # type: Optional[float]
+        self.strikeMax = None  # type: Optional[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -181,6 +221,8 @@ class SviSliceT(object):
         self.sigma = sviSlice.Sigma()
         self.rho = sviSlice.Rho()
         self.m = sviSlice.M()
+        self.strikeMin = sviSlice.StrikeMin()
+        self.strikeMax = sviSlice.StrikeMax()
 
     # SviSliceT
     def Pack(self, builder):
@@ -195,5 +237,7 @@ class SviSliceT(object):
         SviSliceAddSigma(builder, self.sigma)
         SviSliceAddRho(builder, self.rho)
         SviSliceAddM(builder, self.m)
+        SviSliceAddStrikeMin(builder, self.strikeMin)
+        SviSliceAddStrikeMax(builder, self.strikeMax)
         sviSlice = SviSliceEnd(builder)
         return sviSlice

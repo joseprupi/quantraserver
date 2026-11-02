@@ -194,6 +194,13 @@ table BlackVolSpec {
     /// Deprecated for BlackVolSpec surfaces; retained for backward compatibility.
     /// Mapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic.
     strike_interpolator:enums.Interpolator = Linear;
+    /// Optional. For a strike-dependent surface simulated as Dupire local
+    /// vol by a structured note: how the local vol is extended beyond the
+    /// last expiry (see the enum). Absent = FlatImpliedVol (the local vol of
+    /// the flat-implied-vol extension). `/calibrate-vol-surface` returns
+    /// FlatLocalVol. No effect on a Constant or AtmMatrix2D vol, nor on any
+    /// Black vol read (vanilla options, diagnostics).
+    local_vol_time_extrapolation:enums.LocalVolTimeExtrapolation = null;
 }
 
 /// Constant year-on-year inflation optionlet volatility, referenced by id from
@@ -226,8 +233,8 @@ table YoYOptionletVolSpec {
 /// w(k) = a + b (rho (k - m) + sqrt((k - m)^2 + sigma^2)), k = ln(K / forward)
 /// (Gatheral's raw parameterisation, QuantLib `SviSmileSection`), the Black
 /// vol being sqrt(w(k) / T) with T the base day counter's year fraction from
-/// the reference date to `expiry`. The formula is global in strike: no
-/// strike extrapolation exists or is needed.
+/// the reference date to `expiry`. The formula is global in strike: the
+/// Black vol read (vanilla options, diagnostics) has no strike edge.
 table SviSlice {
     /// Expiry date (YYYY-MM-DD), strictly after the reference date; slices
     /// must be strictly increasing.
@@ -243,6 +250,20 @@ table SviSlice {
     /// -1 < rho < 1.
     rho:double;
     m:double;
+    /// Optional: the lowest and highest strike (absolute, same units as
+    /// `forward`) of the quotes the slice was fitted to; `/calibrate-vol-surface`
+    /// fills both. A raw SVI wing beyond the quotes is an extrapolation that
+    /// can carry butterfly arbitrage (Durrleman's g < 0, a negative Dupire
+    /// local variance). When present, a structured note holds the local vol
+    /// at the strike edge beyond them, as for a grid: the local vol strike
+    /// range is [min of every slice's strike_min, max of every slice's
+    /// strike_max] (a slice without one leaves that side open), and a
+    /// simulated level beyond it reads the local vol at the edge. No Black
+    /// vol read is affected (vanilla options read the formula at every
+    /// strike). Absent: no edge. Each > 0 and strike_min < strike_max when
+    /// both are given (400 otherwise).
+    strike_min:double = null;
+    strike_max:double = null;
 }
 
 /// Black volatility as raw SVI slices (what `/calibrate-vol-surface` with
@@ -265,6 +286,11 @@ table SviVolSpec {
     /// Whether an expiry beyond the last slice may be read at all (flat
     /// implied vol); strikes need no flag, the formula is global.
     allow_extrapolation:bool = false;
+    /// Optional. How the Dupire local vol a structured note simulates is
+    /// extended beyond the last slice (see the enum). Absent =
+    /// FlatImpliedVol. `/calibrate-vol-surface` returns FlatLocalVol. No
+    /// effect on any Black vol read (vanilla options, diagnostics).
+    local_vol_time_extrapolation:enums.LocalVolTimeExtrapolation = null;
 }
 
 /// Union of all volatility types.
