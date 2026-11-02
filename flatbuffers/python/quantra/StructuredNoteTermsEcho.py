@@ -240,8 +240,16 @@ class StructuredNoteTermsEcho(object):
             return self._tab.Get(flatbuffers.number_types.Uint32Flags, o + self._tab.Pos)
         return None
 
+    # The request's `monte_carlo.local_vol_floor`; absent when none.
+    # StructuredNoteTermsEcho
+    def LocalVolFloor(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(52))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
 def StructuredNoteTermsEchoStart(builder):
-    builder.StartObject(24)
+    builder.StartObject(25)
 
 def Start(builder):
     StructuredNoteTermsEchoStart(builder)
@@ -402,6 +410,12 @@ def StructuredNoteTermsEchoAddStepsPerYear(builder, stepsPerYear):
 def AddStepsPerYear(builder, stepsPerYear):
     StructuredNoteTermsEchoAddStepsPerYear(builder, stepsPerYear)
 
+def StructuredNoteTermsEchoAddLocalVolFloor(builder, localVolFloor):
+    builder.PrependFloat64Slot(24, localVolFloor, None)
+
+def AddLocalVolFloor(builder, localVolFloor):
+    StructuredNoteTermsEchoAddLocalVolFloor(builder, localVolFloor)
+
 def StructuredNoteTermsEchoEnd(builder):
     return builder.EndObject()
 
@@ -441,6 +455,7 @@ class StructuredNoteTermsEchoT(object):
         self.antithetic = False  # type: bool
         self.brownianBridge = False  # type: bool
         self.stepsPerYear = None  # type: Optional[int]
+        self.localVolFloor = None  # type: Optional[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -501,6 +516,7 @@ class StructuredNoteTermsEchoT(object):
         self.antithetic = structuredNoteTermsEcho.Antithetic()
         self.brownianBridge = structuredNoteTermsEcho.BrownianBridge()
         self.stepsPerYear = structuredNoteTermsEcho.StepsPerYear()
+        self.localVolFloor = structuredNoteTermsEcho.LocalVolFloor()
 
     # StructuredNoteTermsEchoT
     def Pack(self, builder):
@@ -562,5 +578,6 @@ class StructuredNoteTermsEchoT(object):
         StructuredNoteTermsEchoAddAntithetic(builder, self.antithetic)
         StructuredNoteTermsEchoAddBrownianBridge(builder, self.brownianBridge)
         StructuredNoteTermsEchoAddStepsPerYear(builder, self.stepsPerYear)
+        StructuredNoteTermsEchoAddLocalVolFloor(builder, self.localVolFloor)
         structuredNoteTermsEcho = StructuredNoteTermsEchoEnd(builder)
         return structuredNoteTermsEcho

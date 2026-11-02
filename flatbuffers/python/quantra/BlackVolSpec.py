@@ -294,8 +294,71 @@ class BlackVolSpec(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
+    # Optional, a strike x expiry surface only (SmileCube3D): the strike
+    # range a structured note holds the Dupire local vol to around each
+    # expiry, one entry per `expiries` entry (both arrays or neither, each
+    # > 0, min < max, within the grid's strikes). At time t the local vol
+    # is read at the simulated level clamped to the range of the first
+    # expiry at or after t (the last expiry's beyond it), instead of the
+    # grid's first and last strike. Absent: the grid's edges at every
+    # time. `/calibrate-vol-surface` fills them with the region it checked
+    # (see `LocalVolCheck`). No Black vol read is affected.
+    # BlackVolSpec
+    def LocalVolStrikeMin(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(48))
+        if o != 0:
+            a = self._tab.Vector(o)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
+        return 0
+
+    # BlackVolSpec
+    def LocalVolStrikeMinAsNumpy(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(48))
+        if o != 0:
+            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
+        return 0
+
+    # BlackVolSpec
+    def LocalVolStrikeMinLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(48))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # BlackVolSpec
+    def LocalVolStrikeMinIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(48))
+        return o == 0
+
+    # BlackVolSpec
+    def LocalVolStrikeMax(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(50))
+        if o != 0:
+            a = self._tab.Vector(o)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
+        return 0
+
+    # BlackVolSpec
+    def LocalVolStrikeMaxAsNumpy(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(50))
+        if o != 0:
+            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
+        return 0
+
+    # BlackVolSpec
+    def LocalVolStrikeMaxLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(50))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # BlackVolSpec
+    def LocalVolStrikeMaxIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(50))
+        return o == 0
+
 def BlackVolSpecStart(builder):
-    builder.StartObject(22)
+    builder.StartObject(24)
 
 def Start(builder):
     BlackVolSpecStart(builder)
@@ -456,6 +519,30 @@ def BlackVolSpecAddLocalVolTimeExtrapolation(builder, localVolTimeExtrapolation)
 def AddLocalVolTimeExtrapolation(builder, localVolTimeExtrapolation):
     BlackVolSpecAddLocalVolTimeExtrapolation(builder, localVolTimeExtrapolation)
 
+def BlackVolSpecAddLocalVolStrikeMin(builder, localVolStrikeMin):
+    builder.PrependUOffsetTRelativeSlot(22, flatbuffers.number_types.UOffsetTFlags.py_type(localVolStrikeMin), 0)
+
+def AddLocalVolStrikeMin(builder, localVolStrikeMin):
+    BlackVolSpecAddLocalVolStrikeMin(builder, localVolStrikeMin)
+
+def BlackVolSpecStartLocalVolStrikeMinVector(builder, numElems):
+    return builder.StartVector(8, numElems, 8)
+
+def StartLocalVolStrikeMinVector(builder, numElems):
+    return BlackVolSpecStartLocalVolStrikeMinVector(builder, numElems)
+
+def BlackVolSpecAddLocalVolStrikeMax(builder, localVolStrikeMax):
+    builder.PrependUOffsetTRelativeSlot(23, flatbuffers.number_types.UOffsetTFlags.py_type(localVolStrikeMax), 0)
+
+def AddLocalVolStrikeMax(builder, localVolStrikeMax):
+    BlackVolSpecAddLocalVolStrikeMax(builder, localVolStrikeMax)
+
+def BlackVolSpecStartLocalVolStrikeMaxVector(builder, numElems):
+    return builder.StartVector(8, numElems, 8)
+
+def StartLocalVolStrikeMaxVector(builder, numElems):
+    return BlackVolSpecStartLocalVolStrikeMaxVector(builder, numElems)
+
 def BlackVolSpecEnd(builder):
     return builder.EndObject()
 
@@ -493,6 +580,8 @@ class BlackVolSpecT(object):
         self.expiryInterpolator = 2  # type: int
         self.strikeInterpolator = 2  # type: int
         self.localVolTimeExtrapolation = None  # type: Optional[int]
+        self.localVolStrikeMin = None  # type: List[float]
+        self.localVolStrikeMax = None  # type: List[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -563,6 +652,20 @@ class BlackVolSpecT(object):
         self.expiryInterpolator = blackVolSpec.ExpiryInterpolator()
         self.strikeInterpolator = blackVolSpec.StrikeInterpolator()
         self.localVolTimeExtrapolation = blackVolSpec.LocalVolTimeExtrapolation()
+        if not blackVolSpec.LocalVolStrikeMinIsNone():
+            if np is None:
+                self.localVolStrikeMin = []
+                for i in range(blackVolSpec.LocalVolStrikeMinLength()):
+                    self.localVolStrikeMin.append(blackVolSpec.LocalVolStrikeMin(i))
+            else:
+                self.localVolStrikeMin = blackVolSpec.LocalVolStrikeMinAsNumpy()
+        if not blackVolSpec.LocalVolStrikeMaxIsNone():
+            if np is None:
+                self.localVolStrikeMax = []
+                for i in range(blackVolSpec.LocalVolStrikeMaxLength()):
+                    self.localVolStrikeMax.append(blackVolSpec.LocalVolStrikeMax(i))
+            else:
+                self.localVolStrikeMax = blackVolSpec.LocalVolStrikeMaxAsNumpy()
 
     # BlackVolSpecT
     def Pack(self, builder):
@@ -612,6 +715,22 @@ class BlackVolSpecT(object):
             discountCurveId = builder.CreateString(self.discountCurveId)
         if self.dividendCurveId is not None:
             dividendCurveId = builder.CreateString(self.dividendCurveId)
+        if self.localVolStrikeMin is not None:
+            if np is not None and type(self.localVolStrikeMin) is np.ndarray:
+                localVolStrikeMin = builder.CreateNumpyVector(self.localVolStrikeMin)
+            else:
+                BlackVolSpecStartLocalVolStrikeMinVector(builder, len(self.localVolStrikeMin))
+                for i in reversed(range(len(self.localVolStrikeMin))):
+                    builder.PrependFloat64(self.localVolStrikeMin[i])
+                localVolStrikeMin = builder.EndVector()
+        if self.localVolStrikeMax is not None:
+            if np is not None and type(self.localVolStrikeMax) is np.ndarray:
+                localVolStrikeMax = builder.CreateNumpyVector(self.localVolStrikeMax)
+            else:
+                BlackVolSpecStartLocalVolStrikeMaxVector(builder, len(self.localVolStrikeMax))
+                for i in reversed(range(len(self.localVolStrikeMax))):
+                    builder.PrependFloat64(self.localVolStrikeMax[i])
+                localVolStrikeMax = builder.EndVector()
         BlackVolSpecStart(builder)
         if self.base is not None:
             BlackVolSpecAddBase(builder, base)
@@ -646,5 +765,9 @@ class BlackVolSpecT(object):
         BlackVolSpecAddExpiryInterpolator(builder, self.expiryInterpolator)
         BlackVolSpecAddStrikeInterpolator(builder, self.strikeInterpolator)
         BlackVolSpecAddLocalVolTimeExtrapolation(builder, self.localVolTimeExtrapolation)
+        if self.localVolStrikeMin is not None:
+            BlackVolSpecAddLocalVolStrikeMin(builder, localVolStrikeMin)
+        if self.localVolStrikeMax is not None:
+            BlackVolSpecAddLocalVolStrikeMax(builder, localVolStrikeMax)
         blackVolSpec = BlackVolSpecEnd(builder)
         return blackVolSpec

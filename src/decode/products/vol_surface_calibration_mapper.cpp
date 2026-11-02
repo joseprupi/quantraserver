@@ -5,6 +5,8 @@
 #include "implied_forwards_mapper.h"
 #include "request_validation.h"
 
+#include <cmath>
+
 namespace quantra {
 
 namespace {
@@ -39,6 +41,25 @@ flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::DroppedQuot
         v.push_back(db.Finish());
     }
     return b.CreateVector(v);
+}
+
+flatbuffers::Offset<quantra::LocalVolCheck> buildLocalVolCheck(
+    flatbuffers::grpc::MessageBuilder& b, const LocalVolCheckData& c) {
+    flatbuffers::Offset<flatbuffers::String> firstOff, actionOff;
+    if (!c.firstRefusal.empty()) firstOff = b.CreateString(c.firstRefusal);
+    if (!c.action.empty()) actionOff = b.CreateString(c.action);
+    quantra::LocalVolCheckBuilder cb(b);
+    cb.add_arbitrage_free(c.arbitrageFree);
+    cb.add_times(c.times);
+    cb.add_strikes(c.strikes);
+    cb.add_points(c.points);
+    cb.add_refused(c.refused);
+    if (!c.firstRefusal.empty()) cb.add_first_refusal(firstOff);
+    if (c.minLocalVariance) cb.add_min_local_variance(*c.minLocalVariance);
+    if (c.minLocalVarianceTime) cb.add_min_local_variance_time(*c.minLocalVarianceTime);
+    if (c.minLocalVarianceStrike) cb.add_min_local_variance_strike(*c.minLocalVarianceStrike);
+    if (!c.action.empty()) cb.add_action(actionOff);
+    return cb.Finish();
 }
 
 } // namespace
@@ -118,6 +139,10 @@ VolSurfaceCalibrationInputs VolSurfaceCalibrationMapper::toInputs(
     if (req->svi()) {
         in.enforceButterfly = req->svi()->enforce_butterfly();
         in.enforceCalendar = req->svi()->enforce_calendar();
+        in.minForwardVol = req->svi()->min_forward_vol();
+        if (!std::isfinite(in.minForwardVol) || in.minForwardVol < 0.0) {
+            QUANTRA_INVALID_ARGUMENT("svi.min_forward_vol must be finite and >= 0");
+        }
     }
     return in;
 }
@@ -142,8 +167,9 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
     for (const auto& e : r.expiries) {
         auto droppedOff = buildDropped(b, e.dropped);
         auto expOff = b.CreateString(e.expiryIso);
-        flatbuffers::Offset<flatbuffers::String> reasonOff, bActOff, cActOff;
+        flatbuffers::Offset<flatbuffers::String> reasonOff, bActOff, cActOff, cFitOff;
         if (!e.usable) reasonOff = b.CreateString(e.droppedReason);
+        if (!e.calendarFitAction.empty()) cFitOff = b.CreateString(e.calendarFitAction);
         if (!e.butterflyAction.empty()) bActOff = b.CreateString(e.butterflyAction);
         if (!e.calendarAction.empty()) cActOff = b.CreateString(e.calendarAction);
         flatbuffers::Offset<quantra::SviParameters> sviOff;
@@ -167,6 +193,12 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
         if (e.butterflyMinG) eb.add_butterfly_min_g(*e.butterflyMinG);
         eb.add_butterfly_violation(e.butterflyViolation);
         if (!e.butterflyAction.empty()) eb.add_butterfly_action(bActOff);
+        eb.add_calendar_refit(e.calendarRefit);
+        if (e.calendarRefitMaxVolShift)
+            eb.add_calendar_refit_max_vol_shift(*e.calendarRefitMaxVolShift);
+        if (e.calendarMinMargin) eb.add_calendar_min_margin(*e.calendarMinMargin);
+        if (e.calendarMinForwardVol) eb.add_calendar_min_forward_vol(*e.calendarMinForwardVol);
+        if (!e.calendarFitAction.empty()) eb.add_calendar_fit_action(cFitOff);
         eb.add_calendar_violations(e.calendarViolations);
         if (e.calendarMaxClipVol) eb.add_calendar_max_clip_vol(*e.calendarMaxClipVol);
         if (!e.calendarAction.empty()) eb.add_calendar_action(cActOff);
@@ -198,6 +230,8 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
     auto periodsOff = b.CreateVector(periods);
     auto strikesOff = b.CreateVector(r.gridStrikes);
     auto valuesOff = b.CreateVector(r.gridVols);
+    auto lvMinOff = b.CreateVector(r.gridLocalVolStrikeMin);
+    auto lvMaxOff = b.CreateVector(r.gridLocalVolStrikeMax);
     quantra::QuoteMatrix2DBuilder mb(b);
     mb.add_n_rows(static_cast<int32_t>(r.gridExpiryDays.size()));
     mb.add_n_cols(static_cast<int32_t>(r.gridStrikes.size()));
@@ -219,6 +253,8 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
     vb.add_allow_extrapolation(true);
     vb.add_surface_interpolator(quantra::enums::SurfaceInterpolator2D_CubicStrikeLinearTime);
     vb.add_local_vol_time_extrapolation(quantra::enums::LocalVolTimeExtrapolation_FlatLocalVol);
+    vb.add_local_vol_strike_min(lvMinOff);
+    vb.add_local_vol_strike_max(lvMaxOff);
     auto payloadOff = vb.Finish();
     auto specIdOff = b.CreateString(r.volSurfaceId);
     quantra::VolSurfaceSpecBuilder sb(b);
@@ -263,6 +299,7 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
         svb.add_allow_extrapolation(true);
         svb.add_local_vol_time_extrapolation(
             quantra::enums::LocalVolTimeExtrapolation_FlatLocalVol);
+        svb.add_local_vol_strike_range(quantra::enums::LocalVolStrikeRange_PerExpiry);
         auto sviPayloadOff = svb.Finish();
         auto sviIdOff = b.CreateString(r.volSurfaceId);
         quantra::VolSurfaceSpecBuilder ssb(b);
@@ -307,6 +344,9 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
     rb.add_quotes(ptsOff);
     auto repricingOff = rb.Finish();
 
+    auto lvCheckOff = buildLocalVolCheck(b, r.localVolCheck);
+    flatbuffers::Offset<quantra::LocalVolCheck> lvCheckSviOff;
+    if (r.localVolCheckSvi) lvCheckSviOff = buildLocalVolCheck(b, *r.localVolCheckSvi);
     auto filterOff = buildFilter(b, r.filter);
     auto sheetIdOff = b.CreateString(r.sheetId);
     auto underlyingOff = b.CreateString(r.underlyingId);
@@ -328,6 +368,8 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
     if (!sviSpecOff.IsNull()) ob.add_vol_surface_spec_svi(sviSpecOff);
     if (!sviNoteOff.IsNull()) ob.add_vol_surface_spec_svi_note(sviNoteOff);
     ob.add_vanilla_repricing(repricingOff);
+    ob.add_local_vol_check(lvCheckOff);
+    if (!lvCheckSviOff.IsNull()) ob.add_local_vol_check_svi(lvCheckSviOff);
     return ob.Finish();
 }
 

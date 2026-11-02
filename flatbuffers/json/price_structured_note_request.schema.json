@@ -21,6 +21,10 @@
       "type" : "string",
       "enum": ["FlatImpliedVol", "FlatLocalVol"]
     },
+    "quantra_enums_LocalVolStrikeRange" : {
+      "type" : "string",
+      "enum": ["Global", "PerExpiry"]
+    },
     "quantra_enums_BootstrapTrait" : {
       "type" : "string",
       "enum": ["Discount", "FwdRate", "InterpolatedDiscount", "InterpolatedFwd", "InterpolatedZero", "ZeroRate"]
@@ -1580,6 +1584,13 @@
         "local_vol_time_extrapolation" : {
                 "$ref" : "#/definitions/quantra_enums_LocalVolTimeExtrapolation",
                 "description" : "Optional. For a strike-dependent surface simulated as Dupire local\nvol by a structured note: how the local vol is extended beyond the\nlast expiry (see the enum). Absent = FlatImpliedVol (the local vol of\nthe flat-implied-vol extension). `/calibrate-vol-surface` returns\nFlatLocalVol. No effect on a Constant or AtmMatrix2D vol, nor on any\nBlack vol read (vanilla options, diagnostics)."
+              },
+        "local_vol_strike_min" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Optional, a strike x expiry surface only (SmileCube3D): the strike\nrange a structured note holds the Dupire local vol to around each\nexpiry, one entry per `expiries` entry (both arrays or neither, each\n> 0, min < max, within the grid's strikes). At time t the local vol\nis read at the simulated level clamped to the range of the first\nexpiry at or after t (the last expiry's beyond it), instead of the\ngrid's first and last strike. Absent: the grid's edges at every\ntime. `/calibrate-vol-surface` fills them with the region it checked\n(see `LocalVolCheck`). No Black vol read is affected."
+              },
+        "local_vol_strike_max" : {
+                "type" : "array", "items" : {"type" : "number"}
               }
       },
       "additionalProperties" : false
@@ -1648,7 +1659,7 @@
               },
         "strike_min" : {
                 "type" : "number",
-                "description" : "Optional: the lowest and highest strike (absolute, same units as\n`forward`) of the quotes the slice was fitted to; `/calibrate-vol-surface`\nfills both. A raw SVI wing beyond the quotes is an extrapolation that\ncan carry butterfly arbitrage (Durrleman's g < 0, a negative Dupire\nlocal variance). When present, a structured note holds the local vol\nat the strike edge beyond them, as for a grid: the local vol strike\nrange is [min of every slice's strike_min, max of every slice's\nstrike_max] (a slice without one leaves that side open), and a\nsimulated level beyond it reads the local vol at the edge. No Black\nvol read is affected (vanilla options read the formula at every\nstrike). Absent: no edge. Each > 0 and strike_min < strike_max when\nboth are given (400 otherwise)."
+                "description" : "Optional: a strike range (absolute, same units as `forward`) around\nthe slice; `/calibrate-vol-surface` fills both with the region it\nchecked around the expiry (before 0.16.5: the strikes of the quotes\nthe slice was fitted to). A raw SVI wing beyond the quotes is an extrapolation that\ncan carry butterfly arbitrage (Durrleman's g < 0, a negative Dupire\nlocal variance). When present, a structured note holds the local vol\nat the strike edge beyond them, as for a grid: with the payload's\n`local_vol_strike_range` Global (default) the local vol strike\nrange is [min of every slice's strike_min, max of every slice's\nstrike_max] (a slice without one leaves that side open); with\nPerExpiry it is this slice's range for the times up to its expiry\n(after the previous slice's). A simulated level beyond it reads the\nlocal vol at the edge. No Black\nvol read is affected (vanilla options read the formula at every\nstrike). Absent: no edge. Each > 0 and strike_min < strike_max when\nboth are given (400 otherwise)."
               },
         "strike_max" : {
                 "type" : "number"
@@ -1678,6 +1689,10 @@
         "local_vol_time_extrapolation" : {
                 "$ref" : "#/definitions/quantra_enums_LocalVolTimeExtrapolation",
                 "description" : "Optional. How the Dupire local vol a structured note simulates is\nextended beyond the last slice (see the enum). Absent =\nFlatImpliedVol. `/calibrate-vol-surface` returns FlatLocalVol. No\neffect on any Black vol read (vanilla options, diagnostics)."
+              },
+        "local_vol_strike_range" : {
+                "$ref" : "#/definitions/quantra_enums_LocalVolStrikeRange",
+                "description" : "Optional. How the slices' strike_min / strike_max bound the local\nvol (see the enum). Absent = Global (one range for every time).\nPerExpiry requires strike_min and strike_max on every slice (400\notherwise). `/calibrate-vol-surface` returns PerExpiry with each\nslice's checked region. No Black vol read is affected."
               }
       },
       "required" : ["slices"],
@@ -2920,6 +2935,10 @@
         "steps_per_year" : {
                 "type" : "integer", "minimum" : 0, "maximum" : 4294967295,
                 "description" : "Time steps per year of the simulation grid between observation\ndates. Required (400) when any underlying's volatility is a strike x\nexpiry surface (local-vol evolution) or the capital barrier is\nmonitored DailyClose; otherwise must be absent and the grid is the\nobservation dates only (exact lognormal steps). Between observation\ndates the processes evolve with log-Euler steps of 1/steps_per_year\nyears. A DailyClose barrier is tested on the simulated closes only:\nset this to the index's trading days per year (about 252); fewer\nsteps under-sample the barrier and bias the price. No continuity\ncorrection (Broadie-Glasserman-Kou) is applied, because the barrier\nis discrete by contract."
+              },
+        "local_vol_floor" : {
+                "type" : "number",
+                "description" : "Optional safety net for a strike-dependent surface simulated as\nDupire local vol. Absent: QuantLib's LocalVolSurface as is; a read\nit refuses (total variance decreasing in time, negative local\nvariance) is a 400 naming the surface. Present (> 0, finite; 400\notherwise, and 400 when no underlying is simulated as local vol):\nthe local vol simulated is max(Dupire, local_vol_floor), and a read\nQuantLib would refuse takes the floor instead. Where no floor applies\nthe local vol is QuantLib's to the bit. The response's\n`model.underlyings[]` reports the fraction of local vol reads that\nwere floored and the refusals floored. A floored fraction above about\n1e-3 means the surface is not usable for the note: recalibrate it."
               }
       },
       "additionalProperties" : false

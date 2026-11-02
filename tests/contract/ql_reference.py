@@ -5133,10 +5133,22 @@ class _PyLocalVol:
     CubicStrikeLinearTime grid or an SVI payload is reproduced to the bit
     without subclassing a term structure through the bindings."""
 
-    def __init__(self, surface, risk_free, dividend, spot_handle):
+    def __init__(self, surface, risk_free, dividend, spot_handle, floor=None):
         self.bs, self.rf, self.dq, self.spot = surface, risk_free, dividend, spot_handle
+        self.floor = floor
 
     def localVol(self, t, level, extrapolate=True):
+        """QuantLib's value; with a floor (MonteCarloSpec.local_vol_floor)
+        max(value, floor), and the floor where QuantLib would refuse."""
+        if self.floor is None:
+            return self._local_vol(t, level)
+        try:
+            v = self._local_vol(t, level)
+        except (ValueError, RuntimeError):
+            return self.floor
+        return self.floor if v < self.floor else v
+
+    def _local_vol(self, t, level):
         dr = self.rf.discount(t, True)
         dq = self.dq.discount(t, True)
         forward = self.spot.value() * dq / dr
@@ -5198,6 +5210,33 @@ def _sn_local_vol_strike_range(pricing: dict, vol_id: str):
     if lo > 0.0 or hi < sys.float_info.max:
         return lo, hi
     return None
+
+
+def _sn_local_vol_strike_bands(pricing: dict, vol_id: str):
+    """Per-expiry local vol strike ranges, [(expiry time, min, max)], of a
+    BlackVolSpec (local_vol_strike_min / _max) or of an SviVolSpec with
+    local_vol_strike_range PerExpiry (the slices' strike_min / strike_max);
+    None otherwise (the engine's BlackVolEntry::localVolStrikeBands, times
+    from the spec's reference date on its day counter)."""
+    spec = _find_vol_surface_spec(pricing, vol_id)
+    payload = spec.get("payload") or {}
+    base = payload.get("base") or {}
+    if spec.get("payload_type") == "SviVolSpec":
+        if payload.get("local_vol_strike_range", "Global") != "PerExpiry":
+            return None
+        ref = parse_date(base["reference_date"])
+        dc = get_day_counter(base["day_counter"])
+        return [(dc.yearFraction(ref, parse_date(sl["expiry"])), float(sl["strike_min"]),
+                 float(sl["strike_max"])) for sl in payload["slices"]]
+    if not payload.get("local_vol_strike_min"):
+        return None
+    ref = parse_date(base["reference_date"])
+    cal = get_calendar(base["calendar"])
+    bdc = get_convention(base["business_day_convention"])
+    dc = get_day_counter(base["day_counter"])
+    dates = [cal.advance(ref, _wire_period_to_ql(p), bdc) for p in payload["expiries"]]
+    return [(dc.yearFraction(ref, d), float(lo), float(hi)) for d, lo, hi in
+            zip(dates, payload["local_vol_strike_min"], payload["local_vol_strike_max"])]
 
 
 def _sn_flat_local_vol(pricing: dict, vol_id: str) -> bool:
@@ -5522,6 +5561,7 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
                     "vol_id": u["volatility_id"], "level": level, "exact": exact,
                     "flat_lv": _sn_flat_local_vol(pricing, u["volatility_id"]),
                     "lv_range": _sn_local_vol_strike_range(pricing, u["volatility_id"]),
+                    "lv_bands": _sn_local_vol_strike_bands(pricing, u["volatility_id"]),
                     "quanto": quanto is not None, "fx_vol": fx_vol, "fx_spot": fx_rate,
                     "rho": rho})
 
@@ -5561,7 +5601,11 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
         correlation, correlation_markup_repaired = _sn_bump_correlation(
             correlation, float(correlation_markup))
 
-    def make_asset(spot_handle, dividend, risk_free, vol, exact, flat_lv=False, lv_range=None):
+    lv_floor = mc.get("local_vol_floor")
+    lv_floor = None if lv_floor is None else float(lv_floor)
+
+    def make_asset(spot_handle, dividend, risk_free, vol, exact, flat_lv=False, lv_range=None,
+                   lv_bands=None):
         """One simulated asset: the GeneralizedBlackScholesProcess(spot,
         dividend, riskFree, vol) and, for a strike x expiry surface, the
         engine's edge-clamped Dupire local vol (src/mc/basket_model.h):
@@ -5580,7 +5624,8 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
             # A CubicStrikeLinearTime grid or an SVI payload has no QuantLib
             # object behind it: the local vol is QuantLib's stencil in Python
             # (_PyLocalVol) on the twin surface; anything else is QuantLib's.
-            a["lv"] = (_PyLocalVol(vol, risk_free, dividend, spot_handle) if python_surface
+            a["lv"] = (_PyLocalVol(vol, risk_free, dividend, spot_handle, lv_floor)
+                       if python_surface or lv_floor is not None
                        else ql.LocalVolSurface(vol, risk_free, dividend, spot_handle))
             a["risk_free"] = risk_free
             a["dividend"] = dividend
@@ -5589,6 +5634,15 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
             a["upper"] = k_max * math.exp(-1.0e-3)
             if not a["lower"] < a["upper"]:
                 a["lower"], a["upper"] = k_min, k_max
+            # Per-expiry bands (time, min e^1e-3, max e^-1e-3): the level at
+            # time t is clamped to the first band whose time is >= t (the last
+            # one beyond), in place of [lower, upper].
+            a["bands"] = None
+            if lv_bands:
+                a["bands"] = []
+                for bt, lo, hi in lv_bands:
+                    lo_m, hi_m = lo * math.exp(1.0e-3), hi * math.exp(-1.0e-3)
+                    a["bands"].append((bt, lo_m, hi_m) if lo_m < hi_m else (bt, lo, hi))
             a["t_cap"] = sys.float_info.max
             if flat_lv:
                 max_time = vol.maxTime()
@@ -5598,7 +5652,7 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
 
     def base_assets():
         return [make_asset(u["spot_handle"], u["dividend"], note_curve, u["vol"], u["exact"],
-                           u["flat_lv"], u["lv_range"])
+                           u["flat_lv"], u["lv_range"], u["lv_bands"])
                 for u in und]
 
     # --- events ---------------------------------------------------------------
@@ -5906,8 +5960,11 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
             def step(a, t0, x, dt, dz):
                 if a["exact"]:
                     return a["process"].evolve(t0, x, dt, dz)
-                sigma = a["lv"].localVol(min(t0, a["t_cap"]),
-                                         min(max(x, a["lower"]), a["upper"]), True)
+                lo, hi = a["lower"], a["upper"]
+                if a["bands"]:
+                    band = next((b for b in a["bands"] if b[0] >= t0), a["bands"][-1])
+                    lo, hi = band[1], band[2]
+                sigma = a["lv"].localVol(min(t0, a["t_cap"]), min(max(x, lo), hi), True)
                 t1 = t0 + 0.0001
                 drift = (a["risk_free"].forwardRate(t0, t1, ql.Continuous, ql.NoFrequency,
                                                     True).rate()
@@ -6336,7 +6393,7 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
                         u["plain_dividend"], risk_free, u["local_curve"], vol, u["level"],
                         u["fx_vol"], u["fx_spot"], u["rho"]))
                 assets.append(make_asset(spot, dividend, risk_free, vol, u["exact"],
-                                         u["flat_lv"], u["lv_range"]))
+                                         u["flat_lv"], u["lv_range"], u["lv_bands"]))
             totals = []
             simulate(assets, matrix, disc, None, totals)
             return sample_values(totals, disc)
@@ -6700,6 +6757,67 @@ def _svi_durrleman_g(p, k):
     return t1 * t1 - (w1 * w1 / 4.0) * (1.0 / w + 0.25) + w2 / 2.0
 
 
+def _svi_slope(p, k):
+    d = k - p["m"]
+    return p["b"] * (p["rho"] + d / math.sqrt(d * d + p["sigma"] ** 2))
+
+
+def _vs_reach(w, direction, n_sd=5.0):
+    """The engine's region reach on one side (direction +1 calls, -1 puts):
+    from the quote nearest the forward outwards, the log-moneyness covered by
+    n_sd standard deviations with the market vols along the way (trapezoid
+    of 1 / sigma over the quotes, the edge vol beyond)."""
+    kv = sorted((math.log(u["strike"] / w["fwd"]) * direction, u["vol"]) for u in w["used"])
+    start = min(range(len(kv)), key=lambda i: abs(kv[i][0]))
+    budget = n_sd * math.sqrt(w["t"])
+    k, vol = 0.0, kv[start][1]
+    for kk, vv in kv[start:]:
+        if kk <= k:
+            continue
+        cost = (kk - k) * 0.5 * (1.0 / vol + 1.0 / vv)
+        if cost >= budget:
+            return k + budget / (0.5 * (1.0 / vol + 1.0 / vv))
+        budget -= cost
+        k, vol = kk, vv
+    return k + budget * vol
+
+
+def _vs_regions(work, strikes):
+    """Each fitted expiry's region (the engine's ExpiryWork::regionLo/Hi):
+    the reach of this expiry and the one before on each side, the strikes
+    quoted on both, within [min(grid, quotes), max(grid, quotes)]."""
+    clamp_lo = min([strikes[0]] + [w["used"][0]["strike"] for w in work])
+    clamp_hi = max([strikes[-1]] + [w["used"][-1]["strike"] for w in work])
+    for i, w in enumerate(work):
+        p = work[max(i - 1, 0)]
+        lo = w["fwd"] * math.exp(-max(_vs_reach(w, -1), _vs_reach(p, -1)))
+        hi = w["fwd"] * math.exp(max(_vs_reach(w, 1), _vs_reach(p, 1)))
+        q_lo = max(w["used"][0]["strike"], p["used"][0]["strike"])
+        q_hi = min(w["used"][-1]["strike"], p["used"][-1]["strike"])
+        if q_lo < q_hi:
+            lo, hi = min(lo, q_lo), max(hi, q_hi)
+        w["region"] = (max(lo, clamp_lo), min(hi, clamp_hi))
+
+
+def _vs_pair_excess(work, j, margin):
+    """Largest violation of the engine's calendar bounds of the pair
+    (j - 1, j) on the independent slices (pairBounds: w_L - w_E + x s_E and
+    w_L - w_E + x s_L at least the margin, 401 log-spaced strikes over the
+    later expiry's region widened by the forward move and 2e-3)."""
+    later, earlier = work[j], work[j - 1]
+    x = math.log(later["fwd"] / earlier["fwd"])
+    widen = abs(x) + 2.0e-3
+    lo, hi = math.log(later["region"][0]) - widen, math.log(later["region"][1]) + widen
+    worst = -math.inf
+    for n in range(401):
+        K = math.exp(lo + (hi - lo) * n / 400)
+        k_e, k_l = math.log(K / earlier["fwd"]), math.log(K / later["fwd"])
+        dw = _svi_total_variance(later["svi"], k_l) - _svi_total_variance(earlier["svi"], k_e)
+        worst = max(worst, margin - (dw + x * _svi_slope(earlier["svi"], k_e)),
+                    margin - (dw + x * _svi_slope(later["svi"], k_l)))
+    return worst
+
+
 def calibrate_vol_surface_ql(request: dict) -> dict:
     """Independent re-run of src/evaluators/vol_surface_calibration_evaluator.cpp
     with the Python bindings of the same QuantLib classes.
@@ -6807,13 +6925,17 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
     n_exp, n_str = len(grid_dates), len(strikes)
     vols = [[math.nan] * n_str for _ in range(n_exp)]
     fields = {}
+    _vs_regions(work, strikes)
+    # The sheet's market (risk-free curve on the implied discount factors,
+    # dividend curve F DF / S), as the engine builds it for the
+    # Andreasen-Huge model and the calendar check of the grid.
+    curve_dates = [eval_date] + [w["date"] for w in work]
+    r_ts = ql.YieldTermStructureHandle(
+        ql.DiscountCurve(curve_dates, [1.0] + [w["df"] for w in work], dc))
+    q_ts = ql.YieldTermStructureHandle(
+        ql.DiscountCurve(curve_dates, [1.0] + [w["fwd"] * w["df"] / spot for w in work], dc))
 
     if method == "AndreasenHuge":
-        dates = [eval_date] + [w["date"] for w in work]
-        r_dfs = [1.0] + [w["df"] for w in work]
-        q_dfs = [1.0] + [w["fwd"] * w["df"] / spot for w in work]
-        r_ts = ql.YieldTermStructureHandle(ql.DiscountCurve(dates, r_dfs, dc))
-        q_ts = ql.YieldTermStructureHandle(ql.DiscountCurve(dates, q_dfs, dc))
         cal_set = ql.CalibrationSet()
         for w in work:
             exercise = ql.EuropeanExercise(w["date"])
@@ -6827,6 +6949,18 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
             ql.AndreasenHugeVolatilityInterpl.CubicSpline,
             ql.AndreasenHugeVolatilityInterpl.CallPut, 500)
         adapter = ql.AndreasenHugeVolatilityAdapter(interpl)
+        # The strike axis: the model's own finite-difference points inside
+        # the output range and the regions (the engine's 3a).
+        lo = min([strikes[0]] + [w["region"][0] for w in work])
+        hi = max([strikes[-1]] + [w["region"][1] for w in work])
+        mesher = ql.Concentrating1dMesher(math.log(interpl.minStrike() / spot),
+                                          math.log(interpl.maxStrike() / spot), 500, (0.0, 0.025))
+        native = [spot * math.exp(x) for x in mesher.locations()]
+        native = [K for K in native if lo * (1.0 - 1e-12) <= K <= hi * (1.0 + 1e-12)]
+        if len(native) >= 2:
+            strikes = native
+            n_str = len(strikes)
+            vols = [[math.nan] * n_str for _ in range(n_exp)]
         for w in work:
             errs = []
             for u in w["used"]:
@@ -6863,7 +6997,8 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
                 else:
                     vols[i][j] = row[j]
     elif method == "SviPerExpiry":
-        for w in work:
+        min_fwd_vol = float(svi_opts.get("min_forward_vol", 0.01))
+        for i, w in enumerate(work):
             strikes_w = [u["strike"] for u in w["used"]]
             vols_w = [u["vol"] for u in w["used"]]
             nd = ql.nullDouble()
@@ -6873,13 +7008,20 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
                 ql.EndCriteria(500, 100, 1e-12, 1e-10, 1e-10),
                 ql.LevenbergMarquardt(1e-10, 1e-10, 1e-10), dc)
             p = {"a": sec.a(), "b": sec.b(), "sigma": sec.sigma(), "rho": sec.rho(), "m": sec.m()}
-            k_lo, k_hi = math.log(strikes[0] / w["fwd"]), math.log(strikes[-1] / w["fwd"])
+            # Butterfly grid: the output range and the regions of the two
+            # expiry pairs the slice belongs to.
+            lo = min(w["region"][0], strikes[0])
+            hi = max(w["region"][1], strikes[-1])
+            if i + 1 < len(work):
+                lo, hi = min(lo, work[i + 1]["region"][0]), max(hi, work[i + 1]["region"][1])
+            k_lo, k_hi = math.log(lo / w["fwd"]), math.log(hi / w["fwd"])
             ks = [k_lo + (k_hi - k_lo) * j / 200 for j in range(201)]
             min_g = min(_svi_durrleman_g(p, k) for k in ks)
-            if min_g < 0.0 and enforce_butterfly:
+            steep = p["b"] * (1.0 + abs(p["rho"])) > 2.0
+            if (min_g < 0.0 or steep) and enforce_butterfly:
                 raise NotImplementedError(
-                    f"{w['expiry']}: butterfly violation (min g {min_g}); the penalized refit "
-                    "is engine-only")
+                    f"{w['expiry']}: butterfly violation (min g {min_g}, wing slope "
+                    f"{p['b'] * (1.0 + abs(p['rho']))}); the penalized refit is engine-only")
             w["svi"] = p
             i = report_idx[w["expiry"]]
             errs = [math.sqrt(max(0.0, _svi_total_variance(p, math.log(u["strike"] / w["fwd"])))
@@ -6889,6 +7031,13 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
             fields[f"expiries.{i}.butterfly_min_g"] = min_g
             for name in ("a", "b", "sigma", "rho", "m"):
                 fields[f"expiries.{i}.svi.{name}"] = p[name]
+        if enforce_calendar:
+            for j in range(1, len(work)):
+                margin = min_fwd_vol ** 2 * (work[j]["t"] - work[j - 1]["t"]) + 2e-8
+                if _vs_pair_excess(work, j, margin) > 0.0:
+                    raise NotImplementedError(
+                        f"{work[j - 1]['expiry']} / {work[j]['expiry']}: calendar refit; the "
+                        "penalized refit is engine-only")
         for i, d in enumerate(grid_dates):
             w = next(w for w in work if w["date"] == d)
             for j, k_abs in enumerate(strikes):
@@ -6899,16 +7048,20 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
 
     # Calendar check (clip for SVI when enforced).
     clip = enforce_calendar if method == "SviPerExpiry" else False
+    # At the same forward moneyness, inside the expiry's region only (the
+    # engine's step 4).
     times = [dc.yearFraction(eval_date, d) for d in grid_dates]
-    for j in range(n_str):
-        prev = -1.0
-        for i in range(n_exp):
+    fwd_t = [spot * q_ts.discount(t) / r_ts.discount(t) for t in times]
+    for i in range(1, n_exp):
+        prev_slice = _cubic_variance_slice(
+            strikes, [vols[i - 1][j] ** 2 * times[i - 1] for j in range(n_str)])
+        region = next((w["region"] for w in work if w["date"] == grid_dates[i]),
+                      (0.0, sys.float_info.max))
+        for j in range(n_str):
             tv = vols[i][j] ** 2 * times[i]
-            if i > 0 and tv < prev + 1e-8:
-                if clip:
-                    vols[i][j] = math.sqrt((prev + 1e-8) / times[i])
-                    tv = prev + 1e-8
-            prev = tv
+            prev = prev_slice(strikes[j] * fwd_t[i - 1] / fwd_t[i])
+            if tv < prev + 1e-8 and region[0] <= strikes[j] <= region[1] and clip:
+                vols[i][j] = math.sqrt((prev + 1e-8) / times[i])
 
     # Fields: forwards used, quotes used, grid, surface, the SVI slices.
     for j, w in enumerate(work):
@@ -6921,9 +7074,22 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
             fields[stem + "forward"] = w["fwd"]
             for name in ("a", "b", "sigma", "rho", "m"):
                 fields[stem + name] = w["svi"][name]
-            fields[stem + "strike_min"] = min(u["strike"] for u in w["used"])
-            fields[stem + "strike_max"] = max(u["strike"] for u in w["used"])
+            fields[stem + "strike_min"] = w["region"][0]
+            fields[stem + "strike_max"] = w["region"][1]
     fields["grid_strikes"] = strikes
+    # The grid's per-expiry local vol strike ranges.
+    work_times = [w["t"] for w in work]
+    in_lo, in_hi = strikes[min(1, n_str - 1)], strikes[n_str - 2 if n_str >= 2 else 0]
+    lv_min, lv_max = [], []
+    for t in times:
+        r = min(len(work) - 1, bisect.bisect_left(work_times, t - 1e-12))
+        lo, hi = max(work[r]["region"][0], in_lo), min(work[r]["region"][1], in_hi)
+        if not lo < hi:
+            lo, hi = strikes[0], strikes[-1]
+        lv_min.append(lo)
+        lv_max.append(hi)
+    fields["vol_surface_spec.payload.local_vol_strike_min"] = lv_min
+    fields["vol_surface_spec.payload.local_vol_strike_max"] = lv_max
     fields["vol_surface_spec.payload.surface_vols.values"] = \
         [vols[i][j] for i in range(n_exp) for j in range(n_str)]
 

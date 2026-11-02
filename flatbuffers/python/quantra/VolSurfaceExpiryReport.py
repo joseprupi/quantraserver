@@ -162,11 +162,57 @@ class VolSurfaceExpiryReport(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # `SviPerExpiry` only, every fitted expiry after the first: whether the
+    # calendar penalty refit of the sequential fit acted on this slice.
+    # VolSurfaceExpiryReport
+    def CalendarRefit(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(34))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
+    # Largest change in vol the calendar refit made over the slice's quoted
+    # strikes (absent when it did not act).
+    # VolSurfaceExpiryReport
+    def CalendarRefitMaxVolShift(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(36))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
+    # After the fit: the smallest excess of the slice's total variance over
+    # the previous slice's plus the requested margin min_forward_vol^2
+    # (T_i - T_{i-1}) on the calendar grid (>= 0 = constraint met).
+    # VolSurfaceExpiryReport
+    def CalendarMinMargin(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(38))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
+    # After the fit: the smallest forward vol between the previous slice and
+    # this one on the calendar grid, sqrt((w_i - w_{i-1}) / (T_i - T_{i-1}))
+    # (negative when total variance decreases there).
+    # VolSurfaceExpiryReport
+    def CalendarMinForwardVol(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(40))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
+    # What the sequential fit found and did against the previous slice.
+    # VolSurfaceExpiryReport
+    def CalendarFitAction(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(42))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
     # Grid strikes at which total variance was below the previous grid
-    # expiry's.
+    # expiry's (before the clip).
     # VolSurfaceExpiryReport
     def CalendarViolations(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(34))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(44))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Uint32Flags, o + self._tab.Pos)
         return 0
@@ -174,14 +220,14 @@ class VolSurfaceExpiryReport(object):
     # Largest change in vol applied by the calendar clip (vol units).
     # VolSurfaceExpiryReport
     def CalendarMaxClipVol(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(36))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(46))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
 
     # VolSurfaceExpiryReport
     def CalendarAction(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(38))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(48))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
         return None
@@ -192,13 +238,13 @@ class VolSurfaceExpiryReport(object):
     # filled flat from the nearest inverted strike of the expiry.
     # VolSurfaceExpiryReport
     def GridPointsFilled(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(40))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(50))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Uint32Flags, o + self._tab.Pos)
         return 0
 
 def VolSurfaceExpiryReportStart(builder):
-    builder.StartObject(19)
+    builder.StartObject(24)
 
 def Start(builder):
     VolSurfaceExpiryReportStart(builder)
@@ -299,26 +345,56 @@ def VolSurfaceExpiryReportAddButterflyAction(builder, butterflyAction):
 def AddButterflyAction(builder, butterflyAction):
     VolSurfaceExpiryReportAddButterflyAction(builder, butterflyAction)
 
+def VolSurfaceExpiryReportAddCalendarRefit(builder, calendarRefit):
+    builder.PrependBoolSlot(15, calendarRefit, 0)
+
+def AddCalendarRefit(builder, calendarRefit):
+    VolSurfaceExpiryReportAddCalendarRefit(builder, calendarRefit)
+
+def VolSurfaceExpiryReportAddCalendarRefitMaxVolShift(builder, calendarRefitMaxVolShift):
+    builder.PrependFloat64Slot(16, calendarRefitMaxVolShift, None)
+
+def AddCalendarRefitMaxVolShift(builder, calendarRefitMaxVolShift):
+    VolSurfaceExpiryReportAddCalendarRefitMaxVolShift(builder, calendarRefitMaxVolShift)
+
+def VolSurfaceExpiryReportAddCalendarMinMargin(builder, calendarMinMargin):
+    builder.PrependFloat64Slot(17, calendarMinMargin, None)
+
+def AddCalendarMinMargin(builder, calendarMinMargin):
+    VolSurfaceExpiryReportAddCalendarMinMargin(builder, calendarMinMargin)
+
+def VolSurfaceExpiryReportAddCalendarMinForwardVol(builder, calendarMinForwardVol):
+    builder.PrependFloat64Slot(18, calendarMinForwardVol, None)
+
+def AddCalendarMinForwardVol(builder, calendarMinForwardVol):
+    VolSurfaceExpiryReportAddCalendarMinForwardVol(builder, calendarMinForwardVol)
+
+def VolSurfaceExpiryReportAddCalendarFitAction(builder, calendarFitAction):
+    builder.PrependUOffsetTRelativeSlot(19, flatbuffers.number_types.UOffsetTFlags.py_type(calendarFitAction), 0)
+
+def AddCalendarFitAction(builder, calendarFitAction):
+    VolSurfaceExpiryReportAddCalendarFitAction(builder, calendarFitAction)
+
 def VolSurfaceExpiryReportAddCalendarViolations(builder, calendarViolations):
-    builder.PrependUint32Slot(15, calendarViolations, 0)
+    builder.PrependUint32Slot(20, calendarViolations, 0)
 
 def AddCalendarViolations(builder, calendarViolations):
     VolSurfaceExpiryReportAddCalendarViolations(builder, calendarViolations)
 
 def VolSurfaceExpiryReportAddCalendarMaxClipVol(builder, calendarMaxClipVol):
-    builder.PrependFloat64Slot(16, calendarMaxClipVol, None)
+    builder.PrependFloat64Slot(21, calendarMaxClipVol, None)
 
 def AddCalendarMaxClipVol(builder, calendarMaxClipVol):
     VolSurfaceExpiryReportAddCalendarMaxClipVol(builder, calendarMaxClipVol)
 
 def VolSurfaceExpiryReportAddCalendarAction(builder, calendarAction):
-    builder.PrependUOffsetTRelativeSlot(17, flatbuffers.number_types.UOffsetTFlags.py_type(calendarAction), 0)
+    builder.PrependUOffsetTRelativeSlot(22, flatbuffers.number_types.UOffsetTFlags.py_type(calendarAction), 0)
 
 def AddCalendarAction(builder, calendarAction):
     VolSurfaceExpiryReportAddCalendarAction(builder, calendarAction)
 
 def VolSurfaceExpiryReportAddGridPointsFilled(builder, gridPointsFilled):
-    builder.PrependUint32Slot(18, gridPointsFilled, 0)
+    builder.PrependUint32Slot(23, gridPointsFilled, 0)
 
 def AddGridPointsFilled(builder, gridPointsFilled):
     VolSurfaceExpiryReportAddGridPointsFilled(builder, gridPointsFilled)
@@ -353,6 +429,11 @@ class VolSurfaceExpiryReportT(object):
         self.butterflyMinG = None  # type: Optional[float]
         self.butterflyViolation = False  # type: bool
         self.butterflyAction = None  # type: str
+        self.calendarRefit = False  # type: bool
+        self.calendarRefitMaxVolShift = None  # type: Optional[float]
+        self.calendarMinMargin = None  # type: Optional[float]
+        self.calendarMinForwardVol = None  # type: Optional[float]
+        self.calendarFitAction = None  # type: str
         self.calendarViolations = 0  # type: int
         self.calendarMaxClipVol = None  # type: Optional[float]
         self.calendarAction = None  # type: str
@@ -402,6 +483,11 @@ class VolSurfaceExpiryReportT(object):
         self.butterflyMinG = volSurfaceExpiryReport.ButterflyMinG()
         self.butterflyViolation = volSurfaceExpiryReport.ButterflyViolation()
         self.butterflyAction = volSurfaceExpiryReport.ButterflyAction()
+        self.calendarRefit = volSurfaceExpiryReport.CalendarRefit()
+        self.calendarRefitMaxVolShift = volSurfaceExpiryReport.CalendarRefitMaxVolShift()
+        self.calendarMinMargin = volSurfaceExpiryReport.CalendarMinMargin()
+        self.calendarMinForwardVol = volSurfaceExpiryReport.CalendarMinForwardVol()
+        self.calendarFitAction = volSurfaceExpiryReport.CalendarFitAction()
         self.calendarViolations = volSurfaceExpiryReport.CalendarViolations()
         self.calendarMaxClipVol = volSurfaceExpiryReport.CalendarMaxClipVol()
         self.calendarAction = volSurfaceExpiryReport.CalendarAction()
@@ -425,6 +511,8 @@ class VolSurfaceExpiryReportT(object):
             svi = self.svi.Pack(builder)
         if self.butterflyAction is not None:
             butterflyAction = builder.CreateString(self.butterflyAction)
+        if self.calendarFitAction is not None:
+            calendarFitAction = builder.CreateString(self.calendarFitAction)
         if self.calendarAction is not None:
             calendarAction = builder.CreateString(self.calendarAction)
         VolSurfaceExpiryReportStart(builder)
@@ -448,6 +536,12 @@ class VolSurfaceExpiryReportT(object):
         VolSurfaceExpiryReportAddButterflyViolation(builder, self.butterflyViolation)
         if self.butterflyAction is not None:
             VolSurfaceExpiryReportAddButterflyAction(builder, butterflyAction)
+        VolSurfaceExpiryReportAddCalendarRefit(builder, self.calendarRefit)
+        VolSurfaceExpiryReportAddCalendarRefitMaxVolShift(builder, self.calendarRefitMaxVolShift)
+        VolSurfaceExpiryReportAddCalendarMinMargin(builder, self.calendarMinMargin)
+        VolSurfaceExpiryReportAddCalendarMinForwardVol(builder, self.calendarMinForwardVol)
+        if self.calendarFitAction is not None:
+            VolSurfaceExpiryReportAddCalendarFitAction(builder, calendarFitAction)
         VolSurfaceExpiryReportAddCalendarViolations(builder, self.calendarViolations)
         VolSurfaceExpiryReportAddCalendarMaxClipVol(builder, self.calendarMaxClipVol)
         if self.calendarAction is not None:

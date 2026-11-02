@@ -46,27 +46,52 @@
  *
  * 3b. SviPerExpiry. Per usable expiry QuantLib's SviInterpolation
  *    (Levenberg-Marquardt, vega-weighted least squares of the implied vols,
- *    multiple deterministic starts, the parameter transforms keeping b >= 0,
- *    |rho| < 1, sigma > 0, a + b sigma sqrt(1 - rho^2) >= 0 and
- *    b (1 + |rho|) <= 4) fits the raw SVI total variance
+ *    multiple deterministic starts) fits the raw SVI total variance
  *
  *        w(k) = a + b (rho (k - m) + sqrt((k - m)^2 + sigma^2)),  k = ln(K / F).
  *
- *    At least 5 used quotes are needed. Butterfly arbitrage: Durrleman's
- *    g(k) = (1 - k w'/(2w))^2 - (w'^2/4)(1/w + 1/4) + w''/2 is evaluated on
- *    201 points of the output strike range; min g < 0 is a violation. With
- *    enforce_butterfly the slice is refitted from those parameters by
- *    Levenberg-Marquardt on the same weighted residuals plus a penalty
- *    100 * max(0, -g(k_j)) per point, and g is re-evaluated; the report
- *    carries min g before and after. Grid vols are sqrt(w(k) / T).
+ *    At least 5 used quotes are needed. Each expiry has a region, where a
+ *    simulation goes around it: 5 standard deviations of the log-forward
+ *    on each side with the market's implied vols along the way, and the
+ *    strikes quoted on both this expiry and the one before, within the
+ *    output grid and the widest quoted range. Butterfly arbitrage:
+ *    Durrleman's g(k) = (1 - k w'/(2w))^2 - (w'^2/4)(1/w + 1/4) + w''/2 on
+ *    201 points of the output range and the regions of the slice's two
+ *    expiry pairs, and a wing slope b (1 + |rho|) above Lee's bound 2, are
+ *    violations; with enforce_butterfly the slice is refitted with a
+ *    penalty 100 * max(0, -g(k_j)) per point within the bound.
+ *
+ *    Calendar: the slices are fitted from the last expiry back, each held
+ *    under the next one. With total variance linear in time at fixed
+ *    strike between the two expiries and Dupire's time derivative taken
+ *    along the forward (x = ln(F_j / F_{j-1}), s = dw / d ln K), the
+ *    derivative is non-negative over the interval iff, at every strike,
+ *    w_j - w_{j-1} + x s_{j-1} >= m and w_j - w_{j-1} + x s_j >= m,
+ *    m = min_forward_vol^2 (T_j - T_{j-1}) (pairBounds, 401 strikes over the
+ *    later expiry's region). A slice that breaks it is refitted with the
+ *    butterfly and calendar penalties together (from its fit and from the
+ *    next slice moved to its forward), then lowered by any excess left.
+ *    The report carries per expiry whether the refit acted, the largest
+ *    vol change on the quotes, and after the fit the smallest margin and
+ *    forward vol against the expiry before. Grid vols are sqrt(w(k) / T).
+ *
+ * 3c. Local vol check. Each returned spec is rebuilt as the structured
+ *    note pricer builds it (BasketAsset + LocalVolCache, per-expiry strike
+ *    bands = the regions, FlatLocalVol) on the sheet's forwards and
+ *    QuantLib's LocalVolSurface is evaluated at every expiry +/- 2e-4, the
+ *    midpoints and T_last - 1e-3 on 201 strikes over the region. A
+ *    refusal makes arbitrage_free false; for the SVI payload the slices
+ *    involved get a larger margin / butterfly weight and are refitted
+ *    (at most 3 passes).
  *
  * 4. Grid and calendar check. Strikes = moneyness * spot (default 0.50 ..
- *    1.50 step 0.025, 41 points, at least 2); expiries default to the
- *    fitted sheet expiries. At each
- *    grid strike total variance w_i = sigma_i^2 T_i must not decrease with
- *    the expiry; a point where w_i < w_{i-1} + 1e-8 is a calendar violation,
- *    clipped to w_{i-1} + 1e-8 when enforce_calendar (SviPerExpiry) and
- *    reported for both methods.
+ *    1.50 step 0.025, 41 points, at least 2; Andreasen-Huge: the model's
+ *    own finite-difference strikes within that range and the regions);
+ *    expiries default to the fitted sheet expiries. At each node total
+ *    variance is compared with the previous row's at the same forward
+ *    moneyness; inside the expiry's region a node below it + 1e-8 is a
+ *    violation, clipped when enforce_calendar (SviPerExpiry, a last
+ *    resort), beyond it reported only.
  *
  * 5. Output and repricing. The surface is a BlackVolSpec SmileCube3D on a
  *    NullCalendar / Unadjusted / Actual365Fixed base with the grid expiries
@@ -74,14 +99,13 @@
  *    read with surface_interpolator CubicStrikeLinearTime (per expiry a
  *    natural cubic spline of total variance in log-strike, linear in total
  *    variance between expiries; src/market/smile_slice_vol_surface.h),
- *    extrapolation allowed. Every used quote is repriced on that very
- *    object (SmileSliceVolSurface, as vol_surface_parsers builds it): model
- *    vol at (expiry, K), Black price on the same F and DF, inside the
- *    bid/ask or not, with the largest price and vol excursions. With
- *    SviPerExpiry the fitted slices (forward, a, b, sigma, rho, m per
- *    usable expiry, after the butterfly refit, before the grid's calendar
- *    clip) are returned as well, as an SviVolSpec payload (the mapper
- *    builds it from `expiries[].svi` and `forwards`).
+ *    extrapolation allowed, with per-expiry local-vol strike ranges (the
+ *    regions inside the second and second-to-last grid strike). Every used
+ *    quote is repriced on that very object. With SviPerExpiry the fitted
+ *    slices are returned as well, as an SviVolSpec payload with
+ *    local_vol_strike_range PerExpiry and each slice's region as its
+ *    strike_min / strike_max (the mapper builds it from `expiries[].svi`
+ *    and `forwards`).
  *
  * INVARIANT: this file (and its .cpp) must NEVER include any *_generated.h or
  * mention FlatBuffers/gRPC namespaces. Suite 0 (scripts/check_evaluator_boundary.sh)
@@ -126,6 +150,10 @@ struct VolSurfaceCalibrationInputs {
     std::string volSurfaceId;
     bool enforceButterfly = true;
     bool enforceCalendar = true;
+    /// SviPerExpiry: the minimum forward volatility between two consecutive
+    /// fitted slices (the calendar margin sigma_min^2 (T_i - T_{i-1}) in
+    /// total variance), >= 0.
+    double minForwardVol = 0.01;
 };
 
 struct SviParams {
@@ -145,16 +173,45 @@ struct VolSurfaceExpiryReportData {
     std::optional<double> rmseVol;
     std::optional<double> maxAbsErrorVol;
     std::optional<SviParams> svi;
-    /// SviPerExpiry: the lowest / highest strike of the quotes the slice was
-    /// fitted to (the slice's strike_min / strike_max).
+    /// SviPerExpiry: the strike range checked around the expiry (the
+    /// slice's strike_min / strike_max, local_vol_strike_range PerExpiry).
     std::optional<double> strikeMin, strikeMax;
     std::optional<double> butterflyMinG;
     bool butterflyViolation = false;
     std::string butterflyAction;
+    /// SviPerExpiry, sequential fit (every fitted expiry after the first):
+    /// whether the calendar penalty refit acted, the largest vol change it
+    /// made over the slice's quoted strikes, and after the fit the smallest
+    /// excess of total variance over the previous slice's plus the margin
+    /// (>= 0 when satisfied) and the smallest forward vol between the two
+    /// slices on the calendar grid.
+    bool calendarRefit = false;
+    std::optional<double> calendarRefitMaxVolShift;
+    std::optional<double> calendarMinMargin;
+    std::optional<double> calendarMinForwardVol;
+    std::string calendarFitAction;
     unsigned calendarViolations = 0;
     std::optional<double> calendarMaxClipVol;
     std::string calendarAction;
     unsigned gridPointsFilled = 0;
+};
+
+/// Dupire local vol of a returned surface, read the way the structured-note
+/// pricer reads it, on a scan of times and strikes.
+struct LocalVolCheckData {
+    unsigned times = 0;
+    unsigned strikes = 0;
+    unsigned points = 0;
+    /// Scan points where QuantLib's LocalVolSurface refused (exception).
+    unsigned refused = 0;
+    std::string firstRefusal;
+    /// Smallest local variance over the points that evaluated, and where.
+    std::optional<double> minLocalVariance;
+    std::optional<double> minLocalVarianceTime;
+    std::optional<double> minLocalVarianceStrike;
+    bool arbitrageFree = false;
+    /// What was done when the check failed (SviPerExpiry refits).
+    std::string action;
 };
 
 struct VanillaRepricePointData {
@@ -199,8 +256,15 @@ struct VolSurfaceCalibrationResult {
     /// Row-major by grid expiry then grid strike.
     std::vector<double> gridVols;
     std::optional<AndreasenHugeErrorData> andreasenHugeError;
+    /// Per grid expiry: the strike range a note holds the grid's local vol
+    /// to (BlackVolSpec local_vol_strike_min / _max).
+    std::vector<double> gridLocalVolStrikeMin, gridLocalVolStrikeMax;
     std::string volSurfaceId;
     VanillaRepricingData repricing;
+    /// Local vol check of the grid surface (`vol_surface_spec`) and, for
+    /// SviPerExpiry, of the SVI payload (`vol_surface_spec_svi`).
+    LocalVolCheckData localVolCheck;
+    std::optional<LocalVolCheckData> localVolCheckSvi;
 };
 
 class VolSurfaceCalibrationEvaluator {

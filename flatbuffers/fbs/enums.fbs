@@ -73,6 +73,19 @@ enum LocalVolTimeExtrapolation : byte {
     FlatLocalVol = 1
 }
 
+/// Strike range a structured note holds the Dupire local vol of an
+/// SviVolSpec to (a simulated level beyond it reads the local vol at the
+/// edge).
+///   Global: [min of every slice's strike_min, max of every slice's
+///     strike_max], at every time.
+///   PerExpiry: at time t, [strike_min, strike_max] of the first slice
+///     whose expiry is at or after t (the last slice's beyond the last
+///     expiry); every slice must carry both.
+enum LocalVolStrikeRange : byte {
+    Global = 0,
+    PerExpiry = 1
+}
+
 /// Bootstrap trait for curve construction.
 enum BootstrapTrait : byte {
     Discount = 0,

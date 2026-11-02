@@ -86,15 +86,19 @@ class SviSlice(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Optional: the lowest and highest strike (absolute, same units as
-    # `forward`) of the quotes the slice was fitted to; `/calibrate-vol-surface`
-    # fills both. A raw SVI wing beyond the quotes is an extrapolation that
+    # Optional: a strike range (absolute, same units as `forward`) around
+    # the slice; `/calibrate-vol-surface` fills both with the region it
+    # checked around the expiry (before 0.16.5: the strikes of the quotes
+    # the slice was fitted to). A raw SVI wing beyond the quotes is an extrapolation that
     # can carry butterfly arbitrage (Durrleman's g < 0, a negative Dupire
     # local variance). When present, a structured note holds the local vol
-    # at the strike edge beyond them, as for a grid: the local vol strike
+    # at the strike edge beyond them, as for a grid: with the payload's
+    # `local_vol_strike_range` Global (default) the local vol strike
     # range is [min of every slice's strike_min, max of every slice's
-    # strike_max] (a slice without one leaves that side open), and a
-    # simulated level beyond it reads the local vol at the edge. No Black
+    # strike_max] (a slice without one leaves that side open); with
+    # PerExpiry it is this slice's range for the times up to its expiry
+    # (after the previous slice's). A simulated level beyond it reads the
+    # local vol at the edge. No Black
     # vol read is affected (vanilla options read the formula at every
     # strike). Absent: no edge. Each > 0 and strike_min < strike_max when
     # both are given (400 otherwise).

@@ -2017,6 +2017,41 @@ BlackVolEntry parseBlackVol(
         payload->local_vol_time_extrapolation().value_or(
             quantra::enums::LocalVolTimeExtrapolation_FlatImpliedVol) ==
         quantra::enums::LocalVolTimeExtrapolation_FlatLocalVol;
+    // Per-expiry local vol strike ranges (a strike x expiry surface only).
+    {
+        const auto* lo = payload->local_vol_strike_min();
+        const auto* hi = payload->local_vol_strike_max();
+        if ((lo != nullptr) != (hi != nullptr)) {
+            QUANTRA_INVALID_ARGUMENT(
+                "BlackVolSpec.local_vol_strike_min and local_vol_strike_max must be given "
+                "together for vol id: " +
+                id);
+        }
+        if (lo != nullptr) {
+            if (shape != quantra::enums::VolSurfaceShape_SmileCube3D) {
+                QUANTRA_INVALID_ARGUMENT(
+                    "BlackVolSpec.local_vol_strike_min / local_vol_strike_max apply to a "
+                    "SmileCube3D surface only for vol id: " +
+                    id);
+            }
+            if (lo->size() != entry.pillarDates.size() || hi->size() != entry.pillarDates.size()) {
+                QUANTRA_INVALID_ARGUMENT(
+                    "BlackVolSpec.local_vol_strike_min / local_vol_strike_max need one entry per "
+                    "expiry for vol id: " +
+                    id);
+            }
+            for (flatbuffers::uoffset_t i = 0; i < lo->size(); ++i) {
+                const double kLo = lo->Get(i), kHi = hi->Get(i);
+                if (!(std::isfinite(kLo) && std::isfinite(kHi) && kLo > 0.0 && kLo < kHi)) {
+                    QUANTRA_INVALID_ARGUMENT(
+                        "BlackVolSpec.local_vol_strike_min[" + std::to_string(i) +
+                        "] must be a finite strike > 0 below local_vol_strike_max for vol id: " +
+                        id);
+                }
+                entry.localVolStrikeBands.push_back({entry.pillarDates[i], kLo, kHi});
+            }
+        }
+    }
     entry.allowExtrapolation = payload->allow_extrapolation();
     if (payload->allow_extrapolation()) {
         entry.handle->enableExtrapolation();
@@ -2211,6 +2246,25 @@ BlackVolEntry parseSviVol(const quantra::VolSurfaceSpec* spec) {
     BlackVolEntry entry;
     entry.handle = QuantLib::Handle<QuantLib::BlackVolTermStructure>(
         makeSviSurface(ref, cal, bdc, dc, dates, params));
+    if (payload->local_vol_strike_range().value_or(quantra::enums::LocalVolStrikeRange_Global) ==
+        quantra::enums::LocalVolStrikeRange_PerExpiry) {
+        for (flatbuffers::uoffset_t i = 0; i < payload->slices()->size(); ++i) {
+            const auto* sl = payload->slices()->Get(i);
+            if (!sl->strike_min().has_value() || !sl->strike_max().has_value()) {
+                QUANTRA_INVALID_ARGUMENT(
+                    "SviVolSpec.slices[" + std::to_string(i) +
+                    "]: strike_min and strike_max are required with local_vol_strike_range "
+                    "PerExpiry for vol id: " +
+                    id);
+            }
+            entry.localVolStrikeBands.push_back({dates[i], *sl->strike_min(), *sl->strike_max()});
+        }
+    } else if (
+        payload->local_vol_strike_range().has_value() &&
+        *payload->local_vol_strike_range() != quantra::enums::LocalVolStrikeRange_Global) {
+        QUANTRA_INVALID_ARGUMENT(
+            "SviVolSpec.local_vol_strike_range is not known for vol id: " + id);
+    }
     if (surfaceMinStrike > 0.0 || surfaceMaxStrike < QL_MAX_REAL) {
         entry.localVolStrikeRange = std::make_pair(surfaceMinStrike, surfaceMaxStrike);
     }

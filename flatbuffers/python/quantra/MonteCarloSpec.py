@@ -86,8 +86,26 @@ class MonteCarloSpec(object):
             return self._tab.Get(flatbuffers.number_types.Uint32Flags, o + self._tab.Pos)
         return None
 
+    # Optional safety net for a strike-dependent surface simulated as
+    # Dupire local vol. Absent: QuantLib's LocalVolSurface as is; a read
+    # it refuses (total variance decreasing in time, negative local
+    # variance) is a 400 naming the surface. Present (> 0, finite; 400
+    # otherwise, and 400 when no underlying is simulated as local vol):
+    # the local vol simulated is max(Dupire, local_vol_floor), and a read
+    # QuantLib would refuse takes the floor instead. Where no floor applies
+    # the local vol is QuantLib's to the bit. The response's
+    # `model.underlyings[]` reports the fraction of local vol reads that
+    # were floored and the refusals floored. A floored fraction above about
+    # 1e-3 means the surface is not usable for the note: recalibrate it.
+    # MonteCarloSpec
+    def LocalVolFloor(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
 def MonteCarloSpecStart(builder):
-    builder.StartObject(6)
+    builder.StartObject(7)
 
 def Start(builder):
     MonteCarloSpecStart(builder)
@@ -128,6 +146,12 @@ def MonteCarloSpecAddStepsPerYear(builder, stepsPerYear):
 def AddStepsPerYear(builder, stepsPerYear):
     MonteCarloSpecAddStepsPerYear(builder, stepsPerYear)
 
+def MonteCarloSpecAddLocalVolFloor(builder, localVolFloor):
+    builder.PrependFloat64Slot(6, localVolFloor, None)
+
+def AddLocalVolFloor(builder, localVolFloor):
+    MonteCarloSpecAddLocalVolFloor(builder, localVolFloor)
+
 def MonteCarloSpecEnd(builder):
     return builder.EndObject()
 
@@ -145,6 +169,7 @@ class MonteCarloSpecT(object):
         self.antithetic = True  # type: bool
         self.brownianBridge = True  # type: bool
         self.stepsPerYear = None  # type: Optional[int]
+        self.localVolFloor = None  # type: Optional[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -173,6 +198,7 @@ class MonteCarloSpecT(object):
         self.antithetic = monteCarloSpec.Antithetic()
         self.brownianBridge = monteCarloSpec.BrownianBridge()
         self.stepsPerYear = monteCarloSpec.StepsPerYear()
+        self.localVolFloor = monteCarloSpec.LocalVolFloor()
 
     # MonteCarloSpecT
     def Pack(self, builder):
@@ -183,5 +209,6 @@ class MonteCarloSpecT(object):
         MonteCarloSpecAddAntithetic(builder, self.antithetic)
         MonteCarloSpecAddBrownianBridge(builder, self.brownianBridge)
         MonteCarloSpecAddStepsPerYear(builder, self.stepsPerYear)
+        MonteCarloSpecAddLocalVolFloor(builder, self.localVolFloor)
         monteCarloSpec = MonteCarloSpecEnd(builder)
         return monteCarloSpec

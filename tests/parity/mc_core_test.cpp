@@ -976,6 +976,163 @@ TEST(McCoreTest, SviQuotedStrikeRangeClampsTheLocalVol) {
     EXPECT_THROW(cache.attach(empty), std::exception);
 }
 
+// The local vol floor (MonteCarloSpec.local_vol_floor): on an
+// arbitrage-free surface, where the floor does not bind, the floored local
+// vol is QuantLib's LocalVolSurface to the bit at every read (the Dupire
+// formula is computed in EdgeClampedLocalVol step by step as QuantLib does);
+// on a surface whose total variance decreases between two expiries, a read
+// QuantLib refuses returns the floor and is counted.
+TEST(McCoreTest, LocalVolFloorIsBitIdenticalWhereItDoesNotBindAndCountsWhereItDoes) {
+    McMarket m;
+    const Real S = 100.0, r = 0.03, q = 0.01;
+    const std::vector<Date> expiries = {m.plusDays(91), m.plusDays(182), m.plusDays(365)};
+    auto sviSurface = [&](const std::vector<Real>& atm) {
+        std::vector<quantra::SviSliceParams> params;
+        for (std::size_t i = 0; i < expiries.size(); ++i) {
+            const Real T = m.dc.yearFraction(m.valuation, expiries[i]);
+            // SSVI power law (eta 1, gamma 1/2), rho -0.6: arbitrage-free.
+            const Real theta = atm[i] * atm[i] * T, phi = 1.0 / std::sqrt(theta), rho = -0.6;
+            quantra::SviSliceParams p;
+            p.forward = S * std::exp((r - q) * T);
+            p.a = theta * (1.0 - rho * rho) / 2.0;
+            p.b = theta * phi / 2.0;
+            p.sigma = std::sqrt(1.0 - rho * rho) / phi;
+            p.rho = rho;
+            p.m = -rho / phi;
+            params.push_back(p);
+        }
+        auto s = quantra::makeSviSurface(
+            m.valuation, m.cal, QuantLib::Unadjusted, m.dc, expiries, params);
+        s->enableExtrapolation();
+        return Handle<QuantLib::BlackVolTermStructure>(s);
+    };
+
+    const auto good = sviSurface({0.22, 0.21, 0.20});
+    auto plainAsset = mc::MakeBasketAsset("A", m.spot(S), m.flat(q), m.flat(r), good);
+    auto flooredAsset = plainAsset;
+    flooredAsset.localVolFloor = 1e-4;
+    mc::LocalVolCache cache;
+    cache.attach(plainAsset);
+    cache.attach(flooredAsset);
+    EXPECT_EQ(cache.size(), 2u);
+    const auto* floored =
+        dynamic_cast<const mc::EdgeClampedLocalVol*>(flooredAsset.localVol.currentLink().get());
+    ASSERT_NE(floored, nullptr);
+    QuantLib::LocalVolSurface ql(good, plainAsset.riskFree, plainAsset.dividend, plainAsset.spot);
+    Size compared = 0;
+    for (Real t : {0.0, 1e-5, 0.05, 0.2493, 0.25, 0.4, 0.7, 0.9999, 1.0, 1.5}) {
+        for (Real K = 40.0; K <= 200.0; K *= 1.05) {
+            const Real expected = ql.localVol(t, K, true);
+            EXPECT_EQ(flooredAsset.localVol->localVol(t, K, true), expected)
+                << "t " << t << " K " << K;
+            EXPECT_EQ(floored->dupire(t, K), expected) << "t " << t << " K " << K;
+            EXPECT_EQ(plainAsset.localVol->localVol(t, K, true), expected);
+            ++compared;
+        }
+    }
+    EXPECT_GT(compared, 300u);
+    EXPECT_EQ(floored->reads(), compared);
+    EXPECT_EQ(floored->floored(), 0u);
+    EXPECT_EQ(floored->refusals(), 0u);
+    floored->resetCounts();
+    EXPECT_EQ(floored->reads(), 0u);
+
+    // The six-month slice above the one-year one at the money: total
+    // variance decreases in time there. QuantLib refuses; the floor holds.
+    const auto bad = sviSurface({0.22, 0.30, 0.20});
+    auto badPlain = mc::MakeBasketAsset("B", m.spot(S), m.flat(q), m.flat(r), bad);
+    auto badFloored = badPlain;
+    badFloored.localVolFloor = 0.05;
+    cache.attach(badPlain);
+    cache.attach(badFloored);
+    const Real t = 0.75;
+    EXPECT_THROW(badPlain.localVol->localVol(t, 100.0, true), std::exception);
+    EXPECT_EQ(badFloored.localVol->localVol(t, 100.0, true), 0.05);
+    const auto* bf =
+        dynamic_cast<const mc::EdgeClampedLocalVol*>(badFloored.localVol.currentLink().get());
+    ASSERT_NE(bf, nullptr);
+    EXPECT_TRUE(std::isnan(bf->dupire(t, 100.0)));
+    EXPECT_EQ(bf->reads(), 1u);
+    EXPECT_EQ(bf->floored(), 1u);
+    EXPECT_EQ(bf->refusals(), 1u);
+    // Before the six-month expiry the surface is fine: no floor.
+    EXPECT_EQ(
+        badFloored.localVol->localVol(0.1, 100.0, true),
+        QuantLib::LocalVolSurface(bad, badPlain.riskFree, badPlain.dividend, badPlain.spot)
+            .localVol(0.1, 100.0, true));
+    EXPECT_EQ(bf->reads(), 2u);
+    EXPECT_EQ(bf->floored(), 1u);
+
+    // Through a simulation: the floored basket prices, the plain one throws.
+    const auto grid = mc::BuildSimulationGrid(m.valuation, {expiries.back()}, Size(52));
+    const mc::PathFunctor terminal = [&](const QuantLib::MultiPath& path, std::vector<Real>& acc) {
+        acc[0] = path[0].back();
+    };
+    EXPECT_THROW(
+        mc::RunPaths(
+            mc::BasketModel::build({badPlain}, identity(1)), grid.grid,
+            config(512, kSobol, true, true), 1, terminal),
+        std::exception);
+    bf->resetCounts();
+    const auto res = mc::RunPaths(
+        mc::BasketModel::build({badFloored}, identity(1)), grid.grid,
+        config(512, kSobol, true, true), 1, terminal);
+    EXPECT_GT(res.mean[0], 0.0);
+    EXPECT_GT(bf->floored(), 0u);
+    EXPECT_GT(bf->refusals(), 0u);
+    // QuantLib's Euler step reads the local vol for the drift and for the
+    // diffusion: two reads per path and step.
+    EXPECT_EQ(bf->reads(), 2u * 512u * (grid.size() - 1));
+    std::cout << "  floored fraction " << static_cast<double>(bf->floored()) / bf->reads()
+              << ", refusals " << bf->refusals() << std::endl;
+}
+
+// Per-expiry strike bands (BlackVolSpec local_vol_strike_min / _max,
+// SviVolSpec local_vol_strike_range PerExpiry): at time t the level is
+// clamped to the band of the first expiry at or after t, the last band
+// beyond the last expiry; inside the band the value is QuantLib's.
+TEST(McCoreTest, PerExpiryStrikeBandsClampTheLocalVolByTime) {
+    McMarket m;
+    const Real S = 100.0, r = 0.03, q = 0.01;
+    const std::vector<Date> expiries = {m.plusDays(182), m.plusDays(365)};
+    std::vector<quantra::SviSliceParams> params;
+    for (std::size_t i = 0; i < expiries.size(); ++i) {
+        const Real T = m.dc.yearFraction(m.valuation, expiries[i]);
+        quantra::SviSliceParams p;
+        p.forward = S * std::exp((r - q) * T);
+        p.a = 0.04 * T * 0.5;
+        p.b = 0.04 * T;
+        p.sigma = 0.3;
+        p.rho = -0.4;
+        p.m = 0.0;
+        params.push_back(p);
+    }
+    auto surface =
+        quantra::makeSviSurface(m.valuation, m.cal, QuantLib::Unadjusted, m.dc, expiries, params);
+    const Handle<QuantLib::BlackVolTermStructure> vol(surface);
+    auto asset = mc::MakeBasketAsset("A", m.spot(S), m.flat(q), m.flat(r), vol);
+    asset.localVolStrikeBands = {{0.5, 80.0, 120.0}, {1.0, 60.0, 150.0}};
+    mc::LocalVolCache cache;
+    cache.attach(asset);
+    const auto* clamped =
+        dynamic_cast<const mc::EdgeClampedLocalVol*>(asset.localVol.currentLink().get());
+    ASSERT_NE(clamped, nullptr);
+    const Real e = std::exp(mc::EdgeClampedLocalVol::kEdgeMargin);
+    EXPECT_EQ(clamped->clampedLevel(50.0, 0.2), 80.0 * e);
+    EXPECT_EQ(clamped->clampedLevel(50.0, 0.5), 80.0 * e);
+    EXPECT_EQ(clamped->clampedLevel(50.0, 0.7), 60.0 * e);
+    EXPECT_EQ(
+        clamped->clampedLevel(500.0, 3.0), 150.0 * std::exp(-mc::EdgeClampedLocalVol::kEdgeMargin));
+    EXPECT_EQ(clamped->clampedLevel(100.0, 0.7), 100.0);
+    QuantLib::LocalVolSurface ql(vol, asset.riskFree, asset.dividend, asset.spot);
+    EXPECT_EQ(asset.localVol->localVol(0.3, 70.0, true), ql.localVol(0.3, 80.0 * e, true));
+    EXPECT_EQ(asset.localVol->localVol(0.8, 70.0, true), ql.localVol(0.8, 70.0, true));
+    auto other = asset;
+    other.localVolStrikeBands = {{0.5, 80.0, 120.0}};
+    cache.attach(other);
+    EXPECT_EQ(cache.size(), 2u);
+}
+
 TEST(McCoreTest, TimeGridMandatoryOnlyAndRefined) {
     McMarket m;
     const Date d1 = m.plusDays(182), d2 = m.plusDays(365);

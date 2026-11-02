@@ -21,6 +21,10 @@
       "type" : "string",
       "enum": ["FlatImpliedVol", "FlatLocalVol"]
     },
+    "quantra_enums_LocalVolStrikeRange" : {
+      "type" : "string",
+      "enum": ["Global", "PerExpiry"]
+    },
     "quantra_enums_BootstrapTrait" : {
       "type" : "string",
       "enum": ["Discount", "FwdRate", "InterpolatedDiscount", "InterpolatedFwd", "InterpolatedZero", "ZeroRate"]
@@ -1479,6 +1483,10 @@
         "steps_per_year" : {
                 "type" : "integer", "minimum" : 0, "maximum" : 4294967295,
                 "description" : "Absent when the grid is the observation dates only."
+              },
+        "local_vol_floor" : {
+                "type" : "number",
+                "description" : "The request's `monte_carlo.local_vol_floor`; absent when none."
               }
       },
       "required" : ["trade_id", "currency", "underlyings", "events", "maturity_payment_date", "discounting_curve"],
@@ -1584,6 +1592,19 @@
         "quanto_drift" : {
                 "type" : "number",
                 "description" : "Quanto drift adjustment -rho * sigma_S * sigma_FX applied\n(annualised, in rate units, at the first observation); absent for a\nsame-currency underlying."
+              },
+        "local_vol_floor" : {
+                "type" : "number",
+                "description" : "With `monte_carlo.local_vol_floor` and a local-vol underlying: the\nfloor, the local vol reads of the priced simulation (Greeks and\ndiagnostic runs excluded), the fraction of them that took the floor\n(refusals included) and the reads QuantLib would have refused.\nAbove about 1e-3 the surface is not usable for the note:\nrecalibrate it. Absent without a floor."
+              },
+        "local_vol_reads" : {
+                "type" : "integer", "minimum" : 0, "maximum" : 18446744073709551615
+              },
+        "local_vol_floored_fraction" : {
+                "type" : "number"
+              },
+        "local_vol_refusals_floored" : {
+                "type" : "integer", "minimum" : 0, "maximum" : 18446744073709551615
               }
       },
       "required" : ["underlying_id"],

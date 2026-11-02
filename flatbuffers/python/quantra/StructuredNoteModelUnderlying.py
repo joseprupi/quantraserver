@@ -60,8 +60,42 @@ class StructuredNoteModelUnderlying(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
 
+    # With `monte_carlo.local_vol_floor` and a local-vol underlying: the
+    # floor, the local vol reads of the priced simulation (Greeks and
+    # diagnostic runs excluded), the fraction of them that took the floor
+    # (refusals included) and the reads QuantLib would have refused.
+    # Above about 1e-3 the surface is not usable for the note:
+    # recalibrate it. Absent without a floor.
+    # StructuredNoteModelUnderlying
+    def LocalVolFloor(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
+    # StructuredNoteModelUnderlying
+    def LocalVolReads(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Uint64Flags, o + self._tab.Pos)
+        return None
+
+    # StructuredNoteModelUnderlying
+    def LocalVolFlooredFraction(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
+    # StructuredNoteModelUnderlying
+    def LocalVolRefusalsFloored(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Uint64Flags, o + self._tab.Pos)
+        return None
+
 def StructuredNoteModelUnderlyingStart(builder):
-    builder.StartObject(4)
+    builder.StartObject(8)
 
 def Start(builder):
     StructuredNoteModelUnderlyingStart(builder)
@@ -90,6 +124,30 @@ def StructuredNoteModelUnderlyingAddQuantoDrift(builder, quantoDrift):
 def AddQuantoDrift(builder, quantoDrift):
     StructuredNoteModelUnderlyingAddQuantoDrift(builder, quantoDrift)
 
+def StructuredNoteModelUnderlyingAddLocalVolFloor(builder, localVolFloor):
+    builder.PrependFloat64Slot(4, localVolFloor, None)
+
+def AddLocalVolFloor(builder, localVolFloor):
+    StructuredNoteModelUnderlyingAddLocalVolFloor(builder, localVolFloor)
+
+def StructuredNoteModelUnderlyingAddLocalVolReads(builder, localVolReads):
+    builder.PrependUint64Slot(5, localVolReads, None)
+
+def AddLocalVolReads(builder, localVolReads):
+    StructuredNoteModelUnderlyingAddLocalVolReads(builder, localVolReads)
+
+def StructuredNoteModelUnderlyingAddLocalVolFlooredFraction(builder, localVolFlooredFraction):
+    builder.PrependFloat64Slot(6, localVolFlooredFraction, None)
+
+def AddLocalVolFlooredFraction(builder, localVolFlooredFraction):
+    StructuredNoteModelUnderlyingAddLocalVolFlooredFraction(builder, localVolFlooredFraction)
+
+def StructuredNoteModelUnderlyingAddLocalVolRefusalsFloored(builder, localVolRefusalsFloored):
+    builder.PrependUint64Slot(7, localVolRefusalsFloored, None)
+
+def AddLocalVolRefusalsFloored(builder, localVolRefusalsFloored):
+    StructuredNoteModelUnderlyingAddLocalVolRefusalsFloored(builder, localVolRefusalsFloored)
+
 def StructuredNoteModelUnderlyingEnd(builder):
     return builder.EndObject()
 
@@ -105,6 +163,10 @@ class StructuredNoteModelUnderlyingT(object):
         self.volShape = 0  # type: int
         self.localVol = False  # type: bool
         self.quantoDrift = None  # type: Optional[float]
+        self.localVolFloor = None  # type: Optional[float]
+        self.localVolReads = None  # type: Optional[int]
+        self.localVolFlooredFraction = None  # type: Optional[float]
+        self.localVolRefusalsFloored = None  # type: Optional[int]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -131,6 +193,10 @@ class StructuredNoteModelUnderlyingT(object):
         self.volShape = structuredNoteModelUnderlying.VolShape()
         self.localVol = structuredNoteModelUnderlying.LocalVol()
         self.quantoDrift = structuredNoteModelUnderlying.QuantoDrift()
+        self.localVolFloor = structuredNoteModelUnderlying.LocalVolFloor()
+        self.localVolReads = structuredNoteModelUnderlying.LocalVolReads()
+        self.localVolFlooredFraction = structuredNoteModelUnderlying.LocalVolFlooredFraction()
+        self.localVolRefusalsFloored = structuredNoteModelUnderlying.LocalVolRefusalsFloored()
 
     # StructuredNoteModelUnderlyingT
     def Pack(self, builder):
@@ -142,5 +208,9 @@ class StructuredNoteModelUnderlyingT(object):
         StructuredNoteModelUnderlyingAddVolShape(builder, self.volShape)
         StructuredNoteModelUnderlyingAddLocalVol(builder, self.localVol)
         StructuredNoteModelUnderlyingAddQuantoDrift(builder, self.quantoDrift)
+        StructuredNoteModelUnderlyingAddLocalVolFloor(builder, self.localVolFloor)
+        StructuredNoteModelUnderlyingAddLocalVolReads(builder, self.localVolReads)
+        StructuredNoteModelUnderlyingAddLocalVolFlooredFraction(builder, self.localVolFlooredFraction)
+        StructuredNoteModelUnderlyingAddLocalVolRefusalsFloored(builder, self.localVolRefusalsFloored)
         structuredNoteModelUnderlying = StructuredNoteModelUnderlyingEnd(builder)
         return structuredNoteModelUnderlying

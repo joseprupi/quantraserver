@@ -100,8 +100,20 @@ class SviVolSpec(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
+    # Optional. How the slices' strike_min / strike_max bound the local
+    # vol (see the enum). Absent = Global (one range for every time).
+    # PerExpiry requires strike_min and strike_max on every slice (400
+    # otherwise). `/calibrate-vol-surface` returns PerExpiry with each
+    # slice's checked region. No Black vol read is affected.
+    # SviVolSpec
+    def LocalVolStrikeRange(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return None
+
 def SviVolSpecStart(builder):
-    builder.StartObject(5)
+    builder.StartObject(6)
 
 def Start(builder):
     SviVolSpecStart(builder)
@@ -142,6 +154,12 @@ def SviVolSpecAddLocalVolTimeExtrapolation(builder, localVolTimeExtrapolation):
 def AddLocalVolTimeExtrapolation(builder, localVolTimeExtrapolation):
     SviVolSpecAddLocalVolTimeExtrapolation(builder, localVolTimeExtrapolation)
 
+def SviVolSpecAddLocalVolStrikeRange(builder, localVolStrikeRange):
+    builder.PrependInt8Slot(5, localVolStrikeRange, None)
+
+def AddLocalVolStrikeRange(builder, localVolStrikeRange):
+    SviVolSpecAddLocalVolStrikeRange(builder, localVolStrikeRange)
+
 def SviVolSpecEnd(builder):
     return builder.EndObject()
 
@@ -162,6 +180,7 @@ class SviVolSpecT(object):
         self.timeInterpolation = 0  # type: int
         self.allowExtrapolation = False  # type: bool
         self.localVolTimeExtrapolation = None  # type: Optional[int]
+        self.localVolStrikeRange = None  # type: Optional[int]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -197,6 +216,7 @@ class SviVolSpecT(object):
         self.timeInterpolation = sviVolSpec.TimeInterpolation()
         self.allowExtrapolation = sviVolSpec.AllowExtrapolation()
         self.localVolTimeExtrapolation = sviVolSpec.LocalVolTimeExtrapolation()
+        self.localVolStrikeRange = sviVolSpec.LocalVolStrikeRange()
 
     # SviVolSpecT
     def Pack(self, builder):
@@ -218,5 +238,6 @@ class SviVolSpecT(object):
         SviVolSpecAddTimeInterpolation(builder, self.timeInterpolation)
         SviVolSpecAddAllowExtrapolation(builder, self.allowExtrapolation)
         SviVolSpecAddLocalVolTimeExtrapolation(builder, self.localVolTimeExtrapolation)
+        SviVolSpecAddLocalVolStrikeRange(builder, self.localVolStrikeRange)
         sviVolSpec = SviVolSpecEnd(builder)
         return sviVolSpec

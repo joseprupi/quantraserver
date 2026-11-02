@@ -431,6 +431,14 @@ StructuredNoteTrade decodeNote(const quantra::StructuredNote* n, std::size_t i) 
             }
             t.monteCarlo.stepsPerYear = m->steps_per_year().value();
         }
+        if (m->local_vol_floor().has_value()) {
+            const double f = m->local_vol_floor().value();
+            if (!std::isfinite(f) || !(f > 0.0)) {
+                QUANTRA_INVALID_ARGUMENT(
+                    mp + ".local_vol_floor: must be finite and > 0 when present");
+            }
+            t.monteCarlo.localVolFloor = f;
+        }
         if (t.capital.monitoring == CapitalBarrierMonitoring::DailyClose &&
             !t.monteCarlo.stepsPerYear) {
             QUANTRA_INVALID_ARGUMENT(
@@ -522,6 +530,7 @@ flatbuffers::Offset<quantra::StructuredNoteTermsEcho> serializeTerms(
     tb.add_antithetic(t.antithetic);
     tb.add_brownian_bridge(t.brownianBridge);
     if (t.stepsPerYear) tb.add_steps_per_year(*t.stepsPerYear);
+    if (t.localVolFloor) tb.add_local_vol_floor(*t.localVolFloor);
     return tb.Finish();
 }
 
@@ -570,6 +579,12 @@ flatbuffers::Offset<quantra::StructuredNoteModelEcho> serializeModel(
         ub.add_vol_shape(u.volShape);
         ub.add_local_vol(u.localVol);
         if (u.quantoDrift) ub.add_quanto_drift(*u.quantoDrift);
+        if (u.localVolFloor) ub.add_local_vol_floor(*u.localVolFloor);
+        if (u.localVolReads) ub.add_local_vol_reads(*u.localVolReads);
+        if (u.localVolFlooredFraction)
+            ub.add_local_vol_floored_fraction(*u.localVolFlooredFraction);
+        if (u.localVolRefusalsFloored)
+            ub.add_local_vol_refusals_floored(*u.localVolRefusalsFloored);
         unds.push_back(ub.Finish());
     }
     auto undsVec = b.CreateVector(unds);

@@ -129,17 +129,29 @@ struct SviFitOptionsT : public ::flatbuffers::NativeTable {
   typedef SviFitOptions TableType;
   bool enforce_butterfly = true;
   bool enforce_calendar = true;
+  double min_forward_vol = 0.01;
 };
 
 /// Arbitrage handling of the `SviPerExpiry` method (ignored by
 /// `AndreasenHuge`, which is arbitrage-free by construction and only
 /// reports).
+///
+/// The expiries are fitted one after the other in increasing time. From the
+/// second on, the slice must lie above the slice before it on a fine
+/// log-moneyness grid (401 points over the output strikes and every quoted
+/// strike of the sheet, extended to k = +/- 5 sigma_ATM sqrt(T)), both at
+/// the same strike (the surface interpolates linearly in total variance at
+/// fixed strike) and at the same forward moneyness (Dupire's local vol
+/// differentiates in time along the forward):
+///
+///     w_i(k) >= w_{i-1}(k) + min_forward_vol^2 (T_i - T_{i-1}).
 struct SviFitOptions FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SviFitOptionsT NativeTableType;
   typedef SviFitOptionsBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_ENFORCE_BUTTERFLY = 4,
-    VT_ENFORCE_CALENDAR = 6
+    VT_ENFORCE_CALENDAR = 6,
+    VT_MIN_FORWARD_VOL = 8
   };
   /// When the fitted slice has butterfly arbitrage (Durrleman's g(k) < 0
   /// somewhere on the output strike range), refit the five parameters by
@@ -148,17 +160,32 @@ struct SviFitOptions FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   bool enforce_butterfly() const {
     return GetField<uint8_t>(VT_ENFORCE_BUTTERFLY, 1) != 0;
   }
-  /// When total variance decreases from one grid expiry to the next at a
-  /// grid strike, clip it to the previous expiry's total variance plus
-  /// 1e-8; the report counts the clipped points per expiry. Off: report
-  /// only.
+  /// When the independently fitted slice violates the calendar constraint
+  /// above, refit it by Levenberg-Marquardt with a penalty on the shortfall
+  /// (together with the butterfly penalty when `enforce_butterfly`), then
+  /// lift it by whatever shortfall remains, so the constraint holds on
+  /// every grid point; the report says per expiry whether the refit acted,
+  /// the largest vol change it made over the quoted strikes and the
+  /// smallest margin after the fit. Then, as a last resort, total variance
+  /// that still decreases from one grid expiry to the next at a grid
+  /// strike is clipped to the previous expiry's plus 1e-8 (it should not
+  /// fire after the fit; the report counts the clipped points). Off:
+  /// report only (independent fits, no clip).
   bool enforce_calendar() const {
     return GetField<uint8_t>(VT_ENFORCE_CALENDAR, 1) != 0;
+  }
+  /// Minimum forward volatility between two consecutive fitted expiries,
+  /// the calendar margin of the constraint above (0.01 = 1 % forward vol).
+  /// 0 = no margin (total variance non-decreasing only). Must be finite
+  /// and >= 0.
+  double min_forward_vol() const {
+    return GetField<double>(VT_MIN_FORWARD_VOL, 0.01);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint8_t>(verifier, VT_ENFORCE_BUTTERFLY, 1) &&
            VerifyField<uint8_t>(verifier, VT_ENFORCE_CALENDAR, 1) &&
+           VerifyField<double>(verifier, VT_MIN_FORWARD_VOL, 8) &&
            verifier.EndTable();
   }
   SviFitOptionsT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -176,6 +203,9 @@ struct SviFitOptionsBuilder {
   void add_enforce_calendar(bool enforce_calendar) {
     fbb_.AddElement<uint8_t>(SviFitOptions::VT_ENFORCE_CALENDAR, static_cast<uint8_t>(enforce_calendar), 1);
   }
+  void add_min_forward_vol(double min_forward_vol) {
+    fbb_.AddElement<double>(SviFitOptions::VT_MIN_FORWARD_VOL, min_forward_vol, 0.01);
+  }
   explicit SviFitOptionsBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -190,8 +220,10 @@ struct SviFitOptionsBuilder {
 inline ::flatbuffers::Offset<SviFitOptions> CreateSviFitOptions(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     bool enforce_butterfly = true,
-    bool enforce_calendar = true) {
+    bool enforce_calendar = true,
+    double min_forward_vol = 0.01) {
   SviFitOptionsBuilder builder_(_fbb);
+  builder_.add_min_forward_vol(min_forward_vol);
   builder_.add_enforce_calendar(enforce_calendar);
   builder_.add_enforce_butterfly(enforce_butterfly);
   return builder_.Finish();
@@ -274,7 +306,8 @@ struct CalibrateVolSurfaceRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffer
   const ::flatbuffers::String *vol_surface_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_VOL_SURFACE_ID);
   }
-  /// SVI arbitrage handling; defaults (both on) apply when absent.
+  /// SVI arbitrage handling; defaults (both on, min_forward_vol 0.01)
+  /// apply when absent.
   const quantra::SviFitOptions *svi() const {
     return GetPointer<const quantra::SviFitOptions *>(VT_SVI);
   }
@@ -456,6 +489,7 @@ inline void SviFitOptions::UnPackTo(SviFitOptionsT *_o, const ::flatbuffers::res
   (void)_resolver;
   { auto _e = enforce_butterfly(); _o->enforce_butterfly = _e; }
   { auto _e = enforce_calendar(); _o->enforce_calendar = _e; }
+  { auto _e = min_forward_vol(); _o->min_forward_vol = _e; }
 }
 
 inline ::flatbuffers::Offset<SviFitOptions> SviFitOptions::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SviFitOptionsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -468,10 +502,12 @@ inline ::flatbuffers::Offset<SviFitOptions> CreateSviFitOptions(::flatbuffers::F
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SviFitOptionsT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _enforce_butterfly = _o->enforce_butterfly;
   auto _enforce_calendar = _o->enforce_calendar;
+  auto _min_forward_vol = _o->min_forward_vol;
   return quantra::CreateSviFitOptions(
       _fbb,
       _enforce_butterfly,
-      _enforce_calendar);
+      _enforce_calendar,
+      _min_forward_vol);
 }
 
 inline CalibrateVolSurfaceRequestT::CalibrateVolSurfaceRequestT(const CalibrateVolSurfaceRequestT &o)
