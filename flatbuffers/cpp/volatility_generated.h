@@ -78,6 +78,14 @@ struct SviVolSpec;
 struct SviVolSpecBuilder;
 struct SviVolSpecT;
 
+struct SsviSlice;
+struct SsviSliceBuilder;
+struct SsviSliceT;
+
+struct SsviVolSpec;
+struct SsviVolSpecBuilder;
+struct SsviVolSpecT;
+
 struct VolSurfaceSpec;
 struct VolSurfaceSpecBuilder;
 struct VolSurfaceSpecT;
@@ -256,37 +264,40 @@ enum VolPayload : uint8_t {
   VolPayload_BlackVolSpec = 3,
   VolPayload_YoYOptionletVolSpec = 4,
   VolPayload_SviVolSpec = 5,
+  VolPayload_SsviVolSpec = 6,
   VolPayload_MIN = VolPayload_NONE,
-  VolPayload_MAX = VolPayload_SviVolSpec
+  VolPayload_MAX = VolPayload_SsviVolSpec
 };
 
-inline const VolPayload (&EnumValuesVolPayload())[6] {
+inline const VolPayload (&EnumValuesVolPayload())[7] {
   static const VolPayload values[] = {
     VolPayload_NONE,
     VolPayload_OptionletVolSpec,
     VolPayload_SwaptionVolSpec,
     VolPayload_BlackVolSpec,
     VolPayload_YoYOptionletVolSpec,
-    VolPayload_SviVolSpec
+    VolPayload_SviVolSpec,
+    VolPayload_SsviVolSpec
   };
   return values;
 }
 
 inline const char * const *EnumNamesVolPayload() {
-  static const char * const names[7] = {
+  static const char * const names[8] = {
     "NONE",
     "OptionletVolSpec",
     "SwaptionVolSpec",
     "BlackVolSpec",
     "YoYOptionletVolSpec",
     "SviVolSpec",
+    "SsviVolSpec",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameVolPayload(VolPayload e) {
-  if (::flatbuffers::IsOutRange(e, VolPayload_NONE, VolPayload_SviVolSpec)) return "";
+  if (::flatbuffers::IsOutRange(e, VolPayload_NONE, VolPayload_SsviVolSpec)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesVolPayload()[index];
 }
@@ -315,6 +326,10 @@ template<> struct VolPayloadTraits<quantra::SviVolSpec> {
   static const VolPayload enum_value = VolPayload_SviVolSpec;
 };
 
+template<> struct VolPayloadTraits<quantra::SsviVolSpec> {
+  static const VolPayload enum_value = VolPayload_SsviVolSpec;
+};
+
 template<typename T> struct VolPayloadUnionTraits {
   static const VolPayload enum_value = VolPayload_NONE;
 };
@@ -337,6 +352,10 @@ template<> struct VolPayloadUnionTraits<quantra::YoYOptionletVolSpecT> {
 
 template<> struct VolPayloadUnionTraits<quantra::SviVolSpecT> {
   static const VolPayload enum_value = VolPayload_SviVolSpec;
+};
+
+template<> struct VolPayloadUnionTraits<quantra::SsviVolSpecT> {
+  static const VolPayload enum_value = VolPayload_SsviVolSpec;
 };
 
 struct VolPayloadUnion {
@@ -408,6 +427,14 @@ struct VolPayloadUnion {
   const quantra::SviVolSpecT *AsSviVolSpec() const {
     return type == VolPayload_SviVolSpec ?
       reinterpret_cast<const quantra::SviVolSpecT *>(value) : nullptr;
+  }
+  quantra::SsviVolSpecT *AsSsviVolSpec() {
+    return type == VolPayload_SsviVolSpec ?
+      reinterpret_cast<quantra::SsviVolSpecT *>(value) : nullptr;
+  }
+  const quantra::SsviVolSpecT *AsSsviVolSpec() const {
+    return type == VolPayload_SsviVolSpec ?
+      reinterpret_cast<const quantra::SsviVolSpecT *>(value) : nullptr;
   }
 };
 
@@ -2808,6 +2835,333 @@ inline ::flatbuffers::Offset<SviVolSpec> CreateSviVolSpecDirect(
 
 ::flatbuffers::Offset<SviVolSpec> CreateSviVolSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SviVolSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct SsviSliceT : public ::flatbuffers::NativeTable {
+  typedef SsviSlice TableType;
+  std::string expiry{};
+  ::flatbuffers::Optional<double> forward = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> theta = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> rho = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> psi = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> strike_min = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> strike_max = ::flatbuffers::nullopt;
+};
+
+/// One expiry of an `SsviVolSpec`: an eSSVI slice (Corbetta, Cohort,
+/// Laachir, Martini 2019, "Robust calibration and arbitrage-free
+/// interpolation of SSVI slices"). Total variance at log-forward moneyness
+/// k = ln(K / F_ref(T))
+///
+///     w(k) = 0.5 (theta + rho psi k + sqrt(psi^2 k^2 + 2 rho psi theta k + theta^2)),
+///
+/// the Black vol being sqrt(w / T), T the base day counter's year fraction
+/// from the reference date to `expiry`. Every field but the strike range is
+/// presence-required (400 naming it).
+struct SsviSlice FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SsviSliceT NativeTableType;
+  typedef SsviSliceBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_EXPIRY = 4,
+    VT_FORWARD = 6,
+    VT_THETA = 8,
+    VT_RHO = 10,
+    VT_PSI = 12,
+    VT_STRIKE_MIN = 14,
+    VT_STRIKE_MAX = 16
+  };
+  /// Expiry date (YYYY-MM-DD), strictly after the reference date; slices
+  /// must be strictly increasing.
+  const ::flatbuffers::String *expiry() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_EXPIRY);
+  }
+  /// The forward F_ref(T) the slice is written against, > 0.
+  ::flatbuffers::Optional<double> forward() const {
+    return GetOptional<double, double>(VT_FORWARD);
+  }
+  /// At-the-money total implied variance (sigma_ATM^2 T), > 0.
+  ::flatbuffers::Optional<double> theta() const {
+    return GetOptional<double, double>(VT_THETA);
+  }
+  /// Skew, -1 < rho < 1.
+  ::flatbuffers::Optional<double> rho() const {
+    return GetOptional<double, double>(VT_RHO);
+  }
+  /// psi = theta phi (the at-the-money curvature scale), > 0.
+  ::flatbuffers::Optional<double> psi() const {
+    return GetOptional<double, double>(VT_PSI);
+  }
+  /// Optional strike range (absolute) a structured note holds the local
+  /// vol to, exactly as `SviSlice.strike_min` / `strike_max` (and
+  /// `SsviVolSpec.local_vol_strike_range`). `/calibrate-vol-surface`
+  /// fills both with the region it checked around the expiry. No Black
+  /// vol read is affected. Each > 0 and strike_min < strike_max when both
+  /// are given (400 otherwise).
+  ::flatbuffers::Optional<double> strike_min() const {
+    return GetOptional<double, double>(VT_STRIKE_MIN);
+  }
+  ::flatbuffers::Optional<double> strike_max() const {
+    return GetOptional<double, double>(VT_STRIKE_MAX);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffsetRequired(verifier, VT_EXPIRY) &&
+           verifier.VerifyString(expiry()) &&
+           VerifyField<double>(verifier, VT_FORWARD, 8) &&
+           VerifyField<double>(verifier, VT_THETA, 8) &&
+           VerifyField<double>(verifier, VT_RHO, 8) &&
+           VerifyField<double>(verifier, VT_PSI, 8) &&
+           VerifyField<double>(verifier, VT_STRIKE_MIN, 8) &&
+           VerifyField<double>(verifier, VT_STRIKE_MAX, 8) &&
+           verifier.EndTable();
+  }
+  SsviSliceT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SsviSliceT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<SsviSlice> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SsviSliceT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct SsviSliceBuilder {
+  typedef SsviSlice Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_expiry(::flatbuffers::Offset<::flatbuffers::String> expiry) {
+    fbb_.AddOffset(SsviSlice::VT_EXPIRY, expiry);
+  }
+  void add_forward(double forward) {
+    fbb_.AddElement<double>(SsviSlice::VT_FORWARD, forward);
+  }
+  void add_theta(double theta) {
+    fbb_.AddElement<double>(SsviSlice::VT_THETA, theta);
+  }
+  void add_rho(double rho) {
+    fbb_.AddElement<double>(SsviSlice::VT_RHO, rho);
+  }
+  void add_psi(double psi) {
+    fbb_.AddElement<double>(SsviSlice::VT_PSI, psi);
+  }
+  void add_strike_min(double strike_min) {
+    fbb_.AddElement<double>(SsviSlice::VT_STRIKE_MIN, strike_min);
+  }
+  void add_strike_max(double strike_max) {
+    fbb_.AddElement<double>(SsviSlice::VT_STRIKE_MAX, strike_max);
+  }
+  explicit SsviSliceBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<SsviSlice> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<SsviSlice>(end);
+    fbb_.Required(o, SsviSlice::VT_EXPIRY);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<SsviSlice> CreateSsviSlice(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> expiry = 0,
+    ::flatbuffers::Optional<double> forward = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> theta = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> rho = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> psi = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> strike_min = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> strike_max = ::flatbuffers::nullopt) {
+  SsviSliceBuilder builder_(_fbb);
+  if(strike_max) { builder_.add_strike_max(*strike_max); }
+  if(strike_min) { builder_.add_strike_min(*strike_min); }
+  if(psi) { builder_.add_psi(*psi); }
+  if(rho) { builder_.add_rho(*rho); }
+  if(theta) { builder_.add_theta(*theta); }
+  if(forward) { builder_.add_forward(*forward); }
+  builder_.add_expiry(expiry);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<SsviSlice> CreateSsviSliceDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *expiry = nullptr,
+    ::flatbuffers::Optional<double> forward = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> theta = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> rho = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> psi = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> strike_min = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> strike_max = ::flatbuffers::nullopt) {
+  auto expiry__ = expiry ? _fbb.CreateString(expiry) : 0;
+  return quantra::CreateSsviSlice(
+      _fbb,
+      expiry__,
+      forward,
+      theta,
+      rho,
+      psi,
+      strike_min,
+      strike_max);
+}
+
+::flatbuffers::Offset<SsviSlice> CreateSsviSlice(::flatbuffers::FlatBufferBuilder &_fbb, const SsviSliceT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct SsviVolSpecT : public ::flatbuffers::NativeTable {
+  typedef SsviVolSpec TableType;
+  std::unique_ptr<quantra::BlackVolBaseSpecT> base{};
+  ::flatbuffers::Optional<double> spot = ::flatbuffers::nullopt;
+  std::vector<std::unique_ptr<quantra::SsviSliceT>> slices{};
+  ::flatbuffers::Optional<quantra::enums::LocalVolTimeExtrapolation> local_vol_time_extrapolation = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::LocalVolStrikeRange> local_vol_strike_range = ::flatbuffers::nullopt;
+  SsviVolSpecT() = default;
+  SsviVolSpecT(const SsviVolSpecT &o);
+  SsviVolSpecT(SsviVolSpecT&&) FLATBUFFERS_NOEXCEPT = default;
+  SsviVolSpecT &operator=(SsviVolSpecT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// Black volatility as eSSVI slices (what `/calibrate-vol-surface` with
+/// method `Ssvi` returns as `vol_surface_spec_ssvi`). Accepted wherever a
+/// Black vol is referenced (`price-equity-option`, `sample-vol-surfaces`, a
+/// structured note's `underlyings[].volatility_id`).
+///
+/// Between and beyond the slices the parameters, not the variances, are
+/// interpolated: theta, psi and rho psi linear in time between two slices,
+/// the first slice scaled by t / T_1 before it, and after the last slice
+/// psi and rho held while theta continues the last forward variance
+/// (theta_N - theta_{N-1}) / (T_N - T_{N-1}) (theta_1 / T_1 with one
+/// slice). The moneyness is taken against the reference forward F_ref(t):
+/// ln F_ref linear in time through ln `spot` at the reference date and ln
+/// `forward` at every slice, continuing the last slope beyond. The surface
+/// is defined at every time and strike (no extrapolation flag). The slices
+/// must be free of static arbitrage: per slice psi (1 + |rho|) <= 4 and
+/// psi^2 (1 + |rho|) <= 4 theta; between consecutive slices theta and psi
+/// non-decreasing, |rho_i psi_i - rho_{i-1} psi_{i-1}| <= psi_i - psi_{i-1}
+/// and one of the two sufficient conditions of Hendriks-Martini (psi /
+/// theta non-increasing, or the quadratic condition); then a numeric scan
+/// of Durrleman's g and of dw/dt (400 listing every violation).
+///
+/// A structured note simulates it as local vol with the closed-form Dupire
+/// local variance of the slices (no finite differences), corrected for a
+/// process forward that differs from F_ref (sticky strike):
+/// sigma_loc^2 = (dw/dt + dw/dk (mu_proc - mu_ref)) / g(k, k - ln(F_proc /
+/// F_ref)). The strike edges, per-expiry bands and the local vol floor of
+/// the other surfaces apply to it unchanged.
+///
+/// `base` carries the reference date, calendar, business-day convention
+/// and day counter only: `shape` must be left at its default,
+/// `constant_vol` and `quote_id` absent (400 otherwise).
+struct SsviVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SsviVolSpecT NativeTableType;
+  typedef SsviVolSpecBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_BASE = 4,
+    VT_SPOT = 6,
+    VT_SLICES = 8,
+    VT_LOCAL_VOL_TIME_EXTRAPOLATION = 10,
+    VT_LOCAL_VOL_STRIKE_RANGE = 12
+  };
+  const quantra::BlackVolBaseSpec *base() const {
+    return GetPointer<const quantra::BlackVolBaseSpec *>(VT_BASE);
+  }
+  /// The spot the forwards were read against (the reference forward at
+  /// the reference date), > 0. Presence-required.
+  ::flatbuffers::Optional<double> spot() const {
+    return GetOptional<double, double>(VT_SPOT);
+  }
+  /// At least one slice, strictly increasing expiries.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SsviSlice>> *slices() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SsviSlice>> *>(VT_SLICES);
+  }
+  /// Optional. Absent: beyond the last slice the local vol is the model's
+  /// own (theta continuing the last forward variance, arbitrage free by
+  /// construction). FlatLocalVol: held at T_last - 0.001 years, as for the
+  /// other surfaces. FlatImpliedVol is not an eSSVI reading (the model
+  /// does not extend its implied vol flat): 400. No effect on any Black
+  /// vol read. `/calibrate-vol-surface` leaves it absent.
+  ::flatbuffers::Optional<quantra::enums::LocalVolTimeExtrapolation> local_vol_time_extrapolation() const {
+    return GetOptional<int8_t, quantra::enums::LocalVolTimeExtrapolation>(VT_LOCAL_VOL_TIME_EXTRAPOLATION);
+  }
+  /// Optional. How the slices' strike_min / strike_max bound the local
+  /// vol, as on `SviVolSpec` (absent = Global). `/calibrate-vol-surface`
+  /// returns PerExpiry with each slice's checked region.
+  ::flatbuffers::Optional<quantra::enums::LocalVolStrikeRange> local_vol_strike_range() const {
+    return GetOptional<int8_t, quantra::enums::LocalVolStrikeRange>(VT_LOCAL_VOL_STRIKE_RANGE);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_BASE) &&
+           verifier.VerifyTable(base()) &&
+           VerifyField<double>(verifier, VT_SPOT, 8) &&
+           VerifyOffsetRequired(verifier, VT_SLICES) &&
+           verifier.VerifyVector(slices()) &&
+           verifier.VerifyVectorOfTables(slices()) &&
+           VerifyField<int8_t>(verifier, VT_LOCAL_VOL_TIME_EXTRAPOLATION, 1) &&
+           VerifyField<int8_t>(verifier, VT_LOCAL_VOL_STRIKE_RANGE, 1) &&
+           verifier.EndTable();
+  }
+  SsviVolSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SsviVolSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<SsviVolSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SsviVolSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct SsviVolSpecBuilder {
+  typedef SsviVolSpec Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_base(::flatbuffers::Offset<quantra::BlackVolBaseSpec> base) {
+    fbb_.AddOffset(SsviVolSpec::VT_BASE, base);
+  }
+  void add_spot(double spot) {
+    fbb_.AddElement<double>(SsviVolSpec::VT_SPOT, spot);
+  }
+  void add_slices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SsviSlice>>> slices) {
+    fbb_.AddOffset(SsviVolSpec::VT_SLICES, slices);
+  }
+  void add_local_vol_time_extrapolation(quantra::enums::LocalVolTimeExtrapolation local_vol_time_extrapolation) {
+    fbb_.AddElement<int8_t>(SsviVolSpec::VT_LOCAL_VOL_TIME_EXTRAPOLATION, static_cast<int8_t>(local_vol_time_extrapolation));
+  }
+  void add_local_vol_strike_range(quantra::enums::LocalVolStrikeRange local_vol_strike_range) {
+    fbb_.AddElement<int8_t>(SsviVolSpec::VT_LOCAL_VOL_STRIKE_RANGE, static_cast<int8_t>(local_vol_strike_range));
+  }
+  explicit SsviVolSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<SsviVolSpec> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<SsviVolSpec>(end);
+    fbb_.Required(o, SsviVolSpec::VT_SLICES);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<SsviVolSpec> CreateSsviVolSpec(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<quantra::BlackVolBaseSpec> base = 0,
+    ::flatbuffers::Optional<double> spot = ::flatbuffers::nullopt,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SsviSlice>>> slices = 0,
+    ::flatbuffers::Optional<quantra::enums::LocalVolTimeExtrapolation> local_vol_time_extrapolation = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::LocalVolStrikeRange> local_vol_strike_range = ::flatbuffers::nullopt) {
+  SsviVolSpecBuilder builder_(_fbb);
+  if(spot) { builder_.add_spot(*spot); }
+  builder_.add_slices(slices);
+  builder_.add_base(base);
+  if(local_vol_strike_range) { builder_.add_local_vol_strike_range(*local_vol_strike_range); }
+  if(local_vol_time_extrapolation) { builder_.add_local_vol_time_extrapolation(*local_vol_time_extrapolation); }
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<SsviVolSpec> CreateSsviVolSpecDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<quantra::BlackVolBaseSpec> base = 0,
+    ::flatbuffers::Optional<double> spot = ::flatbuffers::nullopt,
+    const std::vector<::flatbuffers::Offset<quantra::SsviSlice>> *slices = nullptr,
+    ::flatbuffers::Optional<quantra::enums::LocalVolTimeExtrapolation> local_vol_time_extrapolation = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::LocalVolStrikeRange> local_vol_strike_range = ::flatbuffers::nullopt) {
+  auto slices__ = slices ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SsviSlice>>(*slices) : 0;
+  return quantra::CreateSsviVolSpec(
+      _fbb,
+      base,
+      spot,
+      slices__,
+      local_vol_time_extrapolation,
+      local_vol_strike_range);
+}
+
+::flatbuffers::Offset<SsviVolSpec> CreateSsviVolSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SsviVolSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct VolSurfaceSpecT : public ::flatbuffers::NativeTable {
   typedef VolSurfaceSpec TableType;
   std::string id{};
@@ -2848,6 +3202,9 @@ struct VolSurfaceSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::SviVolSpec *payload_as_SviVolSpec() const {
     return payload_type() == quantra::VolPayload_SviVolSpec ? static_cast<const quantra::SviVolSpec *>(payload()) : nullptr;
   }
+  const quantra::SsviVolSpec *payload_as_SsviVolSpec() const {
+    return payload_type() == quantra::VolPayload_SsviVolSpec ? static_cast<const quantra::SsviVolSpec *>(payload()) : nullptr;
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_ID) &&
@@ -2880,6 +3237,10 @@ template<> inline const quantra::YoYOptionletVolSpec *VolSurfaceSpec::payload_as
 
 template<> inline const quantra::SviVolSpec *VolSurfaceSpec::payload_as<quantra::SviVolSpec>() const {
   return payload_as_SviVolSpec();
+}
+
+template<> inline const quantra::SsviVolSpec *VolSurfaceSpec::payload_as<quantra::SsviVolSpec>() const {
+  return payload_as_SsviVolSpec();
 }
 
 struct VolSurfaceSpecBuilder {
@@ -3818,6 +4179,106 @@ inline ::flatbuffers::Offset<SviVolSpec> CreateSviVolSpec(::flatbuffers::FlatBuf
       _local_vol_strike_range);
 }
 
+inline SsviSliceT *SsviSlice::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<SsviSliceT>(new SsviSliceT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void SsviSlice::UnPackTo(SsviSliceT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = expiry(); if (_e) _o->expiry = _e->str(); }
+  { auto _e = forward(); _o->forward = _e; }
+  { auto _e = theta(); _o->theta = _e; }
+  { auto _e = rho(); _o->rho = _e; }
+  { auto _e = psi(); _o->psi = _e; }
+  { auto _e = strike_min(); _o->strike_min = _e; }
+  { auto _e = strike_max(); _o->strike_max = _e; }
+}
+
+inline ::flatbuffers::Offset<SsviSlice> SsviSlice::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SsviSliceT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateSsviSlice(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<SsviSlice> CreateSsviSlice(::flatbuffers::FlatBufferBuilder &_fbb, const SsviSliceT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SsviSliceT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _expiry = _fbb.CreateString(_o->expiry);
+  auto _forward = _o->forward;
+  auto _theta = _o->theta;
+  auto _rho = _o->rho;
+  auto _psi = _o->psi;
+  auto _strike_min = _o->strike_min;
+  auto _strike_max = _o->strike_max;
+  return quantra::CreateSsviSlice(
+      _fbb,
+      _expiry,
+      _forward,
+      _theta,
+      _rho,
+      _psi,
+      _strike_min,
+      _strike_max);
+}
+
+inline SsviVolSpecT::SsviVolSpecT(const SsviVolSpecT &o)
+      : base((o.base) ? new quantra::BlackVolBaseSpecT(*o.base) : nullptr),
+        spot(o.spot),
+        local_vol_time_extrapolation(o.local_vol_time_extrapolation),
+        local_vol_strike_range(o.local_vol_strike_range) {
+  slices.reserve(o.slices.size());
+  for (const auto &slices_ : o.slices) { slices.emplace_back((slices_) ? new quantra::SsviSliceT(*slices_) : nullptr); }
+}
+
+inline SsviVolSpecT &SsviVolSpecT::operator=(SsviVolSpecT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(base, o.base);
+  std::swap(spot, o.spot);
+  std::swap(slices, o.slices);
+  std::swap(local_vol_time_extrapolation, o.local_vol_time_extrapolation);
+  std::swap(local_vol_strike_range, o.local_vol_strike_range);
+  return *this;
+}
+
+inline SsviVolSpecT *SsviVolSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<SsviVolSpecT>(new SsviVolSpecT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void SsviVolSpec::UnPackTo(SsviVolSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = base(); if (_e) { if(_o->base) { _e->UnPackTo(_o->base.get(), _resolver); } else { _o->base = std::unique_ptr<quantra::BlackVolBaseSpecT>(_e->UnPack(_resolver)); } } else if (_o->base) { _o->base.reset(); } }
+  { auto _e = spot(); _o->spot = _e; }
+  { auto _e = slices(); if (_e) { _o->slices.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->slices[_i]) { _e->Get(_i)->UnPackTo(_o->slices[_i].get(), _resolver); } else { _o->slices[_i] = std::unique_ptr<quantra::SsviSliceT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->slices.resize(0); } }
+  { auto _e = local_vol_time_extrapolation(); _o->local_vol_time_extrapolation = _e; }
+  { auto _e = local_vol_strike_range(); _o->local_vol_strike_range = _e; }
+}
+
+inline ::flatbuffers::Offset<SsviVolSpec> SsviVolSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SsviVolSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateSsviVolSpec(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<SsviVolSpec> CreateSsviVolSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SsviVolSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SsviVolSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _base = _o->base ? CreateBlackVolBaseSpec(_fbb, _o->base.get(), _rehasher) : 0;
+  auto _spot = _o->spot;
+  auto _slices = _fbb.CreateVector<::flatbuffers::Offset<quantra::SsviSlice>> (_o->slices.size(), [](size_t i, _VectorArgs *__va) { return CreateSsviSlice(*__va->__fbb, __va->__o->slices[i].get(), __va->__rehasher); }, &_va );
+  auto _local_vol_time_extrapolation = _o->local_vol_time_extrapolation;
+  auto _local_vol_strike_range = _o->local_vol_strike_range;
+  return quantra::CreateSsviVolSpec(
+      _fbb,
+      _base,
+      _spot,
+      _slices,
+      _local_vol_time_extrapolation,
+      _local_vol_strike_range);
+}
+
 inline VolSurfaceSpecT *VolSurfaceSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<VolSurfaceSpecT>(new VolSurfaceSpecT());
   UnPackTo(_o.get(), _resolver);
@@ -4030,6 +4491,10 @@ inline bool VerifyVolPayload(::flatbuffers::Verifier &verifier, const void *obj,
       auto ptr = reinterpret_cast<const quantra::SviVolSpec *>(obj);
       return verifier.VerifyTable(ptr);
     }
+    case VolPayload_SsviVolSpec: {
+      auto ptr = reinterpret_cast<const quantra::SsviVolSpec *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
     default: return true;
   }
 }
@@ -4069,6 +4534,10 @@ inline void *VolPayloadUnion::UnPack(const void *obj, VolPayload type, const ::f
       auto ptr = reinterpret_cast<const quantra::SviVolSpec *>(obj);
       return ptr->UnPack(resolver);
     }
+    case VolPayload_SsviVolSpec: {
+      auto ptr = reinterpret_cast<const quantra::SsviVolSpec *>(obj);
+      return ptr->UnPack(resolver);
+    }
     default: return nullptr;
   }
 }
@@ -4096,6 +4565,10 @@ inline ::flatbuffers::Offset<void> VolPayloadUnion::Pack(::flatbuffers::FlatBuff
       auto ptr = reinterpret_cast<const quantra::SviVolSpecT *>(value);
       return CreateSviVolSpec(_fbb, ptr, _rehasher).Union();
     }
+    case VolPayload_SsviVolSpec: {
+      auto ptr = reinterpret_cast<const quantra::SsviVolSpecT *>(value);
+      return CreateSsviVolSpec(_fbb, ptr, _rehasher).Union();
+    }
     default: return 0;
   }
 }
@@ -4120,6 +4593,10 @@ inline VolPayloadUnion::VolPayloadUnion(const VolPayloadUnion &u) : type(u.type)
     }
     case VolPayload_SviVolSpec: {
       value = new quantra::SviVolSpecT(*reinterpret_cast<quantra::SviVolSpecT *>(u.value));
+      break;
+    }
+    case VolPayload_SsviVolSpec: {
+      value = new quantra::SsviVolSpecT(*reinterpret_cast<quantra::SsviVolSpecT *>(u.value));
       break;
     }
     default:
@@ -4151,6 +4628,11 @@ inline void VolPayloadUnion::Reset() {
     }
     case VolPayload_SviVolSpec: {
       auto ptr = reinterpret_cast<quantra::SviVolSpecT *>(value);
+      delete ptr;
+      break;
+    }
+    case VolPayload_SsviVolSpec: {
+      auto ptr = reinterpret_cast<quantra::SsviVolSpecT *>(value);
       delete ptr;
       break;
     }

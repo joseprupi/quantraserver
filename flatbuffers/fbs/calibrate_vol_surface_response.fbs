@@ -25,6 +25,31 @@ table SviParameters {
     m:double;
 }
 
+/// eSSVI parameters of one slice (see `SsviSlice`): at-the-money total
+/// variance theta, skew rho, curvature scale psi = theta phi.
+table SsviParameters {
+    theta:double;
+    rho:double;
+    psi:double;
+}
+
+/// Static-arbitrage check of the fitted eSSVI slices (`Ssvi` only): the
+/// closed-form butterfly and calendar conditions (see `SsviVolSpec`) and a
+/// numeric scan of Durrleman's g(k) and of dw/dt at fixed k at the slice
+/// times, their midpoints, half the first and 1.5 times the last, on 201
+/// points of k in [-1.5, 1.0].
+table SsviArbitrageCheck {
+    /// Violated conditions ("butterfly_psi at slice 3 (by 1e-5)", ...);
+    /// empty on success (the fit guarantees it).
+    violations:[string] (required);
+    scan_min_g:double;
+    scan_min_g_time:double;
+    scan_min_g_k:double;
+    scan_min_dw_dt:double;
+    scan_min_dw_dt_time:double;
+    scan_min_dw_dt_k:double;
+}
+
 /// Andreasen-Huge calibration error over the whole calibration set, in
 /// volatility units (QuantLib `calibrationError()`).
 table AndreasenHugeCalibrationError {
@@ -82,6 +107,26 @@ table VolSurfaceExpiryReport {
     /// Largest change in vol applied by the calendar clip (vol units).
     calendar_max_clip_vol:double = null;
     calendar_action:string;
+    /// `Ssvi` only: the fitted slice.
+    ssvi:SsviParameters;
+    /// `Ssvi` only: the anchor of the slice, the used quote nearest the
+    /// money (log-moneyness ln(K / F) and the total variance the slice
+    /// reproduces there, after a clamp).
+    ssvi_anchor_k:double = null;
+    ssvi_anchor_total_variance:double = null;
+    /// `Ssvi` only: true when the anchor's total variance was raised to
+    /// keep the calendar conditions feasible against the previous slice.
+    ssvi_anchor_clamped:bool;
+    /// `Ssvi` only: margins of the arbitrage conditions (right-hand side
+    /// minus left-hand side, >= 0 when met): 4 - psi (1 + |rho|),
+    /// 4 theta - psi^2 (1 + |rho|), and against the previous slice (absent
+    /// on the first) theta_i - theta_{i-1}, psi_i - psi_{i-1} and
+    /// (psi_i - psi_{i-1}) - |rho_i psi_i - rho_{i-1} psi_{i-1}|.
+    ssvi_margin_butterfly_psi:double = null;
+    ssvi_margin_butterfly_psi2:double = null;
+    ssvi_margin_calendar_theta:double = null;
+    ssvi_margin_calendar_psi:double = null;
+    ssvi_margin_calendar_a:double = null;
     /// `AndreasenHuge` only: grid strikes where the model's out-of-the-money
     /// price is below 1e-4 of the spot (finite-difference noise would move
     /// the vol by more than a tenth of a point) or its inversion failed,
@@ -195,15 +240,29 @@ table CalibrateVolSurfaceResponse {
     /// calendar and butterfly refits), so they are ordered in time like the
     /// grid; the grid's last-resort clip applies to the grid only.
     vol_surface_spec_svi:VolSurfaceSpec;
-    /// Present iff `vol_surface_spec_svi` is absent: why (the
-    /// Andreasen-Huge method has no closed-form slice parameters).
+    /// Present iff `vol_surface_spec_svi` is absent: why (the other
+    /// methods have no SVI slice parameters).
     vol_surface_spec_svi_note:string;
+    /// `Ssvi` only: the same surface as its fitted eSSVI slices, an
+    /// `SsviVolSpec` payload (one `SsviSlice` per fitted expiry with the
+    /// forward used, theta, rho, psi and the expiry's checked region as
+    /// strike_min / strike_max; `spot` the sheet's spot; base and id as
+    /// `vol_surface_spec`; local_vol_strike_range PerExpiry,
+    /// local_vol_time_extrapolation absent: the model's own continuation).
+    /// A structured note simulates it with the closed-form local vol.
+    vol_surface_spec_ssvi:VolSurfaceSpec;
+    /// `Ssvi` only: the static-arbitrage check of the slices.
+    ssvi_arbitrage:SsviArbitrageCheck;
     /// Every used quote repriced on `vol_surface_spec` (the grid).
     vanilla_repricing:VanillaRepricing (required);
     /// Local vol check of `vol_surface_spec`.
     local_vol_check:LocalVolCheck (required);
     /// Local vol check of `vol_surface_spec_svi` (`SviPerExpiry` only).
     local_vol_check_svi:LocalVolCheck;
+    /// Local vol check of `vol_surface_spec_ssvi` (`Ssvi` only): the
+    /// closed-form local vol the note pricer reads, on the same scan; a
+    /// refused point is one where g <= 0 or the local variance is negative.
+    local_vol_check_ssvi:LocalVolCheck;
 }
 
 root_type CalibrateVolSurfaceResponse;

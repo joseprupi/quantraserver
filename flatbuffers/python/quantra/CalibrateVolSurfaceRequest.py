@@ -147,8 +147,20 @@ class CalibrateVolSurfaceRequest(object):
             return obj
         return None
 
+    # `Ssvi` settings; defaults (Vega, 1.0) apply when absent.
+    # CalibrateVolSurfaceRequest
+    def Ssvi(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.SsviFitOptions import SsviFitOptions
+            obj = SsviFitOptions()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
 def CalibrateVolSurfaceRequestStart(builder):
-    builder.StartObject(9)
+    builder.StartObject(10)
 
 def Start(builder):
     CalibrateVolSurfaceRequestStart(builder)
@@ -213,6 +225,12 @@ def CalibrateVolSurfaceRequestAddSvi(builder, svi):
 def AddSvi(builder, svi):
     CalibrateVolSurfaceRequestAddSvi(builder, svi)
 
+def CalibrateVolSurfaceRequestAddSsvi(builder, ssvi):
+    builder.PrependUOffsetTRelativeSlot(9, flatbuffers.number_types.UOffsetTFlags.py_type(ssvi), 0)
+
+def AddSsvi(builder, ssvi):
+    CalibrateVolSurfaceRequestAddSsvi(builder, ssvi)
+
 def CalibrateVolSurfaceRequestEnd(builder):
     return builder.EndObject()
 
@@ -237,6 +255,7 @@ class CalibrateVolSurfaceRequestT(object):
         self.outputGrid = None  # type: Optional[VolSurfaceOutputGridT]
         self.volSurfaceId = None  # type: str
         self.svi = None  # type: Optional[SviFitOptionsT]
+        self.ssvi = None  # type: Optional[SsviFitOptionsT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -280,6 +299,8 @@ class CalibrateVolSurfaceRequestT(object):
         self.volSurfaceId = calibrateVolSurfaceRequest.VolSurfaceId()
         if calibrateVolSurfaceRequest.Svi() is not None:
             self.svi = SviFitOptionsT.InitFromObj(calibrateVolSurfaceRequest.Svi())
+        if calibrateVolSurfaceRequest.Ssvi() is not None:
+            self.ssvi = SsviFitOptionsT.InitFromObj(calibrateVolSurfaceRequest.Ssvi())
 
     # CalibrateVolSurfaceRequestT
     def Pack(self, builder):
@@ -305,6 +326,8 @@ class CalibrateVolSurfaceRequestT(object):
             volSurfaceId = builder.CreateString(self.volSurfaceId)
         if self.svi is not None:
             svi = self.svi.Pack(builder)
+        if self.ssvi is not None:
+            ssvi = self.ssvi.Pack(builder)
         CalibrateVolSurfaceRequestStart(builder)
         if self.pricing is not None:
             CalibrateVolSurfaceRequestAddPricing(builder, pricing)
@@ -323,5 +346,7 @@ class CalibrateVolSurfaceRequestT(object):
             CalibrateVolSurfaceRequestAddVolSurfaceId(builder, volSurfaceId)
         if self.svi is not None:
             CalibrateVolSurfaceRequestAddSvi(builder, svi)
+        if self.ssvi is not None:
+            CalibrateVolSurfaceRequestAddSsvi(builder, ssvi)
         calibrateVolSurfaceRequest = CalibrateVolSurfaceRequestEnd(builder)
         return calibrateVolSurfaceRequest

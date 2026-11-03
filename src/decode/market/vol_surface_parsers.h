@@ -13,6 +13,7 @@
  *                          BlackVarianceSurface (Bilinear, Bicubic) or
  *                          SmileSliceVolSurface (CubicStrikeLinearTime)
  *   - SviVolSpec        -> SmileSliceVolSurface of SVI slices
+ *   - SsviVolSpec       -> SsviBlackVol (ssvi_vol_parser.h)
  */
 
 #include "date_convert.h"
@@ -113,7 +114,7 @@ struct BlackVolEntry {
     double constantVol;
     /// Shape of the spec the handle was built from (Constant, AtmMatrix2D =
     /// term, SmileCube3D / SurfaceFromPrices = strike x expiry surface,
-    /// SviSlices = an SviVolSpec payload).
+    /// SviSlices = an SviVolSpec payload, SsviSlices = an SsviVolSpec payload).
     quantra::enums::VolSurfaceShape shapeFb = quantra::enums::VolSurfaceShape_Constant;
     QuantLib::Date referenceDate;
     QuantLib::Calendar calendar;
@@ -163,7 +164,10 @@ struct BlackVolEntry {
  * + shift, forceMonotoneVariance), the grid surface rebuilt from every
  * entry + shift with the same interpolation, and for SviSlices a
  * ShiftedBlackVolSurface over the entry's handle (a uniformly shifted SVI
- * smile is not an SVI slice: the shift is applied at every read), with the
+ * smile is not an SVI slice: the shift is applied at every read), for
+ * SsviSlices the slices with their at-the-money vols shifted
+ * (shiftedSsviVol: rho and psi kept, 400 when the result admits
+ * arbitrage), with the
  * entry's reference date, calendar, day counter and extrapolation flag. The
  * object is new (the entry's handle is untouched). 400 when a shifted vol
  * is not > 0 (for SviSlices: at the first read that finds one); 500 when

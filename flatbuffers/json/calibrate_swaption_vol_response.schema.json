@@ -103,7 +103,11 @@
     },
     "quantra_enums_VolSurfaceFitMethod" : {
       "type" : "string",
-      "enum": ["AndreasenHuge", "SviPerExpiry"]
+      "enum": ["AndreasenHuge", "SviPerExpiry", "Ssvi"]
+    },
+    "quantra_enums_SsviQuoteWeighting" : {
+      "type" : "string",
+      "enum": ["Uniform", "Vega", "BidAsk"]
     },
     "quantra_enums_ExerciseType" : {
       "type" : "string",
@@ -127,7 +131,7 @@
     },
     "quantra_enums_VolSurfaceShape" : {
       "type" : "string",
-      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate", "SviSlices"]
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate", "SviSlices", "SsviSlices"]
     },
     "quantra_enums_YoYInflationCapFloorEngineType" : {
       "type" : "string",

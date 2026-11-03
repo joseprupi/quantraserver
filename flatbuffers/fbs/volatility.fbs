@@ -314,8 +314,91 @@ table SviVolSpec {
     local_vol_strike_range:enums.LocalVolStrikeRange = null;
 }
 
+/// One expiry of an `SsviVolSpec`: an eSSVI slice (Corbetta, Cohort,
+/// Laachir, Martini 2019, "Robust calibration and arbitrage-free
+/// interpolation of SSVI slices"). Total variance at log-forward moneyness
+/// k = ln(K / F_ref(T))
+///
+///     w(k) = 0.5 (theta + rho psi k + sqrt(psi^2 k^2 + 2 rho psi theta k + theta^2)),
+///
+/// the Black vol being sqrt(w / T), T the base day counter's year fraction
+/// from the reference date to `expiry`. Every field but the strike range is
+/// presence-required (400 naming it).
+table SsviSlice {
+    /// Expiry date (YYYY-MM-DD), strictly after the reference date; slices
+    /// must be strictly increasing.
+    expiry:string (required);
+    /// The forward F_ref(T) the slice is written against, > 0.
+    forward:double = null;
+    /// At-the-money total implied variance (sigma_ATM^2 T), > 0.
+    theta:double = null;
+    /// Skew, -1 < rho < 1.
+    rho:double = null;
+    /// psi = theta phi (the at-the-money curvature scale), > 0.
+    psi:double = null;
+    /// Optional strike range (absolute) a structured note holds the local
+    /// vol to, exactly as `SviSlice.strike_min` / `strike_max` (and
+    /// `SsviVolSpec.local_vol_strike_range`). `/calibrate-vol-surface`
+    /// fills both with the region it checked around the expiry. No Black
+    /// vol read is affected. Each > 0 and strike_min < strike_max when both
+    /// are given (400 otherwise).
+    strike_min:double = null;
+    strike_max:double = null;
+}
+
+/// Black volatility as eSSVI slices (what `/calibrate-vol-surface` with
+/// method `Ssvi` returns as `vol_surface_spec_ssvi`). Accepted wherever a
+/// Black vol is referenced (`price-equity-option`, `sample-vol-surfaces`, a
+/// structured note's `underlyings[].volatility_id`).
+///
+/// Between and beyond the slices the parameters, not the variances, are
+/// interpolated: theta, psi and rho psi linear in time between two slices,
+/// the first slice scaled by t / T_1 before it, and after the last slice
+/// psi and rho held while theta continues the last forward variance
+/// (theta_N - theta_{N-1}) / (T_N - T_{N-1}) (theta_1 / T_1 with one
+/// slice). The moneyness is taken against the reference forward F_ref(t):
+/// ln F_ref linear in time through ln `spot` at the reference date and ln
+/// `forward` at every slice, continuing the last slope beyond. The surface
+/// is defined at every time and strike (no extrapolation flag). The slices
+/// must be free of static arbitrage: per slice psi (1 + |rho|) <= 4 and
+/// psi^2 (1 + |rho|) <= 4 theta; between consecutive slices theta and psi
+/// non-decreasing, |rho_i psi_i - rho_{i-1} psi_{i-1}| <= psi_i - psi_{i-1}
+/// and one of the two sufficient conditions of Hendriks-Martini (psi /
+/// theta non-increasing, or the quadratic condition); then a numeric scan
+/// of Durrleman's g and of dw/dt (400 listing every violation).
+///
+/// A structured note simulates it as local vol with the closed-form Dupire
+/// local variance of the slices (no finite differences), corrected for a
+/// process forward that differs from F_ref (sticky strike):
+/// sigma_loc^2 = (dw/dt + dw/dk (mu_proc - mu_ref)) / g(k, k - ln(F_proc /
+/// F_ref)). The strike edges, per-expiry bands and the local vol floor of
+/// the other surfaces apply to it unchanged.
+///
+/// `base` carries the reference date, calendar, business-day convention
+/// and day counter only: `shape` must be left at its default,
+/// `constant_vol` and `quote_id` absent (400 otherwise).
+table SsviVolSpec {
+    base:BlackVolBaseSpec;
+    /// The spot the forwards were read against (the reference forward at
+    /// the reference date), > 0. Presence-required.
+    spot:double = null;
+    /// At least one slice, strictly increasing expiries.
+    slices:[SsviSlice] (required);
+    /// Optional. Absent: beyond the last slice the local vol is the model's
+    /// own (theta continuing the last forward variance, arbitrage free by
+    /// construction). FlatLocalVol: held at T_last - 0.001 years, as for the
+    /// other surfaces. FlatImpliedVol is not an eSSVI reading (the model
+    /// does not extend its implied vol flat): 400. No effect on any Black
+    /// vol read. `/calibrate-vol-surface` leaves it absent.
+    local_vol_time_extrapolation:enums.LocalVolTimeExtrapolation = null;
+    /// Optional. How the slices' strike_min / strike_max bound the local
+    /// vol, as on `SviVolSpec` (absent = Global). `/calibrate-vol-surface`
+    /// returns PerExpiry with each slice's checked region.
+    local_vol_strike_range:enums.LocalVolStrikeRange = null;
+}
+
 /// Union of all volatility types.
-union VolPayload { OptionletVolSpec, SwaptionVolSpec, BlackVolSpec, YoYOptionletVolSpec, SviVolSpec }
+union VolPayload { OptionletVolSpec, SwaptionVolSpec, BlackVolSpec, YoYOptionletVolSpec, SviVolSpec, SsviVolSpec }
 
 /// Volatility surface specification referenced by id in trade requests.
 table VolSurfaceSpec {

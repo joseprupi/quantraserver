@@ -285,11 +285,24 @@ enum CallabilityType : byte {
 
 /// Fit method of `/calibrate-vol-surface`: Andreasen-Huge local-vol
 /// interpolation (arbitrage-free by construction, QuantLib
-/// AndreasenHugeVolatilityInterpl) or one SVI slice per expiry with
-/// butterfly and calendar checks.
+/// AndreasenHugeVolatilityInterpl), one SVI slice per expiry with
+/// butterfly and calendar checks, or eSSVI slices.
 enum VolSurfaceFitMethod : byte {
     AndreasenHuge = 0,
-    SviPerExpiry = 1
+    SviPerExpiry = 1,
+    /// eSSVI slices fitted short to long, free of butterfly and calendar
+    /// arbitrage by construction (`CalibrateVolSurfaceRequest.ssvi`).
+    Ssvi = 2
+}
+
+/// Quote weighting of the `Ssvi` fit (`SsviFitOptions.weighting`).
+///   Uniform: every used quote counts equally.
+///   Vega: weighted by the Black vega at the market vol.
+///   BidAsk: weighted by 1 / (bid-ask spread in vol units)^2.
+enum SsviQuoteWeighting : byte {
+    Uniform = 0,
+    Vega = 1,
+    BidAsk = 2
 }
 
 /// Exercise style: European (at expiry only), Bermudan (on specific dates), or American (any time).
@@ -337,7 +350,10 @@ enum VolSurfaceShape : byte {
     SabrCalibrate = 5,
     /// The shape an `SviVolSpec` payload reports (`vol_shape` echoes); not
     /// a `BlackVolSpec.base.shape` value (400).
-    SviSlices = 6
+    SviSlices = 6,
+    /// The shape an `SsviVolSpec` payload reports; not a
+    /// `BlackVolSpec.base.shape` value (400).
+    SsviSlices = 7
 }
 
 /// Pricing formula (engine) for year-on-year inflation caps/floors. Selects the

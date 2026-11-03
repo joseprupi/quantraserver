@@ -10,6 +10,7 @@
 #include "request_validation.h"
 #include "roll_offset.h"
 #include "sabr_calibrate_cache.h"
+#include "ssvi_vol_parser.h"
 
 #include <ql/exercise.hpp>
 #include <ql/instruments/vanillaoption.hpp>
@@ -151,7 +152,8 @@ void validateBlackVolBase(const quantra::BlackVolBaseSpec* b, const std::string&
         default:
             QUANTRA_INVALID_ARGUMENT(
                 "BlackVolSpec supports shape=Constant, AtmMatrix2D, SmileCube3D, SurfaceFromPrices "
-                "(SVI slices are an SviVolSpec payload) for vol id: " +
+                "(SVI slices are an SviVolSpec payload, eSSVI slices an SsviVolSpec payload) for "
+                "vol id: " +
                 id);
     }
 }
@@ -2126,6 +2128,10 @@ QuantLib::Handle<QuantLib::BlackVolTermStructure> shiftedBlackVol(
             ts = std::make_shared<ShiftedBlackVolSurface>(entry.handle.currentLink(), shift);
             break;
         }
+        case quantra::enums::VolSurfaceShape_SsviSlices:
+            // The slices' at-the-money vols shifted: still an eSSVI surface, so a note's
+            // bumped run keeps the closed-form local vol.
+            return QuantLib::Handle<QuantLib::BlackVolTermStructure>(shiftedSsviVol(entry, shift));
         default: QUANTRA_ERROR("Black vol entry has an unsupported shape to shift");
     }
     if (entry.allowExtrapolation) {

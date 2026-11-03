@@ -3226,6 +3226,27 @@ CASES = [
                       "zero dividend yield"],
     },
     {
+        "id": "eqopt_eur_call_on_ssvi_slices",
+        "product": "equity_option",
+        "family": "Equity",
+        "title": "European call on eSSVI slices, between two slices",
+        "description": (
+            "A European call (strike 6100, expiry 2027-07-21, between the "
+            "six-month and one-year slices) on an SsviVolSpec payload of five "
+            "SPX-like eSSVI slices with their forwards (spot 6000): the "
+            "analytic Black-Scholes engine reads the eSSVI total variance at "
+            "(T, K), theta, psi and rho psi interpolated linearly in time, the "
+            "moneyness taken against the reference forward through the slice "
+            "forwards. The reference rebuilds the surface in Python."
+        ),
+        "request": "equity/eqopt_eur_call_on_ssvi_slices.json",
+        "list_key": "options",
+        "ql_pricer": "price_equity_option_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "call", "eSSVI slices", "SsviVolSpec",
+                      "analytic BSM engine", "time interpolation"],
+    },
+    {
         "id": "eqopt_eur_put_atm_1y",
         "product": "equity_option",
         "family": "Equity",
@@ -3789,6 +3810,52 @@ CASES = [
         "compare": "fields",
         "exercises": ["vol surface", "SVI", "butterfly arbitrage check",
                       "calendar arbitrage check", "implied vol", "vanilla repricing"],
+    },
+    {
+        "id": "volsurf_synthetic_svi_sheet_ssvi",
+        "product": "calibrate_vol_surface",
+        "family": "Vol / Calibration",
+        "title": "Black vol surface from a synthetic SVI quote sheet, eSSVI slices",
+        "description": (
+            "Method Ssvi on the same synthetic sheet, generated from an SSVI "
+            "power law (rho = -0.7, psi = sqrt(theta)): one eSSVI slice per "
+            "expiry fitted short to long, the quote nearest the money "
+            "reproduced exactly, (rho, psi) under the butterfly and calendar "
+            "conditions, so the slices are free of static arbitrage by "
+            "construction. The reference is the generating surface (no Python "
+            "port of the calibrator; the sheet is checked to be the "
+            "generator's): compares the forwards, theta, rho and psi and the "
+            "fit errors per expiry, the SsviVolSpec payload's slices and "
+            "strike ranges, the grid sampled from the eSSVI surface and the "
+            "per-quote model vol and price on the grid read "
+            "CubicStrikeLinearTime."
+        ),
+        "request": "vol_surface/synthetic_svi_sheet_2026-09-30_ssvi.json",
+        "ql_pricer": "calibrate_vol_surface_ql",
+        "tolerance": VOL_SURFACE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["vol surface", "eSSVI", "SsviVolSpec", "butterfly arbitrage check",
+                      "calendar arbitrage check", "implied vol", "vanilla repricing"],
+    },
+    {
+        "id": "volsurf_synthetic_spx_essvi_sheet_ssvi",
+        "product": "calibrate_vol_surface",
+        "family": "Vol / Calibration",
+        "title": "Black vol surface from a synthetic SPX-like eSSVI sheet, eSSVI slices",
+        "description": (
+            "Method Ssvi with BidAsk weighting and max_abs_log_moneyness 0.5 on "
+            "an SPX-like sheet (spot 6000, flat 4 %, five expiries from one "
+            "month to two years) generated from five eSSVI slices with their "
+            "own rho and psi per expiry (from 16.5 % ATM, rho -0.75, psi 0.045 "
+            "to 19.2 %, -0.65, 0.28). The fit returns the generating slices; "
+            "same comparison as the SSVI power-law row."
+        ),
+        "request": "vol_surface/synthetic_spx_essvi_sheet_2026-10-21_ssvi.json",
+        "ql_pricer": "calibrate_vol_surface_ql",
+        "tolerance": VOL_SURFACE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["vol surface", "eSSVI", "SsviVolSpec", "BidAsk weighting",
+                      "implied vol", "vanilla repricing"],
     },
     # ------------------------------------------------------------------
     # Correlation / Calibration — correlation matrices from price histories
@@ -4864,6 +4931,33 @@ CASES = [
         "exercises": ["structured note", "single underlying", "SVI slices", "SviVolSpec",
                       "local_vol_strike_range PerExpiry", "calendar-consistent fit",
                       "Dupire local vol", "steps_per_year", "same-stream Monte Carlo parity"],
+    },
+    {
+        "id": "structured_note_synthetic_spx_1y_autocall_daily_expiry_ssvi",
+        "product": "structured_note",
+        "family": "Structured Notes",
+        "title": "One-year autocall on SPX under eSSVI slices fitted to daily expiries (closed-form local vol)",
+        "description": (
+            "The daily-expiry autocall of the SVI row on the fifteen eSSVI "
+            "slices /calibrate-vol-surface returns with method Ssvi for the "
+            "same synthetic sheet (three slices raised at the money where the "
+            "jittered quotes break the calendar condition). The note simulates "
+            "the closed-form eSSVI local vol (no Dupire stencil), corrected for "
+            "the note's forward against the slices' reference forward, held to "
+            "the per-expiry strike ranges and continued beyond the last slice "
+            "by the model itself. 252 steps per year, 4096 Sobol paths with "
+            "Brownian bridge and antithetic variates. Synthetic vols; the price "
+            "is not a market value. Same-stream Monte Carlo parity on every "
+            "reported scalar (the reference evaluates the eSSVI local vol in "
+            "Python)."
+        ),
+        "request": "structured_note/synthetic_spx_1y_autocall_on_daily_expiry_ssvi.json",
+        "ql_pricer": "price_structured_note_ql",
+        "tolerance": STRUCTURED_NOTE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["structured note", "single underlying", "eSSVI slices", "SsviVolSpec",
+                      "closed-form local vol", "local_vol_strike_range PerExpiry",
+                      "steps_per_year", "same-stream Monte Carlo parity"],
     },
     {
         "id": "structured_note_jpm_review_notes_ndx_rty_spx_46661pt64",

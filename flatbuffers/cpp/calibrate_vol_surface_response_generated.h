@@ -28,6 +28,14 @@ struct SviParameters;
 struct SviParametersBuilder;
 struct SviParametersT;
 
+struct SsviParameters;
+struct SsviParametersBuilder;
+struct SsviParametersT;
+
+struct SsviArbitrageCheck;
+struct SsviArbitrageCheckBuilder;
+struct SsviArbitrageCheckT;
+
 struct AndreasenHugeCalibrationError;
 struct AndreasenHugeCalibrationErrorBuilder;
 struct AndreasenHugeCalibrationErrorT;
@@ -255,6 +263,231 @@ inline ::flatbuffers::Offset<SviParameters> CreateSviParameters(
 
 ::flatbuffers::Offset<SviParameters> CreateSviParameters(::flatbuffers::FlatBufferBuilder &_fbb, const SviParametersT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct SsviParametersT : public ::flatbuffers::NativeTable {
+  typedef SsviParameters TableType;
+  double theta = 0.0;
+  double rho = 0.0;
+  double psi = 0.0;
+};
+
+/// eSSVI parameters of one slice (see `SsviSlice`): at-the-money total
+/// variance theta, skew rho, curvature scale psi = theta phi.
+struct SsviParameters FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SsviParametersT NativeTableType;
+  typedef SsviParametersBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_THETA = 4,
+    VT_RHO = 6,
+    VT_PSI = 8
+  };
+  double theta() const {
+    return GetField<double>(VT_THETA, 0.0);
+  }
+  double rho() const {
+    return GetField<double>(VT_RHO, 0.0);
+  }
+  double psi() const {
+    return GetField<double>(VT_PSI, 0.0);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<double>(verifier, VT_THETA, 8) &&
+           VerifyField<double>(verifier, VT_RHO, 8) &&
+           VerifyField<double>(verifier, VT_PSI, 8) &&
+           verifier.EndTable();
+  }
+  SsviParametersT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SsviParametersT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<SsviParameters> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SsviParametersT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct SsviParametersBuilder {
+  typedef SsviParameters Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_theta(double theta) {
+    fbb_.AddElement<double>(SsviParameters::VT_THETA, theta, 0.0);
+  }
+  void add_rho(double rho) {
+    fbb_.AddElement<double>(SsviParameters::VT_RHO, rho, 0.0);
+  }
+  void add_psi(double psi) {
+    fbb_.AddElement<double>(SsviParameters::VT_PSI, psi, 0.0);
+  }
+  explicit SsviParametersBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<SsviParameters> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<SsviParameters>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<SsviParameters> CreateSsviParameters(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    double theta = 0.0,
+    double rho = 0.0,
+    double psi = 0.0) {
+  SsviParametersBuilder builder_(_fbb);
+  builder_.add_psi(psi);
+  builder_.add_rho(rho);
+  builder_.add_theta(theta);
+  return builder_.Finish();
+}
+
+::flatbuffers::Offset<SsviParameters> CreateSsviParameters(::flatbuffers::FlatBufferBuilder &_fbb, const SsviParametersT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct SsviArbitrageCheckT : public ::flatbuffers::NativeTable {
+  typedef SsviArbitrageCheck TableType;
+  std::vector<std::string> violations{};
+  double scan_min_g = 0.0;
+  double scan_min_g_time = 0.0;
+  double scan_min_g_k = 0.0;
+  double scan_min_dw_dt = 0.0;
+  double scan_min_dw_dt_time = 0.0;
+  double scan_min_dw_dt_k = 0.0;
+};
+
+/// Static-arbitrage check of the fitted eSSVI slices (`Ssvi` only): the
+/// closed-form butterfly and calendar conditions (see `SsviVolSpec`) and a
+/// numeric scan of Durrleman's g(k) and of dw/dt at fixed k at the slice
+/// times, their midpoints, half the first and 1.5 times the last, on 201
+/// points of k in [-1.5, 1.0].
+struct SsviArbitrageCheck FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SsviArbitrageCheckT NativeTableType;
+  typedef SsviArbitrageCheckBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_VIOLATIONS = 4,
+    VT_SCAN_MIN_G = 6,
+    VT_SCAN_MIN_G_TIME = 8,
+    VT_SCAN_MIN_G_K = 10,
+    VT_SCAN_MIN_DW_DT = 12,
+    VT_SCAN_MIN_DW_DT_TIME = 14,
+    VT_SCAN_MIN_DW_DT_K = 16
+  };
+  /// Violated conditions ("butterfly_psi at slice 3 (by 1e-5)", ...);
+  /// empty on success (the fit guarantees it).
+  const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *violations() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *>(VT_VIOLATIONS);
+  }
+  double scan_min_g() const {
+    return GetField<double>(VT_SCAN_MIN_G, 0.0);
+  }
+  double scan_min_g_time() const {
+    return GetField<double>(VT_SCAN_MIN_G_TIME, 0.0);
+  }
+  double scan_min_g_k() const {
+    return GetField<double>(VT_SCAN_MIN_G_K, 0.0);
+  }
+  double scan_min_dw_dt() const {
+    return GetField<double>(VT_SCAN_MIN_DW_DT, 0.0);
+  }
+  double scan_min_dw_dt_time() const {
+    return GetField<double>(VT_SCAN_MIN_DW_DT_TIME, 0.0);
+  }
+  double scan_min_dw_dt_k() const {
+    return GetField<double>(VT_SCAN_MIN_DW_DT_K, 0.0);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffsetRequired(verifier, VT_VIOLATIONS) &&
+           verifier.VerifyVector(violations()) &&
+           verifier.VerifyVectorOfStrings(violations()) &&
+           VerifyField<double>(verifier, VT_SCAN_MIN_G, 8) &&
+           VerifyField<double>(verifier, VT_SCAN_MIN_G_TIME, 8) &&
+           VerifyField<double>(verifier, VT_SCAN_MIN_G_K, 8) &&
+           VerifyField<double>(verifier, VT_SCAN_MIN_DW_DT, 8) &&
+           VerifyField<double>(verifier, VT_SCAN_MIN_DW_DT_TIME, 8) &&
+           VerifyField<double>(verifier, VT_SCAN_MIN_DW_DT_K, 8) &&
+           verifier.EndTable();
+  }
+  SsviArbitrageCheckT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SsviArbitrageCheckT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<SsviArbitrageCheck> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SsviArbitrageCheckT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct SsviArbitrageCheckBuilder {
+  typedef SsviArbitrageCheck Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_violations(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> violations) {
+    fbb_.AddOffset(SsviArbitrageCheck::VT_VIOLATIONS, violations);
+  }
+  void add_scan_min_g(double scan_min_g) {
+    fbb_.AddElement<double>(SsviArbitrageCheck::VT_SCAN_MIN_G, scan_min_g, 0.0);
+  }
+  void add_scan_min_g_time(double scan_min_g_time) {
+    fbb_.AddElement<double>(SsviArbitrageCheck::VT_SCAN_MIN_G_TIME, scan_min_g_time, 0.0);
+  }
+  void add_scan_min_g_k(double scan_min_g_k) {
+    fbb_.AddElement<double>(SsviArbitrageCheck::VT_SCAN_MIN_G_K, scan_min_g_k, 0.0);
+  }
+  void add_scan_min_dw_dt(double scan_min_dw_dt) {
+    fbb_.AddElement<double>(SsviArbitrageCheck::VT_SCAN_MIN_DW_DT, scan_min_dw_dt, 0.0);
+  }
+  void add_scan_min_dw_dt_time(double scan_min_dw_dt_time) {
+    fbb_.AddElement<double>(SsviArbitrageCheck::VT_SCAN_MIN_DW_DT_TIME, scan_min_dw_dt_time, 0.0);
+  }
+  void add_scan_min_dw_dt_k(double scan_min_dw_dt_k) {
+    fbb_.AddElement<double>(SsviArbitrageCheck::VT_SCAN_MIN_DW_DT_K, scan_min_dw_dt_k, 0.0);
+  }
+  explicit SsviArbitrageCheckBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<SsviArbitrageCheck> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<SsviArbitrageCheck>(end);
+    fbb_.Required(o, SsviArbitrageCheck::VT_VIOLATIONS);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<SsviArbitrageCheck> CreateSsviArbitrageCheck(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> violations = 0,
+    double scan_min_g = 0.0,
+    double scan_min_g_time = 0.0,
+    double scan_min_g_k = 0.0,
+    double scan_min_dw_dt = 0.0,
+    double scan_min_dw_dt_time = 0.0,
+    double scan_min_dw_dt_k = 0.0) {
+  SsviArbitrageCheckBuilder builder_(_fbb);
+  builder_.add_scan_min_dw_dt_k(scan_min_dw_dt_k);
+  builder_.add_scan_min_dw_dt_time(scan_min_dw_dt_time);
+  builder_.add_scan_min_dw_dt(scan_min_dw_dt);
+  builder_.add_scan_min_g_k(scan_min_g_k);
+  builder_.add_scan_min_g_time(scan_min_g_time);
+  builder_.add_scan_min_g(scan_min_g);
+  builder_.add_violations(violations);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<SsviArbitrageCheck> CreateSsviArbitrageCheckDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const std::vector<::flatbuffers::Offset<::flatbuffers::String>> *violations = nullptr,
+    double scan_min_g = 0.0,
+    double scan_min_g_time = 0.0,
+    double scan_min_g_k = 0.0,
+    double scan_min_dw_dt = 0.0,
+    double scan_min_dw_dt_time = 0.0,
+    double scan_min_dw_dt_k = 0.0) {
+  auto violations__ = violations ? _fbb.CreateVector<::flatbuffers::Offset<::flatbuffers::String>>(*violations) : 0;
+  return quantra::CreateSsviArbitrageCheck(
+      _fbb,
+      violations__,
+      scan_min_g,
+      scan_min_g_time,
+      scan_min_g_k,
+      scan_min_dw_dt,
+      scan_min_dw_dt_time,
+      scan_min_dw_dt_k);
+}
+
+::flatbuffers::Offset<SsviArbitrageCheck> CreateSsviArbitrageCheck(::flatbuffers::FlatBufferBuilder &_fbb, const SsviArbitrageCheckT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct AndreasenHugeCalibrationErrorT : public ::flatbuffers::NativeTable {
   typedef AndreasenHugeCalibrationError TableType;
   double min_vol = 0.0;
@@ -356,6 +589,15 @@ struct VolSurfaceExpiryReportT : public ::flatbuffers::NativeTable {
   uint32_t calendar_violations = 0;
   ::flatbuffers::Optional<double> calendar_max_clip_vol = ::flatbuffers::nullopt;
   std::string calendar_action{};
+  std::unique_ptr<quantra::SsviParametersT> ssvi{};
+  ::flatbuffers::Optional<double> ssvi_anchor_k = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> ssvi_anchor_total_variance = ::flatbuffers::nullopt;
+  bool ssvi_anchor_clamped = false;
+  ::flatbuffers::Optional<double> ssvi_margin_butterfly_psi = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> ssvi_margin_butterfly_psi2 = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> ssvi_margin_calendar_theta = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> ssvi_margin_calendar_psi = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> ssvi_margin_calendar_a = ::flatbuffers::nullopt;
   uint32_t grid_points_filled = 0;
   VolSurfaceExpiryReportT() = default;
   VolSurfaceExpiryReportT(const VolSurfaceExpiryReportT &o);
@@ -391,7 +633,16 @@ struct VolSurfaceExpiryReport FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::T
     VT_CALENDAR_VIOLATIONS = 44,
     VT_CALENDAR_MAX_CLIP_VOL = 46,
     VT_CALENDAR_ACTION = 48,
-    VT_GRID_POINTS_FILLED = 50
+    VT_SSVI = 50,
+    VT_SSVI_ANCHOR_K = 52,
+    VT_SSVI_ANCHOR_TOTAL_VARIANCE = 54,
+    VT_SSVI_ANCHOR_CLAMPED = 56,
+    VT_SSVI_MARGIN_BUTTERFLY_PSI = 58,
+    VT_SSVI_MARGIN_BUTTERFLY_PSI2 = 60,
+    VT_SSVI_MARGIN_CALENDAR_THETA = 62,
+    VT_SSVI_MARGIN_CALENDAR_PSI = 64,
+    VT_SSVI_MARGIN_CALENDAR_A = 66,
+    VT_GRID_POINTS_FILLED = 68
   };
   const ::flatbuffers::String *expiry() const {
     return GetPointer<const ::flatbuffers::String *>(VT_EXPIRY);
@@ -486,6 +737,44 @@ struct VolSurfaceExpiryReport FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::T
   const ::flatbuffers::String *calendar_action() const {
     return GetPointer<const ::flatbuffers::String *>(VT_CALENDAR_ACTION);
   }
+  /// `Ssvi` only: the fitted slice.
+  const quantra::SsviParameters *ssvi() const {
+    return GetPointer<const quantra::SsviParameters *>(VT_SSVI);
+  }
+  /// `Ssvi` only: the anchor of the slice, the used quote nearest the
+  /// money (log-moneyness ln(K / F) and the total variance the slice
+  /// reproduces there, after a clamp).
+  ::flatbuffers::Optional<double> ssvi_anchor_k() const {
+    return GetOptional<double, double>(VT_SSVI_ANCHOR_K);
+  }
+  ::flatbuffers::Optional<double> ssvi_anchor_total_variance() const {
+    return GetOptional<double, double>(VT_SSVI_ANCHOR_TOTAL_VARIANCE);
+  }
+  /// `Ssvi` only: true when the anchor's total variance was raised to
+  /// keep the calendar conditions feasible against the previous slice.
+  bool ssvi_anchor_clamped() const {
+    return GetField<uint8_t>(VT_SSVI_ANCHOR_CLAMPED, 0) != 0;
+  }
+  /// `Ssvi` only: margins of the arbitrage conditions (right-hand side
+  /// minus left-hand side, >= 0 when met): 4 - psi (1 + |rho|),
+  /// 4 theta - psi^2 (1 + |rho|), and against the previous slice (absent
+  /// on the first) theta_i - theta_{i-1}, psi_i - psi_{i-1} and
+  /// (psi_i - psi_{i-1}) - |rho_i psi_i - rho_{i-1} psi_{i-1}|.
+  ::flatbuffers::Optional<double> ssvi_margin_butterfly_psi() const {
+    return GetOptional<double, double>(VT_SSVI_MARGIN_BUTTERFLY_PSI);
+  }
+  ::flatbuffers::Optional<double> ssvi_margin_butterfly_psi2() const {
+    return GetOptional<double, double>(VT_SSVI_MARGIN_BUTTERFLY_PSI2);
+  }
+  ::flatbuffers::Optional<double> ssvi_margin_calendar_theta() const {
+    return GetOptional<double, double>(VT_SSVI_MARGIN_CALENDAR_THETA);
+  }
+  ::flatbuffers::Optional<double> ssvi_margin_calendar_psi() const {
+    return GetOptional<double, double>(VT_SSVI_MARGIN_CALENDAR_PSI);
+  }
+  ::flatbuffers::Optional<double> ssvi_margin_calendar_a() const {
+    return GetOptional<double, double>(VT_SSVI_MARGIN_CALENDAR_A);
+  }
   /// `AndreasenHuge` only: grid strikes where the model's out-of-the-money
   /// price is below 1e-4 of the spot (finite-difference noise would move
   /// the vol by more than a tenth of a point) or its inversion failed,
@@ -526,6 +815,16 @@ struct VolSurfaceExpiryReport FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::T
            VerifyField<double>(verifier, VT_CALENDAR_MAX_CLIP_VOL, 8) &&
            VerifyOffset(verifier, VT_CALENDAR_ACTION) &&
            verifier.VerifyString(calendar_action()) &&
+           VerifyOffset(verifier, VT_SSVI) &&
+           verifier.VerifyTable(ssvi()) &&
+           VerifyField<double>(verifier, VT_SSVI_ANCHOR_K, 8) &&
+           VerifyField<double>(verifier, VT_SSVI_ANCHOR_TOTAL_VARIANCE, 8) &&
+           VerifyField<uint8_t>(verifier, VT_SSVI_ANCHOR_CLAMPED, 1) &&
+           VerifyField<double>(verifier, VT_SSVI_MARGIN_BUTTERFLY_PSI, 8) &&
+           VerifyField<double>(verifier, VT_SSVI_MARGIN_BUTTERFLY_PSI2, 8) &&
+           VerifyField<double>(verifier, VT_SSVI_MARGIN_CALENDAR_THETA, 8) &&
+           VerifyField<double>(verifier, VT_SSVI_MARGIN_CALENDAR_PSI, 8) &&
+           VerifyField<double>(verifier, VT_SSVI_MARGIN_CALENDAR_A, 8) &&
            VerifyField<uint32_t>(verifier, VT_GRID_POINTS_FILLED, 4) &&
            verifier.EndTable();
   }
@@ -607,6 +906,33 @@ struct VolSurfaceExpiryReportBuilder {
   void add_calendar_action(::flatbuffers::Offset<::flatbuffers::String> calendar_action) {
     fbb_.AddOffset(VolSurfaceExpiryReport::VT_CALENDAR_ACTION, calendar_action);
   }
+  void add_ssvi(::flatbuffers::Offset<quantra::SsviParameters> ssvi) {
+    fbb_.AddOffset(VolSurfaceExpiryReport::VT_SSVI, ssvi);
+  }
+  void add_ssvi_anchor_k(double ssvi_anchor_k) {
+    fbb_.AddElement<double>(VolSurfaceExpiryReport::VT_SSVI_ANCHOR_K, ssvi_anchor_k);
+  }
+  void add_ssvi_anchor_total_variance(double ssvi_anchor_total_variance) {
+    fbb_.AddElement<double>(VolSurfaceExpiryReport::VT_SSVI_ANCHOR_TOTAL_VARIANCE, ssvi_anchor_total_variance);
+  }
+  void add_ssvi_anchor_clamped(bool ssvi_anchor_clamped) {
+    fbb_.AddElement<uint8_t>(VolSurfaceExpiryReport::VT_SSVI_ANCHOR_CLAMPED, static_cast<uint8_t>(ssvi_anchor_clamped), 0);
+  }
+  void add_ssvi_margin_butterfly_psi(double ssvi_margin_butterfly_psi) {
+    fbb_.AddElement<double>(VolSurfaceExpiryReport::VT_SSVI_MARGIN_BUTTERFLY_PSI, ssvi_margin_butterfly_psi);
+  }
+  void add_ssvi_margin_butterfly_psi2(double ssvi_margin_butterfly_psi2) {
+    fbb_.AddElement<double>(VolSurfaceExpiryReport::VT_SSVI_MARGIN_BUTTERFLY_PSI2, ssvi_margin_butterfly_psi2);
+  }
+  void add_ssvi_margin_calendar_theta(double ssvi_margin_calendar_theta) {
+    fbb_.AddElement<double>(VolSurfaceExpiryReport::VT_SSVI_MARGIN_CALENDAR_THETA, ssvi_margin_calendar_theta);
+  }
+  void add_ssvi_margin_calendar_psi(double ssvi_margin_calendar_psi) {
+    fbb_.AddElement<double>(VolSurfaceExpiryReport::VT_SSVI_MARGIN_CALENDAR_PSI, ssvi_margin_calendar_psi);
+  }
+  void add_ssvi_margin_calendar_a(double ssvi_margin_calendar_a) {
+    fbb_.AddElement<double>(VolSurfaceExpiryReport::VT_SSVI_MARGIN_CALENDAR_A, ssvi_margin_calendar_a);
+  }
   void add_grid_points_filled(uint32_t grid_points_filled) {
     fbb_.AddElement<uint32_t>(VolSurfaceExpiryReport::VT_GRID_POINTS_FILLED, grid_points_filled, 0);
   }
@@ -647,8 +973,24 @@ inline ::flatbuffers::Offset<VolSurfaceExpiryReport> CreateVolSurfaceExpiryRepor
     uint32_t calendar_violations = 0,
     ::flatbuffers::Optional<double> calendar_max_clip_vol = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::String> calendar_action = 0,
+    ::flatbuffers::Offset<quantra::SsviParameters> ssvi = 0,
+    ::flatbuffers::Optional<double> ssvi_anchor_k = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> ssvi_anchor_total_variance = ::flatbuffers::nullopt,
+    bool ssvi_anchor_clamped = false,
+    ::flatbuffers::Optional<double> ssvi_margin_butterfly_psi = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> ssvi_margin_butterfly_psi2 = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> ssvi_margin_calendar_theta = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> ssvi_margin_calendar_psi = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> ssvi_margin_calendar_a = ::flatbuffers::nullopt,
     uint32_t grid_points_filled = 0) {
   VolSurfaceExpiryReportBuilder builder_(_fbb);
+  if(ssvi_margin_calendar_a) { builder_.add_ssvi_margin_calendar_a(*ssvi_margin_calendar_a); }
+  if(ssvi_margin_calendar_psi) { builder_.add_ssvi_margin_calendar_psi(*ssvi_margin_calendar_psi); }
+  if(ssvi_margin_calendar_theta) { builder_.add_ssvi_margin_calendar_theta(*ssvi_margin_calendar_theta); }
+  if(ssvi_margin_butterfly_psi2) { builder_.add_ssvi_margin_butterfly_psi2(*ssvi_margin_butterfly_psi2); }
+  if(ssvi_margin_butterfly_psi) { builder_.add_ssvi_margin_butterfly_psi(*ssvi_margin_butterfly_psi); }
+  if(ssvi_anchor_total_variance) { builder_.add_ssvi_anchor_total_variance(*ssvi_anchor_total_variance); }
+  if(ssvi_anchor_k) { builder_.add_ssvi_anchor_k(*ssvi_anchor_k); }
   if(calendar_max_clip_vol) { builder_.add_calendar_max_clip_vol(*calendar_max_clip_vol); }
   if(calendar_min_forward_vol) { builder_.add_calendar_min_forward_vol(*calendar_min_forward_vol); }
   if(calendar_min_margin) { builder_.add_calendar_min_margin(*calendar_min_margin); }
@@ -660,6 +1002,7 @@ inline ::flatbuffers::Offset<VolSurfaceExpiryReport> CreateVolSurfaceExpiryRepor
   if(forward) { builder_.add_forward(*forward); }
   builder_.add_time(time);
   builder_.add_grid_points_filled(grid_points_filled);
+  builder_.add_ssvi(ssvi);
   builder_.add_calendar_action(calendar_action);
   builder_.add_calendar_violations(calendar_violations);
   builder_.add_calendar_fit_action(calendar_fit_action);
@@ -670,6 +1013,7 @@ inline ::flatbuffers::Offset<VolSurfaceExpiryReport> CreateVolSurfaceExpiryRepor
   builder_.add_quotes_used(quotes_used);
   builder_.add_dropped_reason(dropped_reason);
   builder_.add_expiry(expiry);
+  builder_.add_ssvi_anchor_clamped(ssvi_anchor_clamped);
   builder_.add_calendar_refit(calendar_refit);
   builder_.add_butterfly_violation(butterfly_violation);
   builder_.add_usable(usable);
@@ -701,6 +1045,15 @@ inline ::flatbuffers::Offset<VolSurfaceExpiryReport> CreateVolSurfaceExpiryRepor
     uint32_t calendar_violations = 0,
     ::flatbuffers::Optional<double> calendar_max_clip_vol = ::flatbuffers::nullopt,
     const char *calendar_action = nullptr,
+    ::flatbuffers::Offset<quantra::SsviParameters> ssvi = 0,
+    ::flatbuffers::Optional<double> ssvi_anchor_k = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> ssvi_anchor_total_variance = ::flatbuffers::nullopt,
+    bool ssvi_anchor_clamped = false,
+    ::flatbuffers::Optional<double> ssvi_margin_butterfly_psi = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> ssvi_margin_butterfly_psi2 = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> ssvi_margin_calendar_theta = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> ssvi_margin_calendar_psi = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> ssvi_margin_calendar_a = ::flatbuffers::nullopt,
     uint32_t grid_points_filled = 0) {
   auto expiry__ = expiry ? _fbb.CreateString(expiry) : 0;
   auto dropped_reason__ = dropped_reason ? _fbb.CreateString(dropped_reason) : 0;
@@ -733,6 +1086,15 @@ inline ::flatbuffers::Offset<VolSurfaceExpiryReport> CreateVolSurfaceExpiryRepor
       calendar_violations,
       calendar_max_clip_vol,
       calendar_action__,
+      ssvi,
+      ssvi_anchor_k,
+      ssvi_anchor_total_variance,
+      ssvi_anchor_clamped,
+      ssvi_margin_butterfly_psi,
+      ssvi_margin_butterfly_psi2,
+      ssvi_margin_calendar_theta,
+      ssvi_margin_calendar_psi,
+      ssvi_margin_calendar_a,
       grid_points_filled);
 }
 
@@ -1296,9 +1658,12 @@ struct CalibrateVolSurfaceResponseT : public ::flatbuffers::NativeTable {
   std::unique_ptr<quantra::VolSurfaceSpecT> vol_surface_spec{};
   std::unique_ptr<quantra::VolSurfaceSpecT> vol_surface_spec_svi{};
   std::string vol_surface_spec_svi_note{};
+  std::unique_ptr<quantra::VolSurfaceSpecT> vol_surface_spec_ssvi{};
+  std::unique_ptr<quantra::SsviArbitrageCheckT> ssvi_arbitrage{};
   std::unique_ptr<quantra::VanillaRepricingT> vanilla_repricing{};
   std::unique_ptr<quantra::LocalVolCheckT> local_vol_check{};
   std::unique_ptr<quantra::LocalVolCheckT> local_vol_check_svi{};
+  std::unique_ptr<quantra::LocalVolCheckT> local_vol_check_ssvi{};
   CalibrateVolSurfaceResponseT() = default;
   CalibrateVolSurfaceResponseT(const CalibrateVolSurfaceResponseT &o);
   CalibrateVolSurfaceResponseT(CalibrateVolSurfaceResponseT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -1325,9 +1690,12 @@ struct CalibrateVolSurfaceResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffe
     VT_VOL_SURFACE_SPEC = 28,
     VT_VOL_SURFACE_SPEC_SVI = 30,
     VT_VOL_SURFACE_SPEC_SVI_NOTE = 32,
-    VT_VANILLA_REPRICING = 34,
-    VT_LOCAL_VOL_CHECK = 36,
-    VT_LOCAL_VOL_CHECK_SVI = 38
+    VT_VOL_SURFACE_SPEC_SSVI = 34,
+    VT_SSVI_ARBITRAGE = 36,
+    VT_VANILLA_REPRICING = 38,
+    VT_LOCAL_VOL_CHECK = 40,
+    VT_LOCAL_VOL_CHECK_SVI = 42,
+    VT_LOCAL_VOL_CHECK_SSVI = 44
   };
   const ::flatbuffers::String *sheet_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_SHEET_ID);
@@ -1391,10 +1759,24 @@ struct CalibrateVolSurfaceResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffe
   const quantra::VolSurfaceSpec *vol_surface_spec_svi() const {
     return GetPointer<const quantra::VolSurfaceSpec *>(VT_VOL_SURFACE_SPEC_SVI);
   }
-  /// Present iff `vol_surface_spec_svi` is absent: why (the
-  /// Andreasen-Huge method has no closed-form slice parameters).
+  /// Present iff `vol_surface_spec_svi` is absent: why (the other
+  /// methods have no SVI slice parameters).
   const ::flatbuffers::String *vol_surface_spec_svi_note() const {
     return GetPointer<const ::flatbuffers::String *>(VT_VOL_SURFACE_SPEC_SVI_NOTE);
+  }
+  /// `Ssvi` only: the same surface as its fitted eSSVI slices, an
+  /// `SsviVolSpec` payload (one `SsviSlice` per fitted expiry with the
+  /// forward used, theta, rho, psi and the expiry's checked region as
+  /// strike_min / strike_max; `spot` the sheet's spot; base and id as
+  /// `vol_surface_spec`; local_vol_strike_range PerExpiry,
+  /// local_vol_time_extrapolation absent: the model's own continuation).
+  /// A structured note simulates it with the closed-form local vol.
+  const quantra::VolSurfaceSpec *vol_surface_spec_ssvi() const {
+    return GetPointer<const quantra::VolSurfaceSpec *>(VT_VOL_SURFACE_SPEC_SSVI);
+  }
+  /// `Ssvi` only: the static-arbitrage check of the slices.
+  const quantra::SsviArbitrageCheck *ssvi_arbitrage() const {
+    return GetPointer<const quantra::SsviArbitrageCheck *>(VT_SSVI_ARBITRAGE);
   }
   /// Every used quote repriced on `vol_surface_spec` (the grid).
   const quantra::VanillaRepricing *vanilla_repricing() const {
@@ -1407,6 +1789,12 @@ struct CalibrateVolSurfaceResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffe
   /// Local vol check of `vol_surface_spec_svi` (`SviPerExpiry` only).
   const quantra::LocalVolCheck *local_vol_check_svi() const {
     return GetPointer<const quantra::LocalVolCheck *>(VT_LOCAL_VOL_CHECK_SVI);
+  }
+  /// Local vol check of `vol_surface_spec_ssvi` (`Ssvi` only): the
+  /// closed-form local vol the note pricer reads, on the same scan; a
+  /// refused point is one where g <= 0 or the local variance is negative.
+  const quantra::LocalVolCheck *local_vol_check_ssvi() const {
+    return GetPointer<const quantra::LocalVolCheck *>(VT_LOCAL_VOL_CHECK_SSVI);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -1441,12 +1829,18 @@ struct CalibrateVolSurfaceResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffe
            verifier.VerifyTable(vol_surface_spec_svi()) &&
            VerifyOffset(verifier, VT_VOL_SURFACE_SPEC_SVI_NOTE) &&
            verifier.VerifyString(vol_surface_spec_svi_note()) &&
+           VerifyOffset(verifier, VT_VOL_SURFACE_SPEC_SSVI) &&
+           verifier.VerifyTable(vol_surface_spec_ssvi()) &&
+           VerifyOffset(verifier, VT_SSVI_ARBITRAGE) &&
+           verifier.VerifyTable(ssvi_arbitrage()) &&
            VerifyOffsetRequired(verifier, VT_VANILLA_REPRICING) &&
            verifier.VerifyTable(vanilla_repricing()) &&
            VerifyOffsetRequired(verifier, VT_LOCAL_VOL_CHECK) &&
            verifier.VerifyTable(local_vol_check()) &&
            VerifyOffset(verifier, VT_LOCAL_VOL_CHECK_SVI) &&
            verifier.VerifyTable(local_vol_check_svi()) &&
+           VerifyOffset(verifier, VT_LOCAL_VOL_CHECK_SSVI) &&
+           verifier.VerifyTable(local_vol_check_ssvi()) &&
            verifier.EndTable();
   }
   CalibrateVolSurfaceResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -1503,6 +1897,12 @@ struct CalibrateVolSurfaceResponseBuilder {
   void add_vol_surface_spec_svi_note(::flatbuffers::Offset<::flatbuffers::String> vol_surface_spec_svi_note) {
     fbb_.AddOffset(CalibrateVolSurfaceResponse::VT_VOL_SURFACE_SPEC_SVI_NOTE, vol_surface_spec_svi_note);
   }
+  void add_vol_surface_spec_ssvi(::flatbuffers::Offset<quantra::VolSurfaceSpec> vol_surface_spec_ssvi) {
+    fbb_.AddOffset(CalibrateVolSurfaceResponse::VT_VOL_SURFACE_SPEC_SSVI, vol_surface_spec_ssvi);
+  }
+  void add_ssvi_arbitrage(::flatbuffers::Offset<quantra::SsviArbitrageCheck> ssvi_arbitrage) {
+    fbb_.AddOffset(CalibrateVolSurfaceResponse::VT_SSVI_ARBITRAGE, ssvi_arbitrage);
+  }
   void add_vanilla_repricing(::flatbuffers::Offset<quantra::VanillaRepricing> vanilla_repricing) {
     fbb_.AddOffset(CalibrateVolSurfaceResponse::VT_VANILLA_REPRICING, vanilla_repricing);
   }
@@ -1511,6 +1911,9 @@ struct CalibrateVolSurfaceResponseBuilder {
   }
   void add_local_vol_check_svi(::flatbuffers::Offset<quantra::LocalVolCheck> local_vol_check_svi) {
     fbb_.AddOffset(CalibrateVolSurfaceResponse::VT_LOCAL_VOL_CHECK_SVI, local_vol_check_svi);
+  }
+  void add_local_vol_check_ssvi(::flatbuffers::Offset<quantra::LocalVolCheck> local_vol_check_ssvi) {
+    fbb_.AddOffset(CalibrateVolSurfaceResponse::VT_LOCAL_VOL_CHECK_SSVI, local_vol_check_ssvi);
   }
   explicit CalibrateVolSurfaceResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -1552,14 +1955,20 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
     ::flatbuffers::Offset<quantra::VolSurfaceSpec> vol_surface_spec = 0,
     ::flatbuffers::Offset<quantra::VolSurfaceSpec> vol_surface_spec_svi = 0,
     ::flatbuffers::Offset<::flatbuffers::String> vol_surface_spec_svi_note = 0,
+    ::flatbuffers::Offset<quantra::VolSurfaceSpec> vol_surface_spec_ssvi = 0,
+    ::flatbuffers::Offset<quantra::SsviArbitrageCheck> ssvi_arbitrage = 0,
     ::flatbuffers::Offset<quantra::VanillaRepricing> vanilla_repricing = 0,
     ::flatbuffers::Offset<quantra::LocalVolCheck> local_vol_check = 0,
-    ::flatbuffers::Offset<quantra::LocalVolCheck> local_vol_check_svi = 0) {
+    ::flatbuffers::Offset<quantra::LocalVolCheck> local_vol_check_svi = 0,
+    ::flatbuffers::Offset<quantra::LocalVolCheck> local_vol_check_ssvi = 0) {
   CalibrateVolSurfaceResponseBuilder builder_(_fbb);
   builder_.add_spot(spot);
+  builder_.add_local_vol_check_ssvi(local_vol_check_ssvi);
   builder_.add_local_vol_check_svi(local_vol_check_svi);
   builder_.add_local_vol_check(local_vol_check);
   builder_.add_vanilla_repricing(vanilla_repricing);
+  builder_.add_ssvi_arbitrage(ssvi_arbitrage);
+  builder_.add_vol_surface_spec_ssvi(vol_surface_spec_ssvi);
   builder_.add_vol_surface_spec_svi_note(vol_surface_spec_svi_note);
   builder_.add_vol_surface_spec_svi(vol_surface_spec_svi);
   builder_.add_vol_surface_spec(vol_surface_spec);
@@ -1594,9 +2003,12 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
     ::flatbuffers::Offset<quantra::VolSurfaceSpec> vol_surface_spec = 0,
     ::flatbuffers::Offset<quantra::VolSurfaceSpec> vol_surface_spec_svi = 0,
     const char *vol_surface_spec_svi_note = nullptr,
+    ::flatbuffers::Offset<quantra::VolSurfaceSpec> vol_surface_spec_ssvi = 0,
+    ::flatbuffers::Offset<quantra::SsviArbitrageCheck> ssvi_arbitrage = 0,
     ::flatbuffers::Offset<quantra::VanillaRepricing> vanilla_repricing = 0,
     ::flatbuffers::Offset<quantra::LocalVolCheck> local_vol_check = 0,
-    ::flatbuffers::Offset<quantra::LocalVolCheck> local_vol_check_svi = 0) {
+    ::flatbuffers::Offset<quantra::LocalVolCheck> local_vol_check_svi = 0,
+    ::flatbuffers::Offset<quantra::LocalVolCheck> local_vol_check_ssvi = 0) {
   auto sheet_id__ = sheet_id ? _fbb.CreateString(sheet_id) : 0;
   auto underlying_id__ = underlying_id ? _fbb.CreateString(underlying_id) : 0;
   auto forwards_source__ = forwards_source ? _fbb.CreateString(forwards_source) : 0;
@@ -1623,9 +2035,12 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
       vol_surface_spec,
       vol_surface_spec_svi,
       vol_surface_spec_svi_note__,
+      vol_surface_spec_ssvi,
+      ssvi_arbitrage,
       vanilla_repricing,
       local_vol_check,
-      local_vol_check_svi);
+      local_vol_check_svi,
+      local_vol_check_ssvi);
 }
 
 ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurfaceResponse(::flatbuffers::FlatBufferBuilder &_fbb, const CalibrateVolSurfaceResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -1703,6 +2118,82 @@ inline ::flatbuffers::Offset<SviParameters> CreateSviParameters(::flatbuffers::F
       _m);
 }
 
+inline SsviParametersT *SsviParameters::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<SsviParametersT>(new SsviParametersT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void SsviParameters::UnPackTo(SsviParametersT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = theta(); _o->theta = _e; }
+  { auto _e = rho(); _o->rho = _e; }
+  { auto _e = psi(); _o->psi = _e; }
+}
+
+inline ::flatbuffers::Offset<SsviParameters> SsviParameters::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SsviParametersT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateSsviParameters(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<SsviParameters> CreateSsviParameters(::flatbuffers::FlatBufferBuilder &_fbb, const SsviParametersT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SsviParametersT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _theta = _o->theta;
+  auto _rho = _o->rho;
+  auto _psi = _o->psi;
+  return quantra::CreateSsviParameters(
+      _fbb,
+      _theta,
+      _rho,
+      _psi);
+}
+
+inline SsviArbitrageCheckT *SsviArbitrageCheck::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<SsviArbitrageCheckT>(new SsviArbitrageCheckT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void SsviArbitrageCheck::UnPackTo(SsviArbitrageCheckT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = violations(); if (_e) { _o->violations.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->violations[_i] = _e->Get(_i)->str(); } } else { _o->violations.resize(0); } }
+  { auto _e = scan_min_g(); _o->scan_min_g = _e; }
+  { auto _e = scan_min_g_time(); _o->scan_min_g_time = _e; }
+  { auto _e = scan_min_g_k(); _o->scan_min_g_k = _e; }
+  { auto _e = scan_min_dw_dt(); _o->scan_min_dw_dt = _e; }
+  { auto _e = scan_min_dw_dt_time(); _o->scan_min_dw_dt_time = _e; }
+  { auto _e = scan_min_dw_dt_k(); _o->scan_min_dw_dt_k = _e; }
+}
+
+inline ::flatbuffers::Offset<SsviArbitrageCheck> SsviArbitrageCheck::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SsviArbitrageCheckT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateSsviArbitrageCheck(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<SsviArbitrageCheck> CreateSsviArbitrageCheck(::flatbuffers::FlatBufferBuilder &_fbb, const SsviArbitrageCheckT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SsviArbitrageCheckT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _violations = _fbb.CreateVectorOfStrings(_o->violations);
+  auto _scan_min_g = _o->scan_min_g;
+  auto _scan_min_g_time = _o->scan_min_g_time;
+  auto _scan_min_g_k = _o->scan_min_g_k;
+  auto _scan_min_dw_dt = _o->scan_min_dw_dt;
+  auto _scan_min_dw_dt_time = _o->scan_min_dw_dt_time;
+  auto _scan_min_dw_dt_k = _o->scan_min_dw_dt_k;
+  return quantra::CreateSsviArbitrageCheck(
+      _fbb,
+      _violations,
+      _scan_min_g,
+      _scan_min_g_time,
+      _scan_min_g_k,
+      _scan_min_dw_dt,
+      _scan_min_dw_dt_time,
+      _scan_min_dw_dt_k);
+}
+
 inline AndreasenHugeCalibrationErrorT *AndreasenHugeCalibrationError::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<AndreasenHugeCalibrationErrorT>(new AndreasenHugeCalibrationErrorT());
   UnPackTo(_o.get(), _resolver);
@@ -1758,6 +2249,15 @@ inline VolSurfaceExpiryReportT::VolSurfaceExpiryReportT(const VolSurfaceExpiryRe
         calendar_violations(o.calendar_violations),
         calendar_max_clip_vol(o.calendar_max_clip_vol),
         calendar_action(o.calendar_action),
+        ssvi((o.ssvi) ? new quantra::SsviParametersT(*o.ssvi) : nullptr),
+        ssvi_anchor_k(o.ssvi_anchor_k),
+        ssvi_anchor_total_variance(o.ssvi_anchor_total_variance),
+        ssvi_anchor_clamped(o.ssvi_anchor_clamped),
+        ssvi_margin_butterfly_psi(o.ssvi_margin_butterfly_psi),
+        ssvi_margin_butterfly_psi2(o.ssvi_margin_butterfly_psi2),
+        ssvi_margin_calendar_theta(o.ssvi_margin_calendar_theta),
+        ssvi_margin_calendar_psi(o.ssvi_margin_calendar_psi),
+        ssvi_margin_calendar_a(o.ssvi_margin_calendar_a),
         grid_points_filled(o.grid_points_filled) {
   dropped.reserve(o.dropped.size());
   for (const auto &dropped_ : o.dropped) { dropped.emplace_back((dropped_) ? new quantra::DroppedQuoteT(*dropped_) : nullptr); }
@@ -1787,6 +2287,15 @@ inline VolSurfaceExpiryReportT &VolSurfaceExpiryReportT::operator=(VolSurfaceExp
   std::swap(calendar_violations, o.calendar_violations);
   std::swap(calendar_max_clip_vol, o.calendar_max_clip_vol);
   std::swap(calendar_action, o.calendar_action);
+  std::swap(ssvi, o.ssvi);
+  std::swap(ssvi_anchor_k, o.ssvi_anchor_k);
+  std::swap(ssvi_anchor_total_variance, o.ssvi_anchor_total_variance);
+  std::swap(ssvi_anchor_clamped, o.ssvi_anchor_clamped);
+  std::swap(ssvi_margin_butterfly_psi, o.ssvi_margin_butterfly_psi);
+  std::swap(ssvi_margin_butterfly_psi2, o.ssvi_margin_butterfly_psi2);
+  std::swap(ssvi_margin_calendar_theta, o.ssvi_margin_calendar_theta);
+  std::swap(ssvi_margin_calendar_psi, o.ssvi_margin_calendar_psi);
+  std::swap(ssvi_margin_calendar_a, o.ssvi_margin_calendar_a);
   std::swap(grid_points_filled, o.grid_points_filled);
   return *this;
 }
@@ -1823,6 +2332,15 @@ inline void VolSurfaceExpiryReport::UnPackTo(VolSurfaceExpiryReportT *_o, const 
   { auto _e = calendar_violations(); _o->calendar_violations = _e; }
   { auto _e = calendar_max_clip_vol(); _o->calendar_max_clip_vol = _e; }
   { auto _e = calendar_action(); if (_e) _o->calendar_action = _e->str(); }
+  { auto _e = ssvi(); if (_e) { if(_o->ssvi) { _e->UnPackTo(_o->ssvi.get(), _resolver); } else { _o->ssvi = std::unique_ptr<quantra::SsviParametersT>(_e->UnPack(_resolver)); } } else if (_o->ssvi) { _o->ssvi.reset(); } }
+  { auto _e = ssvi_anchor_k(); _o->ssvi_anchor_k = _e; }
+  { auto _e = ssvi_anchor_total_variance(); _o->ssvi_anchor_total_variance = _e; }
+  { auto _e = ssvi_anchor_clamped(); _o->ssvi_anchor_clamped = _e; }
+  { auto _e = ssvi_margin_butterfly_psi(); _o->ssvi_margin_butterfly_psi = _e; }
+  { auto _e = ssvi_margin_butterfly_psi2(); _o->ssvi_margin_butterfly_psi2 = _e; }
+  { auto _e = ssvi_margin_calendar_theta(); _o->ssvi_margin_calendar_theta = _e; }
+  { auto _e = ssvi_margin_calendar_psi(); _o->ssvi_margin_calendar_psi = _e; }
+  { auto _e = ssvi_margin_calendar_a(); _o->ssvi_margin_calendar_a = _e; }
   { auto _e = grid_points_filled(); _o->grid_points_filled = _e; }
 }
 
@@ -1857,6 +2375,15 @@ inline ::flatbuffers::Offset<VolSurfaceExpiryReport> CreateVolSurfaceExpiryRepor
   auto _calendar_violations = _o->calendar_violations;
   auto _calendar_max_clip_vol = _o->calendar_max_clip_vol;
   auto _calendar_action = _o->calendar_action.empty() ? 0 : _fbb.CreateString(_o->calendar_action);
+  auto _ssvi = _o->ssvi ? CreateSsviParameters(_fbb, _o->ssvi.get(), _rehasher) : 0;
+  auto _ssvi_anchor_k = _o->ssvi_anchor_k;
+  auto _ssvi_anchor_total_variance = _o->ssvi_anchor_total_variance;
+  auto _ssvi_anchor_clamped = _o->ssvi_anchor_clamped;
+  auto _ssvi_margin_butterfly_psi = _o->ssvi_margin_butterfly_psi;
+  auto _ssvi_margin_butterfly_psi2 = _o->ssvi_margin_butterfly_psi2;
+  auto _ssvi_margin_calendar_theta = _o->ssvi_margin_calendar_theta;
+  auto _ssvi_margin_calendar_psi = _o->ssvi_margin_calendar_psi;
+  auto _ssvi_margin_calendar_a = _o->ssvi_margin_calendar_a;
   auto _grid_points_filled = _o->grid_points_filled;
   return quantra::CreateVolSurfaceExpiryReport(
       _fbb,
@@ -1883,6 +2410,15 @@ inline ::flatbuffers::Offset<VolSurfaceExpiryReport> CreateVolSurfaceExpiryRepor
       _calendar_violations,
       _calendar_max_clip_vol,
       _calendar_action,
+      _ssvi,
+      _ssvi_anchor_k,
+      _ssvi_anchor_total_variance,
+      _ssvi_anchor_clamped,
+      _ssvi_margin_butterfly_psi,
+      _ssvi_margin_butterfly_psi2,
+      _ssvi_margin_calendar_theta,
+      _ssvi_margin_calendar_psi,
+      _ssvi_margin_calendar_a,
       _grid_points_filled);
 }
 
@@ -2068,9 +2604,12 @@ inline CalibrateVolSurfaceResponseT::CalibrateVolSurfaceResponseT(const Calibrat
         vol_surface_spec((o.vol_surface_spec) ? new quantra::VolSurfaceSpecT(*o.vol_surface_spec) : nullptr),
         vol_surface_spec_svi((o.vol_surface_spec_svi) ? new quantra::VolSurfaceSpecT(*o.vol_surface_spec_svi) : nullptr),
         vol_surface_spec_svi_note(o.vol_surface_spec_svi_note),
+        vol_surface_spec_ssvi((o.vol_surface_spec_ssvi) ? new quantra::VolSurfaceSpecT(*o.vol_surface_spec_ssvi) : nullptr),
+        ssvi_arbitrage((o.ssvi_arbitrage) ? new quantra::SsviArbitrageCheckT(*o.ssvi_arbitrage) : nullptr),
         vanilla_repricing((o.vanilla_repricing) ? new quantra::VanillaRepricingT(*o.vanilla_repricing) : nullptr),
         local_vol_check((o.local_vol_check) ? new quantra::LocalVolCheckT(*o.local_vol_check) : nullptr),
-        local_vol_check_svi((o.local_vol_check_svi) ? new quantra::LocalVolCheckT(*o.local_vol_check_svi) : nullptr) {
+        local_vol_check_svi((o.local_vol_check_svi) ? new quantra::LocalVolCheckT(*o.local_vol_check_svi) : nullptr),
+        local_vol_check_ssvi((o.local_vol_check_ssvi) ? new quantra::LocalVolCheckT(*o.local_vol_check_ssvi) : nullptr) {
   forwards.reserve(o.forwards.size());
   for (const auto &forwards_ : o.forwards) { forwards.emplace_back((forwards_) ? new quantra::VolSurfaceForwardT(*forwards_) : nullptr); }
   expiries.reserve(o.expiries.size());
@@ -2093,9 +2632,12 @@ inline CalibrateVolSurfaceResponseT &CalibrateVolSurfaceResponseT::operator=(Cal
   std::swap(vol_surface_spec, o.vol_surface_spec);
   std::swap(vol_surface_spec_svi, o.vol_surface_spec_svi);
   std::swap(vol_surface_spec_svi_note, o.vol_surface_spec_svi_note);
+  std::swap(vol_surface_spec_ssvi, o.vol_surface_spec_ssvi);
+  std::swap(ssvi_arbitrage, o.ssvi_arbitrage);
   std::swap(vanilla_repricing, o.vanilla_repricing);
   std::swap(local_vol_check, o.local_vol_check);
   std::swap(local_vol_check_svi, o.local_vol_check_svi);
+  std::swap(local_vol_check_ssvi, o.local_vol_check_ssvi);
   return *this;
 }
 
@@ -2123,9 +2665,12 @@ inline void CalibrateVolSurfaceResponse::UnPackTo(CalibrateVolSurfaceResponseT *
   { auto _e = vol_surface_spec(); if (_e) { if(_o->vol_surface_spec) { _e->UnPackTo(_o->vol_surface_spec.get(), _resolver); } else { _o->vol_surface_spec = std::unique_ptr<quantra::VolSurfaceSpecT>(_e->UnPack(_resolver)); } } else if (_o->vol_surface_spec) { _o->vol_surface_spec.reset(); } }
   { auto _e = vol_surface_spec_svi(); if (_e) { if(_o->vol_surface_spec_svi) { _e->UnPackTo(_o->vol_surface_spec_svi.get(), _resolver); } else { _o->vol_surface_spec_svi = std::unique_ptr<quantra::VolSurfaceSpecT>(_e->UnPack(_resolver)); } } else if (_o->vol_surface_spec_svi) { _o->vol_surface_spec_svi.reset(); } }
   { auto _e = vol_surface_spec_svi_note(); if (_e) _o->vol_surface_spec_svi_note = _e->str(); }
+  { auto _e = vol_surface_spec_ssvi(); if (_e) { if(_o->vol_surface_spec_ssvi) { _e->UnPackTo(_o->vol_surface_spec_ssvi.get(), _resolver); } else { _o->vol_surface_spec_ssvi = std::unique_ptr<quantra::VolSurfaceSpecT>(_e->UnPack(_resolver)); } } else if (_o->vol_surface_spec_ssvi) { _o->vol_surface_spec_ssvi.reset(); } }
+  { auto _e = ssvi_arbitrage(); if (_e) { if(_o->ssvi_arbitrage) { _e->UnPackTo(_o->ssvi_arbitrage.get(), _resolver); } else { _o->ssvi_arbitrage = std::unique_ptr<quantra::SsviArbitrageCheckT>(_e->UnPack(_resolver)); } } else if (_o->ssvi_arbitrage) { _o->ssvi_arbitrage.reset(); } }
   { auto _e = vanilla_repricing(); if (_e) { if(_o->vanilla_repricing) { _e->UnPackTo(_o->vanilla_repricing.get(), _resolver); } else { _o->vanilla_repricing = std::unique_ptr<quantra::VanillaRepricingT>(_e->UnPack(_resolver)); } } else if (_o->vanilla_repricing) { _o->vanilla_repricing.reset(); } }
   { auto _e = local_vol_check(); if (_e) { if(_o->local_vol_check) { _e->UnPackTo(_o->local_vol_check.get(), _resolver); } else { _o->local_vol_check = std::unique_ptr<quantra::LocalVolCheckT>(_e->UnPack(_resolver)); } } else if (_o->local_vol_check) { _o->local_vol_check.reset(); } }
   { auto _e = local_vol_check_svi(); if (_e) { if(_o->local_vol_check_svi) { _e->UnPackTo(_o->local_vol_check_svi.get(), _resolver); } else { _o->local_vol_check_svi = std::unique_ptr<quantra::LocalVolCheckT>(_e->UnPack(_resolver)); } } else if (_o->local_vol_check_svi) { _o->local_vol_check_svi.reset(); } }
+  { auto _e = local_vol_check_ssvi(); if (_e) { if(_o->local_vol_check_ssvi) { _e->UnPackTo(_o->local_vol_check_ssvi.get(), _resolver); } else { _o->local_vol_check_ssvi = std::unique_ptr<quantra::LocalVolCheckT>(_e->UnPack(_resolver)); } } else if (_o->local_vol_check_ssvi) { _o->local_vol_check_ssvi.reset(); } }
 }
 
 inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CalibrateVolSurfaceResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CalibrateVolSurfaceResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -2151,9 +2696,12 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
   auto _vol_surface_spec = _o->vol_surface_spec ? CreateVolSurfaceSpec(_fbb, _o->vol_surface_spec.get(), _rehasher) : 0;
   auto _vol_surface_spec_svi = _o->vol_surface_spec_svi ? CreateVolSurfaceSpec(_fbb, _o->vol_surface_spec_svi.get(), _rehasher) : 0;
   auto _vol_surface_spec_svi_note = _o->vol_surface_spec_svi_note.empty() ? 0 : _fbb.CreateString(_o->vol_surface_spec_svi_note);
+  auto _vol_surface_spec_ssvi = _o->vol_surface_spec_ssvi ? CreateVolSurfaceSpec(_fbb, _o->vol_surface_spec_ssvi.get(), _rehasher) : 0;
+  auto _ssvi_arbitrage = _o->ssvi_arbitrage ? CreateSsviArbitrageCheck(_fbb, _o->ssvi_arbitrage.get(), _rehasher) : 0;
   auto _vanilla_repricing = _o->vanilla_repricing ? CreateVanillaRepricing(_fbb, _o->vanilla_repricing.get(), _rehasher) : 0;
   auto _local_vol_check = _o->local_vol_check ? CreateLocalVolCheck(_fbb, _o->local_vol_check.get(), _rehasher) : 0;
   auto _local_vol_check_svi = _o->local_vol_check_svi ? CreateLocalVolCheck(_fbb, _o->local_vol_check_svi.get(), _rehasher) : 0;
+  auto _local_vol_check_ssvi = _o->local_vol_check_ssvi ? CreateLocalVolCheck(_fbb, _o->local_vol_check_ssvi.get(), _rehasher) : 0;
   return quantra::CreateCalibrateVolSurfaceResponse(
       _fbb,
       _sheet_id,
@@ -2171,9 +2719,12 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
       _vol_surface_spec,
       _vol_surface_spec_svi,
       _vol_surface_spec_svi_note,
+      _vol_surface_spec_ssvi,
+      _ssvi_arbitrage,
       _vanilla_repricing,
       _local_vol_check,
-      _local_vol_check_svi);
+      _local_vol_check_svi,
+      _local_vol_check_ssvi);
 }
 
 inline const quantra::CalibrateVolSurfaceResponse *GetCalibrateVolSurfaceResponse(const void *buf) {

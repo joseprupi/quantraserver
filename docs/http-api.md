@@ -1439,13 +1439,15 @@ there is no adapter around the original object).
   neither its value nor its direction moves the price. The processes are
   correlated by the `StochasticProcessArray` (spectral pseudo-square-root).
 - Local vol: a strike-dependent vol — a strike x expiry `BlackVolSpec`
-  (`SmileCube3D`, `SurfaceFromPrices`) or an `SviVolSpec` — is simulated
-  as Dupire local vol (QuantLib `LocalVolSurface`: finite differences of
-  the Black variance in log-strike and time) with log-Euler steps on the
-  `steps_per_year` grid. A grid is read with its `surface_interpolator`
+  (`SmileCube3D`, `SurfaceFromPrices`), an `SviVolSpec` or an
+  `SsviVolSpec` — is simulated as Dupire local vol (QuantLib
+  `LocalVolSurface`: finite differences of the Black variance in
+  log-strike and time; for an `SsviVolSpec` the closed-form local variance
+  of its slices instead) with log-Euler steps on the `steps_per_year`
+  grid. A grid is read with its `surface_interpolator`
   (`Bilinear` by default for a supplied grid, `CubicStrikeLinearTime` on
   the grids `/calibrate-vol-surface` returns, `Bicubic` on request; see
-  "Volatility surface from option quotes" > "The two payloads") with
+  "Volatility surface from option quotes" > "The payloads") with
   CONSTANT strike extrapolation on both sides (a strike beyond the grid
   reads the edge strike's vol; the same object the equity option pricer
   reads) and, beyond the last expiry, a flat implied vol (the last
@@ -1777,11 +1779,14 @@ the same surface as its fitted SVI slices (`vol_surface_spec_svi`, an
 `SviVolSpec` payload, also ready to paste), the forwards it used, a
 per-expiry report and the repricing of every used quote on the returned
 grid, and a check of the Dupire local vol of each returned spec read the
-way a structured note reads it (`local_vol_check`). Two methods:
+way a structured note reads it (`local_vol_check`). Three methods:
 Andreasen-Huge local-vol interpolation (default; arbitrage-free by
-construction in its own model) and one SVI slice per expiry, fitted from
+construction in its own model), one SVI slice per expiry, fitted from
 the last expiry back so that consecutive slices are ordered in time
-(calendar) as well as butterfly-free.
+(calendar) as well as butterfly-free, and eSSVI slices (`Ssvi`, see
+"eSSVI slices" below), free of static arbitrage by construction, returned
+as an `SsviVolSpec` payload (`vol_surface_spec_ssvi`) whose local vol a
+structured note reads in closed form.
 
 ### Request
 
@@ -1796,7 +1801,8 @@ the last expiry back so that consecutive slices are ordered in time
   "output_grid": {"strikes_as_moneyness": [0.5, 0.525, "...", 1.5],
                   "expiries": [{"n": 16, "unit": "Days"}, {"n": 51, "unit": "Days"}]},
   "vol_surface_id": "NDX_VOL",
-  "svi": {"enforce_butterfly": true, "enforce_calendar": true, "min_forward_vol": 0.01}
+  "svi": {"enforce_butterfly": true, "enforce_calendar": true, "min_forward_vol": 0.01},
+  "ssvi": {"weighting": "Vega", "max_abs_log_moneyness": 1.0}
 }
 ```
 
@@ -1804,11 +1810,13 @@ the last expiry back so that consecutive slices are ordered in time
 |---|---|
 | `sheet`, `discounting_curve`, `filter` | As for `/calibrate-implied-forwards`; same per-line rules, same reasons. `filter.moneyness_window` concerns the forward fit only: the vol fit uses every line that passes the per-line rules. European exercise only (`400` otherwise). |
 | `forwards` | Optional. The `expiries` array of an implied-forwards response pasted as is; only `expiry`, `usable`, `forward` and `implied_discount_factor` are read (non-usable entries skipped). Absent: the same fit is run here with `filter`, and `forwards_source` says `"fitted"` instead of `"request"`. A sheet expiry without a forward is reported unusable. |
-| `method` | `AndreasenHuge` (default) or `SviPerExpiry`. |
+| `method` | `AndreasenHuge` (default), `SviPerExpiry` or `Ssvi`. |
 | `output_grid.strikes_as_moneyness` | Strikes as multiples of the spot, > 0, strictly increasing, at least 2. Default `0.500, 0.525, …, 1.500` (41 points). The returned surface is keyed by absolute strike (`strike = moneyness x spot`); the spot used is echoed as `spot`. With `AndreasenHuge` only the first and the last value matter: the returned strikes are the model's own finite-difference points within that range and the expiries' regions (see the method). |
-| `output_grid.expiries` | Calendar-day periods from `as_of_date` (`{n, unit}`; months and years are added on a NullCalendar, unadjusted). Default: the fitted sheet expiries. `SviPerExpiry` requires each one to be a fitted sheet expiry (`400` otherwise: the slices are not interpolated in time); `AndreasenHuge` accepts any date up to the last fitted expiry. |
+| `output_grid.expiries` | Calendar-day periods from `as_of_date` (`{n, unit}`; months and years are added on a NullCalendar, unadjusted). Default: the fitted sheet expiries. `SviPerExpiry` requires each one to be a fitted sheet expiry (`400` otherwise: the slices are not interpolated in time); `AndreasenHuge` and `Ssvi` accept any date up to the last fitted expiry. |
 | `vol_surface_id` | Id of the returned spec. |
 | `svi.enforce_butterfly`, `svi.enforce_calendar` | `SviPerExpiry` only, default true: fix what the checks find (below) or report only. |
+| `ssvi.weighting` | `Ssvi` only, default `Vega`: the weight of each used quote's squared vol error, `Uniform`, `Vega` (Black vega at the market vol) or `BidAsk` (1 / (bid-ask spread in vol units)², the price spread over the vega). |
+| `ssvi.max_abs_log_moneyness` | `Ssvi` only, default `1.0`: used quotes with `|ln(K / F)|` above it are left out of the fit (dropped with reason `max_abs_log_moneyness`). Finite and `> 0` (`400` otherwise). |
 | `svi.min_forward_vol` | `SviPerExpiry` only, default `0.01` (1 % forward vol): the calendar margin between consecutive fitted expiries, `min_forward_vol² (T_i − T_{i−1})` in total variance. `0` = no margin. Finite and `≥ 0` (`400` otherwise). |
 
 ### Method
@@ -1944,7 +1952,41 @@ Nodes beyond the region (no simulation reaches them at that date) are
 reported in `calendar_action`, not clipped, so that each row keeps its
 smooth shape. `AndreasenHuge` reports only.
 
-**Local vol check (`local_vol_check`, `local_vol_check_svi`).** Each
+**Ssvi.** The used quotes of every usable expiry (the same out-of-the-money
+mids, implied vols, forwards and discount factors as above; an expiry
+needs `max(filter.min_quotes_per_expiry, 3)`) are fitted one expiry after
+the other in increasing time with an eSSVI slice (Corbetta, Cohort,
+Laachir, Martini, "Robust calibration and arbitrage-free interpolation of
+SSVI slices", 2019): `w(k) = ½ (θ + ρψk + sqrt(ψ²k² + 2ρψθk + θ²))`,
+`k = ln(K / F)`, `θ` the at-the-money total variance, `ψ = θφ`. The used
+quote nearest the money is the anchor: `θ` is solved from it so that the
+slice reproduces it exactly, and `(ρ, ψ)` minimise the weighted squared
+vol errors (`ssvi.weighting`) under the static-arbitrage conditions —
+butterfly `ψ (1 + |ρ|) ≤ 4` and `ψ² (1 + |ρ|) ≤ 4θ`, calendar against the
+previous slice `θ` and `ψ` non-decreasing, `|ρψ − ρ_prev ψ_prev| ≤ ψ −
+ψ_prev` and `ψ / θ` non-increasing (sufficient, Hendriks-Martini) — each
+an interval in `ψ` for a given `ρ` (Brent on `ψ`, `ρ` on a refined grid).
+The slices are therefore free of butterfly and calendar arbitrage by
+construction, at every strike and every time of the model's own time
+interpolation (see `SsviVolSpec` below). When no `(ρ, ψ)` is feasible
+against the previous slice (the quotes themselves cross at the money: a
+daily expiry quoted below the day before) the anchor's total variance is
+raised to the smallest feasible value and `ssvi_anchor_clamped` is set; the
+slice then misses its at-the-money quotes by the crossing. Three
+parameters per expiry fit a liquid index smile less closely than SVI's
+five (expect a larger `rmse_vol`, mostly in the short-dated wings): the
+method trades fit for a surface that is arbitrage free everywhere and a
+local vol in closed form. Report per expiry: `ssvi` (`theta`, `rho`,
+`psi`), `ssvi_anchor_k`, `ssvi_anchor_total_variance`,
+`ssvi_anchor_clamped`, the condition margins `ssvi_margin_*` (right-hand
+side minus left-hand side, `≥ 0` when met), `rmse_vol` /
+`max_abs_error_vol`; overall `ssvi_arbitrage` (the closed-form conditions
+found violated — empty — and a numeric scan of Durrleman's `g` and of
+`dw/dt`). The grid is sampled from the eSSVI surface, and the slices come
+back as `vol_surface_spec_ssvi`.
+
+**Local vol check (`local_vol_check`, `local_vol_check_svi`,
+`local_vol_check_ssvi`).** Each
 returned spec is rebuilt as the structured-note pricer builds it (the
 parser's objects, QuantLib's `LocalVolSurface` through the pricer's own
 edge clamp, `FlatLocalVol` beyond the last expiry) on the sheet's
@@ -1975,7 +2017,11 @@ forward drift `Δμ` adds `Δμ · s` to the time derivative; a larger
 (0 of 28 542 points refused) without a refit pass; `AndreasenHuge` does
 not (867 points refused: its own fit misses the sheet by 5.7 vol points on
 average and its wing fills are flat), so for structured notes use
-`SviPerExpiry`.
+`SviPerExpiry` or `Ssvi`. `local_vol_check_ssvi` runs the same scan on the
+closed-form eSSVI local vol the note reads (a refused point is one where
+`g ≤ 0` or the local variance is negative; the slices are arbitrage free,
+so none is expected), with the model's own continuation beyond the last
+slice.
 
 **Fit error and repricing.** `rmse_vol` / `max_abs_error_vol` per expiry
 compare the calibrated object (the SVI slice, the Andreasen-Huge surface)
@@ -2073,15 +2119,20 @@ Both specs set `local_vol_time_extrapolation: FlatLocalVol`, so a
 structured note maturing after the last quoted expiry can be priced on
 them as returned (see "Structured notes" > local vol); with
 
-`AndreasenHuge` it is absent and `vol_surface_spec_svi_note` says why (a
-piecewise local volatility has no closed-form slices).
+`AndreasenHuge` and `Ssvi` it is absent and `vol_surface_spec_svi_note`
+says why. `vol_surface_spec_ssvi` (an `SsviVolSpec`: `spot`, one slice per
+fitted expiry with its forward, `theta`, `rho`, `psi` and the region as
+`strike_min` / `strike_max`, `local_vol_strike_range: PerExpiry`, no
+`local_vol_time_extrapolation`), `ssvi_arbitrage` and
+`local_vol_check_ssvi` are present with `Ssvi` only.
 
-### The two payloads and how they are read
+### The payloads and how they are read
 
 | Payload | Reading | Use |
 |---|---|---|
 | `BlackVolSpec` `SmileCube3D` (the grid, `vol_surface_spec`) | `surface_interpolator`: `Bilinear` (default of a supplied grid — QuantLib `BlackVarianceSurface`, linear in total variance inside every cell, so the smile's curvature is lost between nodes and a Dupire local vol derived from it misprices vanillas by 2 to 3 vol points at a year), `Bicubic` (QuantLib's 2-D spline, a spline in time too through the zero-variance column at t = 0, which distorts the short end; ~15x the cost), `CubicStrikeLinearTime` (what `/calibrate-vol-surface` returns: per expiry a natural cubic spline of total variance in log-strike — C2, every node reproduced, the curvature kept between nodes — linear in total variance between expiries at fixed strike, constant beyond the first and last strike, flat implied vol beyond the last expiry; two 1-D evaluations per read). Optional `local_vol_time_extrapolation` (`FlatImpliedVol` when absent, `FlatLocalVol` from this endpoint): how a structured note's local vol continues beyond the last expiry. A grid you supply yourself keeps `Bilinear` unless it says otherwise: no existing request changes. | Any grid, from this endpoint or elsewhere. |
 | `SviVolSpec` (the slices, `vol_surface_spec_svi`) | The raw SVI total variance of each slice, `w(k) = a + b (ρ (k − m) + sqrt((k − m)² + σ²))`, `k = ln(K / forward)`, Black vol `sqrt(w / T)`; linear in total variance between the bracketing slices at fixed strike (`time_interpolation: LinearTotalVariance`, the only value), `w(T₁, K) t / T₁` before the first slice and `w(Tₙ, K) t / Tₙ` after the last (flat implied vol on both ends; `allow_extrapolation` gates reading past the last slice). The formula is global in strike: no strike extrapolation exists or is needed for a Black vol read. Optional per slice: `strike_min` / `strike_max`, the quoted strike range (`/calibrate-vol-surface` fills them; `> 0`, `strike_min < strike_max`, else `400`), where a structured note's local vol holds its edge value. Optional `local_vol_time_extrapolation` (`FlatImpliedVol` when absent, `FlatLocalVol` from `/calibrate-vol-surface`): how a structured note's local vol continues beyond the last slice. The exact surface the quotes were fitted to, with its exact curvature. `base.shape`, `constant_vol` and `quote_id` must be absent (`400`); slices strictly increasing after `reference_date`, `forward > 0`, `b ≥ 0`, `σ > 0`, `|ρ| < 1`, `a + bσ sqrt(1 − ρ²) ≥ 0` (`400` naming the slice). | Everywhere a Black vol is referenced: `volatility` on an equity option (a European option prices at the Black price of the slice's vol), `underlyings[].volatility_id` on a structured note (strike-dependent: Dupire local vol, `steps_per_year` required; vega bumps shift every vol by the bump — a shifted SVI smile is no SVI slice, so the shift is applied at every read), `/sample-vol-surfaces` `EquityBlack`. |
+| `SsviVolSpec` (eSSVI slices, `vol_surface_spec_ssvi`) | `spot` (presence-required, `> 0`) and per slice `expiry`, `forward`, `theta`, `rho`, `psi` (each presence-required, `400` naming it), optional `strike_min` / `strike_max` as on `SviSlice`. Total variance `w(k) = ½ (θ + ρψk + sqrt(ψ²k² + 2ρψθk + θ²))` at `k = ln(K / F_ref(t))`, Black vol `sqrt(w / t)`. In time the parameters, not the variances, are interpolated: `θ`, `ψ` and `ρψ` linear between two slices, the first slice scaled by `t / T₁` before it, `ψ` and `ρ` held and `θ` continuing the last forward variance `(θₙ − θₙ₋₁) / (Tₙ − Tₙ₋₁)` after the last (`θ₁ / T₁` with one slice): arbitrage free at every time given arbitrage-free slices. The reference forward `F_ref` has `ln F_ref` linear in time through `ln spot` at the reference date and `ln forward` at each slice, continuing the last slope beyond, so the payload needs no curve. Defined at every time and strike (no `allow_extrapolation`). The slices must satisfy the conditions of the `Ssvi` method (butterfly per slice, calendar between consecutive slices, the sufficient `ψ / θ` or quadratic condition) and a numeric scan of `g` and `dw/dt` (`400` listing every violation with its slices and amount). `local_vol_time_extrapolation`: absent = the model's own continuation (what `/calibrate-vol-surface` returns); `FlatLocalVol` = held at `T_last − 0.001` as for the other payloads; `FlatImpliedVol` is `400` (the model does not extend its implied vol flat). `base.shape`, `constant_vol` and `quote_id` must be absent (`400`). | Everywhere a Black vol is referenced: `volatility` on an equity option, `/sample-vol-surfaces` `EquityBlack`, `underlyings[].volatility_id` on a structured note (strike-dependent: local vol, `steps_per_year` required). A note reads the closed-form Dupire local variance of the slices, `σ²_loc = (∂w/∂t + ∂w/∂k Δμ) / g(k, k − ln(F_note / F_ref))` with `Δμ` the note's forward drift minus the reference one (a quanto drift, another dividend curve, a bumped spot: sticky strike), no finite differences; the strike edges or per-expiry bands, `FlatLocalVol` and `monte_carlo.local_vol_floor` apply to it as to the others (the floor reads the closed form; a refused point — `g ≤ 0` or a negative numerator — takes the floor). Vega bumps shift every slice's at-the-money vol, `θ' = (sqrt(θ / T) + bump)² T`, `ρ` and `ψ` kept (still eSSVI, re-validated: `400` if the bumped slices admit arbitrage). |
 
 ### Using the surface
 
@@ -2113,16 +2164,20 @@ why a grid from this endpoint carries `CubicStrikeLinearTime`.
 | `sheet.option_style` not `European`; a bad `filter` value | `400` naming the field |
 | `output_grid.strikes_as_moneyness` not finite, ≤ 0, not strictly increasing or fewer than 2 | `400` |
 | `output_grid.expiries` not after `as_of_date`, not increasing, after the last fitted expiry, or (SVI) not a fitted sheet expiry | `400` naming the entry |
+| `ssvi.max_abs_log_moneyness` not finite or `≤ 0`; an `Ssvi` expiry left with fewer than 3 used quotes after it | `400` naming the field or the expiry and the exclusions by reason |
+| an `SsviVolSpec` with a missing or invalid field, or slices that admit arbitrage | `400` naming the field, or listing every violated condition |
 | `forwards` with a usable entry lacking `forward` / `implied_discount_factor`, a non-positive value, a duplicate expiry, or no usable entry at all | `400` |
 | no usable expiry (nothing passes the rules, or every forward is missing) | `400` listing every expiry's reason |
 | `vol_surface_id` missing | `400` |
 | `discounting_curve` or `sheet.underlying_id` not in `pricing` | `404` |
-| the Andreasen-Huge or SVI optimizer fails | `400` with QuantLib's message |
+| the Andreasen-Huge or SVI optimizer fails; no arbitrage-free eSSVI slice exists at an expiry | `400` with the message |
 
 ### Data
 
-`examples/data/vol_surface/` carries one synthetic SVI sheet as two
-requests (one per method), generated by
+`examples/data/vol_surface/` carries one synthetic SVI sheet as three
+requests (one per method, `…_ssvi.json` for `Ssvi`) and an SPX-like sheet
+generated from five eSSVI slices (`synthetic_spx_essvi_sheet_…_ssvi.json`,
+preset `spx_essvi`), generated by
 `tests/tools/make_synthetic_quote_sheet.py --preset svi --endpoint
 vol-surface` from a stated SSVI surface (README there). The Scotia note
 example `examples/data/structured_note/scotia_…_with_synthetic_surface.json`
