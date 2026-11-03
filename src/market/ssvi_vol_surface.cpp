@@ -3,8 +3,10 @@
 #include "error.h"
 
 #include <ql/compounding.hpp>
+#include <ql/errors.hpp>
 #include <ql/math/comparison.hpp>
 #include <ql/termstructures/yield/discountcurve.hpp>
+#include <ql/termstructures/yield/flatforward.hpp>
 
 #include <cmath>
 #include <sstream>
@@ -87,6 +89,23 @@ QuantLib::Handle<QuantLib::YieldTermStructure> buildImpliedDividendCurve(
     return QuantLib::Handle<QuantLib::YieldTermStructure>(curve);
 }
 
+std::shared_ptr<SsviBlackVol> makeSsviSurface(
+    const QuantLib::Date& referenceDate,
+    const QuantLib::Calendar& calendar,
+    QuantLib::BusinessDayConvention bdc,
+    const QuantLib::DayCounter& dayCounter,
+    const std::vector<QuantLib::Date>& expiries,
+    const std::vector<SsviSliceParams>& params,
+    const std::vector<double>& forwards,
+    double spot0) {
+    const QuantLib::Handle<QuantLib::YieldTermStructure> riskFree(
+        std::make_shared<QuantLib::FlatForward>(referenceDate, 0.0, dayCounter));
+    const auto dividend =
+        buildImpliedDividendCurve(referenceDate, dayCounter, expiries, forwards, spot0, riskFree);
+    return std::make_shared<SsviBlackVol>(
+        referenceDate, calendar, bdc, dayCounter, expiries, params, spot0, dividend, riskFree);
+}
+
 SsviBlackVol::SsviBlackVol(
     const QuantLib::Date& referenceDate,
     const QuantLib::Calendar& calendar,
@@ -98,8 +117,8 @@ SsviBlackVol::SsviBlackVol(
     QuantLib::Handle<QuantLib::YieldTermStructure> dividend,
     QuantLib::Handle<QuantLib::YieldTermStructure> riskFree)
     : QuantLib::BlackVarianceTermStructure(referenceDate, calendar, bdc, dayCounter),
-      surface_(buildSurface(referenceDate, dayCounter, expiries, params)), spot0_(spot0),
-      dividend_(std::move(dividend)), riskFree_(std::move(riskFree)) {
+      surface_(buildSurface(referenceDate, dayCounter, expiries, params)), expiries_(expiries),
+      spot0_(spot0), dividend_(std::move(dividend)), riskFree_(std::move(riskFree)) {
     if (!(spot0_ > 0.0) || !std::isfinite(spot0_)) {
         QUANTRA_INVALID_ARGUMENT("SSVI surface: spot0 must be finite and > 0");
     }
@@ -184,7 +203,7 @@ QuantLib::Volatility SsviLocalVol::localVolImpl(QuantLib::Time t, QuantLib::Real
         std::ostringstream os;
         os << "SSVI local variance undefined at t=" << t << ", S=" << strike << ": g=" << gv
            << ", numerator=" << numerator << " (surface admits arbitrage)";
-        QUANTRA_ERROR(os.str());
+        QL_FAIL(os.str());
     }
     return std::sqrt(numerator / gv);
 }

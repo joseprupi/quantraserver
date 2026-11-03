@@ -26,9 +26,12 @@
  *
  * with f the instantaneous forward rates (see ssvi.h for the derivation). When
  * the process market is the reference one, D = 0, dDrift = 0 and y = k exactly.
- * It throws QUANTRA_ERROR when g <= 0 or the numerator is negative (the
- * surface admits arbitrage there): this class is the analytic reference used by
- * tests and the parser; the production Monte Carlo kernel floors instead.
+ * It throws QuantLib::Error when g <= 0 or the numerator is negative (the
+ * surface admits arbitrage there), as QuantLib's LocalVolSurface does for a
+ * negative local variance; the structured-note pricer reads it through
+ * mc::EdgeClampedLocalVol (src/mc/basket_model.h), which applies the strike
+ * edges, the FlatLocalVol time clamp and the optional floor to it as to the
+ * finite-difference local vol of the other surfaces.
  * It registers with the process handles and the Black surface so a relink or
  * bump notifies observers like any QuantLib term structure.
  */
@@ -72,6 +75,24 @@ QuantLib::Handle<QuantLib::YieldTermStructure> buildImpliedDividendCurve(
     double spot0,
     const QuantLib::Handle<QuantLib::YieldTermStructure>& riskFree);
 
+/**
+ * The self-contained surface of an `SsviVolSpec` payload: the reference forward is
+ * ln F_ref linear in time through ln spot0 at the reference date and ln forwards[i] at
+ * expiries[i], continuing the last slope beyond (SsviBlackVol on a zero-rate FlatForward
+ * risk-free curve and the implied dividend curve of buildImpliedDividendCurve on it), so that
+ * F_ref(T_i) == forwards[i] and no curve of the request is needed. Throws
+ * QUANTRA_INVALID_ARGUMENT as the pieces do.
+ */
+std::shared_ptr<class SsviBlackVol> makeSsviSurface(
+    const QuantLib::Date& referenceDate,
+    const QuantLib::Calendar& calendar,
+    QuantLib::BusinessDayConvention bdc,
+    const QuantLib::DayCounter& dayCounter,
+    const std::vector<QuantLib::Date>& expiries,
+    const std::vector<SsviSliceParams>& params,
+    const std::vector<double>& forwards,
+    double spot0);
+
 class SsviBlackVol : public QuantLib::BlackVarianceTermStructure {
 public:
     SsviBlackVol(
@@ -89,6 +110,9 @@ public:
     QuantLib::Real minStrike() const override;
     QuantLib::Real maxStrike() const override;
 
+    /// Year fraction of the last slice (the surface itself has no last date).
+    QuantLib::Time lastSliceTime() const { return surface_.slices().back().t; }
+    const std::vector<QuantLib::Date>& expiries() const { return expiries_; }
     const ssvi::Surface& surface() const { return surface_; }
     double spot0() const { return spot0_; }
     const QuantLib::Handle<QuantLib::YieldTermStructure>& dividend() const { return dividend_; }
@@ -102,6 +126,7 @@ protected:
 
 private:
     ssvi::Surface surface_;
+    std::vector<QuantLib::Date> expiries_;
     double spot0_;
     QuantLib::Handle<QuantLib::YieldTermStructure> dividend_;
     QuantLib::Handle<QuantLib::YieldTermStructure> riskFree_;
