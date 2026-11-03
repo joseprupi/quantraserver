@@ -52,8 +52,9 @@
  *      5 each round until it is below 1e-10 (the specification of three rounds stops at
  *      4e-4, too coarse to recover the parameters to 1e-6).
  *      If no rho is feasible (calendar arbitrage in the data at the money) theta* is raised to
- *      theta_prev (1 + 1e-6) + 1e-12 and anchorClamped is set; if still infeasible the call
- *      fails naming the expiry.
+ *      theta_prev (1 + 1e-6) + 1e-12 and, while still infeasible, raised further by a doubling
+ *      step (from 1e-6 theta_prev; at most 80 steps), and anchorClamped is set; if still
+ *      infeasible the call fails naming the expiry.
  *   5. checkArbitrage must be empty (else QUANTRA_ERROR) and a numeric scan runs on the slice
  *      times, their midpoints, 0.5 T_1 and 1.5 T_N for k in [-1.5, 1.0] (201 points).
  */
@@ -68,6 +69,7 @@
 #include <ql/time/daycounter.hpp>
 
 #include <cstddef>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -88,12 +90,23 @@ struct OptionQuote {
     double weight = 1.0;
 };
 
+// A forward and discount factor given for one expiry (see CalibrationInput::expiryMarkets).
+struct ExpiryMarket {
+    double forward = 0.0;
+    double discount = 0.0;
+};
+
 struct CalibrationInput {
     QuantLib::Date referenceDate;
     QuantLib::DayCounter dayCounter;
     double spot = 0.0;
     QuantLib::Handle<QuantLib::YieldTermStructure> discount;
     QuantLib::Handle<QuantLib::YieldTermStructure> dividend; // may be empty: parity forwards only
+    // Optional: the forward F and discount factor D of every quoted expiry, given (e.g. the
+    // implied forwards of a quote sheet). When non-empty every quoted expiry must be in it (400
+    // otherwise), steps 2 and 3 use these F and D, no parity forward is estimated (no
+    // parity_outlier exclusion), and `discount` / `dividend` are not read (they may be empty).
+    std::map<QuantLib::Date, ExpiryMarket> expiryMarkets;
     std::vector<OptionQuote> quotes;
     QuoteWeighting weighting = QuoteWeighting::Uniform;
     double maxAbsLogMoneyness = 1.0;

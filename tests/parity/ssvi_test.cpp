@@ -435,7 +435,7 @@ TEST(SsviLocalVolTest, ThrowsWhereTheSurfaceAdmitsArbitrage) {
     for (double mny : {0.3, 0.5, 0.7, 1.0, 1.5, 2.0}) {
         try {
             lv.localVol(0.2, mny * bv->forward(0.2), true);
-        } catch (const QuantraError& e) {
+        } catch (const QuantLib::Error& e) {
             thrown = true;
             EXPECT_NE(std::string(e.what()).find("S="), std::string::npos);
         }

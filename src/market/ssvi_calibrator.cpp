@@ -418,7 +418,7 @@ double anchorTheta(double W, double rho, double k, double psi) {
 }
 
 void validateInput(const CalibrationInput& in) {
-    if (in.discount.empty()) {
+    if (in.discount.empty() && in.expiryMarkets.empty()) {
         QUANTRA_INVALID_ARGUMENT("SSVI calibration: a discount curve is required");
     }
     if (!(in.spot > 0.0) || !std::isfinite(in.spot)) {
@@ -485,10 +485,32 @@ CalibrationResult calibrate(const CalibrationInput& in) {
                << " is not after the reference date";
             QUANTRA_INVALID_ARGUMENT(os.str());
         }
-        const double dRf = in.discount->discount(ex.T, true);
-        ex.D = dRf;
-        ex.curveF = in.dividend.empty() ? kNaN : in.spot * in.dividend->discount(ex.T, true) / dRf;
-        const ParityForward parity = parityForward(quotes, ex.idx, ex.D);
+        ParityForward parity;
+        if (!in.expiryMarkets.empty()) {
+            // Given forward and discount factor: no curve read, no parity estimate.
+            const auto given = in.expiryMarkets.find(ex.expiry);
+            if (given == in.expiryMarkets.end()) {
+                std::ostringstream os;
+                os << "SSVI calibration: no forward given for expiry " << DateToIso(ex.expiry);
+                QUANTRA_INVALID_ARGUMENT(os.str());
+            }
+            if (!(given->second.forward > 0.0) || !std::isfinite(given->second.forward) ||
+                !(given->second.discount > 0.0) || !std::isfinite(given->second.discount)) {
+                std::ostringstream os;
+                os << "SSVI calibration: the forward and discount factor given for expiry "
+                   << DateToIso(ex.expiry) << " must be finite and > 0";
+                QUANTRA_INVALID_ARGUMENT(os.str());
+            }
+            ex.D = given->second.discount;
+            ex.curveF = kNaN;
+            parity.forward = given->second.forward;
+        } else {
+            const double dRf = in.discount->discount(ex.T, true);
+            ex.D = dRf;
+            ex.curveF =
+                in.dividend.empty() ? kNaN : in.spot * in.dividend->discount(ex.T, true) / dRf;
+            parity = parityForward(quotes, ex.idx, ex.D);
+        }
         if (std::isnan(parity.forward) && std::isnan(ex.curveF)) {
             std::ostringstream os;
             os << "SSVI calibration: no forward at expiry " << DateToIso(ex.expiry)
@@ -603,10 +625,23 @@ CalibrationResult calibrate(const CalibrationInput& in) {
         bool clamped = false;
         if (!searchSlice(pts, ex.T, kStar, thetaStar, prev, fit)) {
             const double floor = prev.theta * (1.0 + 1e-6) + 1e-12;
-            if (prev.exists && thetaStar < floor) {
-                thetaStar = floor;
+            if (prev.exists) {
+                // Raise the anchor's total variance to the previous slice's and then, while no
+                // (rho, psi) is feasible (off the money the anchor variance also carries the
+                // rho psi k and psi^2 terms), by a doubling step: the smallest raise found
+                // that makes the calendar conditions feasible.
+                double raised = std::max(thetaStar, floor);
+                double bump = std::max(1e-12, 1e-6 * floor);
+                bool feasible = false;
+                for (int n = 0; n < 80 && !feasible; ++n) {
+                    feasible = searchSlice(pts, ex.T, kStar, raised, prev, fit);
+                    if (!feasible) {
+                        raised += bump;
+                        bump *= 2.0;
+                    }
+                }
+                thetaStar = raised;
                 clamped = true;
-                searchSlice(pts, ex.T, kStar, thetaStar, prev, fit);
             }
             if (!std::isfinite(fit.objective)) {
                 std::ostringstream os;
