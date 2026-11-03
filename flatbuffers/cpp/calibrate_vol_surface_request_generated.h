@@ -27,6 +27,10 @@ struct SviFitOptions;
 struct SviFitOptionsBuilder;
 struct SviFitOptionsT;
 
+struct SsviFitOptions;
+struct SsviFitOptionsBuilder;
+struct SsviFitOptionsT;
+
 struct CalibrateVolSurfaceRequest;
 struct CalibrateVolSurfaceRequestBuilder;
 struct CalibrateVolSurfaceRequestT;
@@ -62,7 +66,7 @@ struct VolSurfaceOutputGrid FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
   /// NullCalendar, unadjusted). Default when absent or empty: every sheet
   /// expiry that was fitted. With `SviPerExpiry` each entry must land on
   /// a fitted sheet expiry (the SVI slices are not interpolated in time);
-  /// with `AndreasenHuge` any date up to the last fitted expiry.
+  /// with `AndreasenHuge` and `Ssvi` any date up to the last fitted expiry.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>> *expiries() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>> *>(VT_EXPIRIES);
   }
@@ -231,6 +235,84 @@ inline ::flatbuffers::Offset<SviFitOptions> CreateSviFitOptions(
 
 ::flatbuffers::Offset<SviFitOptions> CreateSviFitOptions(::flatbuffers::FlatBufferBuilder &_fbb, const SviFitOptionsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct SsviFitOptionsT : public ::flatbuffers::NativeTable {
+  typedef SsviFitOptions TableType;
+  quantra::enums::SsviQuoteWeighting weighting = quantra::enums::SsviQuoteWeighting_Vega;
+  double max_abs_log_moneyness = 1.0;
+};
+
+/// Settings of the `Ssvi` method (ignored by the others).
+///
+/// The used quotes of every fitted expiry (the same out-of-the-money mids,
+/// implied vols, forwards and discount factors as the other methods) are
+/// fitted one expiry after the other in increasing time with an eSSVI slice
+/// (theta, rho, psi; see `SsviVolSpec`). The used quote nearest the money is
+/// reproduced exactly (theta is solved from it); (rho, psi) minimise the
+/// weighted squared vol errors under the butterfly and calendar conditions,
+/// each an interval in psi for a given rho, so the slices are free of static
+/// arbitrage by construction. When no (rho, psi) is feasible against the
+/// previous slice (calendar arbitrage at the money in the quotes) the
+/// at-the-money total variance is raised to the previous slice's (reported
+/// as `ssvi_anchor_clamped`).
+struct SsviFitOptions FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SsviFitOptionsT NativeTableType;
+  typedef SsviFitOptionsBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_WEIGHTING = 4,
+    VT_MAX_ABS_LOG_MONEYNESS = 6
+  };
+  quantra::enums::SsviQuoteWeighting weighting() const {
+    return static_cast<quantra::enums::SsviQuoteWeighting>(GetField<int8_t>(VT_WEIGHTING, 1));
+  }
+  /// Used quotes with |ln(K / F)| above this are left out of the fit and
+  /// reported as dropped ("max_abs_log_moneyness"). Finite and > 0.
+  double max_abs_log_moneyness() const {
+    return GetField<double>(VT_MAX_ABS_LOG_MONEYNESS, 1.0);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<int8_t>(verifier, VT_WEIGHTING, 1) &&
+           VerifyField<double>(verifier, VT_MAX_ABS_LOG_MONEYNESS, 8) &&
+           verifier.EndTable();
+  }
+  SsviFitOptionsT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SsviFitOptionsT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<SsviFitOptions> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SsviFitOptionsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct SsviFitOptionsBuilder {
+  typedef SsviFitOptions Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_weighting(quantra::enums::SsviQuoteWeighting weighting) {
+    fbb_.AddElement<int8_t>(SsviFitOptions::VT_WEIGHTING, static_cast<int8_t>(weighting), 1);
+  }
+  void add_max_abs_log_moneyness(double max_abs_log_moneyness) {
+    fbb_.AddElement<double>(SsviFitOptions::VT_MAX_ABS_LOG_MONEYNESS, max_abs_log_moneyness, 1.0);
+  }
+  explicit SsviFitOptionsBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<SsviFitOptions> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<SsviFitOptions>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<SsviFitOptions> CreateSsviFitOptions(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    quantra::enums::SsviQuoteWeighting weighting = quantra::enums::SsviQuoteWeighting_Vega,
+    double max_abs_log_moneyness = 1.0) {
+  SsviFitOptionsBuilder builder_(_fbb);
+  builder_.add_max_abs_log_moneyness(max_abs_log_moneyness);
+  builder_.add_weighting(weighting);
+  return builder_.Finish();
+}
+
+::flatbuffers::Offset<SsviFitOptions> CreateSsviFitOptions(::flatbuffers::FlatBufferBuilder &_fbb, const SsviFitOptionsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct CalibrateVolSurfaceRequestT : public ::flatbuffers::NativeTable {
   typedef CalibrateVolSurfaceRequest TableType;
   std::unique_ptr<quantra::PricingT> pricing{};
@@ -242,6 +324,7 @@ struct CalibrateVolSurfaceRequestT : public ::flatbuffers::NativeTable {
   std::unique_ptr<quantra::VolSurfaceOutputGridT> output_grid{};
   std::string vol_surface_id{};
   std::unique_ptr<quantra::SviFitOptionsT> svi{};
+  std::unique_ptr<quantra::SsviFitOptionsT> ssvi{};
   CalibrateVolSurfaceRequestT() = default;
   CalibrateVolSurfaceRequestT(const CalibrateVolSurfaceRequestT &o);
   CalibrateVolSurfaceRequestT(CalibrateVolSurfaceRequestT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -263,7 +346,8 @@ struct CalibrateVolSurfaceRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffer
     VT_METHOD = 14,
     VT_OUTPUT_GRID = 16,
     VT_VOL_SURFACE_ID = 18,
-    VT_SVI = 20
+    VT_SVI = 20,
+    VT_SSVI = 22
   };
   /// Full pricing context: `as_of_date` (the quote date), the discounting
   /// curve in `rates.curves`, the underlying's spot in `quotes` and the
@@ -311,6 +395,10 @@ struct CalibrateVolSurfaceRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffer
   const quantra::SviFitOptions *svi() const {
     return GetPointer<const quantra::SviFitOptions *>(VT_SVI);
   }
+  /// `Ssvi` settings; defaults (Vega, 1.0) apply when absent.
+  const quantra::SsviFitOptions *ssvi() const {
+    return GetPointer<const quantra::SsviFitOptions *>(VT_SSVI);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_PRICING) &&
@@ -331,6 +419,8 @@ struct CalibrateVolSurfaceRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffer
            verifier.VerifyString(vol_surface_id()) &&
            VerifyOffset(verifier, VT_SVI) &&
            verifier.VerifyTable(svi()) &&
+           VerifyOffset(verifier, VT_SSVI) &&
+           verifier.VerifyTable(ssvi()) &&
            verifier.EndTable();
   }
   CalibrateVolSurfaceRequestT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -369,6 +459,9 @@ struct CalibrateVolSurfaceRequestBuilder {
   void add_svi(::flatbuffers::Offset<quantra::SviFitOptions> svi) {
     fbb_.AddOffset(CalibrateVolSurfaceRequest::VT_SVI, svi);
   }
+  void add_ssvi(::flatbuffers::Offset<quantra::SsviFitOptions> ssvi) {
+    fbb_.AddOffset(CalibrateVolSurfaceRequest::VT_SSVI, ssvi);
+  }
   explicit CalibrateVolSurfaceRequestBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -394,8 +487,10 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceRequest> CreateCalibrateVolSurfa
     quantra::enums::VolSurfaceFitMethod method = quantra::enums::VolSurfaceFitMethod_AndreasenHuge,
     ::flatbuffers::Offset<quantra::VolSurfaceOutputGrid> output_grid = 0,
     ::flatbuffers::Offset<::flatbuffers::String> vol_surface_id = 0,
-    ::flatbuffers::Offset<quantra::SviFitOptions> svi = 0) {
+    ::flatbuffers::Offset<quantra::SviFitOptions> svi = 0,
+    ::flatbuffers::Offset<quantra::SsviFitOptions> ssvi = 0) {
   CalibrateVolSurfaceRequestBuilder builder_(_fbb);
+  builder_.add_ssvi(ssvi);
   builder_.add_svi(svi);
   builder_.add_vol_surface_id(vol_surface_id);
   builder_.add_output_grid(output_grid);
@@ -418,7 +513,8 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceRequest> CreateCalibrateVolSurfa
     quantra::enums::VolSurfaceFitMethod method = quantra::enums::VolSurfaceFitMethod_AndreasenHuge,
     ::flatbuffers::Offset<quantra::VolSurfaceOutputGrid> output_grid = 0,
     const char *vol_surface_id = nullptr,
-    ::flatbuffers::Offset<quantra::SviFitOptions> svi = 0) {
+    ::flatbuffers::Offset<quantra::SviFitOptions> svi = 0,
+    ::flatbuffers::Offset<quantra::SsviFitOptions> ssvi = 0) {
   auto discounting_curve__ = discounting_curve ? _fbb.CreateString(discounting_curve) : 0;
   auto forwards__ = forwards ? _fbb.CreateVector<::flatbuffers::Offset<quantra::ImpliedForwardExpiry>>(*forwards) : 0;
   auto vol_surface_id__ = vol_surface_id ? _fbb.CreateString(vol_surface_id) : 0;
@@ -432,7 +528,8 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceRequest> CreateCalibrateVolSurfa
       method,
       output_grid,
       vol_surface_id__,
-      svi);
+      svi,
+      ssvi);
 }
 
 ::flatbuffers::Offset<CalibrateVolSurfaceRequest> CreateCalibrateVolSurfaceRequest(::flatbuffers::FlatBufferBuilder &_fbb, const CalibrateVolSurfaceRequestT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -510,6 +607,35 @@ inline ::flatbuffers::Offset<SviFitOptions> CreateSviFitOptions(::flatbuffers::F
       _min_forward_vol);
 }
 
+inline SsviFitOptionsT *SsviFitOptions::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<SsviFitOptionsT>(new SsviFitOptionsT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void SsviFitOptions::UnPackTo(SsviFitOptionsT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = weighting(); _o->weighting = _e; }
+  { auto _e = max_abs_log_moneyness(); _o->max_abs_log_moneyness = _e; }
+}
+
+inline ::flatbuffers::Offset<SsviFitOptions> SsviFitOptions::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SsviFitOptionsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateSsviFitOptions(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<SsviFitOptions> CreateSsviFitOptions(::flatbuffers::FlatBufferBuilder &_fbb, const SsviFitOptionsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SsviFitOptionsT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _weighting = _o->weighting;
+  auto _max_abs_log_moneyness = _o->max_abs_log_moneyness;
+  return quantra::CreateSsviFitOptions(
+      _fbb,
+      _weighting,
+      _max_abs_log_moneyness);
+}
+
 inline CalibrateVolSurfaceRequestT::CalibrateVolSurfaceRequestT(const CalibrateVolSurfaceRequestT &o)
       : pricing((o.pricing) ? new quantra::PricingT(*o.pricing) : nullptr),
         sheet((o.sheet) ? new quantra::OptionQuoteSheetT(*o.sheet) : nullptr),
@@ -518,7 +644,8 @@ inline CalibrateVolSurfaceRequestT::CalibrateVolSurfaceRequestT(const CalibrateV
         method(o.method),
         output_grid((o.output_grid) ? new quantra::VolSurfaceOutputGridT(*o.output_grid) : nullptr),
         vol_surface_id(o.vol_surface_id),
-        svi((o.svi) ? new quantra::SviFitOptionsT(*o.svi) : nullptr) {
+        svi((o.svi) ? new quantra::SviFitOptionsT(*o.svi) : nullptr),
+        ssvi((o.ssvi) ? new quantra::SsviFitOptionsT(*o.ssvi) : nullptr) {
   forwards.reserve(o.forwards.size());
   for (const auto &forwards_ : o.forwards) { forwards.emplace_back((forwards_) ? new quantra::ImpliedForwardExpiryT(*forwards_) : nullptr); }
 }
@@ -533,6 +660,7 @@ inline CalibrateVolSurfaceRequestT &CalibrateVolSurfaceRequestT::operator=(Calib
   std::swap(output_grid, o.output_grid);
   std::swap(vol_surface_id, o.vol_surface_id);
   std::swap(svi, o.svi);
+  std::swap(ssvi, o.ssvi);
   return *this;
 }
 
@@ -554,6 +682,7 @@ inline void CalibrateVolSurfaceRequest::UnPackTo(CalibrateVolSurfaceRequestT *_o
   { auto _e = output_grid(); if (_e) { if(_o->output_grid) { _e->UnPackTo(_o->output_grid.get(), _resolver); } else { _o->output_grid = std::unique_ptr<quantra::VolSurfaceOutputGridT>(_e->UnPack(_resolver)); } } else if (_o->output_grid) { _o->output_grid.reset(); } }
   { auto _e = vol_surface_id(); if (_e) _o->vol_surface_id = _e->str(); }
   { auto _e = svi(); if (_e) { if(_o->svi) { _e->UnPackTo(_o->svi.get(), _resolver); } else { _o->svi = std::unique_ptr<quantra::SviFitOptionsT>(_e->UnPack(_resolver)); } } else if (_o->svi) { _o->svi.reset(); } }
+  { auto _e = ssvi(); if (_e) { if(_o->ssvi) { _e->UnPackTo(_o->ssvi.get(), _resolver); } else { _o->ssvi = std::unique_ptr<quantra::SsviFitOptionsT>(_e->UnPack(_resolver)); } } else if (_o->ssvi) { _o->ssvi.reset(); } }
 }
 
 inline ::flatbuffers::Offset<CalibrateVolSurfaceRequest> CalibrateVolSurfaceRequest::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CalibrateVolSurfaceRequestT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -573,6 +702,7 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceRequest> CreateCalibrateVolSurfa
   auto _output_grid = _o->output_grid ? CreateVolSurfaceOutputGrid(_fbb, _o->output_grid.get(), _rehasher) : 0;
   auto _vol_surface_id = _fbb.CreateString(_o->vol_surface_id);
   auto _svi = _o->svi ? CreateSviFitOptions(_fbb, _o->svi.get(), _rehasher) : 0;
+  auto _ssvi = _o->ssvi ? CreateSsviFitOptions(_fbb, _o->ssvi.get(), _rehasher) : 0;
   return quantra::CreateCalibrateVolSurfaceRequest(
       _fbb,
       _pricing,
@@ -583,7 +713,8 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceRequest> CreateCalibrateVolSurfa
       _method,
       _output_grid,
       _vol_surface_id,
-      _svi);
+      _svi,
+      _ssvi);
 }
 
 inline const quantra::CalibrateVolSurfaceRequest *GetCalibrateVolSurfaceRequest(const void *buf) {

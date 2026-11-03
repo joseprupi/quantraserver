@@ -232,19 +232,97 @@ class VolSurfaceExpiryReport(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # `Ssvi` only: the fitted slice.
+    # VolSurfaceExpiryReport
+    def Ssvi(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(50))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.SsviParameters import SsviParameters
+            obj = SsviParameters()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # `Ssvi` only: the anchor of the slice, the used quote nearest the
+    # money (log-moneyness ln(K / F) and the total variance the slice
+    # reproduces there, after a clamp).
+    # VolSurfaceExpiryReport
+    def SsviAnchorK(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(52))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
+    # VolSurfaceExpiryReport
+    def SsviAnchorTotalVariance(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(54))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
+    # `Ssvi` only: true when the anchor's total variance was raised to
+    # keep the calendar conditions feasible against the previous slice.
+    # VolSurfaceExpiryReport
+    def SsviAnchorClamped(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(56))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
+    # `Ssvi` only: margins of the arbitrage conditions (right-hand side
+    # minus left-hand side, >= 0 when met): 4 - psi (1 + |rho|),
+    # 4 theta - psi^2 (1 + |rho|), and against the previous slice (absent
+    # on the first) theta_i - theta_{i-1}, psi_i - psi_{i-1} and
+    # (psi_i - psi_{i-1}) - |rho_i psi_i - rho_{i-1} psi_{i-1}|.
+    # VolSurfaceExpiryReport
+    def SsviMarginButterflyPsi(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(58))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
+    # VolSurfaceExpiryReport
+    def SsviMarginButterflyPsi2(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(60))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
+    # VolSurfaceExpiryReport
+    def SsviMarginCalendarTheta(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(62))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
+    # VolSurfaceExpiryReport
+    def SsviMarginCalendarPsi(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(64))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
+    # VolSurfaceExpiryReport
+    def SsviMarginCalendarA(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(66))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
     # `AndreasenHuge` only: grid strikes where the model's out-of-the-money
     # price is below 1e-4 of the spot (finite-difference noise would move
     # the vol by more than a tenth of a point) or its inversion failed,
     # filled flat from the nearest inverted strike of the expiry.
     # VolSurfaceExpiryReport
     def GridPointsFilled(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(50))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(68))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Uint32Flags, o + self._tab.Pos)
         return 0
 
 def VolSurfaceExpiryReportStart(builder):
-    builder.StartObject(24)
+    builder.StartObject(33)
 
 def Start(builder):
     VolSurfaceExpiryReportStart(builder)
@@ -393,8 +471,62 @@ def VolSurfaceExpiryReportAddCalendarAction(builder, calendarAction):
 def AddCalendarAction(builder, calendarAction):
     VolSurfaceExpiryReportAddCalendarAction(builder, calendarAction)
 
+def VolSurfaceExpiryReportAddSsvi(builder, ssvi):
+    builder.PrependUOffsetTRelativeSlot(23, flatbuffers.number_types.UOffsetTFlags.py_type(ssvi), 0)
+
+def AddSsvi(builder, ssvi):
+    VolSurfaceExpiryReportAddSsvi(builder, ssvi)
+
+def VolSurfaceExpiryReportAddSsviAnchorK(builder, ssviAnchorK):
+    builder.PrependFloat64Slot(24, ssviAnchorK, None)
+
+def AddSsviAnchorK(builder, ssviAnchorK):
+    VolSurfaceExpiryReportAddSsviAnchorK(builder, ssviAnchorK)
+
+def VolSurfaceExpiryReportAddSsviAnchorTotalVariance(builder, ssviAnchorTotalVariance):
+    builder.PrependFloat64Slot(25, ssviAnchorTotalVariance, None)
+
+def AddSsviAnchorTotalVariance(builder, ssviAnchorTotalVariance):
+    VolSurfaceExpiryReportAddSsviAnchorTotalVariance(builder, ssviAnchorTotalVariance)
+
+def VolSurfaceExpiryReportAddSsviAnchorClamped(builder, ssviAnchorClamped):
+    builder.PrependBoolSlot(26, ssviAnchorClamped, 0)
+
+def AddSsviAnchorClamped(builder, ssviAnchorClamped):
+    VolSurfaceExpiryReportAddSsviAnchorClamped(builder, ssviAnchorClamped)
+
+def VolSurfaceExpiryReportAddSsviMarginButterflyPsi(builder, ssviMarginButterflyPsi):
+    builder.PrependFloat64Slot(27, ssviMarginButterflyPsi, None)
+
+def AddSsviMarginButterflyPsi(builder, ssviMarginButterflyPsi):
+    VolSurfaceExpiryReportAddSsviMarginButterflyPsi(builder, ssviMarginButterflyPsi)
+
+def VolSurfaceExpiryReportAddSsviMarginButterflyPsi2(builder, ssviMarginButterflyPsi2):
+    builder.PrependFloat64Slot(28, ssviMarginButterflyPsi2, None)
+
+def AddSsviMarginButterflyPsi2(builder, ssviMarginButterflyPsi2):
+    VolSurfaceExpiryReportAddSsviMarginButterflyPsi2(builder, ssviMarginButterflyPsi2)
+
+def VolSurfaceExpiryReportAddSsviMarginCalendarTheta(builder, ssviMarginCalendarTheta):
+    builder.PrependFloat64Slot(29, ssviMarginCalendarTheta, None)
+
+def AddSsviMarginCalendarTheta(builder, ssviMarginCalendarTheta):
+    VolSurfaceExpiryReportAddSsviMarginCalendarTheta(builder, ssviMarginCalendarTheta)
+
+def VolSurfaceExpiryReportAddSsviMarginCalendarPsi(builder, ssviMarginCalendarPsi):
+    builder.PrependFloat64Slot(30, ssviMarginCalendarPsi, None)
+
+def AddSsviMarginCalendarPsi(builder, ssviMarginCalendarPsi):
+    VolSurfaceExpiryReportAddSsviMarginCalendarPsi(builder, ssviMarginCalendarPsi)
+
+def VolSurfaceExpiryReportAddSsviMarginCalendarA(builder, ssviMarginCalendarA):
+    builder.PrependFloat64Slot(31, ssviMarginCalendarA, None)
+
+def AddSsviMarginCalendarA(builder, ssviMarginCalendarA):
+    VolSurfaceExpiryReportAddSsviMarginCalendarA(builder, ssviMarginCalendarA)
+
 def VolSurfaceExpiryReportAddGridPointsFilled(builder, gridPointsFilled):
-    builder.PrependUint32Slot(23, gridPointsFilled, 0)
+    builder.PrependUint32Slot(32, gridPointsFilled, 0)
 
 def AddGridPointsFilled(builder, gridPointsFilled):
     VolSurfaceExpiryReportAddGridPointsFilled(builder, gridPointsFilled)
@@ -437,6 +569,15 @@ class VolSurfaceExpiryReportT(object):
         self.calendarViolations = 0  # type: int
         self.calendarMaxClipVol = None  # type: Optional[float]
         self.calendarAction = None  # type: str
+        self.ssvi = None  # type: Optional[SsviParametersT]
+        self.ssviAnchorK = None  # type: Optional[float]
+        self.ssviAnchorTotalVariance = None  # type: Optional[float]
+        self.ssviAnchorClamped = False  # type: bool
+        self.ssviMarginButterflyPsi = None  # type: Optional[float]
+        self.ssviMarginButterflyPsi2 = None  # type: Optional[float]
+        self.ssviMarginCalendarTheta = None  # type: Optional[float]
+        self.ssviMarginCalendarPsi = None  # type: Optional[float]
+        self.ssviMarginCalendarA = None  # type: Optional[float]
         self.gridPointsFilled = 0  # type: int
 
     @classmethod
@@ -491,6 +632,16 @@ class VolSurfaceExpiryReportT(object):
         self.calendarViolations = volSurfaceExpiryReport.CalendarViolations()
         self.calendarMaxClipVol = volSurfaceExpiryReport.CalendarMaxClipVol()
         self.calendarAction = volSurfaceExpiryReport.CalendarAction()
+        if volSurfaceExpiryReport.Ssvi() is not None:
+            self.ssvi = SsviParametersT.InitFromObj(volSurfaceExpiryReport.Ssvi())
+        self.ssviAnchorK = volSurfaceExpiryReport.SsviAnchorK()
+        self.ssviAnchorTotalVariance = volSurfaceExpiryReport.SsviAnchorTotalVariance()
+        self.ssviAnchorClamped = volSurfaceExpiryReport.SsviAnchorClamped()
+        self.ssviMarginButterflyPsi = volSurfaceExpiryReport.SsviMarginButterflyPsi()
+        self.ssviMarginButterflyPsi2 = volSurfaceExpiryReport.SsviMarginButterflyPsi2()
+        self.ssviMarginCalendarTheta = volSurfaceExpiryReport.SsviMarginCalendarTheta()
+        self.ssviMarginCalendarPsi = volSurfaceExpiryReport.SsviMarginCalendarPsi()
+        self.ssviMarginCalendarA = volSurfaceExpiryReport.SsviMarginCalendarA()
         self.gridPointsFilled = volSurfaceExpiryReport.GridPointsFilled()
 
     # VolSurfaceExpiryReportT
@@ -515,6 +666,8 @@ class VolSurfaceExpiryReportT(object):
             calendarFitAction = builder.CreateString(self.calendarFitAction)
         if self.calendarAction is not None:
             calendarAction = builder.CreateString(self.calendarAction)
+        if self.ssvi is not None:
+            ssvi = self.ssvi.Pack(builder)
         VolSurfaceExpiryReportStart(builder)
         if self.expiry is not None:
             VolSurfaceExpiryReportAddExpiry(builder, expiry)
@@ -546,6 +699,16 @@ class VolSurfaceExpiryReportT(object):
         VolSurfaceExpiryReportAddCalendarMaxClipVol(builder, self.calendarMaxClipVol)
         if self.calendarAction is not None:
             VolSurfaceExpiryReportAddCalendarAction(builder, calendarAction)
+        if self.ssvi is not None:
+            VolSurfaceExpiryReportAddSsvi(builder, ssvi)
+        VolSurfaceExpiryReportAddSsviAnchorK(builder, self.ssviAnchorK)
+        VolSurfaceExpiryReportAddSsviAnchorTotalVariance(builder, self.ssviAnchorTotalVariance)
+        VolSurfaceExpiryReportAddSsviAnchorClamped(builder, self.ssviAnchorClamped)
+        VolSurfaceExpiryReportAddSsviMarginButterflyPsi(builder, self.ssviMarginButterflyPsi)
+        VolSurfaceExpiryReportAddSsviMarginButterflyPsi2(builder, self.ssviMarginButterflyPsi2)
+        VolSurfaceExpiryReportAddSsviMarginCalendarTheta(builder, self.ssviMarginCalendarTheta)
+        VolSurfaceExpiryReportAddSsviMarginCalendarPsi(builder, self.ssviMarginCalendarPsi)
+        VolSurfaceExpiryReportAddSsviMarginCalendarA(builder, self.ssviMarginCalendarA)
         VolSurfaceExpiryReportAddGridPointsFilled(builder, self.gridPointsFilled)
         volSurfaceExpiryReport = VolSurfaceExpiryReportEnd(builder)
         return volSurfaceExpiryReport

@@ -105,6 +105,17 @@
  * QuantLib would refuse returns the floor; reads, floored reads and
  * refusals are counted for the response.
  *
+ * eSSVI surfaces (src/market/ssvi_vol_surface.h). For an SsviBlackVol the
+ * inner local vol is SsviLocalVol, the closed-form Dupire local variance of
+ * the slices (w_t + w_k dDrift) / g(k, y) with the sticky-strike correction
+ * for a process forward that differs from the surface's reference forward
+ * (a bumped spot, a quanto drift, another dividend curve), instead of
+ * QuantLib's finite-difference LocalVolSurface; no stencil, so no strike or
+ * time margin is needed, but the same strike range / bands, FlatLocalVol
+ * clamp (at the last slice's time) and floor apply to it unchanged. In floor
+ * mode dupire() returns its value (NaN where it refuses: g <= 0 or a negative
+ * numerator).
+ *
  * Sharing. A request builds several process arrays from the same market
  * (the price, the correlation limits of `checks`, the repricing run, the
  * bumped runs whose inputs did not move), each deriving its own local vol
@@ -295,6 +306,9 @@ private:
     QuantLib::Handle<QuantLib::BlackVolTermStructure> black_;
     QuantLib::Handle<QuantLib::YieldTermStructure> riskFree_, dividend_;
     QuantLib::Handle<QuantLib::Quote> spot_;
+    /// The inner local vol is closed-form (SsviLocalVol): floor mode reads it
+    /// instead of the finite-difference formula.
+    bool analyticInner_ = false;
     mutable std::size_t reads_ = 0, floored_ = 0, refusals_ = 0;
 };
 

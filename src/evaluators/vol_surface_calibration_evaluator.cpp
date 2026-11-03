@@ -4,6 +4,7 @@
 #include "date_convert.h"
 #include "error.h"
 #include "smile_slice_vol_surface.h"
+#include "ssvi_vol_surface.h"
 
 #include <ql/exercise.hpp>
 #include <ql/experimental/volatility/sviinterpolation.hpp>
@@ -45,6 +46,8 @@ constexpr double kCalendarFloor = 1e-8; // total variance
 constexpr double kButterflyPenalty = 100.0;
 constexpr unsigned kButterflyPoints = 201;
 constexpr unsigned kMinQuotesSvi = 5;
+// The eSSVI calibrator needs at least 3 used quotes per slice.
+constexpr unsigned kMinQuotesSsvi = 3;
 // Sequential SVI fit: calendar constraint points per slice, penalty weight
 // (vol units, raised x10 per round), rounds, and the slack added to the
 // target so the grid clip's floor (kCalendarFloor) is met as well.
@@ -362,11 +365,12 @@ LocalVolCheckData checkLocalVol(
     const std::vector<double>& expiryTimes,
     const std::vector<double>& regionTimes,
     const std::vector<std::pair<double, double>>& regions,
-    std::vector<std::pair<double, bool>>* refusedTimes = nullptr) {
+    std::vector<std::pair<double, bool>>* refusedTimes = nullptr,
+    mc::LocalVolTimeExtrapolation timeExtension = mc::LocalVolTimeExtrapolation::FlatLocalVol) {
     LocalVolCheckData c;
     mc::BasketAsset asset = mc::MakeBasketAsset(
         "check", spot, dividend, riskFree, Handle<QuantLib::BlackVolTermStructure>(surface));
-    asset.localVolTime = mc::LocalVolTimeExtrapolation::FlatLocalVol;
+    asset.localVolTime = timeExtension;
     asset.localVolStrikeBands = bands;
     mc::LocalVolCache cache;
     cache.attach(asset);
@@ -517,8 +521,10 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
         byExpiry[q.expiry].push_back(&q);
 
     const unsigned minUsed = std::max(
-        base.filter.minQuotesPerExpiry,
-        in.method == VolSurfaceFitMethod::SviPerExpiry ? kMinQuotesSvi : 1u);
+        base.filter.minQuotesPerExpiry, in.method == VolSurfaceFitMethod::SviPerExpiry
+                                            ? kMinQuotesSvi
+                                        : in.method == VolSurfaceFitMethod::Ssvi ? kMinQuotesSsvi
+                                                                                 : 1u);
 
     std::vector<ExpiryWork> work; // usable expiries, date order
     for (const auto& [expiry, lines] : byExpiry) {
@@ -566,6 +572,8 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
                 std::to_string(w.used.size()) + ")" +
                 (in.method == VolSurfaceFitMethod::SviPerExpiry
                      ? "; the SVI slice needs max(filter.min_quotes_per_expiry, 5)"
+                 : in.method == VolSurfaceFitMethod::Ssvi
+                     ? "; the eSSVI slice needs max(filter.min_quotes_per_expiry, 3)"
                      : "; filter.min_quotes_per_expiry"));
             continue;
         }
@@ -1257,6 +1265,126 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
     }
 
     // ------------------------------------------------------------------
+    // 3d. Ssvi: eSSVI slices on the used quotes with the sheet's forwards,
+    //     the grid sampled from the surface, the closed-form local vol
+    //     checked as the note pricer reads it.
+    // ------------------------------------------------------------------
+    if (in.method == VolSurfaceFitMethod::Ssvi) {
+        ssvi::CalibrationInput ci;
+        ci.referenceDate = asOf;
+        ci.dayCounter = dc;
+        ci.spot = spot;
+        ci.weighting = in.ssviWeighting;
+        ci.maxAbsLogMoneyness = in.ssviMaxAbsLogMoneyness;
+        // Quote index -> (expiry slot, used-quote slot).
+        std::vector<std::pair<std::size_t, std::size_t>> origin;
+        for (std::size_t i = 0; i < work.size(); ++i) {
+            const auto& w = work[i];
+            ci.expiryMarkets[w.expiry] = ssvi::ExpiryMarket{w.forward, w.df};
+            const double sqrtT = std::sqrt(w.time);
+            for (std::size_t j = 0; j < w.used.size(); ++j) {
+                const auto& u = w.used[j];
+                ssvi::OptionQuote q;
+                q.expiry = w.expiry;
+                q.strike = u.strike;
+                q.type = u.isCall ? QuantLib::Option::Call : QuantLib::Option::Put;
+                q.impliedVol = u.vol;
+                // Bid / ask in vol units (BidAsk weighting): the price
+                // half-spreads over the Black vega at the market vol.
+                const double vega = QuantLib::blackFormulaStdDevDerivative(
+                                        u.strike, w.forward, u.vol * sqrtT, w.df) *
+                                    sqrtT;
+                if (vega > 0.0 && std::isfinite(vega)) {
+                    q.bid = u.vol - (u.mid - u.bid) / vega;
+                    q.ask = u.vol + (u.ask - u.mid) / vega;
+                }
+                ci.quotes.push_back(q);
+                origin.emplace_back(i, j);
+            }
+        }
+        const ssvi::CalibrationResult fit = ssvi::calibrate(ci);
+        // Quotes the fit left out: dropped with the calibrator's reason.
+        std::vector<std::vector<bool>> keep(work.size());
+        for (std::size_t i = 0; i < work.size(); ++i)
+            keep[i].assign(work[i].used.size(), true);
+        for (const auto& row : fit.quotes) {
+            if (row.used) continue;
+            const auto [i, j] = origin[row.quoteIndex];
+            keep[i][j] = false;
+            auto& e = reportOf(work[i].expiry);
+            e.dropped.push_back(
+                DroppedQuoteData{e.expiryIso, work[i].used[j].strike, row.exclusionReason});
+        }
+        std::vector<Date> dates;
+        std::vector<SsviSliceParams> params;
+        std::vector<double> forwards;
+        for (std::size_t i = 0; i < work.size(); ++i) {
+            auto& w = work[i];
+            std::vector<UsedQuote> kept;
+            for (std::size_t j = 0; j < w.used.size(); ++j)
+                if (keep[i][j]) kept.push_back(w.used[j]);
+            w.used = std::move(kept);
+            auto& e = reportOf(w.expiry);
+            e.quotesUsed = static_cast<unsigned>(w.used.size());
+            // The calibrator returns one slice per quoted expiry, in date order.
+            const auto& d = fit.slices[i];
+            if (fit.expiries[i] != w.expiry) QUANTRA_ERROR("internal: SSVI slice order");
+            e.ssvi = fit.params[i];
+            e.ssviAnchorK = d.anchorK;
+            e.ssviAnchorTotalVariance = d.anchorTheta;
+            e.ssviAnchorClamped = d.anchorClamped;
+            e.ssviMarginButterflyPsi = d.marginButterflyPsi;
+            e.ssviMarginButterflyPsi2 = d.marginButterflyPsi2;
+            if (i > 0) {
+                e.ssviMarginCalendarTheta = d.marginCalendarTheta;
+                e.ssviMarginCalendarPsi = d.marginCalendarPsi;
+                e.ssviMarginCalendarA = d.marginCalendarA;
+            }
+            e.rmseVol = d.rmseVolPts / 100.0;
+            e.maxAbsErrorVol = d.maxAbsVolPts / 100.0;
+            e.strikeMin = w.regionLo;
+            e.strikeMax = w.regionHi;
+            dates.push_back(w.expiry);
+            params.push_back(fit.params[i]);
+            forwards.push_back(w.forward);
+        }
+        SsviArbitrageCheckData arb;
+        for (const auto& v : fit.violations) {
+            std::ostringstream os;
+            os << v.condition << " at slice " << v.slice;
+            if (v.prevSlice != v.slice) os << " vs slice " << v.prevSlice;
+            os << " (by " << fmt(v.margin) << ")";
+            arb.violations.push_back(os.str());
+        }
+        arb.scanMinG = fit.scan.minG;
+        arb.scanMinGTime = fit.scan.minGt;
+        arb.scanMinGK = fit.scan.minGk;
+        arb.scanMinDwDt = fit.scan.minWt;
+        arb.scanMinDwDtTime = fit.scan.minWtT;
+        arb.scanMinDwDtK = fit.scan.minWtK;
+        out.ssviArbitrage = arb;
+
+        // The payload's surface, exactly as the parser builds it.
+        const auto ssviSurface = makeSsviSurface(
+            asOf, QuantLib::NullCalendar(), QuantLib::Unadjusted, dc, dates, params, forwards,
+            spot);
+        ssviSurface->enableExtrapolation();
+        std::vector<mc::LocalVolStrikeBand> bands;
+        for (const auto& w : work)
+            bands.push_back({w.time, w.regionLo, w.regionHi});
+        LocalVolCheckData check = checkLocalVol(
+            ssviSurface, bands, spotH, rTS, qTS, workTimes, workTimes, workRegions, nullptr,
+            mc::LocalVolTimeExtrapolation::FlatImpliedVol);
+        check.action = "none";
+        out.localVolCheckSsvi = check;
+
+        for (std::size_t i = 0; i < nExp; ++i)
+            for (std::size_t j = 0; j < nStr; ++j)
+                out.gridVols[i * nStr + j] =
+                    ssviSurface->blackVol(gridDates[i], out.gridStrikes[j], true);
+    }
+
+    // ------------------------------------------------------------------
     // 4. Calendar check on the grid (clip for SVI when enforced).
     // ------------------------------------------------------------------
     {
@@ -1334,6 +1462,9 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
                         in.method == VolSurfaceFitMethod::AndreasenHuge
                             ? "reported only (Andreasen-Huge: within the implied-vol inversion "
                               "tolerance)"
+                        : in.method == VolSurfaceFitMethod::Ssvi
+                            ? "reported only (Ssvi: the slices are calendar-free by "
+                              "construction; this is the grid sampling)"
                             : "reported only (enforce_calendar false)";
                 }
                 if (beyond[i] > 0) {

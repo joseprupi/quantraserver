@@ -84,6 +84,20 @@
  *    involved get a larger margin / butterfly weight and are refitted
  *    (at most 3 passes).
  *
+ * 3d. Ssvi. The used quotes of every usable expiry (step 2: the same
+ *    implied vols, forwards and discount factors) go to the eSSVI
+ *    calibrator (src/market/ssvi_calibrator.h) with the expiry's forward
+ *    and discount factor given, fitted short to long: theta solved from the
+ *    quote nearest the money, (rho, psi) under the butterfly and calendar
+ *    conditions, so the slices are free of static arbitrage by
+ *    construction. Quotes beyond max_abs_log_moneyness are dropped with
+ *    that reason (an expiry left with fewer than 3 is a 400). The grid is
+ *    sampled from the eSSVI surface (makeSsviSurface on the sheet's spot
+ *    and forwards; any grid date up to the last expiry), the slices are
+ *    returned as an SsviVolSpec payload, and its closed-form local vol is
+ *    checked as in 3c (the model's own continuation beyond the last slice,
+ *    no refit: the slices are arbitrage-free).
+ *
  * 4. Grid and calendar check. Strikes = moneyness * spot (default 0.50 ..
  *    1.50 step 0.025, 41 points, at least 2; Andreasen-Huge: the model's
  *    own finite-difference strikes within that range and the regions);
@@ -116,6 +130,7 @@
 #include "implied_forwards_evaluator.h"
 #include "pricing_context.h"
 #include "pricing_registry.h"
+#include "ssvi_calibrator.h"
 
 #include <ql/time/date.hpp>
 #include <ql/time/period.hpp>
@@ -126,7 +141,7 @@
 
 namespace quantra {
 
-enum class VolSurfaceFitMethod { AndreasenHuge, SviPerExpiry };
+enum class VolSurfaceFitMethod { AndreasenHuge, SviPerExpiry, Ssvi };
 
 /// One forward supplied by the caller (from an implied-forwards response).
 struct VolSurfaceForwardInput {
@@ -154,6 +169,10 @@ struct VolSurfaceCalibrationInputs {
     /// fitted slices (the calendar margin sigma_min^2 (T_i - T_{i-1}) in
     /// total variance), >= 0.
     double minForwardVol = 0.01;
+    /// Ssvi: quote weighting and the |ln(K / F)| beyond which a used quote
+    /// is left out of the fit (finite, > 0).
+    ssvi::QuoteWeighting ssviWeighting = ssvi::QuoteWeighting::Vega;
+    double ssviMaxAbsLogMoneyness = 1.0;
 };
 
 struct SviParams {
@@ -194,6 +213,23 @@ struct VolSurfaceExpiryReportData {
     std::optional<double> calendarMaxClipVol;
     std::string calendarAction;
     unsigned gridPointsFilled = 0;
+    /// Ssvi: the fitted slice, its anchor (log-moneyness, total variance
+    /// reproduced, whether it was raised for the calendar conditions) and
+    /// the margins of the arbitrage conditions (calendar ones absent on the
+    /// first slice).
+    std::optional<SsviSliceParams> ssvi;
+    std::optional<double> ssviAnchorK, ssviAnchorTotalVariance;
+    bool ssviAnchorClamped = false;
+    std::optional<double> ssviMarginButterflyPsi, ssviMarginButterflyPsi2;
+    std::optional<double> ssviMarginCalendarTheta, ssviMarginCalendarPsi, ssviMarginCalendarA;
+};
+
+/// Ssvi: the closed-form arbitrage conditions found violated (empty after a
+/// successful fit) and the numeric scan of g and dw/dt.
+struct SsviArbitrageCheckData {
+    std::vector<std::string> violations;
+    double scanMinG = 0.0, scanMinGTime = 0.0, scanMinGK = 0.0;
+    double scanMinDwDt = 0.0, scanMinDwDtTime = 0.0, scanMinDwDtK = 0.0;
 };
 
 /// Dupire local vol of a returned surface, read the way the structured-note
@@ -265,6 +301,11 @@ struct VolSurfaceCalibrationResult {
     /// SviPerExpiry, of the SVI payload (`vol_surface_spec_svi`).
     LocalVolCheckData localVolCheck;
     std::optional<LocalVolCheckData> localVolCheckSvi;
+    /// Ssvi: the slices' arbitrage check and the local vol check of the
+    /// SSVI payload (`vol_surface_spec_ssvi`, built by the mapper from
+    /// `expiries[].ssvi`, `forwards` and `spot`).
+    std::optional<SsviArbitrageCheckData> ssviArbitrage;
+    std::optional<LocalVolCheckData> localVolCheckSsvi;
 };
 
 class VolSurfaceCalibrationEvaluator {

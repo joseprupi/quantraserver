@@ -240,6 +240,45 @@ SYNTHETIC_SPX_DAILY.update({
                "moneyness_window": 0.25},
 })
 
+# eSSVI slices given one by one (Corbetta, Cohort, Laachir, Martini 2019; the
+# parametrisation of `SsviVolSpec`): per expiry the at-the-money vol, rho and
+# psi = theta phi, total variance w(k) = (theta + rho psi k + sqrt(psi^2 k^2
+# + 2 rho psi theta k + theta^2)) / 2 with theta = atm_vol^2 T. The SPX-like
+# surface of the eSSVI contribution's example (spot 6000, flat 4 %, forwards
+# 6013.58, 6040.21, 6078.29, 6154.97, 6307.63 at one, three, six, twelve and
+# twenty-four months, i.e. the dividend yields below), written as a quote
+# sheet: free of butterfly and calendar arbitrage (theta, psi increasing,
+# |delta(rho psi)| <= delta psi, psi / theta decreasing), so the Ssvi method
+# returns the generating slices.
+def _essvi_yield(spot, rate, as_of, expiry, forward):
+    t = (dt.date.fromisoformat(expiry) - dt.date.fromisoformat(as_of)).days / 365.0
+    return rate - math.log(forward / spot) / t
+
+
+_ESSVI_SPX_FORWARDS = [("2026-11-20", 6013.58), ("2027-01-21", 6040.21),
+                       ("2027-04-21", 6078.29), ("2027-10-21", 6154.97),
+                       ("2028-10-20", 6307.63)]
+SYNTHETIC_SPX_ESSVI = copy.deepcopy(SYNTHETIC_SVI_NDX_LIKE)
+SYNTHETIC_SPX_ESSVI.update({
+    "as_of": "2026-10-21",
+    "underlying_id": "SPX_SYN",
+    "spot": 6000.0,
+    "zero_curve": [("2026-10-21", 0.04), ("2036-10-21", 0.04)],
+    "sheet_id": "SPX_SYN_ESSVI_2026-10-21",
+    "dividend_curve_id": "SPX_SYN_DIV_IMPLIED",
+    "vol_surface_id": "SPX_SYN_VOL",
+    "smile": {
+        "type": "essvi",
+        # (atm_vol, rho, psi) per expiry, same order as "expiries".
+        "slices": [(0.165, -0.75, 0.045), (0.175, -0.72, 0.095), (0.182, -0.70, 0.140),
+                   (0.188, -0.68, 0.200), (0.192, -0.65, 0.280)],
+    },
+    "strike_grid": {"lo": 0.75, "hi": 1.25, "step": 0.025},
+    "ssvi_fit": {"weighting": "BidAsk", "max_abs_log_moneyness": 0.5},
+})
+SYNTHETIC_SPX_ESSVI["expiries"] = [
+    (d, _essvi_yield(6000.0, 0.04, "2026-10-21", d, f)) for d, f in _ESSVI_SPX_FORWARDS]
+
 PRESETS = {
     "ndx_like": SYNTHETIC_NDX_LIKE,
     "svi": SYNTHETIC_SVI_NDX_LIKE,
@@ -249,6 +288,7 @@ PRESETS = {
     "flat": SYNTHETIC_FLAT_20,
     "spx_steep_wings": SYNTHETIC_SPX_STEEP_WINGS,
     "spx_daily": SYNTHETIC_SPX_DAILY,
+    "spx_essvi": SYNTHETIC_SPX_ESSVI,
 }
 
 
@@ -316,6 +356,21 @@ def svi_params(preset: dict, expiry: str):
     }
 
 
+def ssvi_params(preset: dict, expiry: str):
+    """The generating slice at `expiry` of an `ssvi` smile in the eSSVI
+    parametrisation of `SsviVolSpec` (theta, rho, psi = theta phi); None for
+    the other smile kinds."""
+    s = preset["smile"]
+    t = year_fraction(preset["as_of"], expiry)
+    if s.get("type", "poly") == "essvi":
+        atm, rho, psi = s["slices"][_expiry_index(preset, expiry)]
+        return {"theta": atm * atm * t, "rho": rho, "psi": psi}
+    if s.get("type", "poly") != "ssvi":
+        return None
+    theta = s["atm_vols"][_expiry_index(preset, expiry)] ** 2 * t
+    return {"theta": theta, "rho": s["rho"], "psi": theta * s["eta"] / theta ** s["gamma"]}
+
+
 def svi_total_variance(p: dict, k: float) -> float:
     d = k - p["m"]
     return p["a"] + p["b"] * (p["rho"] * d + math.sqrt(d * d + p["sigma"] * p["sigma"]))
@@ -331,6 +386,13 @@ def smile_vol(preset: dict, k: float, expiry: str = None) -> float:
     if kind == "ssvi":
         t = year_fraction(preset["as_of"], expiry)
         return math.sqrt(svi_total_variance(svi_params(preset, expiry), k) / t)
+    if kind == "essvi":
+        t = year_fraction(preset["as_of"], expiry)
+        p = ssvi_params(preset, expiry)
+        theta, a, psi = p["theta"], p["rho"] * p["psi"], p["psi"]
+        w = 0.5 * (theta + a * k + math.sqrt(psi * psi * k * k + 2.0 * a * theta * k
+                                             + theta * theta))
+        return math.sqrt(w / t)
     if kind == "poly_sqrt_t":
         rt = math.sqrt(year_fraction(preset["as_of"], expiry))
         v = s["atm"] + s["skew"] / rt * k + s["curv"] / rt * k * k
@@ -479,6 +541,8 @@ def build_vol_surface_request(preset: dict = SYNTHETIC_SVI_NDX_LIKE,
     }
     if forwards is not None:
         req["forwards"] = forwards
+    if method == "Ssvi" and preset.get("ssvi_fit"):
+        req["ssvi"] = dict(preset["ssvi_fit"])
     return req
 
 
@@ -507,7 +571,7 @@ def main() -> int:
                          "surface), flat (20 %% everywhere)")
     ap.add_argument("--endpoint", choices=["implied-forwards", "vol-surface"],
                     default="implied-forwards", help="which request to write")
-    ap.add_argument("--method", choices=["AndreasenHuge", "SviPerExpiry"],
+    ap.add_argument("--method", choices=["AndreasenHuge", "SviPerExpiry", "Ssvi"],
                     default="AndreasenHuge", help="vol-surface fit method")
     ap.add_argument("--spot", type=float, default=None, help="re-strike the preset at this spot")
     ap.add_argument("--underlying-id", default=None, help="rename the underlying (ids follow)")
@@ -529,6 +593,7 @@ def main() -> int:
         out = truth(preset)
         for expiry in out:
             out[expiry]["svi"] = svi_params(preset, expiry)
+            out[expiry]["ssvi"] = ssvi_params(preset, expiry)
         print(json.dumps(out, indent=2))
         return 0
     if args.endpoint == "vol-surface":

@@ -17,7 +17,7 @@ table VolSurfaceOutputGrid {
     /// NullCalendar, unadjusted). Default when absent or empty: every sheet
     /// expiry that was fitted. With `SviPerExpiry` each entry must land on
     /// a fitted sheet expiry (the SVI slices are not interpolated in time);
-    /// with `AndreasenHuge` any date up to the last fitted expiry.
+    /// with `AndreasenHuge` and `Ssvi` any date up to the last fitted expiry.
     expiries:[Period];
 }
 
@@ -59,6 +59,26 @@ table SviFitOptions {
     min_forward_vol:double = 0.01;
 }
 
+/// Settings of the `Ssvi` method (ignored by the others).
+///
+/// The used quotes of every fitted expiry (the same out-of-the-money mids,
+/// implied vols, forwards and discount factors as the other methods) are
+/// fitted one expiry after the other in increasing time with an eSSVI slice
+/// (theta, rho, psi; see `SsviVolSpec`). The used quote nearest the money is
+/// reproduced exactly (theta is solved from it); (rho, psi) minimise the
+/// weighted squared vol errors under the butterfly and calendar conditions,
+/// each an interval in psi for a given rho, so the slices are free of static
+/// arbitrage by construction. When no (rho, psi) is feasible against the
+/// previous slice (calendar arbitrage at the money in the quotes) the
+/// at-the-money total variance is raised to the previous slice's (reported
+/// as `ssvi_anchor_clamped`).
+table SsviFitOptions {
+    weighting:enums.SsviQuoteWeighting = Vega;
+    /// Used quotes with |ln(K / F)| above this are left out of the fit and
+    /// reported as dropped ("max_abs_log_moneyness"). Finite and > 0.
+    max_abs_log_moneyness:double = 1.0;
+}
+
 /// Request for `/calibrate-vol-surface`: an arbitrage-checked Black implied
 /// volatility surface from a sheet of listed European option quotes, ready
 /// to paste into `pricing.volatility.vol_surfaces`.
@@ -91,6 +111,8 @@ table CalibrateVolSurfaceRequest {
     /// SVI arbitrage handling; defaults (both on, min_forward_vol 0.01)
     /// apply when absent.
     svi:SviFitOptions;
+    /// `Ssvi` settings; defaults (Vega, 1.0) apply when absent.
+    ssvi:SsviFitOptions;
 }
 
 root_type CalibrateVolSurfaceRequest;

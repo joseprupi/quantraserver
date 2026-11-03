@@ -51,7 +51,7 @@ info:
     curl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type:\
     \ application/json\" \\\n  -d @examples/data/bonds/fixed_rate_bond_request.json\n\
     ```\n"
-  version: 0.16.5
+  version: 0.16.6
   contact:
     name: Quantra API Support
     url: https://github.com/joseprupi/quantraserver
@@ -1637,6 +1637,13 @@ components:
       enum:
       - AndreasenHuge
       - SviPerExpiry
+      - Ssvi
+    quantra_enums_SsviQuoteWeighting:
+      type: string
+      enum:
+      - Uniform
+      - Vega
+      - BidAsk
     quantra_enums_ExerciseType:
       type: string
       enum:
@@ -1676,6 +1683,7 @@ components:
       - SabrParams
       - SabrCalibrate
       - SviSlices
+      - SsviSlices
     quantra_enums_YoYInflationCapFloorEngineType:
       type: string
       enum:
@@ -2670,6 +2678,7 @@ components:
       - BlackVolSpec
       - YoYOptionletVolSpec
       - SviVolSpec
+      - SsviVolSpec
     quantra_QuoteKind:
       type: string
       enum:
@@ -3923,6 +3932,145 @@ components:
       required:
       - slices
       additionalProperties: false
+    quantra_SsviSlice:
+      type: object
+      description: 'One expiry of an `SsviVolSpec`: an eSSVI slice (Corbetta, Cohort,
+
+        Laachir, Martini 2019, "Robust calibration and arbitrage-free
+
+        interpolation of SSVI slices"). Total variance at log-forward moneyness
+
+        k = ln(K / F_ref(T))
+
+
+        w(k) = 0.5 (theta + rho psi k + sqrt(psi^2 k^2 + 2 rho psi theta k + theta^2)),
+
+
+        the Black vol being sqrt(w / T), T the base day counter''s year fraction
+
+        from the reference date to `expiry`. Every field but the strike range is
+
+        presence-required (400 naming it).'
+      properties:
+        expiry:
+          type: string
+          description: 'Expiry date (YYYY-MM-DD), strictly after the reference date;
+            slices
+
+            must be strictly increasing.'
+        forward:
+          type: number
+          description: The forward F_ref(T) the slice is written against, > 0.
+        theta:
+          type: number
+          description: At-the-money total implied variance (sigma_ATM^2 T), > 0.
+        rho:
+          type: number
+          description: Skew, -1 < rho < 1.
+        psi:
+          type: number
+          description: psi = theta phi (the at-the-money curvature scale), > 0.
+        strike_min:
+          type: number
+          description: 'Optional strike range (absolute) a structured note holds the
+            local
+
+            vol to, exactly as `SviSlice.strike_min` / `strike_max` (and
+
+            `SsviVolSpec.local_vol_strike_range`). `/calibrate-vol-surface`
+
+            fills both with the region it checked around the expiry. No Black
+
+            vol read is affected. Each > 0 and strike_min < strike_max when both
+
+            are given (400 otherwise).'
+        strike_max:
+          type: number
+      required:
+      - expiry
+      additionalProperties: false
+    quantra_SsviVolSpec:
+      type: object
+      description: 'Black volatility as eSSVI slices (what `/calibrate-vol-surface`
+        with
+
+        method `Ssvi` returns as `vol_surface_spec_ssvi`). Accepted wherever a
+
+        Black vol is referenced (`price-equity-option`, `sample-vol-surfaces`, a
+
+        structured note''s `underlyings[].volatility_id`).
+
+
+        Between and beyond the slices the parameters, not the variances, are
+
+        interpolated: theta, psi and rho psi linear in time between two slices,
+
+        the first slice scaled by t / T_1 before it, and after the last slice
+
+        psi and rho held while theta continues the last forward variance
+
+        (theta_N - theta_{N-1}) / (T_N - T_{N-1}) (theta_1 / T_1 with one
+
+        slice). The moneyness is taken against the reference forward F_ref(t):
+
+        ln F_ref linear in time through ln `spot` at the reference date and ln
+
+        `forward` at every slice, continuing the last slope beyond. The surface
+
+        is defined at every time and strike (no extrapolation flag). The slices
+
+        must be free of static arbitrage: per slice psi (1 + |rho|) <= 4 and
+
+        psi^2 (1 + |rho|) <= 4 theta; between consecutive slices theta and psi
+
+        non-decreasing, |rho_i psi_i - rho_{i-1} psi_{i-1}| <= psi_i - psi_{i-1}
+
+        and one of the two sufficient conditions of Hendriks-Martini (psi /
+
+        theta non-increasing, or the quadratic condition); then a numeric scan
+
+        of Durrleman''s g and of dw/dt (400 listing every violation).
+
+
+        A structured note simulates it as local vol with the closed-form Dupire
+
+        local variance of the slices (no finite differences), corrected for a
+
+        process forward that differs from F_ref (sticky strike):
+
+        sigma_loc^2 = (dw/dt + dw/dk (mu_proc - mu_ref)) / g(k, k - ln(F_proc /
+
+        F_ref)). The strike edges, per-expiry bands and the local vol floor of
+
+        the other surfaces apply to it unchanged.
+
+
+        `base` carries the reference date, calendar, business-day convention
+
+        and day counter only: `shape` must be left at its default,
+
+        `constant_vol` and `quote_id` absent (400 otherwise).'
+      properties:
+        base:
+          $ref: '#/components/schemas/quantra_BlackVolBaseSpec'
+        spot:
+          type: number
+          description: 'The spot the forwards were read against (the reference forward
+            at
+
+            the reference date), > 0. Presence-required.'
+        slices:
+          type: array
+          description: At least one slice, strictly increasing expiries.
+          items:
+            $ref: '#/components/schemas/quantra_SsviSlice'
+        local_vol_time_extrapolation:
+          $ref: '#/components/schemas/quantra_enums_LocalVolTimeExtrapolation'
+        local_vol_strike_range:
+          $ref: '#/components/schemas/quantra_enums_LocalVolStrikeRange'
+      required:
+      - slices
+      additionalProperties: false
     quantra_VolSurfaceSpec:
       type: object
       description: Volatility surface specification referenced by id in trade requests.
@@ -3938,6 +4086,7 @@ components:
           - $ref: '#/components/schemas/quantra_BlackVolSpec'
           - $ref: '#/components/schemas/quantra_YoYOptionletVolSpec'
           - $ref: '#/components/schemas/quantra_SviVolSpec'
+          - $ref: '#/components/schemas/quantra_SsviVolSpec'
       required:
       - id
       additionalProperties: false
@@ -6270,7 +6419,7 @@ components:
 
             a fitted sheet expiry (the SVI slices are not interpolated in time);
 
-            with `AndreasenHuge` any date up to the last fitted expiry.'
+            with `AndreasenHuge` and `Ssvi` any date up to the last fitted expiry.'
           items:
             $ref: '#/components/schemas/quantra_Period'
       additionalProperties: false
@@ -6345,6 +6494,42 @@ components:
 
             and >= 0.'
       additionalProperties: false
+    quantra_SsviFitOptions:
+      type: object
+      description: 'Settings of the `Ssvi` method (ignored by the others).
+
+
+        The used quotes of every fitted expiry (the same out-of-the-money mids,
+
+        implied vols, forwards and discount factors as the other methods) are
+
+        fitted one expiry after the other in increasing time with an eSSVI slice
+
+        (theta, rho, psi; see `SsviVolSpec`). The used quote nearest the money is
+
+        reproduced exactly (theta is solved from it); (rho, psi) minimise the
+
+        weighted squared vol errors under the butterfly and calendar conditions,
+
+        each an interval in psi for a given rho, so the slices are free of static
+
+        arbitrage by construction. When no (rho, psi) is feasible against the
+
+        previous slice (calendar arbitrage at the money in the quotes) the
+
+        at-the-money total variance is raised to the previous slice''s (reported
+
+        as `ssvi_anchor_clamped`).'
+      properties:
+        weighting:
+          $ref: '#/components/schemas/quantra_enums_SsviQuoteWeighting'
+        max_abs_log_moneyness:
+          type: number
+          description: 'Used quotes with |ln(K / F)| above this are left out of the
+            fit and
+
+            reported as dropped ("max_abs_log_moneyness"). Finite and > 0.'
+      additionalProperties: false
     quantra_CalibrateVolSurfaceRequest:
       type: object
       description: 'Request for `/calibrate-vol-surface`: an arbitrage-checked Black
@@ -6386,6 +6571,8 @@ components:
           description: Id given to the returned `vol_surface_spec`.
         svi:
           $ref: '#/components/schemas/quantra_SviFitOptions'
+        ssvi:
+          $ref: '#/components/schemas/quantra_SsviFitOptions'
       required:
       - pricing
       - sheet
@@ -6427,6 +6614,56 @@ components:
           type: number
         m:
           type: number
+      additionalProperties: false
+    quantra_SsviParameters:
+      type: object
+      description: 'eSSVI parameters of one slice (see `SsviSlice`): at-the-money
+        total
+
+        variance theta, skew rho, curvature scale psi = theta phi.'
+      properties:
+        theta:
+          type: number
+        rho:
+          type: number
+        psi:
+          type: number
+      additionalProperties: false
+    quantra_SsviArbitrageCheck:
+      type: object
+      description: 'Static-arbitrage check of the fitted eSSVI slices (`Ssvi` only):
+        the
+
+        closed-form butterfly and calendar conditions (see `SsviVolSpec`) and a
+
+        numeric scan of Durrleman''s g(k) and of dw/dt at fixed k at the slice
+
+        times, their midpoints, half the first and 1.5 times the last, on 201
+
+        points of k in [-1.5, 1.0].'
+      properties:
+        violations:
+          type: array
+          description: 'Violated conditions ("butterfly_psi at slice 3 (by 1e-5)",
+            ...);
+
+            empty on success (the fit guarantees it).'
+          items:
+            type: string
+        scan_min_g:
+          type: number
+        scan_min_g_time:
+          type: number
+        scan_min_g_k:
+          type: number
+        scan_min_dw_dt:
+          type: number
+        scan_min_dw_dt_time:
+          type: number
+        scan_min_dw_dt_k:
+          type: number
+      required:
+      - violations
       additionalProperties: false
     quantra_AndreasenHugeCalibrationError:
       type: object
@@ -6542,6 +6779,44 @@ components:
           description: Largest change in vol applied by the calendar clip (vol units).
         calendar_action:
           type: string
+        ssvi:
+          $ref: '#/components/schemas/quantra_SsviParameters'
+        ssvi_anchor_k:
+          type: number
+          description: '`Ssvi` only: the anchor of the slice, the used quote nearest
+            the
+
+            money (log-moneyness ln(K / F) and the total variance the slice
+
+            reproduces there, after a clamp).'
+        ssvi_anchor_total_variance:
+          type: number
+        ssvi_anchor_clamped:
+          type: boolean
+          description: '`Ssvi` only: true when the anchor''s total variance was raised
+            to
+
+            keep the calendar conditions feasible against the previous slice.'
+        ssvi_margin_butterfly_psi:
+          type: number
+          description: '`Ssvi` only: margins of the arbitrage conditions (right-hand
+            side
+
+            minus left-hand side, >= 0 when met): 4 - psi (1 + |rho|),
+
+            4 theta - psi^2 (1 + |rho|), and against the previous slice (absent
+
+            on the first) theta_i - theta_{i-1}, psi_i - psi_{i-1} and
+
+            (psi_i - psi_{i-1}) - |rho_i psi_i - rho_{i-1} psi_{i-1}|.'
+        ssvi_margin_butterfly_psi2:
+          type: number
+        ssvi_margin_calendar_theta:
+          type: number
+        ssvi_margin_calendar_psi:
+          type: number
+        ssvi_margin_calendar_a:
+          type: number
         grid_points_filled:
           type: integer
           description: '`AndreasenHuge` only: grid strikes where the model''s out-of-the-money
@@ -6750,14 +7025,20 @@ components:
           $ref: '#/components/schemas/quantra_VolSurfaceSpec'
         vol_surface_spec_svi_note:
           type: string
-          description: 'Present iff `vol_surface_spec_svi` is absent: why (the
+          description: 'Present iff `vol_surface_spec_svi` is absent: why (the other
 
-            Andreasen-Huge method has no closed-form slice parameters).'
+            methods have no SVI slice parameters).'
+        vol_surface_spec_ssvi:
+          $ref: '#/components/schemas/quantra_VolSurfaceSpec'
+        ssvi_arbitrage:
+          $ref: '#/components/schemas/quantra_SsviArbitrageCheck'
         vanilla_repricing:
           $ref: '#/components/schemas/quantra_VanillaRepricing'
         local_vol_check:
           $ref: '#/components/schemas/quantra_LocalVolCheck'
         local_vol_check_svi:
+          $ref: '#/components/schemas/quantra_LocalVolCheck'
+        local_vol_check_ssvi:
           $ref: '#/components/schemas/quantra_LocalVolCheck'
       required:
       - sheet_id

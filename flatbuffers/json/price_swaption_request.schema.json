@@ -103,7 +103,11 @@
     },
     "quantra_enums_VolSurfaceFitMethod" : {
       "type" : "string",
-      "enum": ["AndreasenHuge", "SviPerExpiry"]
+      "enum": ["AndreasenHuge", "SviPerExpiry", "Ssvi"]
+    },
+    "quantra_enums_SsviQuoteWeighting" : {
+      "type" : "string",
+      "enum": ["Uniform", "Vega", "BidAsk"]
     },
     "quantra_enums_ExerciseType" : {
       "type" : "string",
@@ -127,7 +131,7 @@
     },
     "quantra_enums_VolSurfaceShape" : {
       "type" : "string",
-      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate", "SviSlices"]
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate", "SviSlices", "SsviSlices"]
     },
     "quantra_enums_YoYInflationCapFloorEngineType" : {
       "type" : "string",
@@ -247,7 +251,7 @@
     },
     "quantra_VolPayload" : {
       "type" : "string",
-      "enum": ["NONE", "OptionletVolSpec", "SwaptionVolSpec", "BlackVolSpec", "YoYOptionletVolSpec", "SviVolSpec"]
+      "enum": ["NONE", "OptionletVolSpec", "SwaptionVolSpec", "BlackVolSpec", "YoYOptionletVolSpec", "SviVolSpec", "SsviVolSpec"]
     },
     "quantra_QuoteKind" : {
       "type" : "string",
@@ -1619,6 +1623,68 @@
       "required" : ["slices"],
       "additionalProperties" : false
     },
+    "quantra_SsviSlice" : {
+      "type" : "object",
+      "description" : "One expiry of an `SsviVolSpec`: an eSSVI slice (Corbetta, Cohort,\nLaachir, Martini 2019, \"Robust calibration and arbitrage-free\ninterpolation of SSVI slices\"). Total variance at log-forward moneyness\nk = ln(K / F_ref(T))\n\nw(k) = 0.5 (theta + rho psi k + sqrt(psi^2 k^2 + 2 rho psi theta k + theta^2)),\n\nthe Black vol being sqrt(w / T), T the base day counter's year fraction\nfrom the reference date to `expiry`. Every field but the strike range is\npresence-required (400 naming it).",
+      "properties" : {
+        "expiry" : {
+                "type" : "string",
+                "description" : "Expiry date (YYYY-MM-DD), strictly after the reference date; slices\nmust be strictly increasing."
+              },
+        "forward" : {
+                "type" : "number",
+                "description" : "The forward F_ref(T) the slice is written against, > 0."
+              },
+        "theta" : {
+                "type" : "number",
+                "description" : "At-the-money total implied variance (sigma_ATM^2 T), > 0."
+              },
+        "rho" : {
+                "type" : "number",
+                "description" : "Skew, -1 < rho < 1."
+              },
+        "psi" : {
+                "type" : "number",
+                "description" : "psi = theta phi (the at-the-money curvature scale), > 0."
+              },
+        "strike_min" : {
+                "type" : "number",
+                "description" : "Optional strike range (absolute) a structured note holds the local\nvol to, exactly as `SviSlice.strike_min` / `strike_max` (and\n`SsviVolSpec.local_vol_strike_range`). `/calibrate-vol-surface`\nfills both with the region it checked around the expiry. No Black\nvol read is affected. Each > 0 and strike_min < strike_max when both\nare given (400 otherwise)."
+              },
+        "strike_max" : {
+                "type" : "number"
+              }
+      },
+      "required" : ["expiry"],
+      "additionalProperties" : false
+    },
+    "quantra_SsviVolSpec" : {
+      "type" : "object",
+      "description" : "Black volatility as eSSVI slices (what `/calibrate-vol-surface` with\nmethod `Ssvi` returns as `vol_surface_spec_ssvi`). Accepted wherever a\nBlack vol is referenced (`price-equity-option`, `sample-vol-surfaces`, a\nstructured note's `underlyings[].volatility_id`).\n\nBetween and beyond the slices the parameters, not the variances, are\ninterpolated: theta, psi and rho psi linear in time between two slices,\nthe first slice scaled by t / T_1 before it, and after the last slice\npsi and rho held while theta continues the last forward variance\n(theta_N - theta_{N-1}) / (T_N - T_{N-1}) (theta_1 / T_1 with one\nslice). The moneyness is taken against the reference forward F_ref(t):\nln F_ref linear in time through ln `spot` at the reference date and ln\n`forward` at every slice, continuing the last slope beyond. The surface\nis defined at every time and strike (no extrapolation flag). The slices\nmust be free of static arbitrage: per slice psi (1 + |rho|) <= 4 and\npsi^2 (1 + |rho|) <= 4 theta; between consecutive slices theta and psi\nnon-decreasing, |rho_i psi_i - rho_{i-1} psi_{i-1}| <= psi_i - psi_{i-1}\nand one of the two sufficient conditions of Hendriks-Martini (psi /\ntheta non-increasing, or the quadratic condition); then a numeric scan\nof Durrleman's g and of dw/dt (400 listing every violation).\n\nA structured note simulates it as local vol with the closed-form Dupire\nlocal variance of the slices (no finite differences), corrected for a\nprocess forward that differs from F_ref (sticky strike):\nsigma_loc^2 = (dw/dt + dw/dk (mu_proc - mu_ref)) / g(k, k - ln(F_proc /\nF_ref)). The strike edges, per-expiry bands and the local vol floor of\nthe other surfaces apply to it unchanged.\n\n`base` carries the reference date, calendar, business-day convention\nand day counter only: `shape` must be left at its default,\n`constant_vol` and `quote_id` absent (400 otherwise).",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_BlackVolBaseSpec"
+              },
+        "spot" : {
+                "type" : "number",
+                "description" : "The spot the forwards were read against (the reference forward at\nthe reference date), > 0. Presence-required."
+              },
+        "slices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SsviSlice"},
+                "description" : "At least one slice, strictly increasing expiries."
+              },
+        "local_vol_time_extrapolation" : {
+                "$ref" : "#/definitions/quantra_enums_LocalVolTimeExtrapolation",
+                "description" : "Optional. Absent: beyond the last slice the local vol is the model's\nown (theta continuing the last forward variance, arbitrage free by\nconstruction). FlatLocalVol: held at T_last - 0.001 years, as for the\nother surfaces. FlatImpliedVol is not an eSSVI reading (the model\ndoes not extend its implied vol flat): 400. No effect on any Black\nvol read. `/calibrate-vol-surface` leaves it absent."
+              },
+        "local_vol_strike_range" : {
+                "$ref" : "#/definitions/quantra_enums_LocalVolStrikeRange",
+                "description" : "Optional. How the slices' strike_min / strike_max bound the local\nvol, as on `SviVolSpec` (absent = Global). `/calibrate-vol-surface`\nreturns PerExpiry with each slice's checked region."
+              }
+      },
+      "required" : ["slices"],
+      "additionalProperties" : false
+    },
     "quantra_VolSurfaceSpec" : {
       "type" : "object",
       "description" : "Volatility surface specification referenced by id in trade requests.",
@@ -1630,7 +1696,7 @@
                 "$ref" : "#/definitions/quantra_VolPayload"
               },
         "payload" : {
-                "anyOf": [{ "$ref" : "#/definitions/quantra_OptionletVolSpec" },{ "$ref" : "#/definitions/quantra_SwaptionVolSpec" },{ "$ref" : "#/definitions/quantra_BlackVolSpec" },{ "$ref" : "#/definitions/quantra_YoYOptionletVolSpec" },{ "$ref" : "#/definitions/quantra_SviVolSpec" }]
+                "anyOf": [{ "$ref" : "#/definitions/quantra_OptionletVolSpec" },{ "$ref" : "#/definitions/quantra_SwaptionVolSpec" },{ "$ref" : "#/definitions/quantra_BlackVolSpec" },{ "$ref" : "#/definitions/quantra_YoYOptionletVolSpec" },{ "$ref" : "#/definitions/quantra_SviVolSpec" },{ "$ref" : "#/definitions/quantra_SsviVolSpec" }]
               }
       },
       "required" : ["id"],

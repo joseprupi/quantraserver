@@ -4195,15 +4195,31 @@ def price_equity_option_ql(request: dict) -> float:
     if vol_spec is None:
         raise ValueError(f"Black vol not found: {opt_data.get('volatility')}")
     vol_base = vol_spec.get("payload", {}).get("base", {})
-    if vol_base.get("shape", "Constant") != "Constant":
+    if vol_spec.get("payload_type") == "SsviVolSpec":
+        # The analytic European engine reads one point of the surface, the
+        # Black variance at (T, K) with T from the surface's own reference
+        # date and day counter, so a flat vol with that variance reproduces
+        # the price.
+        if (opt.get("payoff_type") != "EquityPlainVanillaPayoff"
+                or opt.get("exercise_type") != "EquityEuropeanExercise"):
+            raise ValueError("SsviVolSpec is reference-priced for plain European options only")
+        surface = _ssvi_surface_of(vol_spec)
+        expiry = parse_date(opt["exercise"]["expiry_date"])
+        t = surface.dc.yearFraction(surface.ref, expiry)
+        variance = surface.blackVariance(t, opt["payoff"]["strike"])
+        black_vol = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(
+            surface.ref, get_calendar(vol_base.get("calendar", "TARGET")),
+            math.sqrt(variance / t), surface.dc))
+    elif vol_base.get("shape", "Constant") != "Constant":
         raise ValueError(
             "Only shape=Constant BlackVolSpec is reference-priced for equity")
-    black_vol = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(
-        parse_date(vol_base.get("reference_date", pricing["as_of_date"])),
-        get_calendar(vol_base.get("calendar", "TARGET")),
-        vol_base["constant_vol"],
-        get_day_counter(vol_base.get("day_counter", "Actual365Fixed")),
-    ))
+    else:
+        black_vol = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(
+            parse_date(vol_base.get("reference_date", pricing["as_of_date"])),
+            get_calendar(vol_base.get("calendar", "TARGET")),
+            vol_base["constant_vol"],
+            get_day_counter(vol_base.get("day_counter", "Actual365Fixed")),
+        ))
 
     process = ql.BlackScholesMertonProcess(spot, dividend, risk_free, black_vol)
 
@@ -4432,8 +4448,9 @@ def sample_vol_surfaces_ql(request: dict) -> list:
         sampled per (grid date, strike).
       * EquityBlack surfaces of shape Constant (BlackConstantVol) and
         AtmMatrix2D term vols (BlackVarianceCurve, linear in variance,
-        forceMonotoneVariance=true like the server's parser), sampled per
-        (grid date, strike).
+        forceMonotoneVariance=true like the server's parser), and SsviVolSpec
+        payloads (the engine's SsviBlackVol twin), sampled per (grid date,
+        strike).
 
     Not supported (deliberately): smile cubes / SABR sampling (needs the
     forward-aware cube the swaption family also defers), SpreadFromATM strike
@@ -4561,6 +4578,15 @@ def sample_vol_surfaces_ql(request: dict) -> list:
         dates = _tenor_grid_dates(q["expiry_grid"], ref, cal, bdc)
         return [handle.volatility(d, strike, True)
                 for d in dates for strike in strikes]
+
+    if surface_type == "EquityBlack" and vol_spec.get("payload_type") == "SsviVolSpec":
+        # sqrt(w / T) of the eSSVI payload at each (grid date, strike).
+        surface = _ssvi_surface_of(vol_spec)
+        base = payload["base"]
+        dates = _tenor_grid_dates(
+            q["expiry_grid"], surface.ref, get_calendar(base["calendar"]),
+            get_convention(base["business_day_convention"]))
+        return [surface.blackVol(d, strike, True) for d in dates for strike in strikes]
 
     if surface_type == "EquityBlack":
         if vol_spec.get("payload_type") != "BlackVolSpec":
@@ -5196,13 +5222,201 @@ class _PyLocalVol:
         return math.sqrt(result)
 
 
+# =============================================================================
+# eSSVI surfaces (SsviVolSpec): the engine's SsviBlackVol / SsviLocalVol
+# (src/market/ssvi.h, src/market/ssvi_vol_surface.h) in Python, the same
+# expressions in the same order, so a structured note on an SSVI payload is
+# reproduced to the bit.
+# =============================================================================
+
+_SSVI_TIME_FLOOR = 1e-8
+
+
+def _ssvi_node(slices, t_in):
+    """(theta, psi, a, dtheta, dpsi, da) at time t of slices [(T, theta, rho,
+    psi)]: ssvi::Surface::node."""
+    t = max(t_in, _SSVI_TIME_FLOOR)
+    t1, th1, rho1, psi1 = slices[0]
+    if t < t1:
+        lam = t / t1
+        a1 = rho1 * psi1
+        return (lam * th1, lam * psi1, lam * a1, th1 / t1, psi1 / t1, a1 / t1)
+    j = bisect.bisect_right([s[0] for s in slices], t)
+    if j < len(slices):
+        t_lo, th_lo, rho_lo, psi_lo = slices[j - 1]
+        t_hi, th_hi, rho_hi, psi_hi = slices[j]
+        dt = t_hi - t_lo
+        lam = (t - t_lo) / dt
+        a_lo = rho_lo * psi_lo
+        a_hi = rho_hi * psi_hi
+        d_theta = (th_hi - th_lo) / dt
+        d_psi = (psi_hi - psi_lo) / dt
+        d_a = (a_hi - a_lo) / dt
+        return (th_lo + lam * (th_hi - th_lo), psi_lo + lam * (psi_hi - psi_lo),
+                a_lo + lam * (a_hi - a_lo), d_theta, d_psi, d_a)
+    t_n, th_n, rho_n, psi_n = slices[-1]
+    if len(slices) >= 2:
+        slope = (th_n - slices[-2][1]) / (t_n - slices[-2][0])
+    else:
+        slope = slices[0][1] / slices[0][0]
+    return (th_n + slope * (t - t_n), psi_n, rho_n * psi_n, slope, 0.0, 0.0)
+
+
+def _ssvi_sqrt_q(n, k):
+    theta, psi, a = n[0], n[1], n[2]
+    q = psi * psi * k * k + 2.0 * a * theta * k + theta * theta
+    return math.sqrt(q)
+
+
+def _ssvi_w(n, k):
+    return 0.5 * (n[0] + n[2] * k + _ssvi_sqrt_q(n, k))
+
+
+def _ssvi_wk(n, k):
+    theta, psi, a = n[0], n[1], n[2]
+    return 0.5 * (a + (psi * psi * k + a * theta) / _ssvi_sqrt_q(n, k))
+
+
+def _ssvi_wkk(n, k):
+    theta, psi, a = n[0], n[1], n[2]
+    s = _ssvi_sqrt_q(n, k)
+    return 0.5 * theta * theta * (psi * psi - a * a) / (s * s * s)
+
+
+def _ssvi_wt(n, k):
+    theta, psi, a, d_theta, d_psi, d_a = n
+    s = _ssvi_sqrt_q(n, k)
+    return 0.5 * (d_theta + d_a * k
+                  + (psi * d_psi * k * k + (d_a * theta + a * d_theta) * k + theta * d_theta)
+                  / s)
+
+
+def _ssvi_g(n, k, y):
+    wv = _ssvi_w(n, k)
+    d1 = _ssvi_wk(n, k)
+    d2 = _ssvi_wkk(n, k)
+    u = 1.0 - y * d1 / (2.0 * wv)
+    return u * u - 0.25 * d1 * d1 * (1.0 / wv + 0.25) + 0.5 * d2
+
+
+class _SsviSurface:
+    """Twin of SsviBlackVol on a self-contained SsviVolSpec: F_ref(t) =
+    spot Dq(t) / Dr(t) with Dr a zero-rate FlatForward and Dq the
+    DiscountCurve through F_i / spot at the slice expiries (log-linear,
+    extrapolated), i.e. ln F_ref linear in time through the slice forwards.
+    `shift` (the vega bump) moves every slice's at-the-money vol: theta' =
+    (sqrt(theta / T) + shift)^2 T, rho and psi kept."""
+
+    def __init__(self, ref, dc, dates, params, forwards, spot0, shift=0.0):
+        self.ref, self.dc, self.dates = ref, dc, list(dates)
+        self.spot0 = float(spot0)
+        self.times = [dc.yearFraction(ref, d) for d in self.dates]
+        self.risk_free = ql.YieldTermStructureHandle(ql.FlatForward(ref, 0.0, dc))
+        dfs = [float(f) * self.risk_free.discount(t, True) / self.spot0
+               for f, t in zip(forwards, self.times)]
+        curve = ql.DiscountCurve([ref] + self.dates, [1.0] + dfs, dc)
+        curve.enableExtrapolation()
+        self.dividend = ql.YieldTermStructureHandle(curve)
+        slices = []
+        for t, (theta, rho, psi) in zip(self.times, params):
+            if shift != 0.0:
+                vol = math.sqrt(theta / t) + shift
+                if not vol > 0.0:
+                    raise ValueError(f"Black vol shift {shift} makes an SSVI ATM vol non-positive")
+                theta = vol * vol * t
+            slices.append((t, float(theta), float(rho), float(psi)))
+        self.slices = slices
+
+    def referenceDate(self):
+        return self.ref
+
+    def dayCounter(self):
+        return self.dc
+
+    def maxTime(self):
+        return self.times[-1]
+
+    def minStrike(self):
+        return sys.float_info.epsilon
+
+    def maxStrike(self):
+        return sys.float_info.max
+
+    def forward(self, t):
+        return self.spot0 * self.dividend.discount(t, True) / self.risk_free.discount(t, True)
+
+    def blackVariance(self, t, strike, extrapolate=False):
+        if not isinstance(t, float):
+            t = self.dc.yearFraction(self.ref, t)
+        k = math.log(strike / self.forward(t))
+        return _ssvi_w(_ssvi_node(self.slices, t), k)
+
+    def blackVol(self, t, strike, extrapolate=False):
+        if not isinstance(t, float):
+            t = self.dc.yearFraction(self.ref, t)
+        nz = 0.00001 if t == 0.0 else t
+        return math.sqrt(self.blackVariance(nz, strike) / nz)
+
+
+def _ssvi_surface_of(spec: dict, shift: float = 0.0) -> "_SsviSurface":
+    """The SsviVolSpec payload as the engine's parser builds it."""
+    payload = spec["payload"]
+    base = payload["base"]
+    ref = parse_date(base["reference_date"])
+    dc = get_day_counter(base["day_counter"])
+    slices = payload["slices"]
+    return _SsviSurface(ref, dc, [parse_date(sl["expiry"]) for sl in slices],
+                        [(sl["theta"], sl["rho"], sl["psi"]) for sl in slices],
+                        [sl["forward"] for sl in slices], payload["spot"], shift)
+
+
+def _inst_forward(curve, t):
+    return curve.forwardRate(t, t, ql.Continuous, ql.NoFrequency, True).rate()
+
+
+class _PySsviLocalVol:
+    """Twin of SsviLocalVol::localVolImpl: the closed-form Dupire local vol
+    of the slices for a process market (spot, dividend, riskFree) that may
+    differ from the surface's reference one (sticky-strike drift
+    correction); with a floor, max(value, floor) and the floor where the
+    engine refuses (EdgeClampedLocalVol in floor mode)."""
+
+    def __init__(self, surface, risk_free, dividend, spot_handle, floor=None):
+        self.bs, self.rf, self.dq, self.spot = surface, risk_free, dividend, spot_handle
+        self.floor = floor
+
+    def localVol(self, t, level, extrapolate=True):
+        if self.floor is None:
+            return self._local_vol(t, level)
+        try:
+            v = self._local_vol(t, level)
+        except (ValueError, RuntimeError):
+            return self.floor
+        return self.floor if v < self.floor else v
+
+    def _local_vol(self, t, strike):
+        f_ref = self.bs.forward(t)
+        f_proc = self.spot.value() * self.dq.discount(t, True) / self.rf.discount(t, True)
+        k = math.log(strike / f_ref)
+        drift = math.log(f_proc / f_ref)
+        y = k - drift
+        mu_proc = _inst_forward(self.rf, t) - _inst_forward(self.dq, t)
+        mu_ref = _inst_forward(self.bs.risk_free, t) - _inst_forward(self.bs.dividend, t)
+        node = _ssvi_node(self.bs.slices, t)
+        numerator = _ssvi_wt(node, k) + _ssvi_wk(node, k) * (mu_proc - mu_ref)
+        gv = _ssvi_g(node, k, y)
+        if not gv > 0.0 or not numerator >= 0.0:
+            raise ValueError(f"SSVI local variance undefined at t={t}, S={strike}")
+        return math.sqrt(numerator / gv)
+
+
 def _sn_local_vol_strike_range(pricing: dict, vol_id: str):
     """The quoted strike range of an SviVolSpec payload, (min strike_min,
     max strike_max) over the slices, a slice without one leaving that side
     open (0 / max float); None when no slice carries either (the engine's
     BlackVolEntry::localVolStrikeRange)."""
     spec = _find_vol_surface_spec(pricing, vol_id)
-    if spec.get("payload_type") != "SviVolSpec":
+    if spec.get("payload_type") not in ("SviVolSpec", "SsviVolSpec"):
         return None
     slices = spec["payload"]["slices"]
     lo = min(float(sl.get("strike_min", 0.0)) for sl in slices)
@@ -5221,7 +5435,7 @@ def _sn_local_vol_strike_bands(pricing: dict, vol_id: str):
     spec = _find_vol_surface_spec(pricing, vol_id)
     payload = spec.get("payload") or {}
     base = payload.get("base") or {}
-    if spec.get("payload_type") == "SviVolSpec":
+    if spec.get("payload_type") in ("SviVolSpec", "SsviVolSpec"):
         if payload.get("local_vol_strike_range", "Global") != "PerExpiry":
             return None
         ref = parse_date(base["reference_date"])
@@ -5266,6 +5480,8 @@ def _sn_black_vol(pricing: dict, vol_id: str, shift: float = 0.0):
     be handed to a QuantLib process and is stepped by hand, see
     structured_note_ql)."""
     spec = _find_vol_surface_spec(pricing, vol_id)
+    if spec.get("payload_type") == "SsviVolSpec":
+        return _ssvi_surface_of(spec, shift), "SsviSlices", False
     if spec.get("payload_type") == "SviVolSpec":
         payload = spec["payload"]
         base = payload["base"]
@@ -5616,7 +5832,7 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
         `flat_lv` (local_vol_time_extrapolation FlatLocalVol), at the time
         clamped to maxTime - 1e-3 (maxTime the Black surface's last expiry
         as a year fraction; no clamp when maxTime <= 2e-3)."""
-        python_surface = isinstance(vol, (_SliceSurface, _ShiftedSurface))
+        python_surface = isinstance(vol, (_SliceSurface, _ShiftedSurface, _SsviSurface))
         a = {"process": None if python_surface else
              ql.GeneralizedBlackScholesProcess(spot_handle, dividend, risk_free, vol),
              "exact": exact, "x0": spot_handle.value()}
@@ -5624,7 +5840,10 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
             # A CubicStrikeLinearTime grid or an SVI payload has no QuantLib
             # object behind it: the local vol is QuantLib's stencil in Python
             # (_PyLocalVol) on the twin surface; anything else is QuantLib's.
-            a["lv"] = (_PyLocalVol(vol, risk_free, dividend, spot_handle, lv_floor)
+            # An eSSVI payload has the closed-form local vol (_PySsviLocalVol).
+            a["lv"] = (_PySsviLocalVol(vol, risk_free, dividend, spot_handle, lv_floor)
+                       if isinstance(vol, _SsviSurface)
+                       else _PyLocalVol(vol, risk_free, dividend, spot_handle, lv_floor)
                        if python_surface or lv_floor is not None
                        else ql.LocalVolSurface(vol, risk_free, dividend, spot_handle))
             a["risk_free"] = risk_free
@@ -6782,6 +7001,26 @@ def _vs_reach(w, direction, n_sd=5.0):
     return k + budget * vol
 
 
+def _ssvi_sheet_truth(request: dict) -> dict:
+    """{expiry: {theta, rho, psi}}: the generating eSSVI slices of a sheet
+    written by tests/tools/make_synthetic_quote_sheet.py (looked up by sheet
+    id among its eSSVI presets), after checking that the request's quotes are
+    exactly that preset's."""
+    tools = str(Path(__file__).resolve().parents[1] / "tools")
+    if tools not in sys.path:
+        sys.path.insert(0, tools)
+    import make_synthetic_quote_sheet as gen
+    sheet_id = request["sheet"]["id"]
+    for preset in gen.PRESETS.values():
+        if preset["sheet_id"] != sheet_id or gen.ssvi_params(
+                preset, preset["expiries"][0][0]) is None:
+            continue
+        if gen.quote_lines(preset) != request["sheet"]["quotes"]:
+            raise ValueError(f"sheet {sheet_id}: the quotes are not the generator's")
+        return {d: gen.ssvi_params(preset, d) for d, _q in preset["expiries"]}
+    raise ValueError(f"sheet {sheet_id}: no generating eSSVI surface recorded")
+
+
 def _vs_regions(work, strikes):
     """Each fitted expiry's region (the engine's ExpiryWork::regionLo/Hi):
     the reach of this expiry and the one before on each side, the strikes
@@ -6890,7 +7129,7 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
 
     # 2. Per expiry: filter, out-of-the-money mids, implied vols.
     min_used = max(int(flt.get("min_quotes_per_expiry", 4)),
-                   5 if method == "SviPerExpiry" else 1)
+                   5 if method == "SviPerExpiry" else 3 if method == "Ssvi" else 1)
     by_expiry = {}
     for q in sheet["quotes"]:
         by_expiry.setdefault(q["expiry"], []).append(q)
@@ -7043,6 +7282,31 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
             for j, k_abs in enumerate(strikes):
                 tv = max(0.0, _svi_total_variance(w["svi"], math.log(k_abs / w["fwd"])))
                 vols[i][j] = math.sqrt(tv / w["t"])
+    elif method == "Ssvi":
+        # No Python port of the eSSVI calibrator: the sheet must be one the
+        # generator wrote from an eSSVI surface, whose generating slices are
+        # the expected fit (the quotes are checked to be that surface's).
+        truth = _ssvi_sheet_truth(request)
+        max_k = float((request.get("ssvi") or {}).get("max_abs_log_moneyness", 1.0))
+        for i, w in enumerate(work):
+            w["used"] = [u for u in w["used"] if abs(math.log(u["strike"] / w["fwd"])) <= max_k]
+            w["ssvi"] = truth[w["expiry"]]
+            p = w["ssvi"]
+            node = (p["theta"], p["psi"], p["rho"] * p["psi"], 0.0, 0.0, 0.0)
+            errs = [math.sqrt(_ssvi_w(node, math.log(u["strike"] / w["fwd"])) / w["t"]) - u["vol"]
+                    for u in w["used"]]
+            i = report_idx[w["expiry"]]
+            fields[f"expiries.{i}.rmse_vol"] = math.sqrt(sum(e * e for e in errs) / len(errs))
+            fields[f"expiries.{i}.max_abs_error_vol"] = max(abs(e) for e in errs)
+            for name in ("theta", "rho", "psi"):
+                fields[f"expiries.{i}.ssvi.{name}"] = p[name]
+        surface_ssvi = _SsviSurface(
+            eval_date, dc, [w["date"] for w in work],
+            [(w["ssvi"]["theta"], w["ssvi"]["rho"], w["ssvi"]["psi"]) for w in work],
+            [w["fwd"] for w in work], spot)
+        for i, d in enumerate(grid_dates):
+            for j, k_abs in enumerate(strikes):
+                vols[i][j] = surface_ssvi.blackVol(d, k_abs, True)
     else:
         raise ValueError(f"unknown method {method}")
 
@@ -7074,6 +7338,13 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
             fields[stem + "forward"] = w["fwd"]
             for name in ("a", "b", "sigma", "rho", "m"):
                 fields[stem + name] = w["svi"][name]
+            fields[stem + "strike_min"] = w["region"][0]
+            fields[stem + "strike_max"] = w["region"][1]
+        if method == "Ssvi":
+            stem = f"vol_surface_spec_ssvi.payload.slices.{j}."
+            fields[stem + "forward"] = w["fwd"]
+            for name in ("theta", "rho", "psi"):
+                fields[stem + name] = w["ssvi"][name]
             fields[stem + "strike_min"] = w["region"][0]
             fields[stem + "strike_max"] = w["region"][1]
     fields["grid_strikes"] = strikes

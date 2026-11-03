@@ -26,6 +26,83 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.16.6 (November 2026) — eSSVI surfaces (contributed)
+
+`v0.16.6` is additive on the wire: a new vol payload, a new fit method and
+new response fields; every 0.16.5 request is a valid 0.16.6 request and
+returns the same result. QuantLib stays at 1.44. The eSSVI mathematics —
+the slice parametrisation and its arbitrage conditions, the calibrator and
+the closed-form local vol — were contributed by @AlvaroRojas (#156) and
+integrated into the existing endpoints.
+
+**`SsviVolSpec`: eSSVI slices as a Black vol.** A new `VolPayload` member
+(reported shape `SsviSlices`): `base` (conventions only), `spot`, and per
+slice `expiry`, `forward`, `theta` (at-the-money total variance), `rho`,
+`psi = theta phi`, optional `strike_min` / `strike_max`; optional
+`local_vol_time_extrapolation` and `local_vol_strike_range` as on
+`SviVolSpec`. Total variance `w(k) = (theta + rho psi k + sqrt(psi^2 k^2 +
+2 rho psi theta k + theta^2)) / 2` at `k = ln(K / F_ref(t))`, with theta,
+psi and rho psi linear in time between slices (Corbetta, Cohort, Laachir,
+Martini 2019), scaled before the first, theta continuing the last forward
+variance after the last; `ln F_ref` linear in time through the spot and the
+slice forwards, so the payload needs no curve. The slices are checked for
+static arbitrage when the payload is read (butterfly per slice, calendar
+between slices including a sufficient condition, a numeric scan; a `400`
+lists every violation). Accepted wherever a Black vol is: equity options,
+`/sample-vol-surfaces`, structured notes. Beyond the last slice the local
+vol is the model's own continuation when `local_vol_time_extrapolation` is
+absent; `FlatLocalVol` holds it as for the other payloads; `FlatImpliedVol`
+is a `400` (not an eSSVI reading).
+
+**Closed-form local vol in structured notes.** A note on an `SsviVolSpec`
+simulates the analytic Dupire local variance of the slices, `(dw/dt +
+dw/dk Δμ) / g(k, k − ln(F_note / F_ref))`, where `Δμ` corrects for a note
+forward that differs from the slices' reference forward (a quanto drift,
+another dividend curve, a bumped spot); no finite-difference stencil. The
+strike edges, per-expiry bands, `FlatLocalVol` and `local_vol_floor` apply
+as for the other surfaces (the floor reads the closed form and floors a
+refused point). The vega bump shifts every slice's at-the-money vol and
+keeps rho and psi, so the bumped run is eSSVI too (`400` if the bumped
+slices admit arbitrage). The closed form agrees with QuantLib's
+`LocalVolSurface` on the same surface to the stencil's accuracy (1e-4
+relative, gtest). The Python reference evaluates the same formula: a note
+on the example payload is reproduced bit for bit (catalog).
+
+**`/calibrate-vol-surface` method `Ssvi`.** New `VolSurfaceFitMethod.Ssvi`
+and request table `ssvi` (`weighting`: `Uniform`, `Vega` (default) or
+`BidAsk`; `max_abs_log_moneyness`, default `1.0`). The same used quotes,
+forwards and discount factors as the other methods go into the eSSVI
+calibrator, fitted short to long: the quote nearest the money reproduced
+exactly, `(rho, psi)` under the butterfly and calendar conditions, so the
+slices are free of static arbitrage by construction. When the quotes
+cross at the money between two expiries (a daily expiry quoted below the
+day before), the anchor's total variance is raised to the smallest
+feasible value (`ssvi_anchor_clamped`). New response fields:
+`vol_surface_spec_ssvi` (the slices as an `SsviVolSpec` with the regions as
+per-expiry strike ranges), `ssvi_arbitrage` (conditions and scan),
+`local_vol_check_ssvi` (the 0.16.5 scan on the closed-form local vol); per
+expiry `ssvi`, `ssvi_anchor_k`, `ssvi_anchor_total_variance`,
+`ssvi_anchor_clamped` and the condition margins `ssvi_margin_*`. The grid
+(`vol_surface_spec`) is sampled from the eSSVI surface and may use any
+expiry up to the last fitted one. Three parameters per expiry fit a dense
+index sheet less closely than SVI's five; the method trades fit for a
+surface free of arbitrage everywhere and a local vol in closed form. On the
+synthetic sheets (examples `vol_surface/synthetic_svi_sheet_2026-09-30_ssvi.json`
+and `vol_surface/synthetic_spx_essvi_sheet_2026-10-21_ssvi.json`, generated
+from eSSVI surfaces) the fit returns the generating slices to 1e-6; on the
+daily-expiry sheet three slices are raised at the money and the note
+`structured_note/synthetic_spx_1y_autocall_on_daily_expiry_ssvi.json`
+prices on the returned payload at 983.07 ± 1.75 (983.76 ± 1.73 on the SVI
+payload, same paths). Example `equity/eqopt_eur_call_on_ssvi_slices.json`:
+a European call between two slices.
+
+**Not ported from the contribution.** Its separate calibration endpoint
+and the quote-calibrated vol shape (calibration lives in
+`/calibrate-vol-surface`), its calibration cache, and three structured-note
+behaviour changes (a `400` on discrete dividends, a pre-simulation scan of
+strike x expiry surfaces, a version string in a message), to be considered
+separately.
+
 ## Version 0.16.5 (November 2026) — calendar-consistent SVI surfaces, local vol checked as the note reads it
 
 `v0.16.5` is additive on the wire: new optional request fields, new

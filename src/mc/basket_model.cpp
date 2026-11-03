@@ -1,6 +1,7 @@
 #include "basket_model.h"
 
 #include "error.h"
+#include "ssvi_vol_surface.h"
 
 #include <ql/interestrate.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
@@ -56,7 +57,8 @@ EdgeClampedLocalVol::EdgeClampedLocalVol(
     QuantLib::Time maxTime)
     : QuantLib::LocalVolTermStructure(inner->businessDayConvention(), inner->dayCounter()),
       inner_(std::move(inner)), lower_(minStrike * std::exp(kEdgeMargin)),
-      upper_(maxStrike * std::exp(-kEdgeMargin)), tMax_(QL_MAX_REAL) {
+      upper_(maxStrike * std::exp(-kEdgeMargin)), tMax_(QL_MAX_REAL),
+      analyticInner_(dynamic_cast<const SsviLocalVol*>(inner_.get()) != nullptr) {
     if (maxTime != QuantLib::Null<QuantLib::Time>() && maxTime > 2.0 * kTimeMargin) {
         tMax_ = maxTime - kTimeMargin;
     }
@@ -133,6 +135,14 @@ QuantLib::Real EdgeClampedLocalVol::dupire(QuantLib::Time t, QuantLib::Real unde
     using QuantLib::Real;
     using QuantLib::Time;
     const Real nan = std::numeric_limits<Real>::quiet_NaN();
+    if (analyticInner_) {
+        // A closed-form local vol (eSSVI): its own value, NaN where it refuses.
+        try {
+            return inner_->localVol(t, underlyingLevel, true);
+        } catch (const std::exception&) {
+            return nan;
+        }
+    }
     DiscountFactor dr = riskFree_->discount(t, true);
     DiscountFactor dq = dividend_->discount(t, true);
     Real forwardValue = spot_->value() * dq / dr;
@@ -256,10 +266,24 @@ void LocalVolCache::attach(BasketAsset& asset) {
         // on the Black vol, the risk-free and dividend curves and the spot;
         // read at the level clamped to the interior of the strike grid and,
         // with FlatLocalVol, at the time clamped below the last expiry.
-        auto inner = std::make_shared<QuantLib::LocalVolSurface>(
-            asset.vol, asset.riskFree, asset.dividend, asset.spot);
+        //
+        // An eSSVI surface has a closed-form local vol (SsviLocalVol: the analytic Dupire
+        // formula of its slices, drift-corrected for this process's forward), used in place
+        // of the finite-difference LocalVolSurface; the clamps and the floor apply to it the
+        // same way. Its last expiry is the last slice (the surface itself has no maxDate).
+        std::shared_ptr<QuantLib::LocalVolTermStructure> inner;
+        QuantLib::Time lastTime;
+        if (const auto ssviVol = std::dynamic_pointer_cast<SsviBlackVol>(asset.vol.currentLink())) {
+            inner =
+                std::make_shared<SsviLocalVol>(ssviVol, asset.spot, asset.dividend, asset.riskFree);
+            lastTime = ssviVol->lastSliceTime();
+        } else {
+            inner = std::make_shared<QuantLib::LocalVolSurface>(
+                asset.vol, asset.riskFree, asset.dividend, asset.spot);
+            lastTime = asset.vol->maxTime();
+        }
         const QuantLib::Time maxTime = asset.localVolTime == LocalVolTimeExtrapolation::FlatLocalVol
-                                           ? asset.vol->maxTime()
+                                           ? lastTime
                                            : QuantLib::Null<QuantLib::Time>();
         auto clamped =
             asset.localVolStrikeBands.empty()

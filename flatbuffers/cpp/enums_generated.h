@@ -1112,36 +1112,78 @@ inline const char *EnumNameCallabilityType(CallabilityType e) {
 
 /// Fit method of `/calibrate-vol-surface`: Andreasen-Huge local-vol
 /// interpolation (arbitrage-free by construction, QuantLib
-/// AndreasenHugeVolatilityInterpl) or one SVI slice per expiry with
-/// butterfly and calendar checks.
+/// AndreasenHugeVolatilityInterpl), one SVI slice per expiry with
+/// butterfly and calendar checks, or eSSVI slices.
 enum VolSurfaceFitMethod : int8_t {
   VolSurfaceFitMethod_AndreasenHuge = 0,
   VolSurfaceFitMethod_SviPerExpiry = 1,
+  /// eSSVI slices fitted short to long, free of butterfly and calendar
+  /// arbitrage by construction (`CalibrateVolSurfaceRequest.ssvi`).
+  VolSurfaceFitMethod_Ssvi = 2,
   VolSurfaceFitMethod_MIN = VolSurfaceFitMethod_AndreasenHuge,
-  VolSurfaceFitMethod_MAX = VolSurfaceFitMethod_SviPerExpiry
+  VolSurfaceFitMethod_MAX = VolSurfaceFitMethod_Ssvi
 };
 
-inline const VolSurfaceFitMethod (&EnumValuesVolSurfaceFitMethod())[2] {
+inline const VolSurfaceFitMethod (&EnumValuesVolSurfaceFitMethod())[3] {
   static const VolSurfaceFitMethod values[] = {
     VolSurfaceFitMethod_AndreasenHuge,
-    VolSurfaceFitMethod_SviPerExpiry
+    VolSurfaceFitMethod_SviPerExpiry,
+    VolSurfaceFitMethod_Ssvi
   };
   return values;
 }
 
 inline const char * const *EnumNamesVolSurfaceFitMethod() {
-  static const char * const names[3] = {
+  static const char * const names[4] = {
     "AndreasenHuge",
     "SviPerExpiry",
+    "Ssvi",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameVolSurfaceFitMethod(VolSurfaceFitMethod e) {
-  if (::flatbuffers::IsOutRange(e, VolSurfaceFitMethod_AndreasenHuge, VolSurfaceFitMethod_SviPerExpiry)) return "";
+  if (::flatbuffers::IsOutRange(e, VolSurfaceFitMethod_AndreasenHuge, VolSurfaceFitMethod_Ssvi)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesVolSurfaceFitMethod()[index];
+}
+
+/// Quote weighting of the `Ssvi` fit (`SsviFitOptions.weighting`).
+///   Uniform: every used quote counts equally.
+///   Vega: weighted by the Black vega at the market vol.
+///   BidAsk: weighted by 1 / (bid-ask spread in vol units)^2.
+enum SsviQuoteWeighting : int8_t {
+  SsviQuoteWeighting_Uniform = 0,
+  SsviQuoteWeighting_Vega = 1,
+  SsviQuoteWeighting_BidAsk = 2,
+  SsviQuoteWeighting_MIN = SsviQuoteWeighting_Uniform,
+  SsviQuoteWeighting_MAX = SsviQuoteWeighting_BidAsk
+};
+
+inline const SsviQuoteWeighting (&EnumValuesSsviQuoteWeighting())[3] {
+  static const SsviQuoteWeighting values[] = {
+    SsviQuoteWeighting_Uniform,
+    SsviQuoteWeighting_Vega,
+    SsviQuoteWeighting_BidAsk
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesSsviQuoteWeighting() {
+  static const char * const names[4] = {
+    "Uniform",
+    "Vega",
+    "BidAsk",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameSsviQuoteWeighting(SsviQuoteWeighting e) {
+  if (::flatbuffers::IsOutRange(e, SsviQuoteWeighting_Uniform, SsviQuoteWeighting_BidAsk)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesSsviQuoteWeighting()[index];
 }
 
 /// Exercise style: European (at expiry only), Bermudan (on specific dates), or American (any time).
@@ -1323,11 +1365,14 @@ enum VolSurfaceShape : int8_t {
   /// The shape an `SviVolSpec` payload reports (`vol_shape` echoes); not
   /// a `BlackVolSpec.base.shape` value (400).
   VolSurfaceShape_SviSlices = 6,
+  /// The shape an `SsviVolSpec` payload reports; not a
+  /// `BlackVolSpec.base.shape` value (400).
+  VolSurfaceShape_SsviSlices = 7,
   VolSurfaceShape_MIN = VolSurfaceShape_Constant,
-  VolSurfaceShape_MAX = VolSurfaceShape_SviSlices
+  VolSurfaceShape_MAX = VolSurfaceShape_SsviSlices
 };
 
-inline const VolSurfaceShape (&EnumValuesVolSurfaceShape())[7] {
+inline const VolSurfaceShape (&EnumValuesVolSurfaceShape())[8] {
   static const VolSurfaceShape values[] = {
     VolSurfaceShape_Constant,
     VolSurfaceShape_AtmMatrix2D,
@@ -1335,13 +1380,14 @@ inline const VolSurfaceShape (&EnumValuesVolSurfaceShape())[7] {
     VolSurfaceShape_SurfaceFromPrices,
     VolSurfaceShape_SabrParams,
     VolSurfaceShape_SabrCalibrate,
-    VolSurfaceShape_SviSlices
+    VolSurfaceShape_SviSlices,
+    VolSurfaceShape_SsviSlices
   };
   return values;
 }
 
 inline const char * const *EnumNamesVolSurfaceShape() {
-  static const char * const names[8] = {
+  static const char * const names[9] = {
     "Constant",
     "AtmMatrix2D",
     "SmileCube3D",
@@ -1349,13 +1395,14 @@ inline const char * const *EnumNamesVolSurfaceShape() {
     "SabrParams",
     "SabrCalibrate",
     "SviSlices",
+    "SsviSlices",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameVolSurfaceShape(VolSurfaceShape e) {
-  if (::flatbuffers::IsOutRange(e, VolSurfaceShape_Constant, VolSurfaceShape_SviSlices)) return "";
+  if (::flatbuffers::IsOutRange(e, VolSurfaceShape_Constant, VolSurfaceShape_SsviSlices)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesVolSurfaceShape()[index];
 }

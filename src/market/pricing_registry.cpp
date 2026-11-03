@@ -15,6 +15,7 @@
 #include "inflation_curve_parsers.h"
 #include "quote_registry.h"
 #include "request_validation.h"
+#include "ssvi_vol_parser.h"
 #include "swap_index_registry.h"
 
 #include "coupon_pricer_generated.h"
@@ -172,6 +173,10 @@ PricingRegistry PricingRegistryBuilder::build(
 
                 case quantra::VolPayload_SviVolSpec:
                     reg.volatility.blackVols.emplace(id, parseSviVol(spec));
+                    break;
+
+                case quantra::VolPayload_SsviVolSpec:
+                    reg.volatility.blackVols.emplace(id, parseSsviVol(spec));
                     break;
 
                 case quantra::VolPayload_NONE:

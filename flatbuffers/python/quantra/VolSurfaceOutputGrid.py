@@ -62,7 +62,7 @@ class VolSurfaceOutputGrid(object):
     # NullCalendar, unadjusted). Default when absent or empty: every sheet
     # expiry that was fitted. With `SviPerExpiry` each entry must land on
     # a fitted sheet expiry (the SVI slices are not interpolated in time);
-    # with `AndreasenHuge` any date up to the last fitted expiry.
+    # with `AndreasenHuge` and `Ssvi` any date up to the last fitted expiry.
     # VolSurfaceOutputGrid
     def Expiries(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))

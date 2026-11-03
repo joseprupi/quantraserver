@@ -13,3 +13,6 @@ class VolSurfaceShape(object):
     # The shape an `SviVolSpec` payload reports (`vol_shape` echoes); not
     # a `BlackVolSpec.base.shape` value (400).
     SviSlices = 6
+    # The shape an `SsviVolSpec` payload reports; not a
+    # `BlackVolSpec.base.shape` value (400).
+    SsviSlices = 7

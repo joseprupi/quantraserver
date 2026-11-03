@@ -247,8 +247,8 @@ class CalibrateVolSurfaceResponse(object):
             return obj
         return None
 
-    # Present iff `vol_surface_spec_svi` is absent: why (the
-    # Andreasen-Huge method has no closed-form slice parameters).
+    # Present iff `vol_surface_spec_svi` is absent: why (the other
+    # methods have no SVI slice parameters).
     # CalibrateVolSurfaceResponse
     def VolSurfaceSpecSviNote(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(32))
@@ -256,10 +256,39 @@ class CalibrateVolSurfaceResponse(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # `Ssvi` only: the same surface as its fitted eSSVI slices, an
+    # `SsviVolSpec` payload (one `SsviSlice` per fitted expiry with the
+    # forward used, theta, rho, psi and the expiry's checked region as
+    # strike_min / strike_max; `spot` the sheet's spot; base and id as
+    # `vol_surface_spec`; local_vol_strike_range PerExpiry,
+    # local_vol_time_extrapolation absent: the model's own continuation).
+    # A structured note simulates it with the closed-form local vol.
+    # CalibrateVolSurfaceResponse
+    def VolSurfaceSpecSsvi(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(34))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            obj = VolSurfaceSpec()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # `Ssvi` only: the static-arbitrage check of the slices.
+    # CalibrateVolSurfaceResponse
+    def SsviArbitrage(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(36))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.SsviArbitrageCheck import SsviArbitrageCheck
+            obj = SsviArbitrageCheck()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
     # Every used quote repriced on `vol_surface_spec` (the grid).
     # CalibrateVolSurfaceResponse
     def VanillaRepricing(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(34))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(38))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.VanillaRepricing import VanillaRepricing
@@ -271,7 +300,7 @@ class CalibrateVolSurfaceResponse(object):
     # Local vol check of `vol_surface_spec`.
     # CalibrateVolSurfaceResponse
     def LocalVolCheck(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(36))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(40))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.LocalVolCheck import LocalVolCheck
@@ -283,7 +312,20 @@ class CalibrateVolSurfaceResponse(object):
     # Local vol check of `vol_surface_spec_svi` (`SviPerExpiry` only).
     # CalibrateVolSurfaceResponse
     def LocalVolCheckSvi(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(38))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(42))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            obj = LocalVolCheck()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # Local vol check of `vol_surface_spec_ssvi` (`Ssvi` only): the
+    # closed-form local vol the note pricer reads, on the same scan; a
+    # refused point is one where g <= 0 or the local variance is negative.
+    # CalibrateVolSurfaceResponse
+    def LocalVolCheckSsvi(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(44))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             obj = LocalVolCheck()
@@ -292,7 +334,7 @@ class CalibrateVolSurfaceResponse(object):
         return None
 
 def CalibrateVolSurfaceResponseStart(builder):
-    builder.StartObject(18)
+    builder.StartObject(21)
 
 def Start(builder):
     CalibrateVolSurfaceResponseStart(builder)
@@ -417,23 +459,41 @@ def CalibrateVolSurfaceResponseAddVolSurfaceSpecSviNote(builder, volSurfaceSpecS
 def AddVolSurfaceSpecSviNote(builder, volSurfaceSpecSviNote):
     CalibrateVolSurfaceResponseAddVolSurfaceSpecSviNote(builder, volSurfaceSpecSviNote)
 
+def CalibrateVolSurfaceResponseAddVolSurfaceSpecSsvi(builder, volSurfaceSpecSsvi):
+    builder.PrependUOffsetTRelativeSlot(15, flatbuffers.number_types.UOffsetTFlags.py_type(volSurfaceSpecSsvi), 0)
+
+def AddVolSurfaceSpecSsvi(builder, volSurfaceSpecSsvi):
+    CalibrateVolSurfaceResponseAddVolSurfaceSpecSsvi(builder, volSurfaceSpecSsvi)
+
+def CalibrateVolSurfaceResponseAddSsviArbitrage(builder, ssviArbitrage):
+    builder.PrependUOffsetTRelativeSlot(16, flatbuffers.number_types.UOffsetTFlags.py_type(ssviArbitrage), 0)
+
+def AddSsviArbitrage(builder, ssviArbitrage):
+    CalibrateVolSurfaceResponseAddSsviArbitrage(builder, ssviArbitrage)
+
 def CalibrateVolSurfaceResponseAddVanillaRepricing(builder, vanillaRepricing):
-    builder.PrependUOffsetTRelativeSlot(15, flatbuffers.number_types.UOffsetTFlags.py_type(vanillaRepricing), 0)
+    builder.PrependUOffsetTRelativeSlot(17, flatbuffers.number_types.UOffsetTFlags.py_type(vanillaRepricing), 0)
 
 def AddVanillaRepricing(builder, vanillaRepricing):
     CalibrateVolSurfaceResponseAddVanillaRepricing(builder, vanillaRepricing)
 
 def CalibrateVolSurfaceResponseAddLocalVolCheck(builder, localVolCheck):
-    builder.PrependUOffsetTRelativeSlot(16, flatbuffers.number_types.UOffsetTFlags.py_type(localVolCheck), 0)
+    builder.PrependUOffsetTRelativeSlot(18, flatbuffers.number_types.UOffsetTFlags.py_type(localVolCheck), 0)
 
 def AddLocalVolCheck(builder, localVolCheck):
     CalibrateVolSurfaceResponseAddLocalVolCheck(builder, localVolCheck)
 
 def CalibrateVolSurfaceResponseAddLocalVolCheckSvi(builder, localVolCheckSvi):
-    builder.PrependUOffsetTRelativeSlot(17, flatbuffers.number_types.UOffsetTFlags.py_type(localVolCheckSvi), 0)
+    builder.PrependUOffsetTRelativeSlot(19, flatbuffers.number_types.UOffsetTFlags.py_type(localVolCheckSvi), 0)
 
 def AddLocalVolCheckSvi(builder, localVolCheckSvi):
     CalibrateVolSurfaceResponseAddLocalVolCheckSvi(builder, localVolCheckSvi)
+
+def CalibrateVolSurfaceResponseAddLocalVolCheckSsvi(builder, localVolCheckSsvi):
+    builder.PrependUOffsetTRelativeSlot(20, flatbuffers.number_types.UOffsetTFlags.py_type(localVolCheckSsvi), 0)
+
+def AddLocalVolCheckSsvi(builder, localVolCheckSsvi):
+    CalibrateVolSurfaceResponseAddLocalVolCheckSsvi(builder, localVolCheckSsvi)
 
 def CalibrateVolSurfaceResponseEnd(builder):
     return builder.EndObject()
@@ -465,9 +525,12 @@ class CalibrateVolSurfaceResponseT(object):
         self.volSurfaceSpec = None  # type: Optional[VolSurfaceSpecT]
         self.volSurfaceSpecSvi = None  # type: Optional[VolSurfaceSpecT]
         self.volSurfaceSpecSviNote = None  # type: str
+        self.volSurfaceSpecSsvi = None  # type: Optional[VolSurfaceSpecT]
+        self.ssviArbitrage = None  # type: Optional[SsviArbitrageCheckT]
         self.vanillaRepricing = None  # type: Optional[VanillaRepricingT]
         self.localVolCheck = None  # type: Optional[LocalVolCheckT]
         self.localVolCheckSvi = None  # type: Optional[LocalVolCheckT]
+        self.localVolCheckSsvi = None  # type: Optional[LocalVolCheckT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -538,12 +601,18 @@ class CalibrateVolSurfaceResponseT(object):
         if calibrateVolSurfaceResponse.VolSurfaceSpecSvi() is not None:
             self.volSurfaceSpecSvi = VolSurfaceSpecT.InitFromObj(calibrateVolSurfaceResponse.VolSurfaceSpecSvi())
         self.volSurfaceSpecSviNote = calibrateVolSurfaceResponse.VolSurfaceSpecSviNote()
+        if calibrateVolSurfaceResponse.VolSurfaceSpecSsvi() is not None:
+            self.volSurfaceSpecSsvi = VolSurfaceSpecT.InitFromObj(calibrateVolSurfaceResponse.VolSurfaceSpecSsvi())
+        if calibrateVolSurfaceResponse.SsviArbitrage() is not None:
+            self.ssviArbitrage = SsviArbitrageCheckT.InitFromObj(calibrateVolSurfaceResponse.SsviArbitrage())
         if calibrateVolSurfaceResponse.VanillaRepricing() is not None:
             self.vanillaRepricing = VanillaRepricingT.InitFromObj(calibrateVolSurfaceResponse.VanillaRepricing())
         if calibrateVolSurfaceResponse.LocalVolCheck() is not None:
             self.localVolCheck = LocalVolCheckT.InitFromObj(calibrateVolSurfaceResponse.LocalVolCheck())
         if calibrateVolSurfaceResponse.LocalVolCheckSvi() is not None:
             self.localVolCheckSvi = LocalVolCheckT.InitFromObj(calibrateVolSurfaceResponse.LocalVolCheckSvi())
+        if calibrateVolSurfaceResponse.LocalVolCheckSsvi() is not None:
+            self.localVolCheckSsvi = LocalVolCheckT.InitFromObj(calibrateVolSurfaceResponse.LocalVolCheckSsvi())
 
     # CalibrateVolSurfaceResponseT
     def Pack(self, builder):
@@ -603,12 +672,18 @@ class CalibrateVolSurfaceResponseT(object):
             volSurfaceSpecSvi = self.volSurfaceSpecSvi.Pack(builder)
         if self.volSurfaceSpecSviNote is not None:
             volSurfaceSpecSviNote = builder.CreateString(self.volSurfaceSpecSviNote)
+        if self.volSurfaceSpecSsvi is not None:
+            volSurfaceSpecSsvi = self.volSurfaceSpecSsvi.Pack(builder)
+        if self.ssviArbitrage is not None:
+            ssviArbitrage = self.ssviArbitrage.Pack(builder)
         if self.vanillaRepricing is not None:
             vanillaRepricing = self.vanillaRepricing.Pack(builder)
         if self.localVolCheck is not None:
             localVolCheck = self.localVolCheck.Pack(builder)
         if self.localVolCheckSvi is not None:
             localVolCheckSvi = self.localVolCheckSvi.Pack(builder)
+        if self.localVolCheckSsvi is not None:
+            localVolCheckSsvi = self.localVolCheckSsvi.Pack(builder)
         CalibrateVolSurfaceResponseStart(builder)
         if self.sheetId is not None:
             CalibrateVolSurfaceResponseAddSheetId(builder, sheetId)
@@ -638,11 +713,17 @@ class CalibrateVolSurfaceResponseT(object):
             CalibrateVolSurfaceResponseAddVolSurfaceSpecSvi(builder, volSurfaceSpecSvi)
         if self.volSurfaceSpecSviNote is not None:
             CalibrateVolSurfaceResponseAddVolSurfaceSpecSviNote(builder, volSurfaceSpecSviNote)
+        if self.volSurfaceSpecSsvi is not None:
+            CalibrateVolSurfaceResponseAddVolSurfaceSpecSsvi(builder, volSurfaceSpecSsvi)
+        if self.ssviArbitrage is not None:
+            CalibrateVolSurfaceResponseAddSsviArbitrage(builder, ssviArbitrage)
         if self.vanillaRepricing is not None:
             CalibrateVolSurfaceResponseAddVanillaRepricing(builder, vanillaRepricing)
         if self.localVolCheck is not None:
             CalibrateVolSurfaceResponseAddLocalVolCheck(builder, localVolCheck)
         if self.localVolCheckSvi is not None:
             CalibrateVolSurfaceResponseAddLocalVolCheckSvi(builder, localVolCheckSvi)
+        if self.localVolCheckSsvi is not None:
+            CalibrateVolSurfaceResponseAddLocalVolCheckSsvi(builder, localVolCheckSsvi)
         calibrateVolSurfaceResponse = CalibrateVolSurfaceResponseEnd(builder)
         return calibrateVolSurfaceResponse

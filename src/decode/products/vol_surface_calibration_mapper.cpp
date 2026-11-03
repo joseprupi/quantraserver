@@ -12,9 +12,12 @@ namespace quantra {
 namespace {
 
 quantra::enums::VolSurfaceFitMethod toWire(VolSurfaceFitMethod m) {
-    return m == VolSurfaceFitMethod::SviPerExpiry
-               ? quantra::enums::VolSurfaceFitMethod_SviPerExpiry
-               : quantra::enums::VolSurfaceFitMethod_AndreasenHuge;
+    switch (m) {
+        case VolSurfaceFitMethod::SviPerExpiry:
+            return quantra::enums::VolSurfaceFitMethod_SviPerExpiry;
+        case VolSurfaceFitMethod::Ssvi: return quantra::enums::VolSurfaceFitMethod_Ssvi;
+        default: return quantra::enums::VolSurfaceFitMethod_AndreasenHuge;
+    }
 }
 
 flatbuffers::Offset<quantra::QuoteFilter> buildFilter(
@@ -120,6 +123,7 @@ VolSurfaceCalibrationInputs VolSurfaceCalibrationMapper::toInputs(
         case quantra::enums::VolSurfaceFitMethod_SviPerExpiry:
             in.method = VolSurfaceFitMethod::SviPerExpiry;
             break;
+        case quantra::enums::VolSurfaceFitMethod_Ssvi: in.method = VolSurfaceFitMethod::Ssvi; break;
         default: QUANTRA_INVALID_ARGUMENT("method is not a known VolSurfaceFitMethod");
     }
     if (req->output_grid()) {
@@ -142,6 +146,24 @@ VolSurfaceCalibrationInputs VolSurfaceCalibrationMapper::toInputs(
         in.minForwardVol = req->svi()->min_forward_vol();
         if (!std::isfinite(in.minForwardVol) || in.minForwardVol < 0.0) {
             QUANTRA_INVALID_ARGUMENT("svi.min_forward_vol must be finite and >= 0");
+        }
+    }
+    if (req->ssvi()) {
+        switch (req->ssvi()->weighting()) {
+            case quantra::enums::SsviQuoteWeighting_Uniform:
+                in.ssviWeighting = ssvi::QuoteWeighting::Uniform;
+                break;
+            case quantra::enums::SsviQuoteWeighting_Vega:
+                in.ssviWeighting = ssvi::QuoteWeighting::Vega;
+                break;
+            case quantra::enums::SsviQuoteWeighting_BidAsk:
+                in.ssviWeighting = ssvi::QuoteWeighting::BidAsk;
+                break;
+            default: QUANTRA_INVALID_ARGUMENT("ssvi.weighting is not a known SsviQuoteWeighting");
+        }
+        in.ssviMaxAbsLogMoneyness = req->ssvi()->max_abs_log_moneyness();
+        if (!std::isfinite(in.ssviMaxAbsLogMoneyness) || !(in.ssviMaxAbsLogMoneyness > 0.0)) {
+            QUANTRA_INVALID_ARGUMENT("ssvi.max_abs_log_moneyness must be finite and > 0");
         }
     }
     return in;
@@ -177,6 +199,10 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
             sviOff = quantra::CreateSviParameters(
                 b, e.svi->a, e.svi->b, e.svi->sigma, e.svi->rho, e.svi->m);
         }
+        flatbuffers::Offset<quantra::SsviParameters> ssviOff;
+        if (e.ssvi) {
+            ssviOff = quantra::CreateSsviParameters(b, e.ssvi->theta, e.ssvi->rho, e.ssvi->psi);
+        }
         quantra::VolSurfaceExpiryReportBuilder eb(b);
         eb.add_expiry(expOff);
         eb.add_time(e.time);
@@ -203,6 +229,20 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
         if (e.calendarMaxClipVol) eb.add_calendar_max_clip_vol(*e.calendarMaxClipVol);
         if (!e.calendarAction.empty()) eb.add_calendar_action(cActOff);
         eb.add_grid_points_filled(e.gridPointsFilled);
+        if (e.ssvi) {
+            eb.add_ssvi(ssviOff);
+            eb.add_ssvi_anchor_clamped(e.ssviAnchorClamped);
+        }
+        if (e.ssviAnchorK) eb.add_ssvi_anchor_k(*e.ssviAnchorK);
+        if (e.ssviAnchorTotalVariance)
+            eb.add_ssvi_anchor_total_variance(*e.ssviAnchorTotalVariance);
+        if (e.ssviMarginButterflyPsi) eb.add_ssvi_margin_butterfly_psi(*e.ssviMarginButterflyPsi);
+        if (e.ssviMarginButterflyPsi2)
+            eb.add_ssvi_margin_butterfly_psi2(*e.ssviMarginButterflyPsi2);
+        if (e.ssviMarginCalendarTheta)
+            eb.add_ssvi_margin_calendar_theta(*e.ssviMarginCalendarTheta);
+        if (e.ssviMarginCalendarPsi) eb.add_ssvi_margin_calendar_psi(*e.ssviMarginCalendarPsi);
+        if (e.ssviMarginCalendarA) eb.add_ssvi_margin_calendar_a(*e.ssviMarginCalendarA);
         reps.push_back(eb.Finish());
     }
     auto repsOff = b.CreateVector(reps);
@@ -307,10 +347,62 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
         ssb.add_payload_type(quantra::VolPayload_SviVolSpec);
         ssb.add_payload(sviPayloadOff.Union());
         sviSpecOff = ssb.Finish();
+    } else if (r.method == VolSurfaceFitMethod::Ssvi) {
+        sviNoteOff = b.CreateString(
+            "SVI parameters are not available for the Ssvi method: its slices are returned as an "
+            "SsviVolSpec payload in vol_surface_spec_ssvi; use method SviPerExpiry for "
+            "vol_surface_spec_svi");
     } else {
         sviNoteOff = b.CreateString(
             "SVI parameters are not available for the AndreasenHuge method (a piecewise local "
             "volatility, no closed-form slices); use method SviPerExpiry for vol_surface_spec_svi");
+    }
+
+    // The same surface as eSSVI slices (Ssvi only).
+    flatbuffers::Offset<quantra::VolSurfaceSpec> ssviSpecOff;
+    flatbuffers::Offset<quantra::SsviArbitrageCheck> ssviArbOff;
+    if (r.method == VolSurfaceFitMethod::Ssvi) {
+        std::vector<flatbuffers::Offset<quantra::SsviSlice>> slices;
+        for (const auto& e : r.expiries) {
+            if (!e.usable || !e.ssvi || !e.forward) continue;
+            auto expOff = b.CreateString(e.expiryIso);
+            quantra::SsviSliceBuilder slb(b);
+            slb.add_expiry(expOff);
+            slb.add_forward(*e.forward);
+            slb.add_theta(e.ssvi->theta);
+            slb.add_rho(e.ssvi->rho);
+            slb.add_psi(e.ssvi->psi);
+            if (e.strikeMin) slb.add_strike_min(*e.strikeMin);
+            if (e.strikeMax) slb.add_strike_max(*e.strikeMax);
+            slices.push_back(slb.Finish());
+        }
+        auto slicesOff = b.CreateVector(slices);
+        auto ssviRefDateOff = b.CreateString(r.asOfIso);
+        quantra::BlackVolBaseSpecBuilder sbb(b);
+        sbb.add_reference_date(ssviRefDateOff);
+        sbb.add_calendar(quantra::enums::Calendar_NullCalendar);
+        sbb.add_business_day_convention(quantra::enums::BusinessDayConvention_Unadjusted);
+        sbb.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+        auto ssviBaseOff = sbb.Finish();
+        quantra::SsviVolSpecBuilder svb(b);
+        svb.add_base(ssviBaseOff);
+        svb.add_spot(r.spot);
+        svb.add_slices(slicesOff);
+        svb.add_local_vol_strike_range(quantra::enums::LocalVolStrikeRange_PerExpiry);
+        auto ssviPayloadOff = svb.Finish();
+        auto ssviIdOff = b.CreateString(r.volSurfaceId);
+        quantra::VolSurfaceSpecBuilder ssb(b);
+        ssb.add_id(ssviIdOff);
+        ssb.add_payload_type(quantra::VolPayload_SsviVolSpec);
+        ssb.add_payload(ssviPayloadOff.Union());
+        ssviSpecOff = ssb.Finish();
+        if (r.ssviArbitrage) {
+            const auto& a = *r.ssviArbitrage;
+            auto violationsOff = b.CreateVectorOfStrings(a.violations);
+            ssviArbOff = quantra::CreateSsviArbitrageCheck(
+                b, violationsOff, a.scanMinG, a.scanMinGTime, a.scanMinGK, a.scanMinDwDt,
+                a.scanMinDwDtTime, a.scanMinDwDtK);
+        }
     }
 
     // Vanilla repricing.
@@ -347,6 +439,8 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
     auto lvCheckOff = buildLocalVolCheck(b, r.localVolCheck);
     flatbuffers::Offset<quantra::LocalVolCheck> lvCheckSviOff;
     if (r.localVolCheckSvi) lvCheckSviOff = buildLocalVolCheck(b, *r.localVolCheckSvi);
+    flatbuffers::Offset<quantra::LocalVolCheck> lvCheckSsviOff;
+    if (r.localVolCheckSsvi) lvCheckSsviOff = buildLocalVolCheck(b, *r.localVolCheckSsvi);
     auto filterOff = buildFilter(b, r.filter);
     auto sheetIdOff = b.CreateString(r.sheetId);
     auto underlyingOff = b.CreateString(r.underlyingId);
@@ -370,6 +464,9 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
     ob.add_vanilla_repricing(repricingOff);
     ob.add_local_vol_check(lvCheckOff);
     if (!lvCheckSviOff.IsNull()) ob.add_local_vol_check_svi(lvCheckSviOff);
+    if (!ssviSpecOff.IsNull()) ob.add_vol_surface_spec_ssvi(ssviSpecOff);
+    if (!ssviArbOff.IsNull()) ob.add_ssvi_arbitrage(ssviArbOff);
+    if (!lvCheckSsviOff.IsNull()) ob.add_local_vol_check_ssvi(lvCheckSsviOff);
     return ob.Finish();
 }
 

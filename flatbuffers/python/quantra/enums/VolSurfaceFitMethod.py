@@ -4,8 +4,11 @@
 
 # Fit method of `/calibrate-vol-surface`: Andreasen-Huge local-vol
 # interpolation (arbitrage-free by construction, QuantLib
-# AndreasenHugeVolatilityInterpl) or one SVI slice per expiry with
-# butterfly and calendar checks.
+# AndreasenHugeVolatilityInterpl), one SVI slice per expiry with
+# butterfly and calendar checks, or eSSVI slices.
 class VolSurfaceFitMethod(object):
     AndreasenHuge = 0
     SviPerExpiry = 1
+    # eSSVI slices fitted short to long, free of butterfly and calendar
+    # arbitrage by construction (`CalibrateVolSurfaceRequest.ssvi`).
+    Ssvi = 2
