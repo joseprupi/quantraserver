@@ -60,6 +60,7 @@
 #include "sample_vol_surfaces_response_generated.h"
 #include "structured_note_response_generated.h"
 #include "swaption_response_generated.h"
+#include "validate_vol_surface_response_generated.h"
 #include "vanilla_swap_response_generated.h"
 #include "year_on_year_inflation_cap_floor_response_generated.h"
 #include "year_on_year_inflation_swap_response_generated.h"
@@ -191,6 +192,8 @@ public:
         const std::string& json, const std::string& request_id = "");
     JsonResponse CalibrateCorrelationJSON(
         const std::string& json, const std::string& request_id = "");
+    JsonResponse ValidateVolSurfaceJSON(
+        const std::string& json, const std::string& request_id = "");
     JsonResponse PriceEquityOptionJSON(const std::string& json, const std::string& request_id = "");
     JsonResponse PriceZeroCouponBondJSON(
         const std::string& json, const std::string& request_id = "");
@@ -297,6 +300,10 @@ public:
     grpc::Status CalibrateCorrelation(
         const Message<CalibrateCorrelationRequest>& request,
         Message<CalibrateCorrelationResponse>* response);
+
+    grpc::Status ValidateVolSurface(
+        const Message<ValidateVolSurfaceRequest>& request,
+        Message<ValidateVolSurfaceResponse>* response);
 
     grpc::Status PriceEquityOption(
         const Message<PriceEquityOptionRequest>& request,

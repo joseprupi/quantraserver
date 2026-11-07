@@ -6,11 +6,11 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Static-arbitrage check of the fitted eSSVI slices (`Ssvi` only): the
-# closed-form butterfly and calendar conditions (see `SsviVolSpec`) and a
-# numeric scan of Durrleman's g(k) and of dw/dt at fixed k at the slice
-# times, their midpoints, half the first and 1.5 times the last, on 201
-# points of k in [-1.5, 1.0].
+# Static-arbitrage check of eSSVI slices: the closed-form butterfly and
+# calendar conditions (see `SsviVolSpec`) and a numeric scan of
+# Durrleman's g(k) and of dw/dt at fixed k at the slice times, their
+# midpoints, half the first and 1.5 times the last, on 201 points of k in
+# [-1.5, 1.0].
 class SsviArbitrageCheck(object):
     __slots__ = ['_tab']
 
@@ -30,7 +30,7 @@ class SsviArbitrageCheck(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # Violated conditions ("butterfly_psi at slice 3 (by 1e-5)", ...);
-    # empty on success (the fit guarantees it).
+    # empty when the slices are free of static arbitrage.
     # SsviArbitrageCheck
     def Violations(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))

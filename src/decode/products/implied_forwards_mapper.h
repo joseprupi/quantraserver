@@ -31,7 +31,7 @@ struct DecodedQuoteSheet {
 /// Decode a sheet; 400 naming `<path>.<field>` for a missing `id`,
 /// `underlying_id`, an empty `quotes`, a missing `expiry` or an unknown
 /// `option_style`. `path` is the sheet's own path ("sheet",
-/// "diagnostics.vanilla_repricing_sheets[0]").
+/// "quotes" on /validate-vol-surface).
 DecodedQuoteSheet decodeOptionQuoteSheet(
     const quantra::OptionQuoteSheet* sheet, const std::string& path);
 

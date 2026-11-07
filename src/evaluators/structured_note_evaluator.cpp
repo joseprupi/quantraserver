@@ -6,6 +6,7 @@
 #include "path_engine.h"
 #include "quanto_builder.h"
 #include "time_grid.h"
+#include "vol_surface_validation_evaluator.h"
 
 #include <ql/math/matrixutilities/symmetricschurdecomposition.hpp>
 #include <ql/quotes/simplequote.hpp>
@@ -159,23 +160,6 @@ struct ResolvedUnderlying {
     double fxSpot = 0.0;
     double rho = 0.0;
 };
-
-/// The strike range(s) the underlying's vol spec holds its local vol to.
-void applyStrikeRanges(const BlackVolEntry& e, mc::BasketAsset& asset) {
-    asset.localVolStrikeRange = e.localVolStrikeRange;
-    asset.localVolStrikeBands.clear();
-    for (const auto& b : e.localVolStrikeBands) {
-        asset.localVolStrikeBands.push_back(
-            {asset.vol->timeFromReference(b.expiry), b.minStrike, b.maxStrike});
-    }
-}
-
-/// The local vol time extension the underlying's vol spec asks for.
-mc::LocalVolTimeExtrapolation localVolTimeOf(const ResolvedUnderlying& u) {
-    return u.volEntry != nullptr && u.volEntry->flatLocalVolBeyondLastExpiry
-               ? mc::LocalVolTimeExtrapolation::FlatLocalVol
-               : mc::LocalVolTimeExtrapolation::FlatImpliedVol;
-}
 
 /// The funding-spreaded discount curve of the note: ZeroSpreadedTermStructure
 /// (curve, spread, Continuous, Annual, Actual/365 (Fixed)), extrapolating.
@@ -801,7 +785,7 @@ NoteResultRow priceNote(
     }
 
     // One Dupire local vol per distinct market for the whole note: every
-    // process array built below (price, correlation limits, repricing, the
+    // process array built below (price, correlation limits, the
     // bumped runs whose inputs did not move) shares it.
     mc::LocalVolCache localVols;
     std::vector<mc::BasketAsset> assets;
@@ -810,8 +794,7 @@ NoteResultRow priceNote(
             mc::MakeBasketAsset(
                 trade.underlyings[k].underlyingId, und[k].spot, und[k].dividend, noteCurve,
                 und[k].vol));
-        assets.back().localVolTime = localVolTimeOf(und[k]);
-        if (und[k].volEntry) applyStrikeRanges(*und[k].volEntry, assets.back());
+        if (und[k].volEntry) applyLocalVolSettings(*und[k].volEntry, assets.back());
         if (!und[k].exactStep) assets.back().localVolFloor = trade.monteCarlo.localVolFloor;
         localVols.attach(assets.back());
     }
@@ -955,26 +938,21 @@ NoteResultRow priceNote(
     cfg.antithetic = trade.monteCarlo.antithetic;
     cfg.brownianBridge = trade.monteCarlo.brownianBridge;
 
-    // One run on the stream over `timeGrid` with the events indexed on it
-    // (`fut`): `totals` (optional) receives every simulated path's acc[TOTAL]
-    // in simulation order (the common-random-number differences of the
-    // Greeks are formed per sample from them); `extra` (optional) fills the
-    // accumulators beyond nAcc from the same path (the vanilla repricing).
-    using ExtraPayoff = std::function<void(const QuantLib::MultiPath&, std::vector<Real>&)>;
-    auto runPathsOn = [&](const std::shared_ptr<QuantLib::StochasticProcessArray>& procs,
-                          const Discounting& disc, PathRecords* rec, std::vector<double>* totals,
-                          const std::vector<FutureEvent>& fut, const QuantLib::TimeGrid& timeGrid,
-                          Size nAccumulators, const ExtraPayoff* extra) {
+    // One run on the stream over the note's grid: `totals` (optional)
+    // receives every simulated path's acc[TOTAL] in simulation order (the
+    // common-random-number differences of the Greeks are formed per sample
+    // from them).
+    auto runPaths = [&](const std::shared_ptr<QuantLib::StochasticProcessArray>& procs,
+                        const Discounting& disc, PathRecords* rec, std::vector<double>* totals) {
         std::size_t call = 0;
         mc::PathFunctor functor = [&](const QuantLib::MultiPath& path, std::vector<Real>& acc) {
             const std::size_t slot = rec ? rec->next++ : 0;
-            walkPath(path, acc, disc, rec, slot, fut);
-            if (extra) (*extra)(path, acc);
+            walkPath(path, acc, disc, rec, slot, future);
             if (totals) (*totals)[call] = acc[A_TOTAL];
             ++call;
         };
         try {
-            return mc::RunPaths(procs, timeGrid, cfg, nAccumulators, functor);
+            return mc::RunPaths(procs, grid.grid, cfg, nAcc, functor);
         } catch (const QuantraError&) {
             throw;
         } catch (const std::exception& e) {
@@ -999,10 +977,6 @@ NoteResultRow priceNote(
                 "default extension is not arbitrage-free on a skew at long horizons)");
         }
         return mc::PathEngineResult{};
-    };
-    auto runPaths = [&](const std::shared_ptr<QuantLib::StochasticProcessArray>& procs,
-                        const Discounting& disc, PathRecords* rec, std::vector<double>* totals) {
-        return runPathsOn(procs, disc, rec, totals, future, grid.grid, nAcc, nullptr);
     };
 
     std::unique_ptr<PathRecords> records;
@@ -1277,177 +1251,6 @@ NoteResultRow priceNote(
         clock.mark("diagnostics");
     }
 
-    // --- vanilla repricing: the sheets' options on one extra simulation -------------
-    if (diag.vanillaRepricing) {
-        ctx.budget.check();
-        clock.reset();
-        struct RepOption {
-            std::size_t k = 0;
-            Size gridIndex = 0;
-            double strike = 0.0;
-            bool isCall = true;
-        };
-        NoteVanillaRepricing vr;
-        std::vector<RepOption> options;
-        std::vector<Date> dates = mandatory;
-        for (const NoteRepricingSheet& sheet : diag.repricingSheets) {
-            std::size_t k = nU;
-            for (std::size_t i = 0; i < nU; ++i) {
-                if (trade.underlyings[i].underlyingId == sheet.underlyingId) k = i;
-            }
-            if (k == nU) continue; // another note's underlying
-            if (trade.underlyings[k].quanto) {
-                QUANTRA_INVALID_ARGUMENT(
-                    sheet.path + ".underlying_id '" + sheet.underlyingId +
-                    "' is a quanto underlying of " + trade.path +
-                    ": its listed options are priced in " + und[k].currency +
-                    " under their own measure, the note simulates the quanto-adjusted one; "
-                    "the vanilla repricing covers note-currency underlyings only");
-            }
-            if (sheet.style != OptionSheetStyle::European) {
-                QUANTRA_INVALID_ARGUMENT(
-                    sheet.path + ".option_style must be European: the repriced options are "
-                                 "European payoffs on the simulated paths");
-            }
-            NoteRepricingUnderlying ru;
-            ru.underlyingId = sheet.underlyingId;
-            ru.sheetId = sheet.sheetId;
-            ru.spot = und[k].spot->value();
-            std::map<Date, std::vector<const OptionQuoteLine*>> byExpiry;
-            for (const auto& q : sheet.quotes)
-                byExpiry[q.expiry].push_back(&q);
-            std::set<std::string> reasons;
-            for (const auto& [expiry, lines] : byExpiry) {
-                NoteRepricingExpiry re;
-                re.expiry = lines.front()->expiryIso;
-                re.time = timeAxis.yearFraction(asOf, expiry);
-                if (expiry <= asOf) {
-                    for (const auto* q : lines) {
-                        re.dropped.push_back(
-                            DroppedQuoteData{
-                                q->expiryIso, q->strike, "expiry not after as_of_date"});
-                    }
-                    reasons.insert("expiry not after as_of_date");
-                    ru.expiries.push_back(re);
-                    continue;
-                }
-                const double t = re.time;
-                re.discountFactor = noteCurve->discount(t, true);
-                re.forward = und[k].spot->value() * und[k].dividend->discount(t, true) /
-                             noteCurve->discount(t, true);
-                const std::vector<OutOfTheMoneyQuote> used = selectOutOfTheMoneyQuotes(
-                    lines, diag.repricingFilter, re.expiry, ru.spot, re.forward, re.discountFactor,
-                    t, re.dropped);
-                re.quotesUsed = static_cast<unsigned int>(used.size());
-                for (const auto& d : re.dropped)
-                    reasons.insert(d.reason);
-                if (!used.empty()) dates.push_back(expiry);
-                for (const auto& u : used) {
-                    NoteRepricedOption o;
-                    o.expiry = re.expiry;
-                    o.time = t;
-                    o.strike = u.strike;
-                    o.isCall = u.isCall;
-                    o.bid = u.bid;
-                    o.ask = u.ask;
-                    o.mid = u.mid;
-                    o.marketVol = u.vol;
-                    ru.options.push_back(o);
-                    options.push_back({k, 0, u.strike, u.isCall});
-                }
-                ru.expiries.push_back(re);
-            }
-            if (ru.options.empty()) {
-                std::string list;
-                for (const auto& r : reasons)
-                    list += (list.empty() ? "" : "; ") + r;
-                QUANTRA_INVALID_ARGUMENT(
-                    sheet.path + ": no usable quote for underlying '" + sheet.underlyingId + "' (" +
-                    list + ")");
-            }
-            vr.underlyings.push_back(std::move(ru));
-        }
-        if (vr.underlyings.empty()) {
-            std::string basket;
-            for (const auto& id : ids)
-                basket += (basket.empty() ? "" : ", ") + id;
-            QUANTRA_INVALID_ARGUMENT(
-                "PriceStructuredNoteRequest.diagnostics.vanilla_repricing_sheets: no sheet for "
-                "any underlying of " +
-                trade.path + " [" + basket + "]");
-        }
-        // The repricing grid: the note's dates plus every used expiry.
-        std::sort(dates.begin(), dates.end());
-        const mc::SimulationGrid repGrid = mc::BuildSimulationGrid(asOf, dates, steps);
-        std::vector<FutureEvent> repFuture = future;
-        for (auto& fe : repFuture) {
-            if (!fe.accrualOnly)
-                fe.gridIndex = repGrid.indexOf(trade.events[fe.eventIndex].observationDate);
-        }
-        {
-            std::size_t i = 0;
-            for (const auto& ru : vr.underlyings) {
-                for (const auto& o : ru.options) {
-                    options[i].gridIndex = repGrid.indexOf(DateToQL(o.expiry));
-                    ++i;
-                }
-            }
-        }
-        const Size nOptions = options.size();
-        const ExtraPayoff payoffs = [&](const QuantLib::MultiPath& path, std::vector<Real>& acc) {
-            for (std::size_t i = 0; i < nOptions; ++i) {
-                const RepOption& o = options[i];
-                const double level = path[o.k][o.gridIndex];
-                acc[nAcc + i] = std::max(o.isCall ? level - o.strike : o.strike - level, 0.0);
-            }
-        };
-        const mc::PathEngineResult rep = runPathsOn(
-            mc::BasketModel::build(assets, correlation), base, nullptr, nullptr, repFuture,
-            repGrid.grid, nAcc + nOptions, &payoffs);
-        vr.paths = static_cast<unsigned int>(rep.paths);
-        vr.timeSteps = static_cast<unsigned int>(repGrid.size() - 1);
-        vr.noteNpv = (rep.mean[A_TOTAL] + knownNpv) * N;
-        vr.noteStandardError = rep.standardError[A_TOTAL] * N;
-        std::size_t i = 0;
-        for (auto& ru : vr.underlyings) {
-            std::map<std::string, double> dfByExpiry, fwdByExpiry;
-            for (const auto& re : ru.expiries) {
-                dfByExpiry[re.expiry] = re.discountFactor;
-                fwdByExpiry[re.expiry] = re.forward;
-            }
-            for (auto& o : ru.options) {
-                const double df = dfByExpiry.at(o.expiry);
-                const double fwd = fwdByExpiry.at(o.expiry);
-                o.modelPrice = df * rep.mean[nAcc + i];
-                o.standardError = df * rep.standardError[nAcc + i];
-                o.insideBidAsk = o.modelPrice >= o.bid && o.modelPrice <= o.ask;
-                o.priceError = o.modelPrice - o.mid;
-                o.modelVol = impliedBlackVol(
-                    o.isCall ? QuantLib::Option::Call : QuantLib::Option::Put, o.strike, fwd,
-                    o.modelPrice, df, o.time);
-                if (o.modelVol && o.marketVol) o.volError = *o.modelVol - *o.marketVol;
-                ++ru.count;
-                if (o.insideBidAsk) ++ru.insideBidAsk;
-                ru.maxAbsPriceError = std::max(ru.maxAbsPriceError, std::fabs(o.priceError));
-                ru.maxStandardError = std::max(ru.maxStandardError, o.standardError);
-                if (o.volError) {
-                    ru.maxAbsVolError =
-                        std::max(ru.maxAbsVolError.value_or(0.0), std::fabs(*o.volError));
-                }
-                ++i;
-            }
-            vr.count += ru.count;
-            vr.insideBidAsk += ru.insideBidAsk;
-            vr.maxAbsPriceError = std::max(vr.maxAbsPriceError, ru.maxAbsPriceError);
-            vr.maxStandardError = std::max(vr.maxStandardError, ru.maxStandardError);
-            if (ru.maxAbsVolError) {
-                vr.maxAbsVolError = std::max(vr.maxAbsVolError.value_or(0.0), *ru.maxAbsVolError);
-            }
-        }
-        row.vanillaRepricing = std::move(vr);
-        clock.mark("vanilla_repricing");
-    }
-
     // --- Greeks: bump-and-reprice on the same stream ----------------------------------
     if (greeks) {
         const NoteGreeksRequest& g = *greeks;
@@ -1500,8 +1303,7 @@ NoteResultRow priceNote(
                 bumped.push_back(
                     mc::MakeBasketAsset(
                         trade.underlyings[k].underlyingId, spot, dividend, riskFree, vol));
-                bumped.back().localVolTime = localVolTimeOf(und[k]);
-                if (und[k].volEntry) applyStrikeRanges(*und[k].volEntry, bumped.back());
+                if (und[k].volEntry) applyLocalVolSettings(*und[k].volEntry, bumped.back());
                 if (!und[k].exactStep) bumped.back().localVolFloor = trade.monteCarlo.localVolFloor;
                 localVols.attach(bumped.back());
             }

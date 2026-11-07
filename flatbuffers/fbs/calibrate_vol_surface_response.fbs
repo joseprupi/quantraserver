@@ -33,31 +33,6 @@ table SsviParameters {
     psi:double;
 }
 
-/// Static-arbitrage check of the fitted eSSVI slices (`Ssvi` only): the
-/// closed-form butterfly and calendar conditions (see `SsviVolSpec`) and a
-/// numeric scan of Durrleman's g(k) and of dw/dt at fixed k at the slice
-/// times, their midpoints, half the first and 1.5 times the last, on 201
-/// points of k in [-1.5, 1.0].
-table SsviArbitrageCheck {
-    /// Violated conditions ("butterfly_psi at slice 3 (by 1e-5)", ...);
-    /// empty on success (the fit guarantees it).
-    violations:[string] (required);
-    scan_min_g:double;
-    scan_min_g_time:double;
-    scan_min_g_k:double;
-    scan_min_dw_dt:double;
-    scan_min_dw_dt_time:double;
-    scan_min_dw_dt_k:double;
-}
-
-/// Andreasen-Huge calibration error over the whole calibration set, in
-/// volatility units (QuantLib `calibrationError()`).
-table AndreasenHugeCalibrationError {
-    min_vol:double;
-    max_vol:double;
-    avg_vol:double;
-}
-
 /// Per-expiry report. Every sheet expiry appears once, in date order.
 table VolSurfaceExpiryReport {
     expiry:string (required);
@@ -72,18 +47,11 @@ table VolSurfaceExpiryReport {
     quotes_used:uint;
     quotes_dropped:uint;
     dropped:[DroppedQuote];
-    /// Fit error of the calibrated object (the SVI slice, the Andreasen-Huge
-    /// surface) against the market implied vols of the used quotes, in vol
-    /// units (0.01 = one vol point), unweighted.
-    rmse_vol:double = null;
-    max_abs_error_vol:double = null;
     /// `SviPerExpiry` only.
     svi:SviParameters;
-    /// `SviPerExpiry` only: minimum of Durrleman's g(k) over the output
-    /// strike range (negative = butterfly arbitrage) after whatever was done.
-    butterfly_min_g:double = null;
-    butterfly_violation:bool;
-    /// What was found and done ("none", "refit with penalty: min g ... -> ...").
+    /// `SviPerExpiry` only: what the fit found (Durrleman's g(k) < 0 or a
+    /// wing steeper than Lee's bound on the independent fit) and did ("none",
+    /// "refit with penalty: min g ... -> ...").
     butterfly_action:string;
     /// `SviPerExpiry` only, every fitted expiry after the first: whether the
     /// calendar penalty refit of the sequential fit acted on this slice.
@@ -91,14 +59,6 @@ table VolSurfaceExpiryReport {
     /// Largest change in vol the calendar refit made over the slice's quoted
     /// strikes (absent when it did not act).
     calendar_refit_max_vol_shift:double = null;
-    /// After the fit: the smallest excess of the slice's total variance over
-    /// the previous slice's plus the requested margin min_forward_vol^2
-    /// (T_i - T_{i-1}) on the calendar grid (>= 0 = constraint met).
-    calendar_min_margin:double = null;
-    /// After the fit: the smallest forward vol between the previous slice and
-    /// this one on the calendar grid, sqrt((w_i - w_{i-1}) / (T_i - T_{i-1}))
-    /// (negative when total variance decreases there).
-    calendar_min_forward_vol:double = null;
     /// What the sequential fit found and did against the previous slice.
     calendar_fit_action:string;
     /// Grid strikes at which total variance was below the previous grid
@@ -117,91 +77,11 @@ table VolSurfaceExpiryReport {
     /// `Ssvi` only: true when the anchor's total variance was raised to
     /// keep the calendar conditions feasible against the previous slice.
     ssvi_anchor_clamped:bool;
-    /// `Ssvi` only: margins of the arbitrage conditions (right-hand side
-    /// minus left-hand side, >= 0 when met): 4 - psi (1 + |rho|),
-    /// 4 theta - psi^2 (1 + |rho|), and against the previous slice (absent
-    /// on the first) theta_i - theta_{i-1}, psi_i - psi_{i-1} and
-    /// (psi_i - psi_{i-1}) - |rho_i psi_i - rho_{i-1} psi_{i-1}|.
-    ssvi_margin_butterfly_psi:double = null;
-    ssvi_margin_butterfly_psi2:double = null;
-    ssvi_margin_calendar_theta:double = null;
-    ssvi_margin_calendar_psi:double = null;
-    ssvi_margin_calendar_a:double = null;
     /// `AndreasenHuge` only: grid strikes where the model's out-of-the-money
     /// price is below 1e-4 of the spot (finite-difference noise would move
     /// the vol by more than a tenth of a point) or its inversion failed,
     /// filled flat from the nearest inverted strike of the expiry.
     grid_points_filled:uint;
-}
-
-/// Dupire local vol of a returned surface, read exactly as the structured
-/// note pricer reads it: QuantLib's LocalVolSurface on the surface as the
-/// parser builds it, on the sheet's forwards (risk-free curve on the implied
-/// discount factors, dividend curve F DF / S), held at the strike edges
-/// (the grid's first and last strike; for the SVI payload the widest quoted
-/// range, min strike_min .. max strike_max) and flat beyond the last expiry
-/// (FlatLocalVol). The scan: times = every expiry +/- 2e-4 years (outside
-/// QuantLib's time stencil of 1e-4 on both sides of the node), the midpoints
-/// between expiries (and between 0 and the first) and the last expiry -
-/// 1e-3; strikes = 201 log-spaced over the output strikes and every quoted
-/// strike. A refused point is one where QuantLib throws ("decreasing variance
-/// ..." or "negative local vol^2 ...").
-table LocalVolCheck {
-    /// True iff every scan point evaluated (no refusal): the surface can be
-    /// simulated as local vol everywhere the scan reached.
-    arbitrage_free:bool;
-    times:uint;
-    strikes:uint;
-    points:uint;
-    refused:uint;
-    /// QuantLib's message at the first refused point.
-    first_refusal:string;
-    /// Smallest local variance (sigma_loc^2) over the points that evaluated,
-    /// and its time (Act/365F years) and strike.
-    min_local_variance:double = null;
-    min_local_variance_time:double = null;
-    min_local_variance_strike:double = null;
-    /// What was done when the check failed: "none", or for the SVI payload
-    /// the refit passes (the flagged slices refitted with a larger calendar
-    /// margin and butterfly weight, at most 3 passes).
-    action:string;
-}
-
-/// One used quote repriced on the returned surface.
-table VanillaRepricePoint {
-    expiry:string (required);
-    strike:double;
-    /// The out-of-the-money side that was used.
-    option_type:enums.EquityOptionType = null;
-    bid:double;
-    ask:double;
-    mid:double;
-    /// Implied vol of the mid (Black-76 on the fitted forward and implied
-    /// discount factor).
-    market_vol:double;
-    /// Black vol read off the returned grid surface as the pricers read it
-    /// (`vol_surface_spec`: CubicStrikeLinearTime, a natural cubic spline of
-    /// total variance in log-strike per expiry) at this expiry and strike.
-    model_vol:double;
-    /// Black price at `model_vol` on the same forward and discount factor.
-    model_price:double;
-    inside_bid_ask:bool;
-    /// model_price - mid.
-    price_error:double;
-    /// model_vol - market_vol.
-    vol_error:double;
-}
-
-/// Vanilla repricing of every used quote on the returned surface: the
-/// acceptance check of the surface.
-table VanillaRepricing {
-    count:uint;
-    inside_bid_ask:uint;
-    /// Largest |model_price - mid| over the used quotes (price units).
-    max_abs_price_error:double;
-    /// Largest |model_vol - market_vol| (vol units).
-    max_abs_vol_error:double;
-    quotes:[VanillaRepricePoint] (required);
 }
 
 /// Response of `/calibrate-vol-surface`.
@@ -224,8 +104,6 @@ table CalibrateVolSurfaceResponse {
     grid_strikes:[double] (required);
     /// Grid expiry dates (YYYY-MM-DD).
     grid_expiries:[string] (required);
-    /// `AndreasenHuge` only.
-    andreasen_huge_error:AndreasenHugeCalibrationError;
     /// Complete `VolSurfaceSpec` (BlackVolSpec, shape SmileCube3D,
     /// NullCalendar / Unadjusted / Actual365Fixed, expiries as calendar-day
     /// periods from the as-of date, absolute strikes, `surface_interpolator`
@@ -251,18 +129,21 @@ table CalibrateVolSurfaceResponse {
     /// local_vol_time_extrapolation absent: the model's own continuation).
     /// A structured note simulates it with the closed-form local vol.
     vol_surface_spec_ssvi:VolSurfaceSpec;
-    /// `Ssvi` only: the static-arbitrage check of the slices.
-    ssvi_arbitrage:SsviArbitrageCheck;
-    /// Every used quote repriced on `vol_surface_spec` (the grid).
-    vanilla_repricing:VanillaRepricing (required);
-    /// Local vol check of `vol_surface_spec`.
-    local_vol_check:LocalVolCheck (required);
-    /// Local vol check of `vol_surface_spec_svi` (`SviPerExpiry` only).
-    local_vol_check_svi:LocalVolCheck;
-    /// Local vol check of `vol_surface_spec_ssvi` (`Ssvi` only): the
-    /// closed-form local vol the note pricer reads, on the same scan; a
-    /// refused point is one where g <= 0 or the local variance is negative.
-    local_vol_check_ssvi:LocalVolCheck;
+    /// Whether the Dupire local vol of `vol_surface_spec`, read as a
+    /// structured note reads it on the sheet's forwards, evaluates at every
+    /// point of the scan `/validate-vol-surface` runs (`LocalVolCheck`):
+    /// the surface can be simulated as local vol. The full check, the fit
+    /// statistics and the Monte Carlo repricing are `/validate-vol-surface`.
+    arbitrage_free:bool;
+    /// The same for `vol_surface_spec_svi` (`SviPerExpiry` only).
+    arbitrage_free_svi:bool = null;
+    /// The same for `vol_surface_spec_ssvi` (`Ssvi` only; the closed-form
+    /// local vol, plus the slices' closed-form conditions).
+    arbitrage_free_ssvi:bool = null;
+    /// `SviPerExpiry` only: what the local vol check of the SVI payload made
+    /// the fit do: "none", or the refit passes (the flagged slices refitted
+    /// with a larger calendar margin and butterfly weight, at most 3).
+    svi_local_vol_refit_action:string;
 }
 
 root_type CalibrateVolSurfaceResponse;

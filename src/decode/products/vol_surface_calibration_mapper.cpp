@@ -46,26 +46,31 @@ flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::DroppedQuot
     return b.CreateVector(v);
 }
 
-flatbuffers::Offset<quantra::LocalVolCheck> buildLocalVolCheck(
-    flatbuffers::grpc::MessageBuilder& b, const LocalVolCheckData& c) {
-    flatbuffers::Offset<flatbuffers::String> firstOff, actionOff;
-    if (!c.firstRefusal.empty()) firstOff = b.CreateString(c.firstRefusal);
-    if (!c.action.empty()) actionOff = b.CreateString(c.action);
-    quantra::LocalVolCheckBuilder cb(b);
-    cb.add_arbitrage_free(c.arbitrageFree);
-    cb.add_times(c.times);
-    cb.add_strikes(c.strikes);
-    cb.add_points(c.points);
-    cb.add_refused(c.refused);
-    if (!c.firstRefusal.empty()) cb.add_first_refusal(firstOff);
-    if (c.minLocalVariance) cb.add_min_local_variance(*c.minLocalVariance);
-    if (c.minLocalVarianceTime) cb.add_min_local_variance_time(*c.minLocalVarianceTime);
-    if (c.minLocalVarianceStrike) cb.add_min_local_variance_strike(*c.minLocalVarianceStrike);
-    if (!c.action.empty()) cb.add_action(actionOff);
-    return cb.Finish();
-}
-
 } // namespace
+
+std::vector<VolSurfaceForwardInput> decodeVolSurfaceForwards(
+    const flatbuffers::Vector<flatbuffers::Offset<quantra::ImpliedForwardExpiry>>* forwards) {
+    std::vector<VolSurfaceForwardInput> fwds;
+    for (flatbuffers::uoffset_t i = 0; i < forwards->size(); ++i) {
+        const auto* f = forwards->Get(i);
+        if (!f || !f->expiry() || f->expiry()->size() == 0) {
+            QUANTRA_INVALID_ARGUMENT("forwards[" + std::to_string(i) + "].expiry is required");
+        }
+        if (!f->usable()) continue;
+        if (!f->forward().has_value() || !f->implied_discount_factor().has_value()) {
+            QUANTRA_INVALID_ARGUMENT(
+                "forwards[" + std::to_string(i) + "] (" + f->expiry()->str() +
+                ") is usable but lacks forward or implied_discount_factor");
+        }
+        VolSurfaceForwardInput v;
+        v.expiryIso = f->expiry()->str();
+        v.expiry = DateToQL(v.expiryIso);
+        v.forward = f->forward().value();
+        v.impliedDiscountFactor = f->implied_discount_factor().value();
+        fwds.push_back(v);
+    }
+    return fwds;
+}
 
 VolSurfaceCalibrationInputs VolSurfaceCalibrationMapper::toInputs(
     const quantra::CalibrateVolSurfaceRequest* req) const {
@@ -93,28 +98,7 @@ VolSurfaceCalibrationInputs VolSurfaceCalibrationMapper::toInputs(
     base.dividendCurveId = "unused";
     base.filter = decodeQuoteFilter(req->filter());
 
-    if (req->forwards()) {
-        std::vector<VolSurfaceForwardInput> fwds;
-        for (flatbuffers::uoffset_t i = 0; i < req->forwards()->size(); ++i) {
-            const auto* f = req->forwards()->Get(i);
-            if (!f || !f->expiry() || f->expiry()->size() == 0) {
-                QUANTRA_INVALID_ARGUMENT("forwards[" + std::to_string(i) + "].expiry is required");
-            }
-            if (!f->usable()) continue;
-            if (!f->forward().has_value() || !f->implied_discount_factor().has_value()) {
-                QUANTRA_INVALID_ARGUMENT(
-                    "forwards[" + std::to_string(i) + "] (" + f->expiry()->str() +
-                    ") is usable but lacks forward or implied_discount_factor");
-            }
-            VolSurfaceForwardInput v;
-            v.expiryIso = f->expiry()->str();
-            v.expiry = DateToQL(v.expiryIso);
-            v.forward = f->forward().value();
-            v.impliedDiscountFactor = f->implied_discount_factor().value();
-            fwds.push_back(v);
-        }
-        in.forwards = std::move(fwds);
-    }
+    if (req->forwards()) in.forwards = decodeVolSurfaceForwards(req->forwards());
 
     switch (req->method()) {
         case quantra::enums::VolSurfaceFitMethod_AndreasenHuge:
@@ -213,17 +197,11 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
         eb.add_quotes_used(e.quotesUsed);
         eb.add_quotes_dropped(static_cast<uint32_t>(e.dropped.size()));
         eb.add_dropped(droppedOff);
-        if (e.rmseVol) eb.add_rmse_vol(*e.rmseVol);
-        if (e.maxAbsErrorVol) eb.add_max_abs_error_vol(*e.maxAbsErrorVol);
         if (e.svi) eb.add_svi(sviOff);
-        if (e.butterflyMinG) eb.add_butterfly_min_g(*e.butterflyMinG);
-        eb.add_butterfly_violation(e.butterflyViolation);
         if (!e.butterflyAction.empty()) eb.add_butterfly_action(bActOff);
         eb.add_calendar_refit(e.calendarRefit);
         if (e.calendarRefitMaxVolShift)
             eb.add_calendar_refit_max_vol_shift(*e.calendarRefitMaxVolShift);
-        if (e.calendarMinMargin) eb.add_calendar_min_margin(*e.calendarMinMargin);
-        if (e.calendarMinForwardVol) eb.add_calendar_min_forward_vol(*e.calendarMinForwardVol);
         if (!e.calendarFitAction.empty()) eb.add_calendar_fit_action(cFitOff);
         eb.add_calendar_violations(e.calendarViolations);
         if (e.calendarMaxClipVol) eb.add_calendar_max_clip_vol(*e.calendarMaxClipVol);
@@ -236,13 +214,6 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
         if (e.ssviAnchorK) eb.add_ssvi_anchor_k(*e.ssviAnchorK);
         if (e.ssviAnchorTotalVariance)
             eb.add_ssvi_anchor_total_variance(*e.ssviAnchorTotalVariance);
-        if (e.ssviMarginButterflyPsi) eb.add_ssvi_margin_butterfly_psi(*e.ssviMarginButterflyPsi);
-        if (e.ssviMarginButterflyPsi2)
-            eb.add_ssvi_margin_butterfly_psi2(*e.ssviMarginButterflyPsi2);
-        if (e.ssviMarginCalendarTheta)
-            eb.add_ssvi_margin_calendar_theta(*e.ssviMarginCalendarTheta);
-        if (e.ssviMarginCalendarPsi) eb.add_ssvi_margin_calendar_psi(*e.ssviMarginCalendarPsi);
-        if (e.ssviMarginCalendarA) eb.add_ssvi_margin_calendar_a(*e.ssviMarginCalendarA);
         reps.push_back(eb.Finish());
     }
     auto repsOff = b.CreateVector(reps);
@@ -250,13 +221,6 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
     auto moneynessOff = b.CreateVector(r.moneyness);
     auto gridStrikesOff = b.CreateVector(r.gridStrikes);
     auto gridExpiriesOff = b.CreateVectorOfStrings(r.gridExpiryIso);
-
-    flatbuffers::Offset<quantra::AndreasenHugeCalibrationError> ahOff;
-    if (r.andreasenHugeError) {
-        ahOff = quantra::CreateAndreasenHugeCalibrationError(
-            b, r.andreasenHugeError->minVol, r.andreasenHugeError->maxVol,
-            r.andreasenHugeError->avgVol);
-    }
 
     // The surface spec: BlackVolSpec SmileCube3D on NullCalendar / Unadjusted /
     // Act/365F with calendar-day expiries from the as-of date.
@@ -360,7 +324,6 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
 
     // The same surface as eSSVI slices (Ssvi only).
     flatbuffers::Offset<quantra::VolSurfaceSpec> ssviSpecOff;
-    flatbuffers::Offset<quantra::SsviArbitrageCheck> ssviArbOff;
     if (r.method == VolSurfaceFitMethod::Ssvi) {
         std::vector<flatbuffers::Offset<quantra::SsviSlice>> slices;
         for (const auto& e : r.expiries) {
@@ -396,55 +359,15 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
         ssb.add_payload_type(quantra::VolPayload_SsviVolSpec);
         ssb.add_payload(ssviPayloadOff.Union());
         ssviSpecOff = ssb.Finish();
-        if (r.ssviArbitrage) {
-            const auto& a = *r.ssviArbitrage;
-            auto violationsOff = b.CreateVectorOfStrings(a.violations);
-            ssviArbOff = quantra::CreateSsviArbitrageCheck(
-                b, violationsOff, a.scanMinG, a.scanMinGTime, a.scanMinGK, a.scanMinDwDt,
-                a.scanMinDwDtTime, a.scanMinDwDtK);
-        }
     }
 
-    // Vanilla repricing.
-    std::vector<flatbuffers::Offset<quantra::VanillaRepricePoint>> pts;
-    pts.reserve(r.repricing.quotes.size());
-    for (const auto& q : r.repricing.quotes) {
-        auto expOff = b.CreateString(q.expiryIso);
-        quantra::VanillaRepricePointBuilder pb(b);
-        pb.add_expiry(expOff);
-        pb.add_strike(q.strike);
-        pb.add_option_type(
-            q.isCall ? quantra::enums::EquityOptionType_Call
-                     : quantra::enums::EquityOptionType_Put);
-        pb.add_bid(q.bid);
-        pb.add_ask(q.ask);
-        pb.add_mid(q.mid);
-        pb.add_market_vol(q.marketVol);
-        pb.add_model_vol(q.modelVol);
-        pb.add_model_price(q.modelPrice);
-        pb.add_inside_bid_ask(q.insideBidAsk);
-        pb.add_price_error(q.priceError);
-        pb.add_vol_error(q.volError);
-        pts.push_back(pb.Finish());
-    }
-    auto ptsOff = b.CreateVector(pts);
-    quantra::VanillaRepricingBuilder rb(b);
-    rb.add_count(r.repricing.count);
-    rb.add_inside_bid_ask(r.repricing.insideBidAsk);
-    rb.add_max_abs_price_error(r.repricing.maxAbsPriceError);
-    rb.add_max_abs_vol_error(r.repricing.maxAbsVolError);
-    rb.add_quotes(ptsOff);
-    auto repricingOff = rb.Finish();
-
-    auto lvCheckOff = buildLocalVolCheck(b, r.localVolCheck);
-    flatbuffers::Offset<quantra::LocalVolCheck> lvCheckSviOff;
-    if (r.localVolCheckSvi) lvCheckSviOff = buildLocalVolCheck(b, *r.localVolCheckSvi);
-    flatbuffers::Offset<quantra::LocalVolCheck> lvCheckSsviOff;
-    if (r.localVolCheckSsvi) lvCheckSsviOff = buildLocalVolCheck(b, *r.localVolCheckSsvi);
     auto filterOff = buildFilter(b, r.filter);
     auto sheetIdOff = b.CreateString(r.sheetId);
     auto underlyingOff = b.CreateString(r.underlyingId);
     auto sourceOff = b.CreateString(r.forwardsSource);
+    flatbuffers::Offset<flatbuffers::String> refitOff;
+    if (r.method == VolSurfaceFitMethod::SviPerExpiry)
+        refitOff = b.CreateString(r.sviLocalVolRefitAction);
     quantra::CalibrateVolSurfaceResponseBuilder ob(b);
     ob.add_sheet_id(sheetIdOff);
     ob.add_underlying_id(underlyingOff);
@@ -457,16 +380,18 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
     ob.add_strikes_as_moneyness(moneynessOff);
     ob.add_grid_strikes(gridStrikesOff);
     ob.add_grid_expiries(gridExpiriesOff);
-    if (r.andreasenHugeError) ob.add_andreasen_huge_error(ahOff);
     ob.add_vol_surface_spec(specOff);
     if (!sviSpecOff.IsNull()) ob.add_vol_surface_spec_svi(sviSpecOff);
     if (!sviNoteOff.IsNull()) ob.add_vol_surface_spec_svi_note(sviNoteOff);
-    ob.add_vanilla_repricing(repricingOff);
-    ob.add_local_vol_check(lvCheckOff);
-    if (!lvCheckSviOff.IsNull()) ob.add_local_vol_check_svi(lvCheckSviOff);
     if (!ssviSpecOff.IsNull()) ob.add_vol_surface_spec_ssvi(ssviSpecOff);
-    if (!ssviArbOff.IsNull()) ob.add_ssvi_arbitrage(ssviArbOff);
-    if (!lvCheckSsviOff.IsNull()) ob.add_local_vol_check_ssvi(lvCheckSsviOff);
+    ob.add_arbitrage_free(r.localVolCheck.arbitrageFree);
+    if (r.localVolCheckSvi) ob.add_arbitrage_free_svi(r.localVolCheckSvi->arbitrageFree);
+    if (r.localVolCheckSsvi) {
+        ob.add_arbitrage_free_ssvi(
+            r.localVolCheckSsvi->arbitrageFree &&
+            (!r.ssviArbitrage || r.ssviArbitrage->violations.empty()));
+    }
+    if (!refitOff.IsNull()) ob.add_svi_local_vol_refit_action(refitOff);
     return ob.Finish();
 }
 

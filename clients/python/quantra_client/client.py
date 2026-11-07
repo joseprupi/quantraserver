@@ -42,6 +42,7 @@ from quantra.PriceSwaptionRequest import PriceSwaptionRequestT
 from quantra.PriceCDSRequest import PriceCDSRequestT
 from quantra.BootstrapCurvesRequest import BootstrapCurvesRequestT
 from quantra.BootstrapInflationCurvesRequest import BootstrapInflationCurvesRequestT
+from quantra.ValidateVolSurfaceRequest import ValidateVolSurfaceRequestT
 from quantra.Pricing import PricingT
 from quantra.RatesMarketData import RatesMarketDataT
 from quantra.CreditMarketData import CreditMarketDataT
@@ -67,6 +68,7 @@ from quantra.PriceSwaptionResponse import PriceSwaptionResponse
 from quantra.PriceCDSResponse import PriceCDSResponse
 from quantra.BootstrapCurvesResponse import BootstrapCurvesResponse
 from quantra.BootstrapInflationCurvesResponse import BootstrapInflationCurvesResponse
+from quantra.ValidateVolSurfaceResponse import ValidateVolSurfaceResponse
 
 
 class Client:
@@ -100,6 +102,7 @@ class Client:
         'cds': '/quantra.QuantraServer/PriceCDS',
         'bootstrap_curves': '/quantra.QuantraServer/BootstrapCurves',
         'bootstrap_inflation_curves': '/quantra.QuantraServer/BootstrapInflationCurves',
+        'validate_vol_surface': '/quantra.QuantraServer/ValidateVolSurface',
     }
     
     def __init__(
@@ -332,6 +335,21 @@ class Client:
             'bootstrap_inflation_curves',
             request,
             BootstrapInflationCurvesResponse
+        )
+
+    def validate_vol_surface(
+        self,
+        request: ValidateVolSurfaceRequestT
+    ) -> ValidateVolSurfaceResponse:
+        """Test an equity Black vol surface in pricing (grid, SVI or SSVI
+        payload, constant or term vol) against a sheet of listed option
+        quotes: the Black-76 fit of every quote, the local-vol arbitrage
+        scan as a structured note reads it and, opt-in, the Monte Carlo
+        repricing of the quotes; band summaries and verdicts."""
+        return self._call(
+            'validate_vol_surface',
+            request,
+            ValidateVolSurfaceResponse
         )
     
     # =========================================================================

@@ -1,0 +1,86 @@
+include "pricing.fbs";
+include "option_quotes.fbs";
+include "calibrate_implied_forwards_response.fbs";
+include "structured_note.fbs";
+
+namespace quantra;
+
+/// Which tests `/validate-vol-surface` runs. At least one must be on.
+table VolSurfaceValidationChecks {
+    /// Every usable quote priced with Black-76 on the surface's own vol at
+    /// its expiry and strike, compared with its bid/ask.
+    fit:bool = true;
+    /// The surface's Dupire local vol read as a structured note reads it,
+    /// scanned for refusals, plus the slice conditions of an SVI or SSVI
+    /// payload.
+    arbitrage:bool = true;
+    /// Every usable quote priced by Monte Carlo on the local vol derived
+    /// from the surface. Requires `simulation` (the Monte Carlo settings).
+    simulation:bool = false;
+}
+
+/// Edges of the summary table (`bands` of the fit and simulation blocks).
+/// Each list strictly increasing, finite and > 0; the cells are the open
+/// intervals below the first edge and above the last one and the half-open
+/// intervals [edge_i, edge_i+1) in between.
+table VolSurfaceValidationBands {
+    /// Moneyness K / F edges. Default when absent or empty:
+    /// 0.8, 0.9, 0.95, 1.05, 1.1, 1.2.
+    moneyness:[double];
+    /// Time-to-expiry edges in Act/365F years. Default when absent or empty:
+    /// 1/12, 0.25, 0.5, 1, 2.
+    maturities:[double];
+}
+
+/// Request for `/validate-vol-surface`: test an equity Black vol surface
+/// (any shape: a strike x expiry grid, an `SviVolSpec` or `SsviVolSpec`
+/// payload, a constant or term vol) against a sheet of listed option quotes.
+/// Nothing is fitted: the surface in `pricing.volatility.vol_surfaces` is
+/// read exactly as the pricers read it.
+table ValidateVolSurfaceRequest {
+    /// Full pricing context: `as_of_date`, the discounting curve in
+    /// `rates.curves`, the underlying's spot in `quotes` and its
+    /// `EquityUnderlyingSpec` (spot quote and dividend curve) in
+    /// `equity.equity_underlyings`, and the surface in
+    /// `volatility.vol_surfaces`.
+    pricing:Pricing (required);
+    /// Id of the surface under test in `pricing.volatility.vol_surfaces`
+    /// (an equity Black vol: `BlackVolSpec`, `SviVolSpec` or `SsviVolSpec`).
+    volatility_id:string (required);
+    /// `EquityUnderlyingSpec.id`: the spot and the dividend curve.
+    underlying_id:string (required);
+    /// Curve id in `pricing.rates.curves`: the risk-free curve of the
+    /// underlying's currency (the discount factors, and the drift of the
+    /// simulation, as a structured note's `discounting_curve`).
+    discounting_curve:string (required);
+    /// The option quotes, for `underlying_id` (400 otherwise). European
+    /// style only.
+    quotes:OptionQuoteSheet (required);
+    /// Per-line quote rules, the same as `/calibrate-vol-surface` (defaults
+    /// when absent); an expiry with fewer than `min_quotes_per_expiry` usable
+    /// quotes is reported and left out. `moneyness_window` is not used.
+    filter:QuoteFilter;
+    /// Optional: the `expiries` array of a `/calibrate-implied-forwards`
+    /// response (or the `forwards` of a `/calibrate-vol-surface` response
+    /// with `usable: true`), pasted as is. Present: every check reads the
+    /// sheet's forward F and implied discount factor DF per expiry (a
+    /// risk-free curve on the DFs, log-linear, and a dividend curve
+    /// DF_q = F DF / S, the market `/calibrate-vol-surface` fits on), and an
+    /// expiry not listed is dropped. Absent: F = S D_div(T) / D(T) and
+    /// DF = D(T) from `discounting_curve` and the underlying's dividend
+    /// curve, the market a structured note simulates on.
+    forwards:[ImpliedForwardExpiry];
+    /// Which tests to run; defaults (fit and arbitrage on, simulation off)
+    /// when absent.
+    checks:VolSurfaceValidationChecks;
+    /// Monte Carlo settings of the simulation test, the same table and rules
+    /// as a structured note's `monte_carlo` (`steps_per_year` required for a
+    /// strike-dependent surface and absent for a constant or term vol;
+    /// `local_vol_floor` optional). Required with `checks.simulation`, and
+    /// must be absent without it.
+    simulation:MonteCarloSpec;
+    /// Summary-table edges; defaults documented on the table.
+    bands:VolSurfaceValidationBands;
+}
+
+root_type ValidateVolSurfaceRequest;

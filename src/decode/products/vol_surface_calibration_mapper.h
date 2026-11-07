@@ -20,6 +20,12 @@
 
 namespace quantra {
 
+/// Decode the pasted `forwards` (an implied-forwards response's `expiries`):
+/// entries with usable false are skipped; a usable one needs forward and
+/// implied_discount_factor (400 otherwise). Shared with /validate-vol-surface.
+std::vector<VolSurfaceForwardInput> decodeVolSurfaceForwards(
+    const flatbuffers::Vector<flatbuffers::Offset<quantra::ImpliedForwardExpiry>>* forwards);
+
 class VolSurfaceCalibrationMapper {
 public:
     VolSurfaceCalibrationInputs toInputs(const quantra::CalibrateVolSurfaceRequest* req) const;

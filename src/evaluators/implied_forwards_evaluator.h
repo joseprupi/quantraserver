@@ -190,8 +190,8 @@ std::optional<double> impliedBlackVol(
     double time);
 
 /// One out-of-the-money quote of an expiry with its implied vol: the side
-/// `/calibrate-vol-surface` fits and the structured-note vanilla repricing
-/// prices (call iff strike >= forward).
+/// `/calibrate-vol-surface` fits and `/validate-vol-surface` tests (call iff
+/// strike >= forward).
 struct OutOfTheMoneyQuote {
     double strike = 0.0;
     bool isCall = true;

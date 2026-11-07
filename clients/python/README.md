@@ -6,8 +6,8 @@ no HTTP.
 
 ## Scope
 
-This client is **not** a complete binding for the server. It wraps nine of the
-server's endpoints:
+This client is **not** a complete binding for the server. It wraps the server
+endpoints below:
 
 | Method | Endpoint |
 | --- | --- |
@@ -20,6 +20,7 @@ server's endpoints:
 | `price_cds` | `PriceCDS` |
 | `bootstrap_curves` | `BootstrapCurves` |
 | `bootstrap_inflation_curves` | `BootstrapInflationCurves` |
+| `validate_vol_surface` | `ValidateVolSurface` |
 
 Everything else the server prices — zero-coupon bonds, callable bonds, OIS and
 basis swaps, zero-coupon swaps, both inflation swaps, year-on-year inflation

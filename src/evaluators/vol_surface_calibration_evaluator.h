@@ -75,7 +75,9 @@
  *    vol change on the quotes, and after the fit the smallest margin and
  *    forward vol against the expiry before. Grid vols are sqrt(w(k) / T).
  *
- * 3c. Local vol check. Each returned spec is rebuilt as the structured
+ * 3c. Local vol check (checkLocalVol and quoteRegions of
+ *    vol_surface_validation_evaluator.h, the /validate-vol-surface scan).
+ *    Each returned spec is rebuilt as the structured
  *    note pricer builds it (BasketAsset + LocalVolCache, per-expiry strike
  *    bands = the regions, FlatLocalVol) on the sheet's forwards and
  *    QuantLib's LocalVolSurface is evaluated at every expiry +/- 2e-4, the
@@ -107,7 +109,7 @@
  *    violation, clipped when enforce_calendar (SviPerExpiry, a last
  *    resort), beyond it reported only.
  *
- * 5. Output and repricing. The surface is a BlackVolSpec SmileCube3D on a
+ * 5. Output. The surface is a BlackVolSpec SmileCube3D on a
  *    NullCalendar / Unadjusted / Actual365Fixed base with the grid expiries
  *    as calendar-day periods from the as-of date (so the dates are exact),
  *    read with surface_interpolator CubicStrikeLinearTime (per expiry a
@@ -115,7 +117,10 @@
  *    variance between expiries; src/market/smile_slice_vol_surface.h),
  *    extrapolation allowed, with per-expiry local-vol strike ranges (the
  *    regions inside the second and second-to-last grid strike). Every used
- *    quote is repriced on that very object. With SviPerExpiry the fitted
+ *    quote is priced on that very object with fitQuotes (the fit test of
+ *    /validate-vol-surface; kept on the result, not on the wire: the
+ *    response carries one arbitrage_free flag per payload and the
+ *    measurements are /validate-vol-surface's). With SviPerExpiry the fitted
  *    slices are returned as well, as an SviVolSpec payload with
  *    local_vol_strike_range PerExpiry and each slice's region as its
  *    strike_min / strike_max (the mapper builds it from `expiries[].svi`
@@ -131,6 +136,7 @@
 #include "pricing_context.h"
 #include "pricing_registry.h"
 #include "ssvi_calibrator.h"
+#include "vol_surface_validation_evaluator.h"
 
 #include <ql/time/date.hpp>
 #include <ql/time/period.hpp>
@@ -142,15 +148,6 @@
 namespace quantra {
 
 enum class VolSurfaceFitMethod { AndreasenHuge, SviPerExpiry, Ssvi };
-
-/// One forward supplied by the caller (from an implied-forwards response).
-struct VolSurfaceForwardInput {
-    std::string expiryIso;
-    QuantLib::Date expiry;
-    double time = 0.0;
-    double forward = 0.0;
-    double impliedDiscountFactor = 0.0;
-};
 
 struct VolSurfaceCalibrationInputs {
     /// Sheet, filter, discounting curve and underlying (dividendCurveId unused).
@@ -224,53 +221,6 @@ struct VolSurfaceExpiryReportData {
     std::optional<double> ssviMarginCalendarTheta, ssviMarginCalendarPsi, ssviMarginCalendarA;
 };
 
-/// Ssvi: the closed-form arbitrage conditions found violated (empty after a
-/// successful fit) and the numeric scan of g and dw/dt.
-struct SsviArbitrageCheckData {
-    std::vector<std::string> violations;
-    double scanMinG = 0.0, scanMinGTime = 0.0, scanMinGK = 0.0;
-    double scanMinDwDt = 0.0, scanMinDwDtTime = 0.0, scanMinDwDtK = 0.0;
-};
-
-/// Dupire local vol of a returned surface, read the way the structured-note
-/// pricer reads it, on a scan of times and strikes.
-struct LocalVolCheckData {
-    unsigned times = 0;
-    unsigned strikes = 0;
-    unsigned points = 0;
-    /// Scan points where QuantLib's LocalVolSurface refused (exception).
-    unsigned refused = 0;
-    std::string firstRefusal;
-    /// Smallest local variance over the points that evaluated, and where.
-    std::optional<double> minLocalVariance;
-    std::optional<double> minLocalVarianceTime;
-    std::optional<double> minLocalVarianceStrike;
-    bool arbitrageFree = false;
-    /// What was done when the check failed (SviPerExpiry refits).
-    std::string action;
-};
-
-struct VanillaRepricePointData {
-    std::string expiryIso;
-    double strike = 0.0;
-    bool isCall = true;
-    double bid = 0.0, ask = 0.0, mid = 0.0;
-    double marketVol = 0.0;
-    double modelVol = 0.0;
-    double modelPrice = 0.0;
-    bool insideBidAsk = false;
-    double priceError = 0.0;
-    double volError = 0.0;
-};
-
-struct VanillaRepricingData {
-    unsigned count = 0;
-    unsigned insideBidAsk = 0;
-    double maxAbsPriceError = 0.0;
-    double maxAbsVolError = 0.0;
-    std::vector<VanillaRepricePointData> quotes;
-};
-
 struct AndreasenHugeErrorData {
     double minVol = 0.0, maxVol = 0.0, avgVol = 0.0;
 };
@@ -296,10 +246,17 @@ struct VolSurfaceCalibrationResult {
     /// to (BlackVolSpec local_vol_strike_min / _max).
     std::vector<double> gridLocalVolStrikeMin, gridLocalVolStrikeMax;
     std::string volSurfaceId;
-    VanillaRepricingData repricing;
-    /// Local vol check of the grid surface (`vol_surface_spec`) and, for
-    /// SviPerExpiry, of the SVI payload (`vol_surface_spec_svi`).
+    /// The fit test of /validate-vol-surface (fitQuotes) on the returned grid
+    /// with the sheet's forwards, default bands. Not on the wire: the
+    /// endpoint returns surfaces; validation is /validate-vol-surface.
+    FitValidationData fit;
+    /// Local vol check (checkLocalVol, the /validate-vol-surface scan) of the
+    /// grid surface (`vol_surface_spec`) and, for SviPerExpiry, of the SVI
+    /// payload (`vol_surface_spec_svi`). Only `arbitrageFree` is on the wire.
     LocalVolCheckData localVolCheck;
+    /// SviPerExpiry: what the payload's local vol check made the fit do
+    /// ("none" or the refit passes).
+    std::string sviLocalVolRefitAction;
     std::optional<LocalVolCheckData> localVolCheckSvi;
     /// Ssvi: the slices' arbitrage check and the local vol check of the
     /// SSVI payload (`vol_surface_spec_ssvi`, built by the mapper from

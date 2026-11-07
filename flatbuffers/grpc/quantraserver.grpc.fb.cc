@@ -46,6 +46,7 @@ static const char* QuantraServer_method_names[] = {
   "/quantra.QuantraServer/CalibrateImpliedForwards",
   "/quantra.QuantraServer/CalibrateVolSurface",
   "/quantra.QuantraServer/CalibrateCorrelation",
+  "/quantra.QuantraServer/ValidateVolSurface",
   "/quantra.QuantraServer/Meta",
 };
 
@@ -85,7 +86,8 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   , rpcmethod_CalibrateImpliedForwards_(QuantraServer_method_names[27], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_CalibrateVolSurface_(QuantraServer_method_names[28], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_CalibrateCorrelation_(QuantraServer_method_names[29], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_Meta_(QuantraServer_method_names[30], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_ValidateVolSurface_(QuantraServer_method_names[30], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_Meta_(QuantraServer_method_names[31], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
   
 ::grpc::Status QuantraServer::Stub::PriceFixedRateBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, flatbuffers::grpc::Message<PriceFixedRateBondResponse>* response) {
@@ -448,6 +450,18 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<CalibrateCorrelationResponse>>::Create(channel_.get(), cq, rpcmethod_CalibrateCorrelation_, context, request, false);
 }
 
+::grpc::Status QuantraServer::Stub::ValidateVolSurface(::grpc::ClientContext* context, const flatbuffers::grpc::Message<ValidateVolSurfaceRequest>& request, flatbuffers::grpc::Message<ValidateVolSurfaceResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_ValidateVolSurface_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<ValidateVolSurfaceResponse>>* QuantraServer::Stub::AsyncValidateVolSurfaceRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<ValidateVolSurfaceRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<ValidateVolSurfaceResponse>>::Create(channel_.get(), cq, rpcmethod_ValidateVolSurface_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<ValidateVolSurfaceResponse>>* QuantraServer::Stub::PrepareAsyncValidateVolSurfaceRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<ValidateVolSurfaceRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<ValidateVolSurfaceResponse>>::Create(channel_.get(), cq, rpcmethod_ValidateVolSurface_, context, request, false);
+}
+
 ::grpc::Status QuantraServer::Stub::Meta(::grpc::ClientContext* context, const flatbuffers::grpc::Message<MetaRequest>& request, flatbuffers::grpc::Message<MetaResponse>* response) {
   return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_Meta_, context, request, response);
 }
@@ -614,6 +628,11 @@ QuantraServer::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       QuantraServer_method_names[30],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<ValidateVolSurfaceRequest>, flatbuffers::grpc::Message<ValidateVolSurfaceResponse>>(
+          std::mem_fn(&QuantraServer::Service::ValidateVolSurface), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[31],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<MetaRequest>, flatbuffers::grpc::Message<MetaResponse>>(
           std::mem_fn(&QuantraServer::Service::Meta), this)));
 }
@@ -738,6 +757,10 @@ QuantraServer::Service::~Service() {
 }
 
 ::grpc::Status QuantraServer::Service::CalibrateCorrelation(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<CalibrateCorrelationRequest>* /*request*/, flatbuffers::grpc::Message<CalibrateCorrelationResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::ValidateVolSurface(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<ValidateVolSurfaceRequest>* /*request*/, flatbuffers::grpc::Message<ValidateVolSurfaceResponse>* /*response*/) {
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 

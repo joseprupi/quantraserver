@@ -24,6 +24,10 @@
 
 namespace quantra {
 
+/// Decode a MonteCarloSpec (presence and range rules; `path` prefixes every
+/// message). Shared with /validate-vol-surface's `simulation`.
+MonteCarloData decodeMonteCarloSpec(const quantra::MonteCarloSpec* spec, const std::string& path);
+
 class StructuredNoteMapper {
 public:
     StructuredNoteInputs toInputs(const quantra::PriceStructuredNoteRequest* req) const;

@@ -58,6 +58,8 @@ include "../fbs/calibrate_vol_surface_request.fbs";
 include "../fbs/calibrate_vol_surface_response.fbs";
 include "../fbs/calibrate_correlation_request.fbs";
 include "../fbs/calibrate_correlation_response.fbs";
+include "../fbs/validate_vol_surface_request.fbs";
+include "../fbs/validate_vol_surface_response.fbs";
 include "../fbs/meta_request.fbs";
 include "../fbs/meta_response.fbs";
 
@@ -94,5 +96,6 @@ rpc_service QuantraServer {
   CalibrateImpliedForwards(CalibrateImpliedForwardsRequest):CalibrateImpliedForwardsResponse;
   CalibrateVolSurface(CalibrateVolSurfaceRequest):CalibrateVolSurfaceResponse;
   CalibrateCorrelation(CalibrateCorrelationRequest):CalibrateCorrelationResponse;
+  ValidateVolSurface(ValidateVolSurfaceRequest):ValidateVolSurfaceResponse;
   Meta(MetaRequest):MetaResponse;
 }

@@ -117,7 +117,7 @@
  * numerator).
  *
  * Sharing. A request builds several process arrays from the same market
- * (the price, the correlation limits of `checks`, the repricing run, the
+ * (the price, the correlation limits of `checks`, the
  * bumped runs whose inputs did not move), each deriving its own local vol
  * copy. `LocalVolCache` hands out ONE edge-clamped LocalVolSurface per
  * distinct (vol, spot, dividend, riskFree) quadruple and
