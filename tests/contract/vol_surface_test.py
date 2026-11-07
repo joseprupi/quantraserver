@@ -38,6 +38,7 @@ from pathlib import Path
 import pytest
 
 from ql_reference import calibrate_vol_surface_ql, load_json
+from vol_validation import validate
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "tests" / "tools"))
@@ -138,14 +139,24 @@ def test_response_shape_and_spec(client, data_dir):
         for d in e["dropped"]:
             assert "quote resolution" in d["reason"]
         assert e["butterfly_action"] == "none" and e["calendar_action"] == "none"
-        assert e["rmse_vol"] < 1e-8
         assert set(e["svi"]) == {"a", "b", "sigma", "rho", "m"}
         used += e["quotes_used"]
     assert used > 150
-    rp = out["vanilla_repricing"]
-    assert rp["count"] == used and rp["inside_bid_ask"] == used
-    assert len(rp["quotes"]) == used
-    assert rp["max_abs_vol_error"] < 1e-6
+    # The fit and the checks are /validate-vol-surface's; the calibrate
+    # response keeps one flag per payload.
+    assert out["arbitrage_free"] is True and out["arbitrage_free_svi"] is True
+    assert out["svi_local_vol_refit_action"] == "none"
+    for gone in ("vanilla_repricing", "local_vol_check", "local_vol_check_svi",
+                 "andreasen_huge_error"):
+        assert gone not in out
+    for e in out["expiries"]:
+        for gone in ("rmse_vol", "max_abs_error_vol", "butterfly_min_g", "butterfly_violation",
+                     "calendar_min_margin", "calendar_min_forward_vol"):
+            assert gone not in e
+    fit = validate(client, request, out)["fit"]
+    assert fit["count"] == used and fit["inside"] == used
+    assert len(fit["quotes"]) == used
+    assert fit["max_abs_vol_error"] < 1e-6
     # The same surface as SVI slices, ready to paste: one slice per fitted
     # expiry with the forward used and the parameters of the report.
     svi = out["vol_surface_spec_svi"]
@@ -304,9 +315,9 @@ def test_svi_recovers_the_generating_surface(client, data_dir):
 
 
 def test_andreasen_huge_reproduces_the_surface_on_informative_quotes(client, data_dir):
-    out = _ok(client, load_json(data_dir / AH_EXAMPLE))
+    request = load_json(data_dir / AH_EXAMPLE)
+    out = _ok(client, request)
     assert out["method"] == "AndreasenHuge"
-    assert out["andreasen_huge_error"]["max_vol"] < 2.5e-3
     preset = gen.SYNTHETIC_SVI_NDX_LIKE
     truth = gen.truth(preset)
     worst, compared = 0.0, 0
@@ -325,9 +336,9 @@ def test_andreasen_huge_reproduces_the_surface_on_informative_quotes(client, dat
     for e in out["expiries"]:
         assert "svi" not in e and e["usable"]
         assert e["calendar_action"].startswith(("none", "reported only"))
-    rp = out["vanilla_repricing"]
-    outside = [(q["expiry"], q["strike"], q["mid"]) for q in rp["quotes"] if not q["inside_bid_ask"]]
-    assert rp["count"] > 150 and rp["inside_bid_ask"] * 100 >= rp["count"] * 95, outside
+    rp = validate(client, request, out, checks={"fit": True, "arbitrage": False})["fit"]
+    outside = [(q["expiry"], q["strike"], q["mid"]) for q in rp["quotes"] if not q["inside_spread"]]
+    assert rp["count"] > 150 and rp["inside"] * 100 >= rp["count"] * 95, outside
     # The quotes outside are the short-dated wing ones priced below 1e-4 of the spot.
     assert all(mid < 1e-4 * 24000.0 for _e, _k, mid in outside), outside
 
@@ -337,7 +348,7 @@ def test_api_equals_python_reference(client, data_dir, example, tol):
     request = load_json(data_dir / example)
     out = _ok(client, request)
     expected = calibrate_vol_surface_ql(request)
-    assert len(expected) > 250
+    assert len(expected) > 30
     worst, where = 0.0, None
     for path, ref in expected.items():
         api = _dig(out, path)
@@ -354,7 +365,8 @@ def test_api_equals_python_reference(client, data_dir, example, tol):
 
 @pytest.mark.parametrize("method", ["AndreasenHuge", "SviPerExpiry"])
 def test_flat_twenty_percent(client, method):
-    out = _ok(client, gen.build_vol_surface_request(gen.SYNTHETIC_FLAT_20, method))
+    request = gen.build_vol_surface_request(gen.SYNTHETIC_FLAT_20, method)
+    out = _ok(client, request)
     grid = _grid(out)
     # SVI samples the 41 default strikes; Andreasen-Huge returns its own
     # finite-difference strikes within the output range and the regions.
@@ -371,10 +383,11 @@ def test_flat_twenty_percent(client, method):
     assert max(abs(v - 0.20) for v in grid.values()) < (1e-3 if method == "SviPerExpiry" else 1e-2)
     # Andreasen-Huge on its own strikes: at most one wing quote just outside
     # its 1 % spread (the model's price noise).
-    rp = out["vanilla_repricing"]
-    assert rp["inside_bid_ask"] + (0 if method == "SviPerExpiry" else 1) >= rp["count"]
+    rp = validate(client, request, out, checks={"fit": True, "arbitrage": False})["fit"]
+    assert rp["inside"] + (0 if method == "SviPerExpiry" else 1) >= rp["count"]
     for e in out["expiries"]:
-        assert e["calendar_violations"] == 0 and not e["butterfly_violation"]
+        assert e["calendar_violations"] == 0
+        assert e.get("butterfly_action", "none") == "none"
 
 
 def test_pasted_forwards_give_the_same_surface(client, data_dir):
@@ -441,7 +454,8 @@ def test_pasted_surface_reprices_the_quotes_through_price_equity_option(client, 
                     "payload": {"model_type": "BlackScholesAnalytic"}}],
     }
     # Every used quote of three expiries, the out-of-the-money side.
-    sample = [q for q in out["vanilla_repricing"]["quotes"]
+    sample = [q for q in validate(client, request, out, checks={"fit": True, "arbitrage": False})
+              ["fit"]["quotes"]
               if q["expiry"] in ("2026-11-20", "2027-03-19", "2027-12-17")]
     assert len(sample) >= 60
     options = []
@@ -485,7 +499,7 @@ def test_pasted_surface_prices_a_structured_note(client, data_dir):
         assert vs["payload"]["surface_interpolator"] == "CubicStrikeLinearTime"
     assert request["notes"][0]["monte_carlo"]["steps_per_year"] == 252
     request["notes"][0]["monte_carlo"]["paths"] = 512
-    del request["diagnostics"]
+    assert "diagnostics" not in request  # the sheets moved to /validate-vol-surface (0.16.7)
     out = client.price("structured_note", request)
     note = out["notes"][0]
     assert math.isfinite(note["npv"]) and 500.0 < note["npv"] < 1200.0
@@ -496,7 +510,7 @@ def test_pasted_surface_prices_a_structured_note(client, data_dir):
     for vs in request["pricing"]["volatility"]["vol_surfaces"]:
         assert vs["payload_type"] == "SviVolSpec" and len(vs["payload"]["slices"]) == 8
     request["notes"][0]["monte_carlo"]["paths"] = 512
-    del request["diagnostics"]
+    assert "diagnostics" not in request  # the sheets moved to /validate-vol-surface (0.16.7)
     note = client.price("structured_note", request)["notes"][0]
     assert math.isfinite(note["npv"]) and 500.0 < note["npv"] < 1200.0
     assert note["model"]["underlyings"][0]["vol_shape"] == "SviSlices"

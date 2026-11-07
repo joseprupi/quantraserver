@@ -5679,7 +5679,7 @@ def _sn_bump_correlation(c, delta: float):
     return out, True
 
 
-def structured_note_ql(request: dict, index: int = 0) -> dict:
+def structured_note_ql(request: dict, index: int = 0, _vanilla_options=None) -> dict:
     """Reference price of `request["notes"][index]` on the engine's random
     stream (see the section comment above for every convention).
 
@@ -5700,6 +5700,13 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
     sensitivity is the mean of the per-sample difference of the two runs,
     scaled to the unit move, with the engine's standard-error estimator on
     those differences).
+
+    `_vanilla_options` (internal, validate_vol_surface_ql): a list of
+    (expiry date, strike, is_call) on the note's single underlying; the note
+    is not priced, the options are simulated on its paths over the grid of
+    its observation dates plus the option expiries and
+    {"mean", "standard_error", "time_steps"} of the undiscounted payoffs is
+    returned.
     """
     pricing = _reference_pricing_view(request)
     note = request["notes"][index]
@@ -6265,6 +6272,31 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
 
     simulate = make_simulate(grid, steps, n_acc, walk)
 
+    if _vanilla_options is not None:
+        # The options of /validate-vol-surface's simulation on one extra grid:
+        # the note's observation dates plus every option expiry.
+        rep_dates = sorted([ev["observation"] for ev in observed]
+                           + [d for (d, _strike, _is_call) in _vanilla_options])
+        rep_times, rep_index = _sn_simulation_times(as_of, rep_dates, steps_per_year)
+        rep_grid = ql.TimeGrid(rep_times)
+        rep_steps = len(rep_times) - 1
+        rep_gi = [None if ev["accrual_only"] else rep_index[ev["observation"]] for ev in future]
+        opt_gi = [rep_index[d] for (d, _strike, _is_call) in _vanilla_options]
+        n_opt = len(_vanilla_options)
+
+        def rep_walk(path, disc, rec=None, slot=0):
+            return walk(path, disc, rec, slot, rep_gi)
+
+        def rep_extra(path, acc):
+            for i, (_d, strike, is_call) in enumerate(_vanilla_options):
+                level = path[0][opt_gi[i]]
+                acc[n_acc + i] = max(level - strike if is_call else strike - level, 0.0)
+
+        rep = make_simulate(rep_grid, rep_steps, n_acc + n_opt, rep_walk, rep_extra)(
+            base_assets(), correlation, base)
+        return {"mean": rep["mean"][n_acc:], "standard_error": rep["standard_error"][n_acc:],
+                "time_steps": rep_steps}
+
     diag = request.get("diagnostics") or {}
     want_market = bool(diag.get("market", False))
     want_decomposition = bool(diag.get("decomposition", False))
@@ -6458,116 +6490,6 @@ def structured_note_ql(request: dict, index: int = 0) -> dict:
             dist["sample_paths"].append(sp)
         result["distribution"] = dist
 
-    # --- vanilla repricing (StructuredNoteVanillaRepricing doc comments) ---------
-    # One extra simulation on the note's grid plus every used sheet expiry:
-    # the out-of-the-money side of every usable quote (the engine's
-    # selectOutOfTheMoneyQuotes on the model forward spot x D_div(T) /
-    # D_note(T) and the plain note curve's DF) as a European payoff at its
-    # expiry grid point, D_note(T) x mean, with the note walked on the same
-    # paths (note_npv).
-    if bool(diag.get("vanilla_repricing", False)):
-        flt = diag.get("vanilla_repricing_filter") or {}
-        rep_dates = [ev["observation"] for ev in observed]
-        rep_unds = []
-        options = []  # (k, expiry date, strike, is_call)
-        for sheet in diag.get("vanilla_repricing_sheets") or []:
-            if sheet["underlying_id"] not in ids:
-                continue
-            k = ids.index(sheet["underlying_id"])
-            if und[k]["quanto"]:
-                raise ValueError("vanilla repricing: a sheet on a quanto underlying")
-            if sheet.get("option_style", "European") != "European":
-                raise ValueError("vanilla repricing: option_style must be European")
-            spot_k = und[k]["spot"]
-            by_expiry = {}
-            for q in sheet["quotes"]:
-                by_expiry.setdefault(q["expiry"], []).append(q)
-            ru = {"underlying_id": ids[k], "sheet_id": sheet["id"], "spot": spot_k,
-                  "expiries": [], "options": []}
-            for expiry in sorted(by_expiry, key=parse_date):
-                d = parse_date(expiry)
-                t = dc365.yearFraction(as_of, d)
-                if d <= as_of:
-                    ru["expiries"].append({"expiry": expiry, "time": t, "quotes_used": 0})
-                    continue
-                df = note_curve.discount(t, True)
-                fwd = spot_k * und[k]["dividend"].discount(t, True) / note_curve.discount(t, True)
-                used = _otm_quotes(by_expiry[expiry], flt, spot_k, fwd, df, t)
-                ru["expiries"].append({"expiry": expiry, "time": t, "forward": fwd,
-                                       "discount_factor": df, "quotes_used": len(used)})
-                if used:
-                    rep_dates.append(d)
-                for u in used:
-                    ru["options"].append({"expiry": expiry, "time": t, "strike": u["strike"],
-                                          "option_type": "Call" if u["is_call"] else "Put",
-                                          "bid": u["bid"], "ask": u["ask"], "mid": u["mid"],
-                                          "market_vol": u["vol"], "forward": fwd,
-                                          "discount_factor": df})
-                    options.append((k, d, u["strike"], u["is_call"]))
-            if not ru["options"]:
-                raise ValueError(f"vanilla repricing: no usable quote for {ids[k]}")
-            rep_unds.append(ru)
-        if not rep_unds:
-            raise ValueError("vanilla repricing: no sheet for any underlying of the note")
-        rep_dates.sort()
-        rep_times, rep_index = _sn_simulation_times(as_of, rep_dates, steps_per_year)
-        rep_grid = ql.TimeGrid(rep_times)
-        rep_steps = len(rep_times) - 1
-        rep_gi = [None if ev["accrual_only"] else rep_index[ev["observation"]] for ev in future]
-        opt_gi = [rep_index[d] for (_k, d, _strike, _is_call) in options]
-        n_opt = len(options)
-
-        def rep_walk(path, disc, rec=None, slot=0):
-            return walk(path, disc, rec, slot, rep_gi)
-
-        def rep_extra(path, acc):
-            for i, (k, _d, strike, is_call) in enumerate(options):
-                level = path[k][opt_gi[i]]
-                acc[n_acc + i] = max(level - strike if is_call else strike - level, 0.0)
-
-        rep_simulate = make_simulate(rep_grid, rep_steps, n_acc + n_opt, rep_walk, rep_extra)
-        rep = rep_simulate(base_assets(), correlation, base)
-        vr = {"paths": paths, "time_steps": rep_steps,
-              "note_npv": (rep["mean"][A_TOTAL] + known_total) * notional,
-              "note_standard_error": rep["standard_error"][A_TOTAL] * notional,
-              "count": 0, "inside_bid_ask": 0, "max_abs_price_error": 0.0,
-              "max_abs_vol_error": None, "max_standard_error": 0.0, "underlyings": rep_unds}
-        i = 0
-        for ru in rep_unds:
-            ru.update({"count": 0, "inside_bid_ask": 0, "max_abs_price_error": 0.0,
-                       "max_abs_vol_error": None, "max_standard_error": 0.0})
-            for o in ru["options"]:
-                df, fwd = o.pop("discount_factor"), o.pop("forward")
-                o["model_price"] = df * rep["mean"][n_acc + i]
-                o["standard_error"] = df * rep["standard_error"][n_acc + i]
-                o["inside_bid_ask"] = o["bid"] <= o["model_price"] <= o["ask"]
-                o["price_error"] = o["model_price"] - o["mid"]
-                mv = _black_implied_vol(o["option_type"] == "Call", o["strike"], fwd,
-                                        o["model_price"], df, o["time"])
-                if mv is not None:
-                    o["model_vol"] = mv
-                    o["vol_error"] = mv - o["market_vol"]
-                ru["count"] += 1
-                if o["inside_bid_ask"]:
-                    ru["inside_bid_ask"] += 1
-                ru["max_abs_price_error"] = max(ru["max_abs_price_error"], abs(o["price_error"]))
-                ru["max_standard_error"] = max(ru["max_standard_error"], o["standard_error"])
-                if "vol_error" in o:
-                    ru["max_abs_vol_error"] = max(ru["max_abs_vol_error"] or 0.0,
-                                                  abs(o["vol_error"]))
-                i += 1
-            vr["count"] += ru["count"]
-            vr["inside_bid_ask"] += ru["inside_bid_ask"]
-            vr["max_abs_price_error"] = max(vr["max_abs_price_error"], ru["max_abs_price_error"])
-            vr["max_standard_error"] = max(vr["max_standard_error"], ru["max_standard_error"])
-            if ru["max_abs_vol_error"] is not None:
-                vr["max_abs_vol_error"] = max(vr["max_abs_vol_error"] or 0.0,
-                                              ru["max_abs_vol_error"])
-            if ru["max_abs_vol_error"] is None:
-                del ru["max_abs_vol_error"]
-        if vr["max_abs_vol_error"] is None:
-            del vr["max_abs_vol_error"]
-        result["vanilla_repricing"] = vr
 
     # --- Greeks (StructuredNoteGreeks doc comments; the engine's arithmetic) ---
     if greeks_spec is not None:
@@ -6678,27 +6600,6 @@ def price_structured_note_ql(request: dict) -> dict:
         out["notes.0.p_barrier_breach"] = r["p_barrier_breach"]
         out["notes.0.expected_life_years"] = r["expected_life_years"]
     out["notes.0.seasoning.memory_carried"] = r["seasoning"]["memory_carried"]
-    if "vanilla_repricing" in r:
-        vr = r["vanilla_repricing"]
-        out["notes.0.vanilla_repricing.note_npv"] = vr["note_npv"]
-        out["notes.0.vanilla_repricing.note_standard_error"] = vr["note_standard_error"]
-        out["notes.0.vanilla_repricing.count"] = vr["count"]
-        out["notes.0.vanilla_repricing.inside_bid_ask"] = vr["inside_bid_ask"]
-        out["notes.0.vanilla_repricing.max_abs_price_error"] = vr["max_abs_price_error"]
-        out["notes.0.vanilla_repricing.max_standard_error"] = vr["max_standard_error"]
-        if "max_abs_vol_error" in vr:
-            out["notes.0.vanilla_repricing.max_abs_vol_error"] = vr["max_abs_vol_error"]
-        # A sample of the repriced options per sheet: the first, the middle
-        # and the last used quote (model price, standard error, model vol).
-        for i, u in enumerate(vr["underlyings"]):
-            n = len(u["options"])
-            for j in sorted({0, n // 2, n - 1}):
-                o = u["options"][j]
-                stem = f"notes.0.vanilla_repricing.underlyings.{i}.options.{j}."
-                out[stem + "model_price"] = o["model_price"]
-                out[stem + "standard_error"] = o["standard_error"]
-                if "model_vol" in o:
-                    out[stem + "model_vol"] = o["model_vol"]
     return out
 
 
@@ -7087,14 +6988,12 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
 
     The grid: strikes = moneyness * spot (default 0.50 .. 1.50 step 0.025),
     expiries = the fitted sheet expiries (or the request's calendar-day
-    periods). The returned surface is rebuilt as the pricers read it
-    (BlackVarianceSurface, NullCalendar, Act/365F, bilinear, extrapolation)
-    and every used quote repriced on it.
+    periods). (The fit of the used quotes on the returned surface is
+    `/validate-vol-surface`: validate_vol_surface_ql.)
 
     Returns {dotted.response.path: value}: the forwards used, per-expiry
-    quotes_used / rmse_vol / max_abs_error_vol (and the SVI parameters), the
-    grid strikes, every surface vol of vol_surface_spec, the repricing
-    summary and the per-quote model vol and price.
+    quotes_used (and the SVI / SSVI parameters), the grid strikes and every
+    surface vol of vol_surface_spec.
     """
     pricing = _reference_pricing_view(request)
     eval_date = parse_date(pricing["as_of_date"])
@@ -7200,17 +7099,6 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
             strikes = native
             n_str = len(strikes)
             vols = [[math.nan] * n_str for _ in range(n_exp)]
-        for w in work:
-            errs = []
-            for u in w["used"]:
-                try:
-                    errs.append(adapter.blackVol(w["date"], u["strike"], True) - u["vol"])
-                except RuntimeError:
-                    pass
-            if errs:
-                i = report_idx[w["expiry"]]
-                fields[f"expiries.{i}.rmse_vol"] = math.sqrt(sum(e * e for e in errs) / len(errs))
-                fields[f"expiries.{i}.max_abs_error_vol"] = max(abs(e) for e in errs)
         for i, d in enumerate(grid_dates):
             t = dc.yearFraction(eval_date, d)
             fwd_t = interpl.fwd(t)
@@ -7263,11 +7151,6 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
                     f"{p['b'] * (1.0 + abs(p['rho']))}); the penalized refit is engine-only")
             w["svi"] = p
             i = report_idx[w["expiry"]]
-            errs = [math.sqrt(max(0.0, _svi_total_variance(p, math.log(u["strike"] / w["fwd"])))
-                              / w["t"]) - u["vol"] for u in w["used"]]
-            fields[f"expiries.{i}.rmse_vol"] = math.sqrt(sum(e * e for e in errs) / len(errs))
-            fields[f"expiries.{i}.max_abs_error_vol"] = max(abs(e) for e in errs)
-            fields[f"expiries.{i}.butterfly_min_g"] = min_g
             for name in ("a", "b", "sigma", "rho", "m"):
                 fields[f"expiries.{i}.svi.{name}"] = p[name]
         if enforce_calendar:
@@ -7292,12 +7175,7 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
             w["used"] = [u for u in w["used"] if abs(math.log(u["strike"] / w["fwd"])) <= max_k]
             w["ssvi"] = truth[w["expiry"]]
             p = w["ssvi"]
-            node = (p["theta"], p["psi"], p["rho"] * p["psi"], 0.0, 0.0, 0.0)
-            errs = [math.sqrt(_ssvi_w(node, math.log(u["strike"] / w["fwd"])) / w["t"]) - u["vol"]
-                    for u in w["used"]]
             i = report_idx[w["expiry"]]
-            fields[f"expiries.{i}.rmse_vol"] = math.sqrt(sum(e * e for e in errs) / len(errs))
-            fields[f"expiries.{i}.max_abs_error_vol"] = max(abs(e) for e in errs)
             for name in ("theta", "rho", "psi"):
                 fields[f"expiries.{i}.ssvi.{name}"] = p[name]
         surface_ssvi = _SsviSurface(
@@ -7364,31 +7242,145 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
     fields["vol_surface_spec.payload.surface_vols.values"] = \
         [vols[i][j] for i in range(n_exp) for j in range(n_str)]
 
-    # Vanilla repricing on the returned grid as the pricers read it
-    # (CubicStrikeLinearTime: the engine's SmileSliceVolSurface twin).
-    surface = _SliceSurface(
-        eval_date, dc, grid_dates,
-        [_cubic_variance_slice(strikes, [vols[i][j] * vols[i][j] * times[i]
-                                         for j in range(n_str)]) for i in range(n_exp)],
-        strikes[0], strikes[-1])
-    n = inside = 0
-    max_p = max_v = 0.0
-    for w in work:
-        for u in w["used"]:
-            mv = surface.blackVol(w["date"], u["strike"], True)
-            mp = ql.blackFormula(ql.Option.Call if u["is_call"] else ql.Option.Put, u["strike"],
-                                 w["fwd"], mv * math.sqrt(w["t"]), w["df"])
-            fields[f"vanilla_repricing.quotes.{n}.model_vol"] = mv
-            fields[f"vanilla_repricing.quotes.{n}.model_price"] = mp
-            if u["bid"] <= mp <= u["ask"]:
-                inside += 1
-            max_p = max(max_p, abs(mp - u["mid"]))
-            max_v = max(max_v, abs(mv - u["vol"]))
-            n += 1
-    fields["vanilla_repricing.count"] = float(n)
-    fields["vanilla_repricing.inside_bid_ask"] = float(inside)
-    fields["vanilla_repricing.max_abs_price_error"] = max_p
-    fields["vanilla_repricing.max_abs_vol_error"] = max_v
+    return fields
+
+
+def validate_vol_surface_ql(request: dict) -> dict:
+    """Independent re-run of src/evaluators/vol_surface_validation_evaluator.cpp
+    (`/validate-vol-surface`) for the fit and the simulation tests.
+
+    Market: without `forwards`, per sheet expiry T (Act/365F) DF = D(T) on
+    `discounting_curve` and F = S D_div(T) / D(T) on the underlying's
+    dividend curve (both built from the request JSON as the server builds
+    them); with `forwards`, the pasted usable F and DF. Per expiry the
+    engine's selectOutOfTheMoneyQuotes (_otm_quotes); an expiry with fewer
+    than filter.min_quotes_per_expiry used quotes is dropped.
+
+    Fit: every used quote's vol read off the surface as the server builds
+    it (_sn_black_vol: QuantLib objects, or the twins of the engine's
+    CubicStrikeLinearTime grid, SVI and eSSVI payloads) at (expiry, K),
+    Black-76 price on F and DF, inside the bid/ask, vol and price errors,
+    the totals.
+
+    Simulation (`checks.simulation`, curve market only): the options
+    simulated on the engine's random stream through structured_note_ql's
+    path machinery (a one-underlying note whose only observation is the last
+    used expiry, so the grid is the used expiries refined by
+    steps_per_year), DF x mean and DF x standard error per quote.
+
+    The arbitrage scan has no Python port (it is the note's local vol on the
+    contract side: tests/contract/vol_surface_validation_test.py).
+
+    Returns {dotted.response.path: value}.
+    """
+    pricing = _reference_pricing_view(request)
+    as_of = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = as_of
+    dc = ql.Actual365Fixed()
+    sheet = request["quotes"]
+    if sheet.get("option_style", "European") != "European":
+        raise ValueError("option_style must be European")
+    if sheet["underlying_id"] != request["underlying_id"]:
+        raise ValueError("quotes.underlying_id must equal underlying_id")
+    eq = _sn_find(pricing.get("equity_underlyings"), "id", request["underlying_id"],
+                  "Equity underlying")
+    spot = float(_sn_find(pricing.get("quotes"), "id", eq["spot_quote_id"], "Quote")["value"])
+    flt = request.get("filter") or {}
+    min_quotes = int(flt.get("min_quotes_per_expiry", 4))
+    checks = request.get("checks") or {}
+    fwd_in = None
+    if request.get("forwards") is not None:
+        fwd_in = {e["expiry"]: (float(e["forward"]), float(e["implied_discount_factor"]))
+                  for e in request["forwards"] if e.get("usable")}
+    else:
+        disc = build_curve_from_json(
+            _sn_find(pricing["curves"], "id", request["discounting_curve"], "Discounting curve"),
+            as_of, request)
+        div = build_curve_from_json(
+            _sn_find(pricing["curves"], "id", eq["dividend_yield_curve_id"], "Dividend curve"),
+            as_of, request)
+    vol, _shape, _exact = _sn_black_vol(pricing, request["volatility_id"])
+
+    by_expiry = {}
+    for q in sheet["quotes"]:
+        by_expiry.setdefault(q["expiry"], []).append(q)
+    fields = {}
+    work = []
+    for i, expiry in enumerate(sorted(by_expiry, key=parse_date)):
+        d = parse_date(expiry)
+        t = dc.yearFraction(as_of, d)
+        if d <= as_of:
+            continue
+        if fwd_in is not None:
+            if expiry not in fwd_in:
+                continue
+            fwd, df = fwd_in[expiry]
+        else:
+            df = disc.discount(t, True)
+            fwd = spot * div.discount(t, True) / df
+        used = _otm_quotes(by_expiry[expiry], flt, spot, fwd, df, t)
+        fields[f"expiries.{i}.quotes_used"] = float(len(used) if len(used) >= min_quotes else 0)
+        if len(used) < min_quotes:
+            continue
+        fields[f"expiries.{i}.forward"] = fwd
+        fields[f"expiries.{i}.discount_factor"] = df
+        work.append({"expiry": expiry, "date": d, "t": t, "fwd": fwd, "df": df, "used": used})
+
+    if checks.get("fit", True):
+        n = inside = 0
+        ss = max_v = max_p = 0.0
+        for w in work:
+            for u in w["used"]:
+                mv = vol.blackVol(w["date"], u["strike"], True)
+                mp = ql.blackFormula(ql.Option.Call if u["is_call"] else ql.Option.Put,
+                                     u["strike"], w["fwd"], mv * math.sqrt(w["t"]), w["df"])
+                fields[f"fit.quotes.{n}.model_vol"] = mv
+                fields[f"fit.quotes.{n}.model_price"] = mp
+                fields[f"fit.quotes.{n}.moneyness"] = u["strike"] / w["fwd"]
+                if u["bid"] <= mp <= u["ask"]:
+                    inside += 1
+                ss += (mv - u["vol"]) ** 2
+                max_v = max(max_v, abs(mv - u["vol"]))
+                max_p = max(max_p, abs(mp - u["mid"]))
+                n += 1
+        fields["fit.count"] = float(n)
+        fields["fit.inside"] = float(inside)
+        fields["fit.rms_vol_error"] = math.sqrt(ss / n) if n else 0.0
+        fields["fit.max_abs_vol_error"] = max_v
+        fields["fit.max_abs_price_error"] = max_p
+
+    if checks.get("simulation", False):
+        if fwd_in is not None:
+            raise NotImplementedError("simulation on pasted forwards: curve market only")
+        last = work[-1]["expiry"]
+        note_request = {
+            "pricing": request["pricing"],
+            "notes": [{
+                "trade_id": "VALIDATE", "currency": eq.get("currency"), "notional": 1.0,
+                "underlyings": [{"underlying_id": request["underlying_id"],
+                                 "volatility_id": request["volatility_id"],
+                                 "initial_level": spot}],
+                "performance_rule": "WorstOf",
+                "events": [{"observation_date": last, "payment_date": last,
+                            "autocall_trigger": 1.0, "coupon": 0.0}],
+                "coupon_rule": {"memory": False, "pay_only_on_call": False},
+                "capital": {"barrier": 0.5, "monitoring": "European", "put_strike": 1.0,
+                            "participation": 1.0},
+                "maturity_payment_date": last,
+                "discounting_curve": request["discounting_curve"], "funding_spread_bp": 0.0,
+                "monte_carlo": request["simulation"]}],
+        }
+        options = [(w["date"], u["strike"], u["is_call"]) for w in work for u in w["used"]]
+        rep = structured_note_ql(note_request, 0, _vanilla_options=options)
+        fields["simulation.time_steps"] = float(rep["time_steps"])
+        n = 0
+        for w in work:
+            for _u in w["used"]:
+                fields[f"simulation.quotes.{n}.mc_price"] = w["df"] * rep["mean"][n]
+                fields[f"simulation.quotes.{n}.standard_error"] = \
+                    w["df"] * rep["standard_error"][n]
+                n += 1
+        fields["simulation.count"] = float(n)
     return fields
 
 
