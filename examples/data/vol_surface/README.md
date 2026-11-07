@@ -14,7 +14,7 @@ this shape.
 | `synthetic_svi_sheet_2026-09-30_svi.json` | The same sheet, `method: SviPerExpiry` (butterfly and calendar enforcement on). |
 | `synthetic_scotia_ndx_sheet.json`, `synthetic_scotia_rty_sheet.json` | The two quote sheets of the Scotia structured-note example as files (`{as_of_date, spot, sheet}`, the shape `tools/option_quotes/cboe_eod_to_quote_sheet.py` writes): the `svi_scotia_ndx` / `svi_scotia_rty` presets, read by `examples/structured_note_workflow/price_note_from_quotes.py`. |
 | `synthetic_spx_steep_wings_sheet_svi.json` | An SPX-like sheet quoted only from 60 % to 115 % of the spot out to 2.5 years (preset `spx_steep_wings`: σ = 18 % − 0.20 k/√T + 0.25 k²/√T), `method: SviPerExpiry`. The fitted slices are butterfly-free on the default output range (50 % to 150 %) and not beyond it: the response returns each slice's quoted strike range (`strike_min` / `strike_max`) and reports the violations beyond the output range in `butterfly_action`. Used by `examples/data/structured_note/synthetic_spx_2y_autocall_on_svi_quoted_strike_edges.json`. Produced by `--preset spx_steep_wings --endpoint vol-surface --method SviPerExpiry`. |
-| `synthetic_spx_daily_expiries_sheet_svi.json` | An SPX-like sheet with eight consecutive daily expiries, weeklies and monthlies out to 15 months (preset `spx_daily`: SSVI ρ = −0.7, at-the-money vols jittered by a few percent from one expiry to the next, 1 % noise on the mids, a minimum price of 0.05), `method: SviPerExpiry`. Fitted one by one (`svi.enforce_calendar: false`) the daily slices cross and a note on them is a 400 ("decreasing variance"); the calendar-consistent fit orders them, both returned specs pass `local_vol_check`, and the note `examples/data/structured_note/synthetic_spx_1y_autocall_on_daily_expiry_svi.json` prices on the returned SVI payload. Produced by `--preset spx_daily --endpoint vol-surface --method SviPerExpiry`. |
+| `synthetic_spx_daily_expiries_sheet_svi.json` | An SPX-like sheet with eight consecutive daily expiries, weeklies and monthlies out to 15 months (preset `spx_daily`: SSVI ρ = −0.7, at-the-money vols jittered by a few percent from one expiry to the next, 1 % noise on the mids, a minimum price of 0.05), `method: SviPerExpiry`. Fitted one by one (`svi.enforce_calendar: false`) the daily slices cross and a note on them is a 400 ("decreasing variance"); the calendar-consistent fit orders them, both returned specs are `arbitrage_free` (and pass the arbitrage check of `/validate-vol-surface`), and the note `examples/data/structured_note/synthetic_spx_1y_autocall_on_daily_expiry_svi.json` prices on the returned SVI payload. Produced by `--preset spx_daily --endpoint vol-surface --method SviPerExpiry`. |
 
 | `synthetic_svi_sheet_2026-09-30_ssvi.json` | The SVI sheet, `method: Ssvi` (eSSVI slices, `Vega` weighting). The sheet's SSVI power law is an eSSVI surface (`ψ = sqrt(θ)`, `ρ = −0.7`), so the fit returns the generating slices (`--truth` prints them as `ssvi`) in `vol_surface_spec_ssvi`. Produced by `--preset svi --endpoint vol-surface --method Ssvi`. |
 | `synthetic_spx_essvi_sheet_2026-10-21_ssvi.json` | An SPX-like sheet (spot 6000, flat 4 %, five expiries from one month to two years) generated from five eSSVI slices with their own `ρ` and `ψ` (preset `spx_essvi`, the surface of the contributed eSSVI example), `method: Ssvi` with `ssvi: {weighting: BidAsk, max_abs_log_moneyness: 0.5}`. The fit returns the generating slices. Produced by `--preset spx_essvi --endpoint vol-surface --method Ssvi`. |
@@ -55,10 +55,9 @@ per expiry.
 
 Per expiry: the forward and implied discount factor used, `quotes_used`
 (the deep short-dated wings whose out-of-the-money mid is below 1e-5 of the
-spot are dropped as uninformative, with that reason), `rmse_vol` /
-`max_abs_error_vol` against the market implied vols, for SVI the fitted
-`a, b, sigma, rho, m` (the generating ones to ~1e-6) and the butterfly /
-calendar findings; `vol_surface_spec`, the `BlackVolSpec` on the default
+spot are dropped as uninformative, with that reason), for SVI the fitted
+`a, b, sigma, rho, m` (the generating ones to ~1e-6) and what the butterfly
+and calendar handling did; `vol_surface_spec`, the `BlackVolSpec` on the default
 41 x 8 grid (strikes 50 % to 150 % of spot every 2.5 %, the eight sheet
 expiries as calendar-day periods, `surface_interpolator:
 CubicStrikeLinearTime` — a natural cubic spline of total variance in
@@ -67,9 +66,11 @@ between the nodes); with `SviPerExpiry` also `vol_surface_spec_svi`, the
 same surface as an `SviVolSpec` payload (the eight fitted slices with their
 forwards, the exact surface the quotes came from), and with
 `AndreasenHuge` instead `vol_surface_spec_svi_note` (no closed-form slices
-for that method); and `vanilla_repricing`, every used quote repriced on the
-grid — all inside their bid/ask under both methods on this sheet. See
-"Volatility surface from option quotes" in `docs/http-api.md` for the
+for that method); and one `arbitrage_free` flag per returned payload. How
+well the surface prices the quotes is `/validate-vol-surface` (the grid
+reprices every used quote inside its bid/ask under both methods on this
+sheet; `examples/data/vol_surface_validation/`). See "Volatility surface
+from option quotes" and "Validating a surface" in `docs/http-api.md` for the
 method and every field.
 
 ## The two-step flow
@@ -80,7 +81,10 @@ method and every field.
 2. `POST /calibrate-vol-surface` with the sheet and, optionally, the first
    response's `expiries` array as `forwards` (without it the fit is rerun
    here, same result) → `vol_surface_spec`.
-3. Paste `dividend_curve_spec` into `pricing.rates.curves` (and set the
+3. `POST /validate-vol-surface` with the returned payload in `pricing` and
+   the same sheet → the fit of every quote, the arbitrage scan and,
+   with `checks.simulation`, the Monte Carlo repricing.
+4. Paste `dividend_curve_spec` into `pricing.rates.curves` (and set the
    underlying's `dividend_yield_curve_id`) and `vol_surface_spec` (the
    grid) or `vol_surface_spec_svi` (the slices) into
    `pricing.volatility.vol_surfaces`; reference the vol id from an equity
@@ -88,7 +92,7 @@ method and every field.
    with `monte_carlo.steps_per_year` set (Dupire local vol).
 
 `examples/data/structured_note/scotia_autocallable_trigger_ndx_rty_us06419jme72_with_synthetic_surface.json`
-(the grids) and `..._with_synthetic_svi.json` (the SVI payloads) are step 3
+(the grids) and `..._with_synthetic_svi.json` (the SVI payloads) are step 4
 applied to the Scotia note: its NDX and RTY vols are surfaces calibrated
 with the SVI method from the `svi_scotia_ndx` and `svi_scotia_rty` presets — the `svi` / `svi_rty` smiles written on the
 note's own market (its spot levels, its `USD_TSY` Treasury curve read at
@@ -104,12 +108,10 @@ each POSTed to `/calibrate-vol-surface` (`synthetic_scotia_{ndx,rty}_sheet.json`
 are those two sheets as files, and `examples/structured_note_workflow/` runs the
 whole chain on them); the returned `vol_surface_spec`s
 (grid file) or `vol_surface_spec_svi`s (SVI file) are the note's
-`vol_surfaces`, the requests' `sheet`s are its
-`diagnostics.vanilla_repricing_sheets` (step 4: `vanilla_repricing: true`
-reprices every used quote through the simulated paths, see "Structured
-notes" > "Diagnostics" in `docs/http-api.md`; a test asserts the pasted
-sheets equal the generator's output and that both files reprice them within
-the Monte Carlo noise of their bid/ask). Those surfaces are synthetic: the
+`vol_surfaces`; `/validate-vol-surface` with `checks.simulation` reprices
+every used quote of the sheets through the paths of those surfaces (a test
+asserts both files' surfaces reprice them within the Monte Carlo noise of
+their bid/ask). Those surfaces are synthetic: the
 files show the shape of a surface-priced note, not a market value.
 
 ## Running

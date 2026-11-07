@@ -15,7 +15,7 @@ and ["Correlation from price histories"](../../docs/http-api.md#correlation-from
 
 | File | What |
 |---|---|
-| `price_note_from_quotes.py` | Level 2 end to end: price histories → `calibrate-correlation` (with `--closes`), quote sheets → `calibrate-implied-forwards` → `calibrate-vol-surface` → `price-structured-note` on the grid and on the SVI payload, with the repricing diagnostic; prints a table and writes every request and response body. Python 3 + `requests`. |
+| `price_note_from_quotes.py` | Level 2 end to end: price histories → `calibrate-correlation` (with `--closes`), quote sheets → `calibrate-implied-forwards` → `calibrate-vol-surface` → `validate-vol-surface` → `price-structured-note` on the grid and on the SVI (or eSSVI) payload; prints a table and writes every request and response body. Python 3 + `requests`. |
 | `price_note_from_quotes.sh` | The same calls as raw HTTP (`curl` + `jq`), on the bodies the Python script wrote or on the shipped example requests. |
 | `../data/vol_surface/synthetic_scotia_{ndx,rty}_sheet.json` | The two quote sheets the script reads by default: **synthetic**, generated on the note's own market by `tests/tools/make_synthetic_quote_sheet.py` (`svi_scotia_ndx` / `svi_scotia_rty`). |
 | `../data/correlation/ndx_rut_closes_2025-09-29_to_2026-09-30.json` | The price histories `--closes` reads by default: one year of daily NDX and RTY closes (public index closes; see the README there). Real data, unlike the sheets. |
@@ -121,39 +121,44 @@ Steps, each printed with a one-line summary:
 - (d) `POST /calibrate-vol-surface` per index: the same `pricing` and
   `sheet`, the step-(b) `expiries` array as `forwards` (so the surface is
   fitted on exactly the forwards the note will simulate), `method`
-  (`SviPerExpiry` here; `AndreasenHuge` is the default) and
+  (`SviPerExpiry` here, or `Ssvi`; `AndreasenHuge` is the default) and
   `vol_surface_id` = the note's `volatility_id` for that index. The response
-  gives the per-expiry report (`quotes_used`, `rmse_vol` and
-  `max_abs_error_vol` in vol units, the fitted `svi` parameters, the
-  butterfly and calendar findings and what was done about them),
-  `vol_surface_spec` (the grid: a `BlackVolSpec` `SmileCube3D`, 8 expiries x
-  41 strikes, read `CubicStrikeLinearTime`) and, with `SviPerExpiry`,
-  `vol_surface_spec_svi` (the same surface as an `SviVolSpec`: the fitted
-  slices with their forwards), and `vanilla_repricing`: every used quote
-  repriced on the returned grid, the surface's own acceptance check. The
-  script prints the report and keeps both specs.
-- (e) `POST /price-structured-note` twice: the note with the correlation
-  matrix of (b), the two dividend curves and the two surfaces pasted in
-  (grid, then SVI), `monte_carlo.steps_per_year` set (required with a surface: the simulation is Dupire
-  local vol on a time grid; 252 = one step per trading day), and
-  `diagnostics: {vanilla_repricing: true, vanilla_repricing_sheets: [the two
-  sheets], vanilla_repricing_filter: the same filter}`.
-- (f) With `--flat`: a third pricing with a `Constant` vol per index equal
-  to the Black-76 implied vol of the sheet's at-the-money quote nearest one
-  year, no `steps_per_year`: the level-1 request built from the same sheets.
+  gives the per-expiry report of how the surface was built (`quotes_used`,
+  the fitted `svi` parameters, what the butterfly and calendar handling
+  did), `vol_surface_spec` (the grid: a `BlackVolSpec` `SmileCube3D`, 8
+  expiries x 41 strikes, read `CubicStrikeLinearTime`) and, with
+  `SviPerExpiry`, `vol_surface_spec_svi` (the same surface as an
+  `SviVolSpec`: the fitted slices with their forwards; with `Ssvi`,
+  `vol_surface_spec_ssvi`), each with its `arbitrage_free` flag. The script
+  prints the report and keeps every payload.
+- (e) `POST /validate-vol-surface` per payload and index, on the note's own
+  market (the dividend curves of (c), the payload under the note's vol id):
+  the Black-76 fit of every sheet quote, the local-vol arbitrage scan as the
+  note reads the surface, and the Monte Carlo repricing of every quote at
+  the note's paths and `steps_per_year` (`--no-simulation` skips it). The
+  script prints the three verdicts and, when a quote misses its bid/ask,
+  the cells of the moneyness x maturity table where it does.
+- (f) `POST /price-structured-note` per payload: the note with the
+  correlation matrix of (b), the two dividend curves and the two surfaces
+  pasted in (grid, then SVI), `monte_carlo.steps_per_year` set (required
+  with a surface: the simulation is Dupire local vol on a time grid; 252 =
+  one step per trading day). With `--flat`: a further pricing (validated
+  the same way) with a `Constant` vol per index equal to the Black-76
+  implied vol of the sheet's at-the-money quote nearest one year, no
+  `steps_per_year`: the level-1 request built from the same sheets.
 - (g) The table.
 
 Run on the synthetic sheets at the defaults (2,048 Sobol paths, 252 steps
-per year) with `--flat` and the booked correlation; the 507-step local-vol
-simulation and its repricing run take about 2 s each in the engine at this
-path count (with `--closes` the matrix is 0.7472 instead of 0.747 and the
-rows move within the noise):
+per year) with `--flat` and `--closes` (the matrix is 0.7472 instead of
+the booked 0.747); the 507-step local-vol simulation of the note takes
+about 2.5 s in the engine at this path count, each validation's
+one-index simulation well under that:
 
 ```
-    run    price      +/- SE   status  p_call  p_breach      bond   coupons   cap.loss  repricing inside/within noise/total  max vol err
-    grid     951.91     6.19   Alive   0.535    0.201      982.7      75.3     -106.1               43 /  370 /  383   15.99 pts
-    svi      951.57     6.26   Alive   0.535    0.200      982.8      75.3     -106.6               45 /  370 /  383   16.01 pts
-    flat     957.03     4.57   Alive   0.411    0.224      975.0      57.9      -75.8                7 /   67 /  383   25.33 pts
+    run    price      +/- SE   status  p_call  p_breach      bond   coupons   cap.loss  validation per underlying: fit inside / arbitrage / MC within noise
+    grid     952.33     6.03   Alive   0.535    0.213      981.0      75.3     -104.0  NDX 189/189 ok 178/189; RTY 194/194 ok 187/194
+    svi      952.34     6.04   Alive   0.535    0.213      981.1      75.3     -104.1  NDX 189/189 ok 179/189; RTY 194/194 ok 187/194
+    flat     957.04     4.57   Alive   0.411    0.224      975.0      57.9      -75.8  NDX 4/189 ok 28/189; RTY 2/194 ok 37/194
 ```
 
 How to read it:
@@ -164,48 +169,45 @@ How to read it:
   separates them, so the two prices agree to the Monte Carlo noise.
 - `p_call`, `p_breach`: `event_probabilities[0].p_call` and
   `p_barrier_breach`; `bond`, `coupons`, `cap.loss`: the three `legs`.
-- `repricing inside / within noise / total`: of the `vanilla_repricing`
-  block, `inside_bid_ask` (model price strictly inside the quote's bid/ask),
-  the number of options whose model price sits no further than 3.5
-  standard errors outside its band (the gate's criterion: at a few thousand
-  paths the standard error of an at-the-money option is a few percent of
-  its price against a 1 % bid/ask, so "inside" is sampling-limited and
-  "within noise" is the honest count), and `count` (every usable quote of
-  both sheets, the same quotes step (c) used). `max vol err` is
-  `max_abs_vol_error`, the worst `model_vol - market_vol` over the quotes
-  for which both Black-76 vols solve; it is dominated by the deep wings of
-  the 16-day expiry, where the Euler steps of the local vol and the
-  sampling limit meet. The block also carries `note_npv` /
-  `note_standard_error`, the note walked on the repricing paths (a different
-  stream, the same model: a second estimate of the price), per-expiry
-  forwards and discount factors, every option with its `model_price`,
-  `standard_error`, `price_error` and `vol_error`, and the dropped lines
-  with reasons.
+- validation, per index: the `fit` of `/validate-vol-surface` (quotes
+  priced inside their bid/ask at the surface's own Black vol, out of every
+  usable quote of the sheet), its `arbitrage` flag (`ok` = the local vol
+  evaluates at every point of the scan), and of its `simulation` the
+  number of quotes whose Monte Carlo price sits within 3.5 standard errors
+  of the bid/ask band (`within_noise`: at a few thousand paths the
+  standard error of an at-the-money option is a few percent of its price
+  against a 1 % bid/ask, so "strictly inside" is sampling-limited and
+  "within noise" is the honest count). The misses on the surfaces are the
+  deep wings of the 16-day expiry, where the Euler steps of the local vol
+  and the sampling limit meet. The responses (written to `--out-dir`) carry
+  every quote, the table by moneyness band and maturity bucket, the
+  at-the-money error per expiry and the verdict strings.
 - The `flat` row is what level 1 gives from the same sheets. Its price
   lands near the surfaces' (957 against 952, one standard error apart at
   this path count) but not for the same reasons: without the skew the call
   at year one is less likely (0.41 against 0.54), the coupon leg smaller
   (58 against 75) and the capital-loss leg smaller too (−76 against −106),
-  and the two differences happen to offset on this note. The repricing
-  block tells the two apart: 7 of 383 listed options inside their band and
-  67 within the noise against 370, vol errors of up to 25 points in the
-  wings. A local-vol run reprices the listed options; a flat vol reprices
+  and the two differences happen to offset on this note. The validation
+  tells the two apart: 6 of 383 listed options inside their band at the
+  flat vol and 65 within the Monte Carlo noise against 365, vol errors of
+  up to 41 points in the short wings (the band table shows where). A local-vol run reprices the listed options; a flat vol reprices
   the one quote it was read from.
 
 The request bodies the script sends (`correlation_request.json` with
 `--closes`, `implied_forwards_<ID>_request.json`,
-`vol_surface_<ID>_request.json`, `price_note_{grid,svi,flat}_request.json`)
+`vol_surface_<ID>_request.json`, `validate_<RUN>_<ID>_request.json`,
+`price_note_{grid,svi,flat}_request.json`)
 and the responses are written to `--out-dir` (a temp dir by default; the
 path is printed). Any HTTP error ends the run with the engine's message and
 a non-zero exit.
 
 Cost: each pricing is a 252-steps-per-year local-vol simulation of two
-indices over two years, and the repricing diagnostic is a second one on a
-finer grid; together about 1 s per 1,000 paths in the engine, against the
-JSON gateway's 10 s RPC deadline (a `504` beyond it). 4,096 paths with the
-diagnostic fit; `--no-repricing` halves the cost (8,192 paths fit) and
-drops the repricing columns; more paths than that go through the gRPC
-server directly or a deployment with a longer deadline. At 8,192 paths the
+indices over two years, about 1 s per 1,000 paths in the engine, against
+the JSON gateway's RPC deadline (a `504` beyond it); each validation's
+simulation is one index on the sheet's expiries, a fraction of that.
+`--no-simulation` skips the validation's Monte Carlo; more paths than the
+deadline allows go through the gRPC server directly or a deployment with a
+longer deadline. At 8,192 paths the
 grid and the SVI prices are 950.8 ± 3.1 and 950.7 ± 3.1.
 
 `--method AndreasenHuge` returns the grid only (no closed-form slices;
@@ -244,6 +246,7 @@ When the desk already has the market, paste it; nothing is calibrated.
 - Funding: `funding_spread_bp` over the `discounting_curve` (the issuer's
   level; `greeks.funding_dv01` is the sensitivity per bp), or a funding
   curve as the discounting curve itself with the spread at zero.
-- Keep `diagnostics.vanilla_repricing` with the sheets the surfaces came
-  from: it is the one check that the pasted surface, the pasted forwards and
-  the simulation agree on the listed options.
+- Run `/validate-vol-surface` with the sheets the surfaces came from (fit,
+  arbitrage and `checks.simulation` on the note's market): it is the one
+  check that the pasted surface, the pasted forwards and the simulation
+  agree on the listed options.

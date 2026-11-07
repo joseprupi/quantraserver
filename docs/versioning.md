@@ -26,6 +26,100 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.16.7 (November 2026) — surface validation as its own endpoint
+
+`v0.16.7` separates checking a volatility surface from building it and from
+pricing with it. A new endpoint, `POST /validate-vol-surface`, tests any
+equity Black vol surface against a sheet of listed option quotes; the fit
+statistics, the full arbitrage checks and the Monte Carlo repricing that
+`/calibrate-vol-surface` and `/price-structured-note` used to carry move
+there. **This changes the responses of two endpoints and a request of one**
+(the 0.x rule: documented here, with the migration). QuantLib stays at 1.44;
+no price, surface or fitted parameter changes.
+
+Migration in one line: read the fit and the arbitrage checks from
+`/validate-vol-surface` (the returned payload in `pricing`, the same sheet,
+the calibrate response's `forwards` pasted); the calibrate response keeps a
+pass/fail per payload (`arbitrage_free`, `arbitrage_free_svi`,
+`arbitrage_free_ssvi`); the note's `diagnostics.vanilla_repricing` is
+`/validate-vol-surface` with `checks.simulation`.
+
+**`POST /validate-vol-surface`.** Request: `pricing` (curves, the
+underlying's spot and dividend curve, the surface in
+`volatility.vol_surfaces`), `volatility_id`, `underlying_id`,
+`discounting_curve`, `quotes` (an `OptionQuoteSheet`), optional `filter`
+(the calibrate endpoint's rules), optional `forwards` (an implied-forwards
+response: the sheet's forwards instead of the curves'), `checks` (`fit`
+and `arbitrage` on by default, `simulation` off), `simulation` (a
+`MonteCarloSpec`, required iff `checks.simulation`), optional `bands`
+(moneyness and maturity edges of the summary table). Response:
+`inputs_echo`, `expiries` (every sheet expiry with its forward, discount
+factor, quotes used and dropped), `fit` (per quote the Black-76 price at
+the surface's own vol, inside the bid/ask, vol and price errors; a table by
+moneyness band x maturity bucket; the at-the-money error per expiry;
+totals; a verdict), `arbitrage` (the local vol scan through the structured
+note's own code path, `LocalVolCheck`; the slice conditions of an SVI or
+SSVI payload; a verdict), `simulation` (per quote the Monte Carlo price on
+the surface's local vol with the note's path engine, its standard error and
+implied vol, within the noise of the bid/ask; the same table; a verdict) and
+`timing`. One implementation of each check
+(`src/evaluators/vol_surface_validation_evaluator.cpp`), run by the
+calibrate endpoint as well on the surfaces it returns. Details in
+`docs/http-api.md`, "Validating a surface"; examples in
+`examples/data/vol_surface_validation/`.
+
+Verified against 0.16.6 on the synthetic Scotia sheets (all three methods):
+the fit equals the former `vanilla_repricing` quote for quote; the local
+vol check of the SVI-method grid, the SVI and the SSVI payloads and the
+eSSVI check equal the former `local_vol_check*` / `ssvi_arbitrage` blocks
+(counts exactly, the smallest local variance to the JSON print of the
+surface); the simulation equals the former note diagnostic of a
+one-underlying note whose observation dates are sheet expiries, option for
+option (same seed, paths and grid). On an Andreasen-Huge grid the scan
+regions are now read from the spec, whose strike axis is the model's own,
+instead of the calibration's output range: the scan covers a slightly
+different set of points (29 refusals instead of 33 on the Scotia NDX sheet;
+the verdict, not arbitrage free, is the same).
+
+**`/calibrate-vol-surface` response, field by field.** Rule: what
+describes how the surface was built stays; what measures how good it is
+moves to `/validate-vol-surface`.
+
+| Field | 0.16.7 | Where it is now |
+|---|---|---|
+| `vol_surface_spec`, `vol_surface_spec_svi`, `vol_surface_spec_svi_note`, `vol_surface_spec_ssvi`, `forwards`, `forwards_source`, `filter`, `spot`, `method`, grid axes | kept | |
+| `expiries[]`: `expiry`, `time`, `usable`, `dropped_reason`, `forward`, `implied_discount_factor`, `quotes_used`, `quotes_dropped`, `dropped`, `svi`, `ssvi` | kept | |
+| `expiries[]`: `butterfly_action`, `calendar_refit`, `calendar_refit_max_vol_shift`, `calendar_fit_action`, `calendar_violations`, `calendar_max_clip_vol`, `calendar_action`, `grid_points_filled`, `ssvi_anchor_k`, `ssvi_anchor_total_variance`, `ssvi_anchor_clamped` | kept (how the fit and the grid were built) | |
+| `expiries[].rmse_vol`, `max_abs_error_vol` | removed | `fit.bands`, `fit.atm_error_per_expiry`, `fit.quotes[].vol_error` (the fit of the returned surface rather than of the internal object) |
+| `expiries[].butterfly_min_g`, `butterfly_violation` | removed | `arbitrage.svi_slices[].butterfly_min_g`, `wing_slope`; `butterfly_action` keeps what the fit found and did |
+| `expiries[].calendar_min_margin`, `calendar_min_forward_vol` | removed | `arbitrage.svi_slices[].calendar_min_dw`, `calendar_min_forward_vol` |
+| `expiries[].ssvi_margin_*` | removed | `arbitrage.ssvi_slices[].margin_*` |
+| `andreasen_huge_error` | removed | `fit` (against the returned grid) |
+| `vanilla_repricing` | removed | `fit` (`inside_bid_ask` → `inside_spread`, `count` / `inside_bid_ask` → `count` / `inside`) |
+| `local_vol_check`, `local_vol_check_svi`, `local_vol_check_ssvi` | removed | `arbitrage.local_vol_check` (validating the payload); the field `action` is gone |
+| `ssvi_arbitrage` | removed | `arbitrage.ssvi_check` |
+| `arbitrage_free`, `arbitrage_free_svi`, `arbitrage_free_ssvi` | new | the `arbitrage_free` of the former blocks (for SSVI also the slices' closed-form conditions) |
+| `svi_local_vol_refit_action` | new | the former `local_vol_check_svi.action` (the refit passes the check made the SVI fit do) |
+
+**`/price-structured-note`.** `diagnostics.vanilla_repricing`,
+`diagnostics.vanilla_repricing_sheets` and
+`diagnostics.vanilla_repricing_filter` are removed from the request (a
+request carrying them is a `400` from the JSON parser), and the
+`vanilla_repricing` block (with `StructuredNoteVanillaRepricing`,
+`…Underlying`, `StructuredNoteRepricingExpiry`,
+`StructuredNoteRepricedOption`) from the response, and the
+`vanilla_repricing` timing stage. Migration: `/validate-vol-surface` with
+`checks.simulation` and the note's `monte_carlo` per underlying and sheet,
+on the note's market; the former `note_npv` (the note walked on the
+repricing paths) has no successor. The two Scotia synthetic-surface examples
+no longer carry the sheets.
+
+Also: `examples/structured_note_workflow/price_note_from_quotes.py` runs
+the validation between the calibration and the pricing (and accepts
+`--method Ssvi`; `--no-repricing` is now `--no-simulation`); the Python
+client gains `validate_vol_surface`; the C++ client `ValidateVolSurface` /
+`ValidateVolSurfaceJSON`.
+
 ## Version 0.16.6 (November 2026) — eSSVI surfaces (contributed)
 
 `v0.16.6` is additive on the wire: a new vol payload, a new fit method and
