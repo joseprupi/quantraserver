@@ -57,9 +57,12 @@ and `arbitrage` on by default, `simulation` off), `simulation` (a
 factor, quotes used and dropped), `fit` (per quote the Black-76 price at
 the surface's own vol, inside the bid/ask, vol and price errors; a table by
 moneyness band x maturity bucket; the at-the-money error per expiry;
-totals; a verdict), `arbitrage` (the local vol scan through the structured
-note's own code path, `LocalVolCheck`; the slice conditions of an SVI or
-SSVI payload; a verdict), `simulation` (per quote the Monte Carlo price on
+totals; a verdict; per quote also `bid_vol` / `ask_vol`, the spread in vol
+units), `arbitrage` (the local vol scan through the structured note's own
+code path, `LocalVolCheck`; the slice conditions of an SVI or SSVI payload;
+`clamp_edges`, the strike clamps the note applies when reading the surface;
+with `checks.arbitrage_grid` every scanned point as `local_vol_grid`; a
+verdict), `simulation` (per quote the Monte Carlo price on
 the surface's local vol with the note's path engine, its standard error and
 implied vol, within the noise of the bid/ask; the same table; a verdict) and
 `timing`. One implementation of each check

@@ -123,7 +123,8 @@ LocalVolCheckData checkLocalVol(
     const std::vector<double>& expiryTimes,
     const std::vector<double>& regionTimes,
     const std::vector<std::pair<double, double>>& regions,
-    std::vector<std::pair<double, bool>>* refusedTimes) {
+    std::vector<std::pair<double, bool>>* refusedTimes,
+    LocalVolGridData* grid) {
     LocalVolCheckData c;
     if (regions.empty() || regions.size() != regionTimes.size()) {
         QUANTRA_ERROR("local vol check: one region per region time is required");
@@ -151,14 +152,25 @@ LocalVolCheckData checkLocalVol(
             static_cast<std::size_t>(
                 std::lower_bound(regionTimes.begin(), regionTimes.end(), t) - regionTimes.begin()));
         const double kMin = regions[r].first, kMax = regions[r].second;
+        LocalVolGridRowData* row = nullptr;
+        if (grid) {
+            grid->rows.emplace_back();
+            row = &grid->rows.back();
+            row->time = t;
+        }
         for (unsigned j = 0; j < kCheckStrikes; ++j) {
             const double K =
                 kMin *
                 std::exp(std::log(kMax / kMin) * static_cast<double>(j) / (kCheckStrikes - 1));
             ++c.points;
+            if (row) {
+                row->strikes.push_back(K);
+                row->localVols.push_back(0.0);
+            }
             try {
                 const double v = lv->localVol(t, K, true);
                 if (!std::isfinite(v)) QUANTRA_ERROR("non-finite local vol");
+                if (row) row->localVols.back() = v;
                 const double var = v * v;
                 if (!c.minLocalVariance || var < *c.minLocalVariance) {
                     c.minLocalVariance = var;
@@ -168,6 +180,7 @@ LocalVolCheckData checkLocalVol(
             } catch (const std::exception& ex) {
                 const std::string what = ex.what();
                 if (c.refused++ == 0) c.firstRefusal = trimMessage(what);
+                if (row) row->refused.push_back(j);
                 if (refusedTimes)
                     refusedTimes->emplace_back(
                         t, what.find("decreasing variance") != std::string::npos);
@@ -271,6 +284,9 @@ FitValidationData fitQuotes(
             q.ask = u.ask;
             q.mid = u.mid;
             q.marketVol = u.vol;
+            const auto side = u.isCall ? QuantLib::Option::Call : QuantLib::Option::Put;
+            q.bidVol = impliedBlackVol(side, u.strike, F, u.bid, DF, T);
+            q.askVol = impliedBlackVol(side, u.strike, F, u.ask, DF, T);
             q.modelVol = surface.blackVol(e.expiry, u.strike, true);
             q.modelPrice = QuantLib::blackFormula(
                 u.isCall ? QuantLib::Option::Call : QuantLib::Option::Put, u.strike, F,
@@ -323,6 +339,54 @@ FitValidationData fitQuotes(
 // ---------------------------------------------------------------------------
 
 namespace {
+
+/// The strike clamp LocalVolCache / EdgeClampedLocalVol applies to `asset`
+/// (see mc::EdgeClampedLocalVol: each range moved inside by kEdgeMargin in
+/// log-strike unless that leaves no interior); none for an exact-step vol.
+std::vector<ClampEdgeData> clampEdges(const BlackVolEntry& entry, const mc::BasketAsset& asset) {
+    std::vector<ClampEdgeData> out;
+    if (asset.exactStepCapable) return out;
+    const double m = mc::EdgeClampedLocalVol::kEdgeMargin;
+    auto edge = [&](double lo, double hi, ClampEdgeData e) {
+        double a = lo * std::exp(m), b = hi * std::exp(-m);
+        if (!(a < b)) {
+            a = lo;
+            b = hi;
+        }
+        if (a > 0.0) e.strikeMin = a;
+        if (b < 0.5 * QL_MAX_REAL) e.strikeMax = b;
+        if (e.strikeMin || e.strikeMax) out.push_back(e);
+    };
+    if (!asset.localVolStrikeBands.empty()) {
+        for (std::size_t i = 0; i < asset.localVolStrikeBands.size(); ++i) {
+            const auto& b = asset.localVolStrikeBands[i];
+            ClampEdgeData e;
+            e.scope = "PerExpiry";
+            e.expiryIso = DateToIso(entry.localVolStrikeBands.at(i).expiry);
+            e.time = b.time;
+            edge(b.minStrike, b.maxStrike, e);
+        }
+        return out;
+    }
+    const double lo =
+        asset.localVolStrikeRange ? asset.localVolStrikeRange->first : asset.vol->minStrike();
+    const double hi =
+        asset.localVolStrikeRange ? asset.localVolStrikeRange->second : asset.vol->maxStrike();
+    if (entry.pillarDates.empty()) {
+        ClampEdgeData e;
+        e.scope = "Surface";
+        edge(lo, hi, e);
+        return out;
+    }
+    for (const Date& d : entry.pillarDates) {
+        ClampEdgeData e;
+        e.scope = "Surface";
+        e.expiryIso = DateToIso(d);
+        e.time = asset.vol->timeFromReference(d);
+        edge(lo, hi, e);
+    }
+    return out;
+}
 
 Handle<QuantLib::YieldTermStructure> findCurve(const PricingRegistry& reg, const std::string& id) {
     auto it = reg.rates.curves.find(id);
@@ -471,6 +535,10 @@ VolSurfaceValidationResult VolSurfaceValidationEvaluator::evaluate(
     out.checkFit = in.checkFit;
     out.checkArbitrage = in.checkArbitrage;
     out.checkSimulation = in.checkSimulation;
+    out.checkArbitrageGrid = in.checkArbitrageGrid;
+    if (in.checkArbitrageGrid && !in.checkArbitrage) {
+        QUANTRA_INVALID_ARGUMENT("checks.arbitrage_grid: requires checks.arbitrage = true");
+    }
     out.bands = resolveBandEdges(in.bands, "bands");
 
     // Market.
@@ -652,9 +720,12 @@ VolSurfaceValidationResult VolSurfaceValidationEvaluator::evaluate(
         if (expiryTimes.empty()) expiryTimes = regionTimes;
         mc::BasketAsset probe = mc::MakeBasketAsset(in.underlyingId, spotH, qTS, rTS, entry.handle);
         applyLocalVolSettings(entry, probe);
+        if (in.checkArbitrageGrid) a.grid = LocalVolGridData{};
         a.localVol = checkLocalVol(
             entry.handle, probe.localVolStrikeBands, probe.localVolStrikeRange, probe.localVolTime,
-            spotH, rTS, qTS, expiryTimes, regionTimes, regions);
+            spotH, rTS, qTS, expiryTimes, regionTimes, regions, nullptr,
+            a.grid ? &*a.grid : nullptr);
+        a.clampEdges = clampEdges(entry, probe);
         if (entry.shapeFb == quantra::enums::VolSurfaceShape_SviSlices) {
             const auto s =
                 std::dynamic_pointer_cast<SmileSliceVolSurface>(entry.handle.currentLink());

@@ -467,3 +467,115 @@ def test_the_note_diagnostic_is_gone(client, data_dir):
     r = _post(client, note, "structured_note")
     assert r.status_code == 400, (r.status_code, r.text[:400])
     assert "vanilla_repricing" in r.text, r.text[:400]
+
+
+# --------------------------------------------------------------------------
+# bid_vol / ask_vol, the scanned grid, the clamp edges
+# --------------------------------------------------------------------------
+
+def test_bid_and_ask_vols(client, data_dir):
+    request = load_json(data_dir / EXAMPLES / "scotia_ndx_grid.json")
+    # A zero bid on an out-of-the-money put (kept by a wide spread filter):
+    # it has no implied vol, so bid_vol is absent, never 0.
+    request["filter"] = {"max_relative_spread": 10.0, "min_quotes_per_expiry": 4}
+    line = next(q for q in request["quotes"]["quotes"]
+                if q["expiry"] == "2027-06-18" and q["strike"] < 0.8 * 30408.5)
+    line["put_bid"] = 0.0
+    v = _ok(client, request)
+    quotes = v["fit"]["quotes"]
+    zero = next(q for q in quotes if q["expiry"] == "2027-06-18" and q["strike"] == line["strike"])
+    assert zero["bid"] == 0.0 and "bid_vol" not in zero and zero["ask_vol"] > 0.0
+    for q in quotes:
+        assert q.get("bid_vol", 1.0) > 0.0 and q.get("ask_vol", 1.0) > 0.0
+        if "bid_vol" in q and "ask_vol" in q:
+            assert q["bid_vol"] <= q["market_vol"] <= q["ask_vol"], q
+    # The Python twin: the same vols where they solve, absent where not.
+    ref = validate_vol_surface_ql(request)
+    for n, q in enumerate(quotes):
+        for side in ("bid_vol", "ask_vol"):
+            key = f"fit.quotes.{n}.{side}"
+            assert (key in ref) == (side in q), (n, side)
+            if side in q:
+                assert abs(q[side] - ref[key]) < 1e-11, (n, side)
+
+
+def _grid_check(arb):
+    check, grid = arb["local_vol_check"], arb["local_vol_grid"]
+    rows = grid["rows"]
+    assert len(rows) == check["times"]
+    assert all(a["time"] < b["time"] for a, b in zip(rows, rows[1:]))
+    assert sum(len(r["strikes"]) for r in rows) == check["points"]
+    assert sum(len(r["refused"]) for r in rows) == check["refused"]
+    smallest = None
+    for r in rows:
+        assert len(r["strikes"]) == len(r["local_vols"]) == check["strikes"]
+        assert all(a < b for a, b in zip(r["strikes"], r["strikes"][1:]))
+        refused = set(r["refused"])
+        for j, lv in enumerate(r["local_vols"]):
+            if j in refused:
+                assert lv == 0.0
+                continue
+            assert lv > 0.0
+            if smallest is None or lv * lv < smallest[0]:
+                smallest = (lv * lv, r["time"], r["strikes"][j])
+    if "min_local_variance" in check:
+        assert _close(smallest[0], check["min_local_variance"], rel=1e-9), (smallest, check)
+        assert _close(smallest[1], check["min_local_variance_time"], rel=1e-12)
+        assert _close(smallest[2], check["min_local_variance_strike"], rel=1e-12)
+
+
+@pytest.mark.parametrize("name", ["scotia_ndx_grid.json", "scotia_ndx_svi.json",
+                                  "scotia_ndx_ssvi.json"])
+def test_arbitrage_grid_is_the_scan(client, data_dir, name):
+    request = load_json(data_dir / EXAMPLES / name)
+    request.pop("simulation", None)
+    request["checks"] = {"fit": False, "arbitrage": True, "arbitrage_grid": True}
+    v = _ok(client, request)
+    assert v["inputs_echo"]["checks"]["arbitrage_grid"] is True
+    _grid_check(v["arbitrage"])
+    request["checks"]["arbitrage_grid"] = False
+    assert "local_vol_grid" not in _ok(client, request)["arbitrage"]
+    request["checks"] = {"fit": True, "arbitrage": False, "arbitrage_grid": True}
+    _status(client, request, 400, "checks.arbitrage_grid: requires checks.arbitrage")
+
+
+def test_arbitrage_grid_carries_the_refusals(client):
+    """The Andreasen-Huge grid of the Scotia NDX sheet is refused at some
+    scan points: the grid lists them and the smallest local variance is
+    taken over the others."""
+    req, out = _calibrate(client, gen.SYNTHETIC_SVI_SCOTIA_NDX, "AndreasenHuge")
+    v = validate(client, req, out, checks={"fit": False, "arbitrage": True,
+                                           "arbitrage_grid": True})
+    assert v["arbitrage"]["local_vol_check"]["refused"] > 0
+    _grid_check(v["arbitrage"])
+
+
+def test_clamp_edges(client, data_dir):
+    m = math.exp(1e-3)
+    grid = load_json(data_dir / EXAMPLES / "scotia_ndx_grid.json")
+    spec = grid["pricing"]["volatility"]["vol_surfaces"][0]["payload"]
+    edges = _ok(client, grid)["arbitrage"]["clamp_edges"]
+    assert [e["scope"] for e in edges] == ["PerExpiry"] * len(spec["expiries"])
+    for e, lo, hi in zip(edges, spec["local_vol_strike_min"], spec["local_vol_strike_max"]):
+        assert _close(e["strike_min"], lo * m, rel=1e-12) and _close(e["strike_max"], hi / m, rel=1e-12)
+    assert [round(e["time"] * 365) for e in edges] == [p["n"] for p in spec["expiries"]]
+    # The same grid without per-expiry ranges: its edge strikes, surface-wide.
+    del spec["local_vol_strike_min"], spec["local_vol_strike_max"]
+    edges = _ok(client, grid)["arbitrage"]["clamp_edges"]
+    assert {e["scope"] for e in edges} == {"Surface"} and len(edges) == len(spec["expiries"])
+    for e in edges:
+        assert _close(e["strike_min"], spec["strikes"][0] * m, rel=1e-12)
+        assert _close(e["strike_max"], spec["strikes"][-1] / m, rel=1e-12)
+    # The SVI payload: each slice's strike_min / strike_max.
+    svi = load_json(data_dir / EXAMPLES / "scotia_ndx_svi.json")
+    svi.pop("simulation")
+    svi["checks"] = {"fit": False, "arbitrage": True}
+    slices = svi["pricing"]["volatility"]["vol_surfaces"][0]["payload"]["slices"]
+    edges = _ok(client, svi)["arbitrage"]["clamp_edges"]
+    assert [e["expiry"] for e in edges] == [s["expiry"] for s in slices]
+    for e, s in zip(edges, slices):
+        assert e["scope"] == "PerExpiry"
+        assert _close(e["strike_min"], s["strike_min"] * m, rel=1e-12)
+    # A constant vol is read unclamped (exact steps, no local vol).
+    v = _ok(client, load_json(data_dir / EXAMPLES / "scotia_ndx_vendor_constant_vol.json"))
+    assert v["arbitrage"]["clamp_edges"] == []

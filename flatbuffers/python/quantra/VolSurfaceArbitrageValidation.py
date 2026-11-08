@@ -139,8 +139,48 @@ class VolSurfaceArbitrageValidation(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Present iff `checks.arbitrage_grid`.
+    # VolSurfaceArbitrageValidation
+    def LocalVolGrid(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.LocalVolGrid import LocalVolGrid
+            obj = LocalVolGrid()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # The strike clamps the note applies when reading the surface; empty
+    # when it reads it unclamped (a constant or term vol: exact lognormal
+    # steps, no local vol; a payload without strike limits).
+    # VolSurfaceArbitrageValidation
+    def ClampEdges(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra.ClampEdge import ClampEdge
+            obj = ClampEdge()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # VolSurfaceArbitrageValidation
+    def ClampEdgesLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # VolSurfaceArbitrageValidation
+    def ClampEdgesIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        return o == 0
+
 def VolSurfaceArbitrageValidationStart(builder):
-    builder.StartObject(7)
+    builder.StartObject(9)
 
 def Start(builder):
     VolSurfaceArbitrageValidationStart(builder)
@@ -205,6 +245,24 @@ def VolSurfaceArbitrageValidationAddVerdict(builder, verdict):
 def AddVerdict(builder, verdict):
     VolSurfaceArbitrageValidationAddVerdict(builder, verdict)
 
+def VolSurfaceArbitrageValidationAddLocalVolGrid(builder, localVolGrid):
+    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(localVolGrid), 0)
+
+def AddLocalVolGrid(builder, localVolGrid):
+    VolSurfaceArbitrageValidationAddLocalVolGrid(builder, localVolGrid)
+
+def VolSurfaceArbitrageValidationAddClampEdges(builder, clampEdges):
+    builder.PrependUOffsetTRelativeSlot(8, flatbuffers.number_types.UOffsetTFlags.py_type(clampEdges), 0)
+
+def AddClampEdges(builder, clampEdges):
+    VolSurfaceArbitrageValidationAddClampEdges(builder, clampEdges)
+
+def VolSurfaceArbitrageValidationStartClampEdgesVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartClampEdgesVector(builder, numElems):
+    return VolSurfaceArbitrageValidationStartClampEdgesVector(builder, numElems)
+
 def VolSurfaceArbitrageValidationEnd(builder):
     return builder.EndObject()
 
@@ -227,6 +285,8 @@ class VolSurfaceArbitrageValidationT(object):
         self.ssviSlices = None  # type: List[SsviSliceCheckT]
         self.violations = None  # type: List[str]
         self.verdict = None  # type: str
+        self.localVolGrid = None  # type: Optional[LocalVolGridT]
+        self.clampEdges = None  # type: List[ClampEdgeT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -275,6 +335,16 @@ class VolSurfaceArbitrageValidationT(object):
             for i in range(volSurfaceArbitrageValidation.ViolationsLength()):
                 self.violations.append(volSurfaceArbitrageValidation.Violations(i))
         self.verdict = volSurfaceArbitrageValidation.Verdict()
+        if volSurfaceArbitrageValidation.LocalVolGrid() is not None:
+            self.localVolGrid = LocalVolGridT.InitFromObj(volSurfaceArbitrageValidation.LocalVolGrid())
+        if not volSurfaceArbitrageValidation.ClampEdgesIsNone():
+            self.clampEdges = []
+            for i in range(volSurfaceArbitrageValidation.ClampEdgesLength()):
+                if volSurfaceArbitrageValidation.ClampEdges(i) is None:
+                    self.clampEdges.append(None)
+                else:
+                    clampEdge_ = ClampEdgeT.InitFromObj(volSurfaceArbitrageValidation.ClampEdges(i))
+                    self.clampEdges.append(clampEdge_)
 
     # VolSurfaceArbitrageValidationT
     def Pack(self, builder):
@@ -308,6 +378,16 @@ class VolSurfaceArbitrageValidationT(object):
             violations = builder.EndVector()
         if self.verdict is not None:
             verdict = builder.CreateString(self.verdict)
+        if self.localVolGrid is not None:
+            localVolGrid = self.localVolGrid.Pack(builder)
+        if self.clampEdges is not None:
+            clampEdgeslist = []
+            for i in range(len(self.clampEdges)):
+                clampEdgeslist.append(self.clampEdges[i].Pack(builder))
+            VolSurfaceArbitrageValidationStartClampEdgesVector(builder, len(self.clampEdges))
+            for i in reversed(range(len(self.clampEdges))):
+                builder.PrependUOffsetTRelative(clampEdgeslist[i])
+            clampEdges = builder.EndVector()
         VolSurfaceArbitrageValidationStart(builder)
         VolSurfaceArbitrageValidationAddArbitrageFree(builder, self.arbitrageFree)
         if self.localVolCheck is not None:
@@ -322,5 +402,9 @@ class VolSurfaceArbitrageValidationT(object):
             VolSurfaceArbitrageValidationAddViolations(builder, violations)
         if self.verdict is not None:
             VolSurfaceArbitrageValidationAddVerdict(builder, verdict)
+        if self.localVolGrid is not None:
+            VolSurfaceArbitrageValidationAddLocalVolGrid(builder, localVolGrid)
+        if self.clampEdges is not None:
+            VolSurfaceArbitrageValidationAddClampEdges(builder, clampEdges)
         volSurfaceArbitrageValidation = VolSurfaceArbitrageValidationEnd(builder)
         return volSurfaceArbitrageValidation

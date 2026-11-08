@@ -7256,7 +7256,8 @@ def validate_vol_surface_ql(request: dict) -> dict:
     engine's selectOutOfTheMoneyQuotes (_otm_quotes); an expiry with fewer
     than filter.min_quotes_per_expiry used quotes is dropped.
 
-    Fit: every used quote's vol read off the surface as the server builds
+    Fit: the Black-76 vols of every used quote's bid and ask (bid_vol /
+    ask_vol, only where they solve), and its vol read off the surface as the server builds
     it (_sn_black_vol: QuantLib objects, or the twins of the engine's
     CubicStrikeLinearTime grid, SVI and eSSVI payloads) at (expiry, K),
     Black-76 price on F and DF, inside the bid/ask, vol and price errors,
@@ -7337,6 +7338,12 @@ def validate_vol_surface_ql(request: dict) -> dict:
                 fields[f"fit.quotes.{n}.model_vol"] = mv
                 fields[f"fit.quotes.{n}.model_price"] = mp
                 fields[f"fit.quotes.{n}.moneyness"] = u["strike"] / w["fwd"]
+                # bid_vol / ask_vol: present only when the price has an implied vol.
+                for side in ("bid", "ask"):
+                    v = _black_implied_vol(u["is_call"], u["strike"], w["fwd"], u[side], w["df"],
+                                           w["t"])
+                    if v is not None:
+                        fields[f"fit.quotes.{n}.{side}_vol"] = v
                 if u["bid"] <= mp <= u["ask"]:
                     inside += 1
                 ss += (mv - u["vol"]) ** 2

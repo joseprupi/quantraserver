@@ -80,6 +80,8 @@ Offset<quantra::VolSurfaceFitValidation> buildFit(
         qb.add_inside_spread(q.insideSpread);
         qb.add_vol_error(q.volError);
         qb.add_price_error(q.priceError);
+        if (q.bidVol) qb.add_bid_vol(*q.bidVol);
+        if (q.askVol) qb.add_ask_vol(*q.askVol);
         qs.push_back(qb.Finish());
     }
     auto qsOff = b.CreateVector(qs);
@@ -178,6 +180,39 @@ Offset<quantra::VolSurfaceArbitrageValidation> buildArbitrage(
         }
         ssviSlicesOff = b.CreateVector(v);
     }
+    Offset<quantra::LocalVolGrid> gridOff;
+    if (a.grid) {
+        std::vector<Offset<quantra::LocalVolGridRow>> rows;
+        for (const auto& r : a.grid->rows) {
+            auto kOff = b.CreateVector(r.strikes);
+            auto vOff = b.CreateVector(r.localVols);
+            auto refOff = b.CreateVector(r.refused);
+            quantra::LocalVolGridRowBuilder rb(b);
+            rb.add_time(r.time);
+            rb.add_strikes(kOff);
+            rb.add_local_vols(vOff);
+            rb.add_refused(refOff);
+            rows.push_back(rb.Finish());
+        }
+        auto rowsOff = b.CreateVector(rows);
+        quantra::LocalVolGridBuilder gb(b);
+        gb.add_rows(rowsOff);
+        gridOff = gb.Finish();
+    }
+    std::vector<Offset<quantra::ClampEdge>> edges;
+    for (const auto& e : a.clampEdges) {
+        auto scopeOff = b.CreateString(e.scope);
+        Offset<flatbuffers::String> expOff;
+        if (e.expiryIso) expOff = b.CreateString(*e.expiryIso);
+        quantra::ClampEdgeBuilder eb(b);
+        eb.add_scope(scopeOff);
+        if (e.expiryIso) eb.add_expiry(expOff);
+        if (e.time) eb.add_time(*e.time);
+        if (e.strikeMin) eb.add_strike_min(*e.strikeMin);
+        if (e.strikeMax) eb.add_strike_max(*e.strikeMax);
+        edges.push_back(eb.Finish());
+    }
+    auto edgesOff = b.CreateVector(edges);
     auto violationsOff = b.CreateVectorOfStrings(a.violations);
     auto verdictOff = b.CreateString(a.verdict);
     quantra::VolSurfaceArbitrageValidationBuilder ab(b);
@@ -188,6 +223,8 @@ Offset<quantra::VolSurfaceArbitrageValidation> buildArbitrage(
     if (a.ssviSlices) ab.add_ssvi_slices(ssviSlicesOff);
     ab.add_violations(violationsOff);
     ab.add_verdict(verdictOff);
+    if (a.grid) ab.add_local_vol_grid(gridOff);
+    ab.add_clamp_edges(edgesOff);
     return ab.Finish();
 }
 
@@ -265,6 +302,7 @@ VolSurfaceValidationInputs VolSurfaceValidationMapper::toInputs(
         in.checkFit = req->checks()->fit();
         in.checkArbitrage = req->checks()->arbitrage();
         in.checkSimulation = req->checks()->simulation();
+        in.checkArbitrageGrid = req->checks()->arbitrage_grid();
     }
     if (req->simulation()) in.simulation = decodeMonteCarloSpec(req->simulation(), "simulation");
     if (req->bands()) {
@@ -327,7 +365,7 @@ flatbuffers::Offset<quantra::ValidateVolSurfaceResponse> VolSurfaceValidationMap
     auto sheetOff = b.CreateString(r.sheetId);
     auto filterOff = buildFilter(b, r.filter);
     auto checksOff = quantra::CreateVolSurfaceValidationChecks(
-        b, r.checkFit, r.checkArbitrage, r.checkSimulation);
+        b, r.checkFit, r.checkArbitrage, r.checkSimulation, r.checkArbitrageGrid);
     auto mOff = b.CreateVector(r.bands.moneyness);
     auto tOff = b.CreateVector(r.bands.maturities);
     quantra::VolSurfaceValidationInputsEchoBuilder ib(b);

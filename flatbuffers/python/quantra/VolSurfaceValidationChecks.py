@@ -53,8 +53,19 @@ class VolSurfaceValidationChecks(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
+    # With `arbitrage`: also return every point the local vol scan
+    # evaluated (`arbitrage.local_vol_grid`: about 25 rows of 201 strikes
+    # on an 8-expiry surface, 10 000 to 20 000 points on a long sheet).
+    # Off: nothing more is returned. `true` without `arbitrage` is a 400.
+    # VolSurfaceValidationChecks
+    def ArbitrageGrid(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def VolSurfaceValidationChecksStart(builder):
-    builder.StartObject(3)
+    builder.StartObject(4)
 
 def Start(builder):
     VolSurfaceValidationChecksStart(builder)
@@ -77,6 +88,12 @@ def VolSurfaceValidationChecksAddSimulation(builder, simulation):
 def AddSimulation(builder, simulation):
     VolSurfaceValidationChecksAddSimulation(builder, simulation)
 
+def VolSurfaceValidationChecksAddArbitrageGrid(builder, arbitrageGrid):
+    builder.PrependBoolSlot(3, arbitrageGrid, 0)
+
+def AddArbitrageGrid(builder, arbitrageGrid):
+    VolSurfaceValidationChecksAddArbitrageGrid(builder, arbitrageGrid)
+
 def VolSurfaceValidationChecksEnd(builder):
     return builder.EndObject()
 
@@ -91,6 +108,7 @@ class VolSurfaceValidationChecksT(object):
         self.fit = True  # type: bool
         self.arbitrage = True  # type: bool
         self.simulation = False  # type: bool
+        self.arbitrageGrid = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -116,6 +134,7 @@ class VolSurfaceValidationChecksT(object):
         self.fit = volSurfaceValidationChecks.Fit()
         self.arbitrage = volSurfaceValidationChecks.Arbitrage()
         self.simulation = volSurfaceValidationChecks.Simulation()
+        self.arbitrageGrid = volSurfaceValidationChecks.ArbitrageGrid()
 
     # VolSurfaceValidationChecksT
     def Pack(self, builder):
@@ -123,5 +142,6 @@ class VolSurfaceValidationChecksT(object):
         VolSurfaceValidationChecksAddFit(builder, self.fit)
         VolSurfaceValidationChecksAddArbitrage(builder, self.arbitrage)
         VolSurfaceValidationChecksAddSimulation(builder, self.simulation)
+        VolSurfaceValidationChecksAddArbitrageGrid(builder, self.arbitrageGrid)
         volSurfaceValidationChecks = VolSurfaceValidationChecksEnd(builder)
         return volSurfaceValidationChecks

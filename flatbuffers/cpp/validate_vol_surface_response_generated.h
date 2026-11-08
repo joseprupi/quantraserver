@@ -44,6 +44,18 @@ struct LocalVolCheck;
 struct LocalVolCheckBuilder;
 struct LocalVolCheckT;
 
+struct LocalVolGridRow;
+struct LocalVolGridRowBuilder;
+struct LocalVolGridRowT;
+
+struct LocalVolGrid;
+struct LocalVolGridBuilder;
+struct LocalVolGridT;
+
+struct ClampEdge;
+struct ClampEdgeBuilder;
+struct ClampEdgeT;
+
 struct SsviArbitrageCheck;
 struct SsviArbitrageCheckBuilder;
 struct SsviArbitrageCheckT;
@@ -420,6 +432,8 @@ struct VolSurfaceQuoteFitT : public ::flatbuffers::NativeTable {
   bool inside_spread = false;
   double vol_error = 0.0;
   double price_error = 0.0;
+  ::flatbuffers::Optional<double> bid_vol = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> ask_vol = ::flatbuffers::nullopt;
 };
 
 /// One used quote priced on the surface (`fit`).
@@ -440,7 +454,9 @@ struct VolSurfaceQuoteFit FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table
     VT_MODEL_PRICE = 24,
     VT_INSIDE_SPREAD = 26,
     VT_VOL_ERROR = 28,
-    VT_PRICE_ERROR = 30
+    VT_PRICE_ERROR = 30,
+    VT_BID_VOL = 32,
+    VT_ASK_VOL = 34
   };
   const ::flatbuffers::String *expiry() const {
     return GetPointer<const ::flatbuffers::String *>(VT_EXPIRY);
@@ -494,6 +510,16 @@ struct VolSurfaceQuoteFit FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table
   double price_error() const {
     return GetField<double>(VT_PRICE_ERROR, 0.0);
   }
+  /// Black-76 implied vols of the bid and of the ask (the same side,
+  /// forward and discount factor as `market_vol`): the quote's spread in
+  /// vol units. Absent when the price has no implied vol (a zero bid, a
+  /// price at or below intrinsic value); never 0.
+  ::flatbuffers::Optional<double> bid_vol() const {
+    return GetOptional<double, double>(VT_BID_VOL);
+  }
+  ::flatbuffers::Optional<double> ask_vol() const {
+    return GetOptional<double, double>(VT_ASK_VOL);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_EXPIRY) &&
@@ -511,6 +537,8 @@ struct VolSurfaceQuoteFit FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table
            VerifyField<uint8_t>(verifier, VT_INSIDE_SPREAD, 1) &&
            VerifyField<double>(verifier, VT_VOL_ERROR, 8) &&
            VerifyField<double>(verifier, VT_PRICE_ERROR, 8) &&
+           VerifyField<double>(verifier, VT_BID_VOL, 8) &&
+           VerifyField<double>(verifier, VT_ASK_VOL, 8) &&
            verifier.EndTable();
   }
   VolSurfaceQuoteFitT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -564,6 +592,12 @@ struct VolSurfaceQuoteFitBuilder {
   void add_price_error(double price_error) {
     fbb_.AddElement<double>(VolSurfaceQuoteFit::VT_PRICE_ERROR, price_error, 0.0);
   }
+  void add_bid_vol(double bid_vol) {
+    fbb_.AddElement<double>(VolSurfaceQuoteFit::VT_BID_VOL, bid_vol);
+  }
+  void add_ask_vol(double ask_vol) {
+    fbb_.AddElement<double>(VolSurfaceQuoteFit::VT_ASK_VOL, ask_vol);
+  }
   explicit VolSurfaceQuoteFitBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -591,8 +625,12 @@ inline ::flatbuffers::Offset<VolSurfaceQuoteFit> CreateVolSurfaceQuoteFit(
     double model_price = 0.0,
     bool inside_spread = false,
     double vol_error = 0.0,
-    double price_error = 0.0) {
+    double price_error = 0.0,
+    ::flatbuffers::Optional<double> bid_vol = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> ask_vol = ::flatbuffers::nullopt) {
   VolSurfaceQuoteFitBuilder builder_(_fbb);
+  if(ask_vol) { builder_.add_ask_vol(*ask_vol); }
+  if(bid_vol) { builder_.add_bid_vol(*bid_vol); }
   builder_.add_price_error(price_error);
   builder_.add_vol_error(vol_error);
   builder_.add_model_price(model_price);
@@ -625,7 +663,9 @@ inline ::flatbuffers::Offset<VolSurfaceQuoteFit> CreateVolSurfaceQuoteFitDirect(
     double model_price = 0.0,
     bool inside_spread = false,
     double vol_error = 0.0,
-    double price_error = 0.0) {
+    double price_error = 0.0,
+    ::flatbuffers::Optional<double> bid_vol = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> ask_vol = ::flatbuffers::nullopt) {
   auto expiry__ = expiry ? _fbb.CreateString(expiry) : 0;
   return quantra::CreateVolSurfaceQuoteFit(
       _fbb,
@@ -642,7 +682,9 @@ inline ::flatbuffers::Offset<VolSurfaceQuoteFit> CreateVolSurfaceQuoteFitDirect(
       model_price,
       inside_spread,
       vol_error,
-      price_error);
+      price_error,
+      bid_vol,
+      ask_vol);
 }
 
 ::flatbuffers::Offset<VolSurfaceQuoteFit> CreateVolSurfaceQuoteFit(::flatbuffers::FlatBufferBuilder &_fbb, const VolSurfaceQuoteFitT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -1168,6 +1210,319 @@ inline ::flatbuffers::Offset<LocalVolCheck> CreateLocalVolCheckDirect(
 
 ::flatbuffers::Offset<LocalVolCheck> CreateLocalVolCheck(::flatbuffers::FlatBufferBuilder &_fbb, const LocalVolCheckT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct LocalVolGridRowT : public ::flatbuffers::NativeTable {
+  typedef LocalVolGridRow TableType;
+  double time = 0.0;
+  std::vector<double> strikes{};
+  std::vector<double> local_vols{};
+  std::vector<uint32_t> refused{};
+};
+
+/// One scan time of `local_vol_grid`: the strikes evaluated at that time
+/// (201, log-spaced over the region of the expiry the time belongs to, so
+/// they differ from row to row), the local vol at each (0 at a refused
+/// point) and the indices into `strikes` of the refused points.
+struct LocalVolGridRow FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef LocalVolGridRowT NativeTableType;
+  typedef LocalVolGridRowBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_TIME = 4,
+    VT_STRIKES = 6,
+    VT_LOCAL_VOLS = 8,
+    VT_REFUSED = 10
+  };
+  double time() const {
+    return GetField<double>(VT_TIME, 0.0);
+  }
+  const ::flatbuffers::Vector<double> *strikes() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_STRIKES);
+  }
+  const ::flatbuffers::Vector<double> *local_vols() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_LOCAL_VOLS);
+  }
+  const ::flatbuffers::Vector<uint32_t> *refused() const {
+    return GetPointer<const ::flatbuffers::Vector<uint32_t> *>(VT_REFUSED);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<double>(verifier, VT_TIME, 8) &&
+           VerifyOffsetRequired(verifier, VT_STRIKES) &&
+           verifier.VerifyVector(strikes()) &&
+           VerifyOffsetRequired(verifier, VT_LOCAL_VOLS) &&
+           verifier.VerifyVector(local_vols()) &&
+           VerifyOffsetRequired(verifier, VT_REFUSED) &&
+           verifier.VerifyVector(refused()) &&
+           verifier.EndTable();
+  }
+  LocalVolGridRowT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(LocalVolGridRowT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<LocalVolGridRow> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const LocalVolGridRowT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct LocalVolGridRowBuilder {
+  typedef LocalVolGridRow Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_time(double time) {
+    fbb_.AddElement<double>(LocalVolGridRow::VT_TIME, time, 0.0);
+  }
+  void add_strikes(::flatbuffers::Offset<::flatbuffers::Vector<double>> strikes) {
+    fbb_.AddOffset(LocalVolGridRow::VT_STRIKES, strikes);
+  }
+  void add_local_vols(::flatbuffers::Offset<::flatbuffers::Vector<double>> local_vols) {
+    fbb_.AddOffset(LocalVolGridRow::VT_LOCAL_VOLS, local_vols);
+  }
+  void add_refused(::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> refused) {
+    fbb_.AddOffset(LocalVolGridRow::VT_REFUSED, refused);
+  }
+  explicit LocalVolGridRowBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<LocalVolGridRow> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<LocalVolGridRow>(end);
+    fbb_.Required(o, LocalVolGridRow::VT_STRIKES);
+    fbb_.Required(o, LocalVolGridRow::VT_LOCAL_VOLS);
+    fbb_.Required(o, LocalVolGridRow::VT_REFUSED);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<LocalVolGridRow> CreateLocalVolGridRow(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    double time = 0.0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> strikes = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> local_vols = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<uint32_t>> refused = 0) {
+  LocalVolGridRowBuilder builder_(_fbb);
+  builder_.add_time(time);
+  builder_.add_refused(refused);
+  builder_.add_local_vols(local_vols);
+  builder_.add_strikes(strikes);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<LocalVolGridRow> CreateLocalVolGridRowDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    double time = 0.0,
+    const std::vector<double> *strikes = nullptr,
+    const std::vector<double> *local_vols = nullptr,
+    const std::vector<uint32_t> *refused = nullptr) {
+  auto strikes__ = strikes ? _fbb.CreateVector<double>(*strikes) : 0;
+  auto local_vols__ = local_vols ? _fbb.CreateVector<double>(*local_vols) : 0;
+  auto refused__ = refused ? _fbb.CreateVector<uint32_t>(*refused) : 0;
+  return quantra::CreateLocalVolGridRow(
+      _fbb,
+      time,
+      strikes__,
+      local_vols__,
+      refused__);
+}
+
+::flatbuffers::Offset<LocalVolGridRow> CreateLocalVolGridRow(::flatbuffers::FlatBufferBuilder &_fbb, const LocalVolGridRowT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct LocalVolGridT : public ::flatbuffers::NativeTable {
+  typedef LocalVolGrid TableType;
+  std::vector<std::unique_ptr<quantra::LocalVolGridRowT>> rows{};
+  LocalVolGridT() = default;
+  LocalVolGridT(const LocalVolGridT &o);
+  LocalVolGridT(LocalVolGridT&&) FLATBUFFERS_NOEXCEPT = default;
+  LocalVolGridT &operator=(LocalVolGridT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// Every point the local vol scan evaluated (`checks.arbitrage_grid`), one
+/// row per scan time in increasing time: exactly the `points` of
+/// `local_vol_check` (rows x 201). The smallest square of a local vol not
+/// refused is `local_vol_check.min_local_variance`. Size: about 5 000
+/// points on an 8-expiry sheet, 10 000 to 20 000 on a long one.
+struct LocalVolGrid FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef LocalVolGridT NativeTableType;
+  typedef LocalVolGridBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_ROWS = 4
+  };
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::LocalVolGridRow>> *rows() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::LocalVolGridRow>> *>(VT_ROWS);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffsetRequired(verifier, VT_ROWS) &&
+           verifier.VerifyVector(rows()) &&
+           verifier.VerifyVectorOfTables(rows()) &&
+           verifier.EndTable();
+  }
+  LocalVolGridT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(LocalVolGridT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<LocalVolGrid> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const LocalVolGridT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct LocalVolGridBuilder {
+  typedef LocalVolGrid Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_rows(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::LocalVolGridRow>>> rows) {
+    fbb_.AddOffset(LocalVolGrid::VT_ROWS, rows);
+  }
+  explicit LocalVolGridBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<LocalVolGrid> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<LocalVolGrid>(end);
+    fbb_.Required(o, LocalVolGrid::VT_ROWS);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<LocalVolGrid> CreateLocalVolGrid(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::LocalVolGridRow>>> rows = 0) {
+  LocalVolGridBuilder builder_(_fbb);
+  builder_.add_rows(rows);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<LocalVolGrid> CreateLocalVolGridDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const std::vector<::flatbuffers::Offset<quantra::LocalVolGridRow>> *rows = nullptr) {
+  auto rows__ = rows ? _fbb.CreateVector<::flatbuffers::Offset<quantra::LocalVolGridRow>>(*rows) : 0;
+  return quantra::CreateLocalVolGrid(
+      _fbb,
+      rows__);
+}
+
+::flatbuffers::Offset<LocalVolGrid> CreateLocalVolGrid(::flatbuffers::FlatBufferBuilder &_fbb, const LocalVolGridT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct ClampEdgeT : public ::flatbuffers::NativeTable {
+  typedef ClampEdge TableType;
+  std::string scope{};
+  std::string expiry{};
+  ::flatbuffers::Optional<double> time = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> strike_min = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> strike_max = ::flatbuffers::nullopt;
+};
+
+/// A strike clamp the structured note's local vol applies when it reads
+/// this surface (a simulated level beyond an edge reads the local vol at
+/// the edge): the level the local vol is read at, i.e. the spec's range
+/// moved inside by 1e-3 in log-strike (unless that leaves no interior).
+/// `scope` `PerExpiry`: the spec's per-expiry ranges (`local_vol_strike_min`
+/// / `_max` of a grid, `strike_min` / `strike_max` with
+/// `local_vol_strike_range: PerExpiry`), each applying up to its `time`;
+/// `Surface`: one range for the whole surface (a grid's edge strikes, the
+/// slices' widest `strike_min` / `strike_max`), repeated per expiry of the
+/// surface (or once, without expiry, when the surface has none). An edge is
+/// absent on an open side.
+struct ClampEdge FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef ClampEdgeT NativeTableType;
+  typedef ClampEdgeBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_SCOPE = 4,
+    VT_EXPIRY = 6,
+    VT_TIME = 8,
+    VT_STRIKE_MIN = 10,
+    VT_STRIKE_MAX = 12
+  };
+  const ::flatbuffers::String *scope() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_SCOPE);
+  }
+  const ::flatbuffers::String *expiry() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_EXPIRY);
+  }
+  ::flatbuffers::Optional<double> time() const {
+    return GetOptional<double, double>(VT_TIME);
+  }
+  ::flatbuffers::Optional<double> strike_min() const {
+    return GetOptional<double, double>(VT_STRIKE_MIN);
+  }
+  ::flatbuffers::Optional<double> strike_max() const {
+    return GetOptional<double, double>(VT_STRIKE_MAX);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffsetRequired(verifier, VT_SCOPE) &&
+           verifier.VerifyString(scope()) &&
+           VerifyOffset(verifier, VT_EXPIRY) &&
+           verifier.VerifyString(expiry()) &&
+           VerifyField<double>(verifier, VT_TIME, 8) &&
+           VerifyField<double>(verifier, VT_STRIKE_MIN, 8) &&
+           VerifyField<double>(verifier, VT_STRIKE_MAX, 8) &&
+           verifier.EndTable();
+  }
+  ClampEdgeT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(ClampEdgeT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<ClampEdge> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ClampEdgeT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct ClampEdgeBuilder {
+  typedef ClampEdge Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_scope(::flatbuffers::Offset<::flatbuffers::String> scope) {
+    fbb_.AddOffset(ClampEdge::VT_SCOPE, scope);
+  }
+  void add_expiry(::flatbuffers::Offset<::flatbuffers::String> expiry) {
+    fbb_.AddOffset(ClampEdge::VT_EXPIRY, expiry);
+  }
+  void add_time(double time) {
+    fbb_.AddElement<double>(ClampEdge::VT_TIME, time);
+  }
+  void add_strike_min(double strike_min) {
+    fbb_.AddElement<double>(ClampEdge::VT_STRIKE_MIN, strike_min);
+  }
+  void add_strike_max(double strike_max) {
+    fbb_.AddElement<double>(ClampEdge::VT_STRIKE_MAX, strike_max);
+  }
+  explicit ClampEdgeBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<ClampEdge> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<ClampEdge>(end);
+    fbb_.Required(o, ClampEdge::VT_SCOPE);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<ClampEdge> CreateClampEdge(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> scope = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> expiry = 0,
+    ::flatbuffers::Optional<double> time = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> strike_min = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> strike_max = ::flatbuffers::nullopt) {
+  ClampEdgeBuilder builder_(_fbb);
+  if(strike_max) { builder_.add_strike_max(*strike_max); }
+  if(strike_min) { builder_.add_strike_min(*strike_min); }
+  if(time) { builder_.add_time(*time); }
+  builder_.add_expiry(expiry);
+  builder_.add_scope(scope);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<ClampEdge> CreateClampEdgeDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *scope = nullptr,
+    const char *expiry = nullptr,
+    ::flatbuffers::Optional<double> time = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> strike_min = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> strike_max = ::flatbuffers::nullopt) {
+  auto scope__ = scope ? _fbb.CreateString(scope) : 0;
+  auto expiry__ = expiry ? _fbb.CreateString(expiry) : 0;
+  return quantra::CreateClampEdge(
+      _fbb,
+      scope__,
+      expiry__,
+      time,
+      strike_min,
+      strike_max);
+}
+
+::flatbuffers::Offset<ClampEdge> CreateClampEdge(::flatbuffers::FlatBufferBuilder &_fbb, const ClampEdgeT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct SsviArbitrageCheckT : public ::flatbuffers::NativeTable {
   typedef SsviArbitrageCheck TableType;
   std::vector<std::string> violations{};
@@ -1673,6 +2028,8 @@ struct VolSurfaceArbitrageValidationT : public ::flatbuffers::NativeTable {
   std::vector<std::unique_ptr<quantra::SsviSliceCheckT>> ssvi_slices{};
   std::vector<std::string> violations{};
   std::string verdict{};
+  std::unique_ptr<quantra::LocalVolGridT> local_vol_grid{};
+  std::vector<std::unique_ptr<quantra::ClampEdgeT>> clamp_edges{};
   VolSurfaceArbitrageValidationT() = default;
   VolSurfaceArbitrageValidationT(const VolSurfaceArbitrageValidationT &o);
   VolSurfaceArbitrageValidationT(VolSurfaceArbitrageValidationT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -1692,7 +2049,9 @@ struct VolSurfaceArbitrageValidation FLATBUFFERS_FINAL_CLASS : private ::flatbuf
     VT_SSVI_CHECK = 10,
     VT_SSVI_SLICES = 12,
     VT_VIOLATIONS = 14,
-    VT_VERDICT = 16
+    VT_VERDICT = 16,
+    VT_LOCAL_VOL_GRID = 18,
+    VT_CLAMP_EDGES = 20
   };
   /// True iff the local vol scan has no refusal and no slice condition is
   /// violated.
@@ -1721,6 +2080,16 @@ struct VolSurfaceArbitrageValidation FLATBUFFERS_FINAL_CLASS : private ::flatbuf
   const ::flatbuffers::String *verdict() const {
     return GetPointer<const ::flatbuffers::String *>(VT_VERDICT);
   }
+  /// Present iff `checks.arbitrage_grid`.
+  const quantra::LocalVolGrid *local_vol_grid() const {
+    return GetPointer<const quantra::LocalVolGrid *>(VT_LOCAL_VOL_GRID);
+  }
+  /// The strike clamps the note applies when reading the surface; empty
+  /// when it reads it unclamped (a constant or term vol: exact lognormal
+  /// steps, no local vol; a payload without strike limits).
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::ClampEdge>> *clamp_edges() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::ClampEdge>> *>(VT_CLAMP_EDGES);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint8_t>(verifier, VT_ARBITRAGE_FREE, 1) &&
@@ -1739,6 +2108,11 @@ struct VolSurfaceArbitrageValidation FLATBUFFERS_FINAL_CLASS : private ::flatbuf
            verifier.VerifyVectorOfStrings(violations()) &&
            VerifyOffsetRequired(verifier, VT_VERDICT) &&
            verifier.VerifyString(verdict()) &&
+           VerifyOffset(verifier, VT_LOCAL_VOL_GRID) &&
+           verifier.VerifyTable(local_vol_grid()) &&
+           VerifyOffsetRequired(verifier, VT_CLAMP_EDGES) &&
+           verifier.VerifyVector(clamp_edges()) &&
+           verifier.VerifyVectorOfTables(clamp_edges()) &&
            verifier.EndTable();
   }
   VolSurfaceArbitrageValidationT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -1771,6 +2145,12 @@ struct VolSurfaceArbitrageValidationBuilder {
   void add_verdict(::flatbuffers::Offset<::flatbuffers::String> verdict) {
     fbb_.AddOffset(VolSurfaceArbitrageValidation::VT_VERDICT, verdict);
   }
+  void add_local_vol_grid(::flatbuffers::Offset<quantra::LocalVolGrid> local_vol_grid) {
+    fbb_.AddOffset(VolSurfaceArbitrageValidation::VT_LOCAL_VOL_GRID, local_vol_grid);
+  }
+  void add_clamp_edges(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::ClampEdge>>> clamp_edges) {
+    fbb_.AddOffset(VolSurfaceArbitrageValidation::VT_CLAMP_EDGES, clamp_edges);
+  }
   explicit VolSurfaceArbitrageValidationBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -1781,6 +2161,7 @@ struct VolSurfaceArbitrageValidationBuilder {
     fbb_.Required(o, VolSurfaceArbitrageValidation::VT_LOCAL_VOL_CHECK);
     fbb_.Required(o, VolSurfaceArbitrageValidation::VT_VIOLATIONS);
     fbb_.Required(o, VolSurfaceArbitrageValidation::VT_VERDICT);
+    fbb_.Required(o, VolSurfaceArbitrageValidation::VT_CLAMP_EDGES);
     return o;
   }
 };
@@ -1793,8 +2174,12 @@ inline ::flatbuffers::Offset<VolSurfaceArbitrageValidation> CreateVolSurfaceArbi
     ::flatbuffers::Offset<quantra::SsviArbitrageCheck> ssvi_check = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SsviSliceCheck>>> ssvi_slices = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> violations = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> verdict = 0) {
+    ::flatbuffers::Offset<::flatbuffers::String> verdict = 0,
+    ::flatbuffers::Offset<quantra::LocalVolGrid> local_vol_grid = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::ClampEdge>>> clamp_edges = 0) {
   VolSurfaceArbitrageValidationBuilder builder_(_fbb);
+  builder_.add_clamp_edges(clamp_edges);
+  builder_.add_local_vol_grid(local_vol_grid);
   builder_.add_verdict(verdict);
   builder_.add_violations(violations);
   builder_.add_ssvi_slices(ssvi_slices);
@@ -1813,11 +2198,14 @@ inline ::flatbuffers::Offset<VolSurfaceArbitrageValidation> CreateVolSurfaceArbi
     ::flatbuffers::Offset<quantra::SsviArbitrageCheck> ssvi_check = 0,
     const std::vector<::flatbuffers::Offset<quantra::SsviSliceCheck>> *ssvi_slices = nullptr,
     const std::vector<::flatbuffers::Offset<::flatbuffers::String>> *violations = nullptr,
-    const char *verdict = nullptr) {
+    const char *verdict = nullptr,
+    ::flatbuffers::Offset<quantra::LocalVolGrid> local_vol_grid = 0,
+    const std::vector<::flatbuffers::Offset<quantra::ClampEdge>> *clamp_edges = nullptr) {
   auto svi_slices__ = svi_slices ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SviSliceCheck>>(*svi_slices) : 0;
   auto ssvi_slices__ = ssvi_slices ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SsviSliceCheck>>(*ssvi_slices) : 0;
   auto violations__ = violations ? _fbb.CreateVector<::flatbuffers::Offset<::flatbuffers::String>>(*violations) : 0;
   auto verdict__ = verdict ? _fbb.CreateString(verdict) : 0;
+  auto clamp_edges__ = clamp_edges ? _fbb.CreateVector<::flatbuffers::Offset<quantra::ClampEdge>>(*clamp_edges) : 0;
   return quantra::CreateVolSurfaceArbitrageValidation(
       _fbb,
       arbitrage_free,
@@ -1826,7 +2214,9 @@ inline ::flatbuffers::Offset<VolSurfaceArbitrageValidation> CreateVolSurfaceArbi
       ssvi_check,
       ssvi_slices__,
       violations__,
-      verdict__);
+      verdict__,
+      local_vol_grid,
+      clamp_edges__);
 }
 
 ::flatbuffers::Offset<VolSurfaceArbitrageValidation> CreateVolSurfaceArbitrageValidation(::flatbuffers::FlatBufferBuilder &_fbb, const VolSurfaceArbitrageValidationT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -2941,6 +3331,8 @@ inline void VolSurfaceQuoteFit::UnPackTo(VolSurfaceQuoteFitT *_o, const ::flatbu
   { auto _e = inside_spread(); _o->inside_spread = _e; }
   { auto _e = vol_error(); _o->vol_error = _e; }
   { auto _e = price_error(); _o->price_error = _e; }
+  { auto _e = bid_vol(); _o->bid_vol = _e; }
+  { auto _e = ask_vol(); _o->ask_vol = _e; }
 }
 
 inline ::flatbuffers::Offset<VolSurfaceQuoteFit> VolSurfaceQuoteFit::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const VolSurfaceQuoteFitT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -2965,6 +3357,8 @@ inline ::flatbuffers::Offset<VolSurfaceQuoteFit> CreateVolSurfaceQuoteFit(::flat
   auto _inside_spread = _o->inside_spread;
   auto _vol_error = _o->vol_error;
   auto _price_error = _o->price_error;
+  auto _bid_vol = _o->bid_vol;
+  auto _ask_vol = _o->ask_vol;
   return quantra::CreateVolSurfaceQuoteFit(
       _fbb,
       _expiry,
@@ -2980,7 +3374,9 @@ inline ::flatbuffers::Offset<VolSurfaceQuoteFit> CreateVolSurfaceQuoteFit(::flat
       _model_price,
       _inside_spread,
       _vol_error,
-      _price_error);
+      _price_error,
+      _bid_vol,
+      _ask_vol);
 }
 
 inline VolSurfaceAtmErrorT *VolSurfaceAtmError::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
@@ -3155,6 +3551,115 @@ inline ::flatbuffers::Offset<LocalVolCheck> CreateLocalVolCheck(::flatbuffers::F
       _min_local_variance_strike);
 }
 
+inline LocalVolGridRowT *LocalVolGridRow::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<LocalVolGridRowT>(new LocalVolGridRowT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void LocalVolGridRow::UnPackTo(LocalVolGridRowT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = time(); _o->time = _e; }
+  { auto _e = strikes(); if (_e) { _o->strikes.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->strikes[_i] = _e->Get(_i); } } else { _o->strikes.resize(0); } }
+  { auto _e = local_vols(); if (_e) { _o->local_vols.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->local_vols[_i] = _e->Get(_i); } } else { _o->local_vols.resize(0); } }
+  { auto _e = refused(); if (_e) { _o->refused.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->refused[_i] = _e->Get(_i); } } else { _o->refused.resize(0); } }
+}
+
+inline ::flatbuffers::Offset<LocalVolGridRow> LocalVolGridRow::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const LocalVolGridRowT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateLocalVolGridRow(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<LocalVolGridRow> CreateLocalVolGridRow(::flatbuffers::FlatBufferBuilder &_fbb, const LocalVolGridRowT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const LocalVolGridRowT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _time = _o->time;
+  auto _strikes = _fbb.CreateVector(_o->strikes);
+  auto _local_vols = _fbb.CreateVector(_o->local_vols);
+  auto _refused = _fbb.CreateVector(_o->refused);
+  return quantra::CreateLocalVolGridRow(
+      _fbb,
+      _time,
+      _strikes,
+      _local_vols,
+      _refused);
+}
+
+inline LocalVolGridT::LocalVolGridT(const LocalVolGridT &o) {
+  rows.reserve(o.rows.size());
+  for (const auto &rows_ : o.rows) { rows.emplace_back((rows_) ? new quantra::LocalVolGridRowT(*rows_) : nullptr); }
+}
+
+inline LocalVolGridT &LocalVolGridT::operator=(LocalVolGridT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(rows, o.rows);
+  return *this;
+}
+
+inline LocalVolGridT *LocalVolGrid::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<LocalVolGridT>(new LocalVolGridT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void LocalVolGrid::UnPackTo(LocalVolGridT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = rows(); if (_e) { _o->rows.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->rows[_i]) { _e->Get(_i)->UnPackTo(_o->rows[_i].get(), _resolver); } else { _o->rows[_i] = std::unique_ptr<quantra::LocalVolGridRowT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->rows.resize(0); } }
+}
+
+inline ::flatbuffers::Offset<LocalVolGrid> LocalVolGrid::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const LocalVolGridT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateLocalVolGrid(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<LocalVolGrid> CreateLocalVolGrid(::flatbuffers::FlatBufferBuilder &_fbb, const LocalVolGridT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const LocalVolGridT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _rows = _fbb.CreateVector<::flatbuffers::Offset<quantra::LocalVolGridRow>> (_o->rows.size(), [](size_t i, _VectorArgs *__va) { return CreateLocalVolGridRow(*__va->__fbb, __va->__o->rows[i].get(), __va->__rehasher); }, &_va );
+  return quantra::CreateLocalVolGrid(
+      _fbb,
+      _rows);
+}
+
+inline ClampEdgeT *ClampEdge::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<ClampEdgeT>(new ClampEdgeT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void ClampEdge::UnPackTo(ClampEdgeT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = scope(); if (_e) _o->scope = _e->str(); }
+  { auto _e = expiry(); if (_e) _o->expiry = _e->str(); }
+  { auto _e = time(); _o->time = _e; }
+  { auto _e = strike_min(); _o->strike_min = _e; }
+  { auto _e = strike_max(); _o->strike_max = _e; }
+}
+
+inline ::flatbuffers::Offset<ClampEdge> ClampEdge::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ClampEdgeT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateClampEdge(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<ClampEdge> CreateClampEdge(::flatbuffers::FlatBufferBuilder &_fbb, const ClampEdgeT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const ClampEdgeT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _scope = _fbb.CreateString(_o->scope);
+  auto _expiry = _o->expiry.empty() ? 0 : _fbb.CreateString(_o->expiry);
+  auto _time = _o->time;
+  auto _strike_min = _o->strike_min;
+  auto _strike_max = _o->strike_max;
+  return quantra::CreateClampEdge(
+      _fbb,
+      _scope,
+      _expiry,
+      _time,
+      _strike_min,
+      _strike_max);
+}
+
 inline SsviArbitrageCheckT *SsviArbitrageCheck::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<SsviArbitrageCheckT>(new SsviArbitrageCheckT());
   UnPackTo(_o.get(), _resolver);
@@ -3304,11 +3809,14 @@ inline VolSurfaceArbitrageValidationT::VolSurfaceArbitrageValidationT(const VolS
         local_vol_check((o.local_vol_check) ? new quantra::LocalVolCheckT(*o.local_vol_check) : nullptr),
         ssvi_check((o.ssvi_check) ? new quantra::SsviArbitrageCheckT(*o.ssvi_check) : nullptr),
         violations(o.violations),
-        verdict(o.verdict) {
+        verdict(o.verdict),
+        local_vol_grid((o.local_vol_grid) ? new quantra::LocalVolGridT(*o.local_vol_grid) : nullptr) {
   svi_slices.reserve(o.svi_slices.size());
   for (const auto &svi_slices_ : o.svi_slices) { svi_slices.emplace_back((svi_slices_) ? new quantra::SviSliceCheckT(*svi_slices_) : nullptr); }
   ssvi_slices.reserve(o.ssvi_slices.size());
   for (const auto &ssvi_slices_ : o.ssvi_slices) { ssvi_slices.emplace_back((ssvi_slices_) ? new quantra::SsviSliceCheckT(*ssvi_slices_) : nullptr); }
+  clamp_edges.reserve(o.clamp_edges.size());
+  for (const auto &clamp_edges_ : o.clamp_edges) { clamp_edges.emplace_back((clamp_edges_) ? new quantra::ClampEdgeT(*clamp_edges_) : nullptr); }
 }
 
 inline VolSurfaceArbitrageValidationT &VolSurfaceArbitrageValidationT::operator=(VolSurfaceArbitrageValidationT o) FLATBUFFERS_NOEXCEPT {
@@ -3319,6 +3827,8 @@ inline VolSurfaceArbitrageValidationT &VolSurfaceArbitrageValidationT::operator=
   std::swap(ssvi_slices, o.ssvi_slices);
   std::swap(violations, o.violations);
   std::swap(verdict, o.verdict);
+  std::swap(local_vol_grid, o.local_vol_grid);
+  std::swap(clamp_edges, o.clamp_edges);
   return *this;
 }
 
@@ -3338,6 +3848,8 @@ inline void VolSurfaceArbitrageValidation::UnPackTo(VolSurfaceArbitrageValidatio
   { auto _e = ssvi_slices(); if (_e) { _o->ssvi_slices.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->ssvi_slices[_i]) { _e->Get(_i)->UnPackTo(_o->ssvi_slices[_i].get(), _resolver); } else { _o->ssvi_slices[_i] = std::unique_ptr<quantra::SsviSliceCheckT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->ssvi_slices.resize(0); } }
   { auto _e = violations(); if (_e) { _o->violations.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->violations[_i] = _e->Get(_i)->str(); } } else { _o->violations.resize(0); } }
   { auto _e = verdict(); if (_e) _o->verdict = _e->str(); }
+  { auto _e = local_vol_grid(); if (_e) { if(_o->local_vol_grid) { _e->UnPackTo(_o->local_vol_grid.get(), _resolver); } else { _o->local_vol_grid = std::unique_ptr<quantra::LocalVolGridT>(_e->UnPack(_resolver)); } } else if (_o->local_vol_grid) { _o->local_vol_grid.reset(); } }
+  { auto _e = clamp_edges(); if (_e) { _o->clamp_edges.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->clamp_edges[_i]) { _e->Get(_i)->UnPackTo(_o->clamp_edges[_i].get(), _resolver); } else { _o->clamp_edges[_i] = std::unique_ptr<quantra::ClampEdgeT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->clamp_edges.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<VolSurfaceArbitrageValidation> VolSurfaceArbitrageValidation::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const VolSurfaceArbitrageValidationT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -3355,6 +3867,8 @@ inline ::flatbuffers::Offset<VolSurfaceArbitrageValidation> CreateVolSurfaceArbi
   auto _ssvi_slices = _o->ssvi_slices.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SsviSliceCheck>> (_o->ssvi_slices.size(), [](size_t i, _VectorArgs *__va) { return CreateSsviSliceCheck(*__va->__fbb, __va->__o->ssvi_slices[i].get(), __va->__rehasher); }, &_va ) : 0;
   auto _violations = _fbb.CreateVectorOfStrings(_o->violations);
   auto _verdict = _fbb.CreateString(_o->verdict);
+  auto _local_vol_grid = _o->local_vol_grid ? CreateLocalVolGrid(_fbb, _o->local_vol_grid.get(), _rehasher) : 0;
+  auto _clamp_edges = _fbb.CreateVector<::flatbuffers::Offset<quantra::ClampEdge>> (_o->clamp_edges.size(), [](size_t i, _VectorArgs *__va) { return CreateClampEdge(*__va->__fbb, __va->__o->clamp_edges[i].get(), __va->__rehasher); }, &_va );
   return quantra::CreateVolSurfaceArbitrageValidation(
       _fbb,
       _arbitrage_free,
@@ -3363,7 +3877,9 @@ inline ::flatbuffers::Offset<VolSurfaceArbitrageValidation> CreateVolSurfaceArbi
       _ssvi_check,
       _ssvi_slices,
       _violations,
-      _verdict);
+      _verdict,
+      _local_vol_grid,
+      _clamp_edges);
 }
 
 inline VolSurfaceQuoteSimulationT *VolSurfaceQuoteSimulation::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {

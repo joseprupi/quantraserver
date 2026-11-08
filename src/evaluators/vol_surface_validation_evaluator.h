@@ -107,6 +107,32 @@ struct LocalVolCheckData {
     bool arbitrageFree = false;
 };
 
+/// Every point of a local vol scan (opt-in): one row per scan time, the
+/// strikes of that row (they follow the row's region), the local vol at each
+/// (0 where refused) and the indices of the refused strikes.
+struct LocalVolGridRowData {
+    double time = 0.0;
+    std::vector<double> strikes;
+    std::vector<double> localVols;
+    std::vector<unsigned> refused;
+};
+struct LocalVolGridData {
+    std::vector<LocalVolGridRowData> rows;
+};
+
+/// A strike clamp the note's local vol applies when reading the surface:
+/// per expiry (the spec's per-expiry ranges) or surface-wide (one entry per
+/// surface expiry, or one without expiry when the surface has none); each
+/// edge is the level the local vol is read at beyond it (the range moved
+/// inside by EdgeClampedLocalVol::kEdgeMargin in log-strike), absent on an
+/// open side.
+struct ClampEdgeData {
+    std::string scope; // "PerExpiry" | "Surface"
+    std::optional<std::string> expiryIso;
+    std::optional<double> time;
+    std::optional<double> strikeMin, strikeMax;
+};
+
 /// eSSVI closed-form conditions found violated and the numeric scan.
 struct SsviArbitrageCheckData {
     std::vector<std::string> violations;
@@ -147,7 +173,8 @@ LocalVolCheckData checkLocalVol(
     const std::vector<double>& expiryTimes,
     const std::vector<double>& regionTimes,
     const std::vector<std::pair<double, double>>& regions,
-    std::vector<std::pair<double, bool>>* refusedTimes = nullptr);
+    std::vector<std::pair<double, bool>>* refusedTimes = nullptr,
+    LocalVolGridData* grid = nullptr);
 
 /// One expiry's used quotes for the region rule.
 struct RegionQuotes {
@@ -201,6 +228,9 @@ struct QuoteFitData {
     bool isCall = true;
     double bid = 0.0, ask = 0.0, mid = 0.0;
     double marketVol = 0.0;
+    /// Black-76 implied vols of the bid and the ask (same forward, discount
+    /// factor and side as marketVol); absent when the price has none.
+    std::optional<double> bidVol, askVol;
     double modelVol = 0.0;
     double modelPrice = 0.0;
     bool insideSpread = false;
@@ -255,6 +285,8 @@ struct VolSurfaceValidationInputs {
     bool checkFit = true;
     bool checkArbitrage = true;
     bool checkSimulation = false;
+    /// With checkArbitrage: return every scanned point (LocalVolGridData).
+    bool checkArbitrageGrid = false;
     std::optional<MonteCarloData> simulation;
     /// Requested edges (empty axis = default).
     VolSurfaceBandEdges bands;
@@ -279,6 +311,12 @@ struct SsviSliceCheckData {
 struct ArbitrageValidationData {
     bool arbitrageFree = false;
     LocalVolCheckData localVol;
+    /// Present iff checks.arbitrage_grid.
+    std::optional<LocalVolGridData> grid;
+    /// The strike clamp the note's local vol applies; empty when the surface
+    /// is read unclamped (a constant or term vol, a payload without strike
+    /// limits).
+    std::vector<ClampEdgeData> clampEdges;
     std::optional<std::vector<SviSliceCheckData>> sviSlices;
     std::optional<SsviArbitrageCheckData> ssvi;
     std::optional<std::vector<SsviSliceCheckData>> ssviSlices;
@@ -329,6 +367,7 @@ struct VolSurfaceValidationResult {
     std::string sheetId;
     QuoteFilterData filter;
     bool checkFit = true, checkArbitrage = true, checkSimulation = false;
+    bool checkArbitrageGrid = false;
     VolSurfaceBandEdges bands;
     std::vector<ValidationExpiry> expiries;
     std::optional<FitValidationData> fit;

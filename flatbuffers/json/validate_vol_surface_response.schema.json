@@ -3229,6 +3229,10 @@
         "simulation" : {
                 "type" : "boolean",
                 "description" : "Every usable quote priced by Monte Carlo on the local vol derived\nfrom the surface. Requires `simulation` (the Monte Carlo settings)."
+              },
+        "arbitrage_grid" : {
+                "type" : "boolean",
+                "description" : "With `arbitrage`: also return every point the local vol scan\nevaluated (`arbitrage.local_vol_grid`: about 25 rows of 201 strikes\non an 8-expiry surface, 10 000 to 20 000 points on a long sheet).\nOff: nothing more is returned. `true` without `arbitrage` is a 400."
               }
       },
       "additionalProperties" : false
@@ -3423,6 +3427,13 @@
         "price_error" : {
                 "type" : "number",
                 "description" : "model_price - mid."
+              },
+        "bid_vol" : {
+                "type" : "number",
+                "description" : "Black-76 implied vols of the bid and of the ask (the same side,\nforward and discount factor as `market_vol`): the quote's spread in\nvol units. Absent when the price has no implied vol (a zero bid, a\nprice at or below intrinsic value); never 0."
+              },
+        "ask_vol" : {
+                "type" : "number"
               }
       },
       "required" : ["expiry"],
@@ -3529,6 +3540,60 @@
                 "type" : "number"
               }
       },
+      "additionalProperties" : false
+    },
+    "quantra_LocalVolGridRow" : {
+      "type" : "object",
+      "description" : "One scan time of `local_vol_grid`: the strikes evaluated at that time\n(201, log-spaced over the region of the expiry the time belongs to, so\nthey differ from row to row), the local vol at each (0 at a refused\npoint) and the indices into `strikes` of the refused points.",
+      "properties" : {
+        "time" : {
+                "type" : "number"
+              },
+        "strikes" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "local_vols" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "refused" : {
+                "type" : "array", "items" : {"type" : "integer", "minimum" : 0, "maximum" : 4294967295}
+              }
+      },
+      "required" : ["strikes", "local_vols", "refused"],
+      "additionalProperties" : false
+    },
+    "quantra_LocalVolGrid" : {
+      "type" : "object",
+      "description" : "Every point the local vol scan evaluated (`checks.arbitrage_grid`), one\nrow per scan time in increasing time: exactly the `points` of\n`local_vol_check` (rows x 201). The smallest square of a local vol not\nrefused is `local_vol_check.min_local_variance`. Size: about 5 000\npoints on an 8-expiry sheet, 10 000 to 20 000 on a long one.",
+      "properties" : {
+        "rows" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_LocalVolGridRow"}
+              }
+      },
+      "required" : ["rows"],
+      "additionalProperties" : false
+    },
+    "quantra_ClampEdge" : {
+      "type" : "object",
+      "description" : "A strike clamp the structured note's local vol applies when it reads\nthis surface (a simulated level beyond an edge reads the local vol at\nthe edge): the level the local vol is read at, i.e. the spec's range\nmoved inside by 1e-3 in log-strike (unless that leaves no interior).\n`scope` `PerExpiry`: the spec's per-expiry ranges (`local_vol_strike_min`\n/ `_max` of a grid, `strike_min` / `strike_max` with\n`local_vol_strike_range: PerExpiry`), each applying up to its `time`;\n`Surface`: one range for the whole surface (a grid's edge strikes, the\nslices' widest `strike_min` / `strike_max`), repeated per expiry of the\nsurface (or once, without expiry, when the surface has none). An edge is\nabsent on an open side.",
+      "properties" : {
+        "scope" : {
+                "type" : "string"
+              },
+        "expiry" : {
+                "type" : "string"
+              },
+        "time" : {
+                "type" : "number"
+              },
+        "strike_min" : {
+                "type" : "number"
+              },
+        "strike_max" : {
+                "type" : "number"
+              }
+      },
+      "required" : ["scope"],
       "additionalProperties" : false
     },
     "quantra_SsviArbitrageCheck" : {
@@ -3659,9 +3724,17 @@
               },
         "verdict" : {
                 "type" : "string"
+              },
+        "local_vol_grid" : {
+                "$ref" : "#/definitions/quantra_LocalVolGrid",
+                "description" : "Present iff `checks.arbitrage_grid`."
+              },
+        "clamp_edges" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_ClampEdge"},
+                "description" : "The strike clamps the note applies when reading the surface; empty\nwhen it reads it unclamped (a constant or term vol: exact lognormal\nsteps, no local vol; a payload without strike limits)."
               }
       },
-      "required" : ["local_vol_check", "violations", "verdict"],
+      "required" : ["local_vol_check", "violations", "verdict", "clamp_edges"],
       "additionalProperties" : false
     },
     "quantra_VolSurfaceQuoteSimulation" : {

@@ -133,8 +133,26 @@ class VolSurfaceQuoteFit(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Black-76 implied vols of the bid and of the ask (the same side,
+    # forward and discount factor as `market_vol`): the quote's spread in
+    # vol units. Absent when the price has no implied vol (a zero bid, a
+    # price at or below intrinsic value); never 0.
+    # VolSurfaceQuoteFit
+    def BidVol(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(32))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
+    # VolSurfaceQuoteFit
+    def AskVol(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(34))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
 def VolSurfaceQuoteFitStart(builder):
-    builder.StartObject(14)
+    builder.StartObject(16)
 
 def Start(builder):
     VolSurfaceQuoteFitStart(builder)
@@ -223,6 +241,18 @@ def VolSurfaceQuoteFitAddPriceError(builder, priceError):
 def AddPriceError(builder, priceError):
     VolSurfaceQuoteFitAddPriceError(builder, priceError)
 
+def VolSurfaceQuoteFitAddBidVol(builder, bidVol):
+    builder.PrependFloat64Slot(14, bidVol, None)
+
+def AddBidVol(builder, bidVol):
+    VolSurfaceQuoteFitAddBidVol(builder, bidVol)
+
+def VolSurfaceQuoteFitAddAskVol(builder, askVol):
+    builder.PrependFloat64Slot(15, askVol, None)
+
+def AddAskVol(builder, askVol):
+    VolSurfaceQuoteFitAddAskVol(builder, askVol)
+
 def VolSurfaceQuoteFitEnd(builder):
     return builder.EndObject()
 
@@ -248,6 +278,8 @@ class VolSurfaceQuoteFitT(object):
         self.insideSpread = False  # type: bool
         self.volError = 0.0  # type: float
         self.priceError = 0.0  # type: float
+        self.bidVol = None  # type: Optional[float]
+        self.askVol = None  # type: Optional[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -284,6 +316,8 @@ class VolSurfaceQuoteFitT(object):
         self.insideSpread = volSurfaceQuoteFit.InsideSpread()
         self.volError = volSurfaceQuoteFit.VolError()
         self.priceError = volSurfaceQuoteFit.PriceError()
+        self.bidVol = volSurfaceQuoteFit.BidVol()
+        self.askVol = volSurfaceQuoteFit.AskVol()
 
     # VolSurfaceQuoteFitT
     def Pack(self, builder):
@@ -305,5 +339,7 @@ class VolSurfaceQuoteFitT(object):
         VolSurfaceQuoteFitAddInsideSpread(builder, self.insideSpread)
         VolSurfaceQuoteFitAddVolError(builder, self.volError)
         VolSurfaceQuoteFitAddPriceError(builder, self.priceError)
+        VolSurfaceQuoteFitAddBidVol(builder, self.bidVol)
+        VolSurfaceQuoteFitAddAskVol(builder, self.askVol)
         volSurfaceQuoteFit = VolSurfaceQuoteFitEnd(builder)
         return volSurfaceQuoteFit

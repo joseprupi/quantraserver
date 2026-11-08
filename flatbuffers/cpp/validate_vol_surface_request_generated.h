@@ -37,6 +37,7 @@ struct VolSurfaceValidationChecksT : public ::flatbuffers::NativeTable {
   bool fit = true;
   bool arbitrage = true;
   bool simulation = false;
+  bool arbitrage_grid = false;
 };
 
 /// Which tests `/validate-vol-surface` runs. At least one must be on.
@@ -46,7 +47,8 @@ struct VolSurfaceValidationChecks FLATBUFFERS_FINAL_CLASS : private ::flatbuffer
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_FIT = 4,
     VT_ARBITRAGE = 6,
-    VT_SIMULATION = 8
+    VT_SIMULATION = 8,
+    VT_ARBITRAGE_GRID = 10
   };
   /// Every usable quote priced with Black-76 on the surface's own vol at
   /// its expiry and strike, compared with its bid/ask.
@@ -64,11 +66,19 @@ struct VolSurfaceValidationChecks FLATBUFFERS_FINAL_CLASS : private ::flatbuffer
   bool simulation() const {
     return GetField<uint8_t>(VT_SIMULATION, 0) != 0;
   }
+  /// With `arbitrage`: also return every point the local vol scan
+  /// evaluated (`arbitrage.local_vol_grid`: about 25 rows of 201 strikes
+  /// on an 8-expiry surface, 10 000 to 20 000 points on a long sheet).
+  /// Off: nothing more is returned. `true` without `arbitrage` is a 400.
+  bool arbitrage_grid() const {
+    return GetField<uint8_t>(VT_ARBITRAGE_GRID, 0) != 0;
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint8_t>(verifier, VT_FIT, 1) &&
            VerifyField<uint8_t>(verifier, VT_ARBITRAGE, 1) &&
            VerifyField<uint8_t>(verifier, VT_SIMULATION, 1) &&
+           VerifyField<uint8_t>(verifier, VT_ARBITRAGE_GRID, 1) &&
            verifier.EndTable();
   }
   VolSurfaceValidationChecksT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -89,6 +99,9 @@ struct VolSurfaceValidationChecksBuilder {
   void add_simulation(bool simulation) {
     fbb_.AddElement<uint8_t>(VolSurfaceValidationChecks::VT_SIMULATION, static_cast<uint8_t>(simulation), 0);
   }
+  void add_arbitrage_grid(bool arbitrage_grid) {
+    fbb_.AddElement<uint8_t>(VolSurfaceValidationChecks::VT_ARBITRAGE_GRID, static_cast<uint8_t>(arbitrage_grid), 0);
+  }
   explicit VolSurfaceValidationChecksBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -104,8 +117,10 @@ inline ::flatbuffers::Offset<VolSurfaceValidationChecks> CreateVolSurfaceValidat
     ::flatbuffers::FlatBufferBuilder &_fbb,
     bool fit = true,
     bool arbitrage = true,
-    bool simulation = false) {
+    bool simulation = false,
+    bool arbitrage_grid = false) {
   VolSurfaceValidationChecksBuilder builder_(_fbb);
+  builder_.add_arbitrage_grid(arbitrage_grid);
   builder_.add_simulation(simulation);
   builder_.add_arbitrage(arbitrage);
   builder_.add_fit(fit);
@@ -450,6 +465,7 @@ inline void VolSurfaceValidationChecks::UnPackTo(VolSurfaceValidationChecksT *_o
   { auto _e = fit(); _o->fit = _e; }
   { auto _e = arbitrage(); _o->arbitrage = _e; }
   { auto _e = simulation(); _o->simulation = _e; }
+  { auto _e = arbitrage_grid(); _o->arbitrage_grid = _e; }
 }
 
 inline ::flatbuffers::Offset<VolSurfaceValidationChecks> VolSurfaceValidationChecks::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const VolSurfaceValidationChecksT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -463,11 +479,13 @@ inline ::flatbuffers::Offset<VolSurfaceValidationChecks> CreateVolSurfaceValidat
   auto _fit = _o->fit;
   auto _arbitrage = _o->arbitrage;
   auto _simulation = _o->simulation;
+  auto _arbitrage_grid = _o->arbitrage_grid;
   return quantra::CreateVolSurfaceValidationChecks(
       _fbb,
       _fit,
       _arbitrage,
-      _simulation);
+      _simulation,
+      _arbitrage_grid);
 }
 
 inline VolSurfaceValidationBandsT *VolSurfaceValidationBands::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
