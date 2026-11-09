@@ -79,12 +79,12 @@ the reference date and the expiries. At every expiry `F_read = F_i`, so the
 slices are read exactly where they were written (and the spot cancels);
 between expiries the moneyness the stencil follows is then fixed whenever
 the note's forwards meet the surface's expiry forwards, whatever shape the
-note's curves give its forward in between. Without it the same RTY payload
-was still refused on the note's curves: its slices are ordered with a
-margin of 1 % forward vol (1e-4 total variance per year) where the put wing
-is steep (`dw/dk ≈ −0.16`), and the bend of a dividend curve linear in zero
-rate between two expiries (a few basis points of drift) was enough to
-cross it. Black vol reads (vanilla options, the fit test) never go through
+note's curves give its forward in between. Without it the same real payload
+was still refused on the note's curves: its slices are ordered with the
+default margin of 1 % forward vol (`10⁻⁴` total variance per year) where
+the put wing is steep, and the bend of a dividend curve linear in zero
+rate between two expiries (a few basis points of drift) times that slope
+was enough to cross it. Black vol reads (vanilla options, the fit test) never go through
 this; a surface read at fixed strike is untouched.
 
 **The forward.** `F(t)` is ln-linear in time through the spot at the
@@ -120,17 +120,16 @@ forward's move), which replaces the two fixed-strike conditions along the
 forward; the penalized refit starts from the next slice lowered by the
 margin both at the same moneyness and moved to this forward (the former
 start), the best objective kept: with the single start the cascade of
-refits on the real SPX sheet (47 expiries) reached worse local minima
-(25 % → 7 % of the quotes inside their bid/ask), with both it is back
-within a point of 0.16.9. The grid clip compares at the same forward
+refits on a real index sheet with many expiries reached clearly worse local
+minima; with both the fit is back to the former quality. The grid clip compares at the same forward
 moneyness as before (now against the returned `expiry_forwards`). The
 grid's per-expiry local-vol strike ranges are pulled in by the forward's
 move over the interval each expiry closes (`[K₂ e^x, K_{n−1} e^−x]` at
 most, `x = |ln(F_i / F_{i−1})|`, `F_0` the spot): read at fixed moneyness
 a row is evaluated at `K F_i / F(t)`, and without it a path near the edge
 of a long interval read the later row beyond the grid's last strike (a
-constant-extrapolation kink, a negative local variance on a real SPX sheet
-at 1.7 years). The fit,
+constant-extrapolation kink, a negative local variance on a real index
+sheet). The fit,
 local-vol checks and `arbitrage_free` flags are computed on the surfaces as
 returned. Report fields keep their meaning (`calendar_*` margins are now
 measured at fixed moneyness, which is what `/validate-vol-surface`'s
