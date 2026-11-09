@@ -98,13 +98,37 @@ EdgeClampedLocalVol::EdgeClampedLocalVol(
     }
 }
 
+std::pair<QuantLib::Real, QuantLib::Real> EdgeClampedLocalVol::strikeBand(QuantLib::Time t) const {
+    if (bands_.empty()) return {lower_, upper_};
+    // The band of a time x on its own is the band of the first expiry at or
+    // after x (the last band beyond the last expiry): the expiry closing the
+    // interval x lies in. A read at t evaluates the Black variance at every
+    // time within the stencil around it, so the band at t is the
+    // intersection of the bands of every interval within kBandTimeWindow of
+    // t: one band inside an interval, two around an expiry.
+    const std::size_t n = bands_.size();
+    auto bandOf = [&](QuantLib::Time x) {
+        const auto it = std::lower_bound(
+            bands_.begin(), bands_.end(), x,
+            [](const LocalVolStrikeBand& b, QuantLib::Time v) { return b.time < v; });
+        return std::min(static_cast<std::size_t>(it - bands_.begin()), n - 1);
+    };
+    const std::size_t from = bandOf(t - kBandTimeWindow), to = bandOf(t + kBandTimeWindow);
+    QuantLib::Real lo = bands_[from].minStrike, hi = bands_[from].maxStrike;
+    for (std::size_t i = from + 1; i <= to; ++i) {
+        lo = std::max(lo, bands_[i].minStrike);
+        hi = std::min(hi, bands_[i].maxStrike);
+    }
+    if (lo < hi) return {lo, hi};
+    // Disjoint bands: the band of t itself.
+    const auto& b = bands_[bandOf(t)];
+    return {b.minStrike, b.maxStrike};
+}
+
 QuantLib::Real EdgeClampedLocalVol::clampedLevel(QuantLib::Real s, QuantLib::Time t) const {
     if (bands_.empty()) return std::min(std::max(s, lower_), upper_);
-    auto it = std::lower_bound(
-        bands_.begin(), bands_.end(), t,
-        [](const LocalVolStrikeBand& b, QuantLib::Time x) { return b.time < x; });
-    if (it == bands_.end()) --it;
-    return std::min(std::max(s, it->minStrike), it->maxStrike);
+    const auto band = strikeBand(t);
+    return std::min(std::max(s, band.first), band.second);
 }
 
 QuantLib::Time EdgeClampedLocalVol::clampedTime(QuantLib::Time t) const {
@@ -207,11 +231,13 @@ QuantLib::Real EdgeClampedLocalVol::dupire(QuantLib::Time t, QuantLib::Real unde
 }
 
 QuantLib::Volatility EdgeClampedLocalVol::localVolImpl(QuantLib::Time t, QuantLib::Real s) const {
-    if (!floor_) return inner_->localVol(clampedTime(t), clampedLevel(s, t), true);
+    // The strike band is the one in force at the time actually read.
+    const QuantLib::Time tc = clampedTime(t);
+    if (!floor_) return inner_->localVol(tc, clampedLevel(s, tc), true);
     ++reads_;
     QuantLib::Real v;
     try {
-        v = dupire(clampedTime(t), clampedLevel(s, t));
+        v = dupire(tc, clampedLevel(s, tc));
     } catch (const std::exception&) {
         v = std::numeric_limits<QuantLib::Real>::quiet_NaN();
     }

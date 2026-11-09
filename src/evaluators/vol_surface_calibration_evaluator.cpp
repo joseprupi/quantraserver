@@ -576,6 +576,7 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
         qTS = sc.dividend;
     }
     Handle<QuantLib::Quote> spotH(std::make_shared<QuantLib::SimpleQuote>(spot));
+    std::vector<std::pair<double, double>> openRegions;
     // The region each expiry is held to: where a simulation goes around
     // that expiry. From the forward outwards on each side, the log-strike
     // distance covered by kReachStdDevs standard deviations when the vol
@@ -598,6 +599,9 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
             work[i].regionLo = regions[i].first;
             work[i].regionHi = regions[i].second;
         }
+        // The unclamped eSSVI payload is scanned over the regions without
+        // a strike limit, as /validate-vol-surface scans it.
+        openRegions = quoteRegions(rq, 0.0, QL_MAX_REAL);
     }
     std::vector<double> workTimes;
     std::vector<std::pair<double, double>> workRegions;
@@ -1224,8 +1228,9 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
             }
             e.rmseVol = d.rmseVolPts / 100.0;
             e.maxAbsErrorVol = d.maxAbsVolPts / 100.0;
-            e.strikeMin = w.regionLo;
-            e.strikeMax = w.regionHi;
+            // No strike range on an eSSVI slice: the formula is valid at
+            // every strike and its conditions are checked when read, so the
+            // payload's local vol is read unclamped.
             dates.push_back(w.expiry);
             params.push_back(fit.params[i]);
             forwards.push_back(w.forward);
@@ -1251,13 +1256,11 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
             asOf, QuantLib::NullCalendar(), QuantLib::Unadjusted, dc, dates, params, forwards,
             spot);
         ssviSurface->enableExtrapolation();
-        std::vector<mc::LocalVolStrikeBand> bands;
-        for (const auto& w : work)
-            bands.push_back({w.time, w.regionLo, w.regionHi});
+        // Read as the payload is read: no strike range (unclamped).
         out.localVolCheckSsvi = checkLocalVol(
-            Handle<QuantLib::BlackVolTermStructure>(ssviSurface), bands, std::nullopt,
+            Handle<QuantLib::BlackVolTermStructure>(ssviSurface), {}, std::nullopt,
             mc::LocalVolTimeExtrapolation::FlatImpliedVol, spotH, rTS, qTS, workTimes, workTimes,
-            workRegions);
+            openRegions);
 
         for (std::size_t i = 0; i < nExp; ++i)
             for (std::size_t j = 0; j < nStr; ++j)

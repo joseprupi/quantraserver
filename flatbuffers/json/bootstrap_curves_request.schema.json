@@ -1516,7 +1516,7 @@
               },
         "local_vol_strike_min" : {
                 "type" : "array", "items" : {"type" : "number"},
-                "description" : "Optional, a strike x expiry surface only (SmileCube3D): the strike\nrange a structured note holds the Dupire local vol to around each\nexpiry, one entry per `expiries` entry (both arrays or neither, each\n> 0, min < max, within the grid's strikes). At time t the local vol\nis read at the simulated level clamped to the range of the first\nexpiry at or after t (the last expiry's beyond it), instead of the\ngrid's first and last strike. Absent: the grid's edges at every\ntime. `/calibrate-vol-surface` fills them with the region it checked\n(see `LocalVolCheck`). No Black vol read is affected."
+                "description" : "Optional, a strike x expiry surface only (SmileCube3D): the strike\nrange a structured note holds the Dupire local vol to around each\nexpiry, one entry per `expiries` entry (both arrays or neither, each\n> 0, min < max, within the grid's strikes). At time t the local vol\nis read at the simulated level clamped to the range of the first\nexpiry at or after t (the last expiry's beyond it), intersected\nwithin 2e-4 years of an expiry with the range on the other side of\nit (since 0.16.9: a read on an expiry evaluates both intervals in\nits time stencil), instead of the grid's first and last strike.\nAbsent: the grid's edges at every time. `/calibrate-vol-surface` fills them with the region it checked\n(see `LocalVolCheck`). No Black vol read is affected."
               },
         "local_vol_strike_max" : {
                 "type" : "array", "items" : {"type" : "number"}
@@ -1588,7 +1588,7 @@
               },
         "strike_min" : {
                 "type" : "number",
-                "description" : "Optional: a strike range (absolute, same units as `forward`) around\nthe slice; `/calibrate-vol-surface` fills both with the region it\nchecked around the expiry (before 0.16.5: the strikes of the quotes\nthe slice was fitted to). A raw SVI wing beyond the quotes is an extrapolation that\ncan carry butterfly arbitrage (Durrleman's g < 0, a negative Dupire\nlocal variance). When present, a structured note holds the local vol\nat the strike edge beyond them, as for a grid: with the payload's\n`local_vol_strike_range` Global (default) the local vol strike\nrange is [min of every slice's strike_min, max of every slice's\nstrike_max] (a slice without one leaves that side open); with\nPerExpiry it is this slice's range for the times up to its expiry\n(after the previous slice's). A simulated level beyond it reads the\nlocal vol at the edge. No Black\nvol read is affected (vanilla options read the formula at every\nstrike). Absent: no edge. Each > 0 and strike_min < strike_max when\nboth are given (400 otherwise)."
+                "description" : "Optional: a strike range (absolute, same units as `forward`) around\nthe slice; `/calibrate-vol-surface` fills both with the region it\nchecked around the expiry (before 0.16.5: the strikes of the quotes\nthe slice was fitted to). A raw SVI wing beyond the quotes is an extrapolation that\ncan carry butterfly arbitrage (Durrleman's g < 0, a negative Dupire\nlocal variance). When present, a structured note holds the local vol\nat the strike edge beyond them, as for a grid: with the payload's\n`local_vol_strike_range` Global (default) the local vol strike\nrange is [min of every slice's strike_min, max of every slice's\nstrike_max] (a slice without one leaves that side open); with\nPerExpiry it is this slice's range for the times up to its expiry\n(after the previous slice's), intersected with the next slice's\nwithin 2e-4 years of the expiry (see the enum). A simulated level beyond it reads the\nlocal vol at the edge. No Black\nvol read is affected (vanilla options read the formula at every\nstrike). Absent: no edge. Each > 0 and strike_min < strike_max when\nboth are given (400 otherwise)."
               },
         "strike_max" : {
                 "type" : "number"
@@ -1653,7 +1653,7 @@
               },
         "strike_min" : {
                 "type" : "number",
-                "description" : "Optional strike range (absolute) a structured note holds the local\nvol to, exactly as `SviSlice.strike_min` / `strike_max` (and\n`SsviVolSpec.local_vol_strike_range`). `/calibrate-vol-surface`\nfills both with the region it checked around the expiry. No Black\nvol read is affected. Each > 0 and strike_min < strike_max when both\nare given (400 otherwise)."
+                "description" : "Optional strike range (absolute) a structured note holds the local\nvol to, exactly as `SviSlice.strike_min` / `strike_max` (and\n`SsviVolSpec.local_vol_strike_range`). `/calibrate-vol-surface`\nleaves both absent (since 0.16.9): the eSSVI formula is valid at\nevery strike and its conditions are checked when read, so its local\nvol is read unclamped. No Black vol read is affected. Each > 0 and strike_min < strike_max when both\nare given (400 otherwise)."
               },
         "strike_max" : {
                 "type" : "number"
@@ -1683,7 +1683,7 @@
               },
         "local_vol_strike_range" : {
                 "$ref" : "#/definitions/quantra_enums_LocalVolStrikeRange",
-                "description" : "Optional. How the slices' strike_min / strike_max bound the local\nvol, as on `SviVolSpec` (absent = Global). `/calibrate-vol-surface`\nreturns PerExpiry with each slice's checked region."
+                "description" : "Optional. How the slices' strike_min / strike_max bound the local\nvol, as on `SviVolSpec` (absent = Global). `/calibrate-vol-surface`\nleaves it absent and the slices without a range (unclamped)."
               }
       },
       "required" : ["slices"],

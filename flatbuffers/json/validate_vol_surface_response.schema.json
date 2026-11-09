@@ -1728,7 +1728,7 @@
               },
         "local_vol_strike_min" : {
                 "type" : "array", "items" : {"type" : "number"},
-                "description" : "Optional, a strike x expiry surface only (SmileCube3D): the strike\nrange a structured note holds the Dupire local vol to around each\nexpiry, one entry per `expiries` entry (both arrays or neither, each\n> 0, min < max, within the grid's strikes). At time t the local vol\nis read at the simulated level clamped to the range of the first\nexpiry at or after t (the last expiry's beyond it), instead of the\ngrid's first and last strike. Absent: the grid's edges at every\ntime. `/calibrate-vol-surface` fills them with the region it checked\n(see `LocalVolCheck`). No Black vol read is affected."
+                "description" : "Optional, a strike x expiry surface only (SmileCube3D): the strike\nrange a structured note holds the Dupire local vol to around each\nexpiry, one entry per `expiries` entry (both arrays or neither, each\n> 0, min < max, within the grid's strikes). At time t the local vol\nis read at the simulated level clamped to the range of the first\nexpiry at or after t (the last expiry's beyond it), intersected\nwithin 2e-4 years of an expiry with the range on the other side of\nit (since 0.16.9: a read on an expiry evaluates both intervals in\nits time stencil), instead of the grid's first and last strike.\nAbsent: the grid's edges at every time. `/calibrate-vol-surface` fills them with the region it checked\n(see `LocalVolCheck`). No Black vol read is affected."
               },
         "local_vol_strike_max" : {
                 "type" : "array", "items" : {"type" : "number"}
@@ -1800,7 +1800,7 @@
               },
         "strike_min" : {
                 "type" : "number",
-                "description" : "Optional: a strike range (absolute, same units as `forward`) around\nthe slice; `/calibrate-vol-surface` fills both with the region it\nchecked around the expiry (before 0.16.5: the strikes of the quotes\nthe slice was fitted to). A raw SVI wing beyond the quotes is an extrapolation that\ncan carry butterfly arbitrage (Durrleman's g < 0, a negative Dupire\nlocal variance). When present, a structured note holds the local vol\nat the strike edge beyond them, as for a grid: with the payload's\n`local_vol_strike_range` Global (default) the local vol strike\nrange is [min of every slice's strike_min, max of every slice's\nstrike_max] (a slice without one leaves that side open); with\nPerExpiry it is this slice's range for the times up to its expiry\n(after the previous slice's). A simulated level beyond it reads the\nlocal vol at the edge. No Black\nvol read is affected (vanilla options read the formula at every\nstrike). Absent: no edge. Each > 0 and strike_min < strike_max when\nboth are given (400 otherwise)."
+                "description" : "Optional: a strike range (absolute, same units as `forward`) around\nthe slice; `/calibrate-vol-surface` fills both with the region it\nchecked around the expiry (before 0.16.5: the strikes of the quotes\nthe slice was fitted to). A raw SVI wing beyond the quotes is an extrapolation that\ncan carry butterfly arbitrage (Durrleman's g < 0, a negative Dupire\nlocal variance). When present, a structured note holds the local vol\nat the strike edge beyond them, as for a grid: with the payload's\n`local_vol_strike_range` Global (default) the local vol strike\nrange is [min of every slice's strike_min, max of every slice's\nstrike_max] (a slice without one leaves that side open); with\nPerExpiry it is this slice's range for the times up to its expiry\n(after the previous slice's), intersected with the next slice's\nwithin 2e-4 years of the expiry (see the enum). A simulated level beyond it reads the\nlocal vol at the edge. No Black\nvol read is affected (vanilla options read the formula at every\nstrike). Absent: no edge. Each > 0 and strike_min < strike_max when\nboth are given (400 otherwise)."
               },
         "strike_max" : {
                 "type" : "number"
@@ -1865,7 +1865,7 @@
               },
         "strike_min" : {
                 "type" : "number",
-                "description" : "Optional strike range (absolute) a structured note holds the local\nvol to, exactly as `SviSlice.strike_min` / `strike_max` (and\n`SsviVolSpec.local_vol_strike_range`). `/calibrate-vol-surface`\nfills both with the region it checked around the expiry. No Black\nvol read is affected. Each > 0 and strike_min < strike_max when both\nare given (400 otherwise)."
+                "description" : "Optional strike range (absolute) a structured note holds the local\nvol to, exactly as `SviSlice.strike_min` / `strike_max` (and\n`SsviVolSpec.local_vol_strike_range`). `/calibrate-vol-surface`\nleaves both absent (since 0.16.9): the eSSVI formula is valid at\nevery strike and its conditions are checked when read, so its local\nvol is read unclamped. No Black vol read is affected. Each > 0 and strike_min < strike_max when both\nare given (400 otherwise)."
               },
         "strike_max" : {
                 "type" : "number"
@@ -1895,7 +1895,7 @@
               },
         "local_vol_strike_range" : {
                 "$ref" : "#/definitions/quantra_enums_LocalVolStrikeRange",
-                "description" : "Optional. How the slices' strike_min / strike_max bound the local\nvol, as on `SviVolSpec` (absent = Global). `/calibrate-vol-surface`\nreturns PerExpiry with each slice's checked region."
+                "description" : "Optional. How the slices' strike_min / strike_max bound the local\nvol, as on `SviVolSpec` (absent = Global). `/calibrate-vol-surface`\nleaves it absent and the slices without a range (unclamped)."
               }
       },
       "required" : ["slices"],
@@ -3507,7 +3507,7 @@
     },
     "quantra_LocalVolCheck" : {
       "type" : "object",
-      "description" : "Dupire local vol of the surface, read exactly as a structured note reads\nit: QuantLib's LocalVolSurface (the closed-form local vol for an\n`SsviVolSpec`) on the surface as the parser builds it, held at the\nsurface's own strike limits (`local_vol_strike_min` / `_max` of a grid,\n`strike_min` / `strike_max` of the slices; the grid's edge strikes\notherwise) and extended in time as the spec says\n(`local_vol_time_extrapolation`), on the forwards of the checks. The\nscan: times = every expiry of the surface (the quoted expiries for a\nconstant or term vol) +/- 2e-4 years (outside QuantLib's time stencil of\n1e-4), the midpoints between them (and between 0 and the first) and the\nlast expiry - 1e-3; at each time 201 log-spaced strikes over the region\nof the first usable quoted expiry at or after it (the last one beyond):\nfrom the forward outwards, the log-strike distance five standard\ndeviations cover at the quotes' implied vols, together with the strikes\nquoted on both that expiry and the one before, within the widest of the\nsurface's strike limits and the quoted strikes. A refused point is one\nwhere QuantLib throws (\"decreasing variance ...\" or \"negative local\nvol^2 ...\", for SSVI g <= 0 or a negative local variance).",
+      "description" : "Dupire local vol of the surface, read exactly as a structured note reads\nit: QuantLib's LocalVolSurface (the closed-form local vol for an\n`SsviVolSpec`) on the surface as the parser builds it, held at the\nsurface's own strike limits (`local_vol_strike_min` / `_max` of a grid,\n`strike_min` / `strike_max` of the slices; the grid's edge strikes\notherwise) and extended in time as the spec says\n(`local_vol_time_extrapolation`), on the forwards of the checks. The\nscan: times = every expiry of the surface (the quoted expiries for a\nconstant or term vol) itself (a simulation grid steps on it) and +/-\n2e-4 years (outside QuantLib's time stencil of 1e-4), the midpoints\nbetween them (and between 0 and the first) and the last expiry - 1e-3;\nat each time 201 log-spaced strikes over the region of the first usable\nquoted expiry at or after it (the last one beyond), together with the\nnext one's within 2e-4 years of an expiry — a region: from the forward outwards,\nthe log-strike distance five standard deviations cover at the quotes'\nimplied vols, together with the strikes quoted on both that expiry and\nthe one before, within the widest of the surface's strike limits and\nthe quoted strikes — and, when the local vol is clamped, the clamp's\nedges at that time and the strikes 1e-3 in log-strike either side of\neach (up to 6 more points; since 0.16.9). A refused point is one\nwhere QuantLib throws (\"decreasing variance ...\" or \"negative local\nvol^2 ...\", for SSVI g <= 0 or a negative local variance).",
       "properties" : {
         "arbitrage_free" : {
                 "type" : "boolean",
@@ -3544,7 +3544,7 @@
     },
     "quantra_LocalVolGridRow" : {
       "type" : "object",
-      "description" : "One scan time of `local_vol_grid`: the strikes evaluated at that time\n(201, log-spaced over the region of the expiry the time belongs to, so\nthey differ from row to row), the local vol at each (0 at a refused\npoint) and the indices into `strikes` of the refused points.",
+      "description" : "One scan time of `local_vol_grid`: the strikes evaluated at that time\nin increasing order (201 log-spaced over the regions read at that time,\nplus the clamp edge points, so they differ from row to row), the local\nvol at each (0 at a refused point) and the indices into `strikes` of the\nrefused points.",
       "properties" : {
         "time" : {
                 "type" : "number"
@@ -3564,7 +3564,7 @@
     },
     "quantra_LocalVolGrid" : {
       "type" : "object",
-      "description" : "Every point the local vol scan evaluated (`checks.arbitrage_grid`), one\nrow per scan time in increasing time: exactly the `points` of\n`local_vol_check` (rows x 201). The smallest square of a local vol not\nrefused is `local_vol_check.min_local_variance`. Size: about 5 000\npoints on an 8-expiry sheet, 10 000 to 20 000 on a long one.",
+      "description" : "Every point the local vol scan evaluated (`checks.arbitrage_grid`), one\nrow per scan time in increasing time: exactly the `points` of\n`local_vol_check` (rows x 201, plus the clamp edge points). The smallest square of a local vol not\nrefused is `local_vol_check.min_local_variance`. Size: about 5 000\npoints on an 8-expiry sheet, 10 000 to 20 000 on a long one.",
       "properties" : {
         "rows" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_LocalVolGridRow"}
@@ -3575,7 +3575,7 @@
     },
     "quantra_ClampEdge" : {
       "type" : "object",
-      "description" : "A strike clamp the structured note's local vol applies when it reads\nthis surface (a simulated level beyond an edge reads the local vol at\nthe edge): the level the local vol is read at, i.e. the spec's range\nmoved inside by 1e-3 in log-strike (unless that leaves no interior).\n`scope` `PerExpiry`: the spec's per-expiry ranges (`local_vol_strike_min`\n/ `_max` of a grid, `strike_min` / `strike_max` with\n`local_vol_strike_range: PerExpiry`), each applying up to its `time`;\n`Surface`: one range for the whole surface (a grid's edge strikes, the\nslices' widest `strike_min` / `strike_max`), repeated per expiry of the\nsurface (or once, without expiry, when the surface has none). An edge is\nabsent on an open side.",
+      "description" : "A strike clamp the structured note's local vol applies when it reads\nthis surface (a simulated level beyond an edge reads the local vol at\nthe edge): the level the local vol is read at, i.e. the spec's range\nmoved inside by 1e-3 in log-strike (unless that leaves no interior).\n`scope` `PerExpiry`: from the spec's per-expiry ranges\n(`local_vol_strike_min` / `_max` of a grid, `strike_min` / `strike_max`\nwith `local_vol_strike_range: PerExpiry`), the edges a simulation step\nat that expiry's `time` reads at: its range intersected with the next\nexpiry's (see `LocalVolStrikeRange`); between two expiries the clamp is\nthe later expiry's range;\n`Surface`: one range for the whole surface (a grid's edge strikes, the\nslices' widest `strike_min` / `strike_max`), repeated per expiry of the\nsurface (or once, without expiry, when the surface has none). An edge is\nabsent on an open side.",
       "properties" : {
         "scope" : {
                 "type" : "string"

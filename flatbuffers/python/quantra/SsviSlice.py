@@ -78,8 +78,9 @@ class SsviSlice(object):
     # Optional strike range (absolute) a structured note holds the local
     # vol to, exactly as `SviSlice.strike_min` / `strike_max` (and
     # `SsviVolSpec.local_vol_strike_range`). `/calibrate-vol-surface`
-    # fills both with the region it checked around the expiry. No Black
-    # vol read is affected. Each > 0 and strike_min < strike_max when both
+    # leaves both absent (since 0.16.9): the eSSVI formula is valid at
+    # every strike and its conditions are checked when read, so its local
+    # vol is read unclamped. No Black vol read is affected. Each > 0 and strike_min < strike_max when both
     # are given (400 otherwise).
     # SsviSlice
     def StrikeMin(self):

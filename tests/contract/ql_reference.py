@@ -5426,6 +5426,27 @@ def _sn_local_vol_strike_range(pricing: dict, vol_id: str):
     return None
 
 
+def _sn_band_at(bands, t, window=2.0e-4):
+    """The engine's per-expiry strike band at read time t
+    (EdgeClampedLocalVol::strikeBand): the band of a time x is that of the
+    first expiry at or after x (the last beyond); at t, the intersection of
+    the bands of t - window and t + window and every band between;
+    disjoint: the band of t."""
+    times = [b[0] for b in bands]
+    n = len(bands)
+
+    def band_of(x):
+        return min(bisect.bisect_left(times, x), n - 1)
+
+    frm, to = band_of(t - window), band_of(t + window)
+    lo = max(x[1] for x in bands[frm:to + 1])
+    hi = min(x[2] for x in bands[frm:to + 1])
+    if lo < hi:
+        return lo, hi
+    band = bands[band_of(t)]
+    return band[1], band[2]
+
+
 def _sn_local_vol_strike_bands(pricing: dict, vol_id: str):
     """Per-expiry local vol strike ranges, [(expiry time, min, max)], of a
     BlackVolSpec (local_vol_strike_min / _max) or of an SviVolSpec with
@@ -5860,9 +5881,10 @@ def structured_note_ql(request: dict, index: int = 0, _vanilla_options=None) -> 
             a["upper"] = k_max * math.exp(-1.0e-3)
             if not a["lower"] < a["upper"]:
                 a["lower"], a["upper"] = k_min, k_max
-            # Per-expiry bands (time, min e^1e-3, max e^-1e-3): the level at
-            # time t is clamped to the first band whose time is >= t (the last
-            # one beyond), in place of [lower, upper].
+            # Per-expiry bands (time, min e^1e-3, max e^-1e-3): the level read
+            # at time t is clamped to the band of the first expiry at or after
+            # t, intersected with the neighbouring one within 2e-4 of an
+            # expiry (_sn_band_at), in place of [lower, upper].
             a["bands"] = None
             if lv_bands:
                 a["bands"] = []
@@ -6187,10 +6209,10 @@ def structured_note_ql(request: dict, index: int = 0, _vanilla_options=None) -> 
                 if a["exact"]:
                     return a["process"].evolve(t0, x, dt, dz)
                 lo, hi = a["lower"], a["upper"]
+                tc = min(t0, a["t_cap"])
                 if a["bands"]:
-                    band = next((b for b in a["bands"] if b[0] >= t0), a["bands"][-1])
-                    lo, hi = band[1], band[2]
-                sigma = a["lv"].localVol(min(t0, a["t_cap"]), min(max(x, lo), hi), True)
+                    lo, hi = _sn_band_at(a["bands"], tc)
+                sigma = a["lv"].localVol(tc, min(max(x, lo), hi), True)
                 t1 = t0 + 0.0001
                 drift = (a["risk_free"].forwardRate(t0, t1, ql.Continuous, ql.NoFrequency,
                                                     True).rate()
@@ -7223,8 +7245,6 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
             fields[stem + "forward"] = w["fwd"]
             for name in ("theta", "rho", "psi"):
                 fields[stem + name] = w["ssvi"][name]
-            fields[stem + "strike_min"] = w["region"][0]
-            fields[stem + "strike_max"] = w["region"][1]
     fields["grid_strikes"] = strikes
     # The grid's per-expiry local vol strike ranges.
     work_times = [w["t"] for w in work]

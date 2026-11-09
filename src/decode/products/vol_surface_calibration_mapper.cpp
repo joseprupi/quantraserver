@@ -351,7 +351,6 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
         svb.add_base(ssviBaseOff);
         svb.add_spot(r.spot);
         svb.add_slices(slicesOff);
-        svb.add_local_vol_strike_range(quantra::enums::LocalVolStrikeRange_PerExpiry);
         auto ssviPayloadOff = svb.Finish();
         auto ssviIdOff = b.CreateString(r.volSurfaceId);
         quantra::VolSurfaceSpecBuilder ssb(b);

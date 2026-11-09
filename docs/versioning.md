@@ -26,6 +26,90 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.16.9 (November 2026) — the arbitrage scan covers what the simulation reads
+
+`v0.16.9` closes a gap between the arbitrage scan of
+`/validate-vol-surface` (and of `/calibrate-vol-surface`) and the local
+vol a structured note actually reads: a surface could pass the scan with
+no refusal and the note on it could still be a `400` ("decreasing
+variance at strike ... between time ... and ..."). No wire field is added
+or removed; QuantLib stays at 1.44.
+
+**What was wrong.** Two things combined, found on a real index sheet with
+daily expiries:
+
+* The scan read the local vol at every expiry ± 2e-4 years and at the
+  midpoints, over the strike region of the next expiry only, and never at
+  an expiry itself. A simulation's time grid steps exactly on the
+  expiries, and the time stencil of a read there (t ± 1e-4) reaches into
+  both neighbouring intervals.
+* The per-expiry local-vol strike ranges (`BlackVolSpec.local_vol_strike_min`
+  / `_max`, `SviSlice.strike_min` / `strike_max` with
+  `local_vol_strike_range: PerExpiry`) were applied one at a time: at time
+  `t`, the range of the first expiry at or after `t`. When an expiry's
+  range reached lower than the next one's (one daily expiry quoted down
+  to a strike the next was not), a step landing on the first expiry read
+  a level inside its range, and the stencil evaluated the next slice
+  there, on its unquoted wing. Where that wing crossed under the earlier
+  slice the variance decreased in time and QuantLib refused; the scan,
+  reading the next expiry's range just after the node, never saw it.
+
+**The region rule.** A per-expiry range still applies to the interval
+that its expiry closes (between two expiries the later one's: the range
+over which `/calibrate-vol-surface` orders both slices). Within 2e-4 years
+of an expiry (twice the stencil) the clamp is now the intersection of the
+ranges of the two intervals around it, so the edge cannot change inside
+the stencil of a read and a step landing on an expiry never reads the
+next slice beyond the next range (at the time actually read: `T_last −
+0.001` with `FlatLocalVol`). Ranges that do not intersect fall back to the
+range of the interval the time lies in. The rule lives where the note
+reads the surface, so it applies the same way to the ranges
+`/calibrate-vol-surface` writes (the per-expiry regions, unchanged) and to
+ranges a caller supplies. Two alternatives were tried and not taken:
+widening each range to its neighbours' reads a slice further out on its
+unchecked wing, exactly where the refusal came from; intersecting the
+ranges of both bracketing expiries at every time throws away the later
+expiry's checked wing over whole intervals (a deep put of the synthetic
+NDX test sheet moved by about 3 %).
+
+**The scan.** The expiry itself is now one of the scan times (next to
+± 2e-4, the midpoints and `T_last − 0.001`). At each time the 201 strikes
+span the region of the next expiry together with the following one's
+within 2e-4 of an expiry, and when the local vol is clamped the scan adds
+the clamp's two edges at that time and the strikes 1e-3 in log-strike
+either side of each (up to 6 more points per time:
+`local_vol_check.points` and the rows of `local_vol_grid` grow
+accordingly; `strikes` stays 201). A payload read unclamped is scanned
+over regions no longer capped at the quoted strikes. `clamp_edges` entries
+with scope `PerExpiry` report the edges a step at that expiry reads at
+(its range intersected with the next one's). A test runs the note's own
+local vol reads (its time grid and levels across and around the edges)
+through the same object and requires every refusal there to be a refusal
+of the scan.
+
+**eSSVI unclamped.** The eSSVI formula is valid at every strike and its
+no-arbitrage conditions are checked when the payload is read, so a strike
+clamp only changed the model. The `SsviVolSpec` that `/calibrate-vol-surface`
+returns no longer carries `strike_min` / `strike_max` on its slices nor
+`local_vol_strike_range: PerExpiry`, and its `arbitrage_free_ssvi` is
+checked unclamped; `clamp_edges` is empty for it. Ranges a caller puts on
+an `SsviVolSpec` are still honoured (by the rule above).
+
+**What may change for an existing request.** A spec without per-expiry
+ranges reads exactly as before (bit for bit). A spec with them (the grid
+and SVI payloads `/calibrate-vol-surface` returns since 0.16.5, or a
+caller's) is clamped, within 2e-4 years of each expiry, to the
+intersection of the two ranges around it: a step on an expiry beyond the
+narrower of the two now reads the local vol at that edge, so a note's NPV
+can move slightly, and a note refused at an expiry before may now price.
+An eSSVI payload saved from an earlier
+`/calibrate-vol-surface` still carries its ranges and is read with them;
+recalibrate, or remove them, to read it unclamped. The scan is stricter:
+a surface that passed before can now report refusals where a note would
+have refused (its `arbitrage_free` flags follow), and the SVI refit loop
+of `/calibrate-vol-surface` sees the same scan, so its slices can differ
+slightly where it now refits.
+
 ## Version 0.16.8 (November 2026) — container build: one verified Envoy binary
 
 `v0.16.8` changes nothing in the engine, the API or the wire: every 0.16.7

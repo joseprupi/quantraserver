@@ -326,8 +326,8 @@ TEST(VolSurfaceCalibrationSsvi, RecoversAnSsviSurfaceArbitrageFree) {
             EXPECT_GE(*e.ssviMarginCalendarPsi, 0.0);
             EXPECT_GE(*e.ssviMarginCalendarA, 0.0);
         }
-        ASSERT_TRUE(e.strikeMin && e.strikeMax);
-        EXPECT_LT(*e.strikeMin, *e.strikeMax);
+        // No strike range on an eSSVI slice: the payload is read unclamped.
+        EXPECT_FALSE(e.strikeMin.has_value() || e.strikeMax.has_value());
         EXPECT_FALSE(e.svi.has_value());
         used += e.quotesUsed;
         // The grid is the surface sampled at the slice expiries.

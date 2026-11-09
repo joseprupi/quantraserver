@@ -34,7 +34,7 @@ from pathlib import Path
 
 import pytest
 
-from ql_reference import load_json, validate_vol_surface_ql
+from ql_reference import _sn_band_at, load_json, validate_vol_surface_ql
 from vol_validation import post_validation, validate, validation_request
 
 REPO = Path(__file__).resolve().parents[2]
@@ -83,6 +83,15 @@ def _calibrate(client, preset, method):
     return req, _ok(client, req, "calibrate_vol_surface")
 
 
+def _same_verdict(api, former):
+    """The scan covers more since 0.16.9 (each expiry itself, the regions
+    around an expiry, the clamp's edges): against the 0.16.6 numbers only
+    the verdict is compared."""
+    assert api["arbitrage_free"] == former["arbitrage_free"]
+    assert (api["refused"] > 0) == (former["refused"] > 0)
+    assert api["times"] > former["times"] and api["points"] > former["points"]
+
+
 def _same_check(api, former):
     for key in ("arbitrage_free", "times", "strikes", "points", "refused"):
         assert api[key] == former[key], (key, api[key], former[key])
@@ -109,6 +118,10 @@ def test_reproduces_the_former_calibrate_checks(client, case):
     req, out = _calibrate(client, PRESETS[former["name"]], former["method"])
     payloads = [p for p in ("grid", "svi", "ssvi") if former["spec_sha256"][p]]
     for p in payloads:
+        if p == "ssvi":
+            # Since 0.16.9 the eSSVI payload carries no strike range: the
+            # slices are compared through the eSSVI check below (to 1e-9).
+            continue
         key = {"grid": "vol_surface_spec", "svi": "vol_surface_spec_svi",
                "ssvi": "vol_surface_spec_ssvi"}[p]
         assert _sha(out[key]) == former["spec_sha256"][p], f"{p}: not the 0.16.6 surface"
@@ -142,13 +155,13 @@ def test_reproduces_the_former_calibrate_checks(client, case):
         assert check["refused"] > 0 and former["local_vol_check"]["refused"] > 0
         assert check["first_refusal"] == former["local_vol_check"]["first_refusal"]
     else:
-        _same_check(grid["arbitrage"]["local_vol_check"], former["local_vol_check"])
+        _same_verdict(grid["arbitrage"]["local_vol_check"], former["local_vol_check"])
     if "svi" in payloads:
         arb = validate(client, req, out, "svi", checks={"fit": False, "arbitrage": True})
-        _same_check(arb["arbitrage"]["local_vol_check"], former["local_vol_check_svi"])
+        _same_verdict(arb["arbitrage"]["local_vol_check"], former["local_vol_check_svi"])
     if "ssvi" in payloads:
         arb = validate(client, req, out, "ssvi", checks={"fit": False, "arbitrage": True})
-        _same_check(arb["arbitrage"]["local_vol_check"], former["local_vol_check_ssvi"])
+        _same_verdict(arb["arbitrage"]["local_vol_check"], former["local_vol_check_ssvi"])
         api, old = arb["arbitrage"]["ssvi_check"], former["ssvi_arbitrage"]
         assert api["violations"] == old["violations"]
         for key in ("scan_min_g", "scan_min_dw_dt"):
@@ -184,7 +197,15 @@ def test_simulation_reproduces_the_former_note_repricing(client, data_dir, case)
     (the used expiries), so the same numbers."""
     former = _former()["notes"][case]
     vs_req, pricing, spec = _chain(client, data_dir, former["method"], former["payload"])
-    assert _sha(spec) == former["spec_sha256"]
+    if former["payload"] == "ssvi":
+        # Since 0.16.9 the eSSVI payload carries no strike range.
+        old = copy.deepcopy(spec)
+        for sl in old["payload"]["slices"]:
+            sl.pop("strike_min", None)
+            sl.pop("strike_max", None)
+        assert "local_vol_strike_range" not in spec["payload"]
+    else:
+        assert _sha(spec) == former["spec_sha256"]
     req = {"pricing": pricing, "volatility_id": spec["id"], "underlying_id": "NDX_SYN",
            "discounting_curve": vs_req["discounting_curve"], "quotes": vs_req["sheet"],
            "filter": vs_req["filter"],
@@ -198,6 +219,13 @@ def test_simulation_reproduces_the_former_note_repricing(client, data_dir, case)
     assert sim["count"] == former["count"]
     for q, (expiry, strike, price, se, model_vol) in zip(sim["quotes"], former["options"]):
         assert (q["expiry"], q["strike"]) == (expiry, strike)
+        if former["payload"] == "ssvi":
+            # Unclamped since 0.16.9: a path beyond the former strike range
+            # reads the eSSVI formula there, so the same stream lands within
+            # the noise of the former number, not on it.
+            assert abs(q["mc_price"] - price) <= 3.0 * se + 1e-9, (expiry, strike)
+            assert _close(q["standard_error"], se, rel=0.05, abs_=1e-9), (expiry, strike)
+            continue
         assert _close(q["mc_price"], price, rel=1e-9, abs_=1e-9), (expiry, strike)
         assert _close(q["standard_error"], se, rel=1e-9, abs_=1e-9), (expiry, strike)
         if model_vol is not None:
@@ -508,7 +536,9 @@ def _grid_check(arb):
     assert sum(len(r["refused"]) for r in rows) == check["refused"]
     smallest = None
     for r in rows:
-        assert len(r["strikes"]) == len(r["local_vols"]) == check["strikes"]
+        # 201 scan strikes, plus up to 6 points at the clamp's edges.
+        assert len(r["strikes"]) == len(r["local_vols"])
+        assert check["strikes"] <= len(r["strikes"]) <= check["strikes"] + 6
         assert all(a < b for a, b in zip(r["strikes"], r["strikes"][1:]))
         refused = set(r["refused"])
         for j, lv in enumerate(r["local_vols"]):
@@ -556,9 +586,18 @@ def test_clamp_edges(client, data_dir):
     spec = grid["pricing"]["volatility"]["vol_surfaces"][0]["payload"]
     edges = _ok(client, grid)["arbitrage"]["clamp_edges"]
     assert [e["scope"] for e in edges] == ["PerExpiry"] * len(spec["expiries"])
-    for e, lo, hi in zip(edges, spec["local_vol_strike_min"], spec["local_vol_strike_max"]):
-        assert _close(e["strike_min"], lo * m, rel=1e-12) and _close(e["strike_max"], hi / m, rel=1e-12)
     assert [round(e["time"] * 365) for e in edges] == [p["n"] for p in spec["expiries"]]
+    # The edges a step at each expiry reads at: its range intersected with
+    # the next one's (FlatLocalVol: the last read at
+    # T_last - 1e-3), each moved inside by 1e-3.
+    bands = [(e["time"], lo * m, hi / m) for e, lo, hi in
+             zip(edges, spec["local_vol_strike_min"], spec["local_vol_strike_max"])]
+    for i, e in enumerate(edges):
+        t = e["time"] - (1e-3 if i == len(edges) - 1 else 0.0)
+        lo, hi = _sn_band_at(bands, t)
+        assert _close(e["strike_min"], lo, rel=1e-12) and _close(e["strike_max"], hi, rel=1e-12)
+        assert e["strike_min"] >= bands[i][1] * (1 - 1e-12)
+        assert e["strike_max"] <= bands[i][2] * (1 + 1e-12)
     # The same grid without per-expiry ranges: its edge strikes, surface-wide.
     del spec["local_vol_strike_min"], spec["local_vol_strike_max"]
     edges = _ok(client, grid)["arbitrage"]["clamp_edges"]
@@ -573,9 +612,12 @@ def test_clamp_edges(client, data_dir):
     slices = svi["pricing"]["volatility"]["vol_surfaces"][0]["payload"]["slices"]
     edges = _ok(client, svi)["arbitrage"]["clamp_edges"]
     assert [e["expiry"] for e in edges] == [s["expiry"] for s in slices]
-    for e, s in zip(edges, slices):
+    bands = [(e["time"], s["strike_min"] * m, s["strike_max"] / m) for e, s in zip(edges, slices)]
+    for i, e in enumerate(edges):
         assert e["scope"] == "PerExpiry"
-        assert _close(e["strike_min"], s["strike_min"] * m, rel=1e-12)
+        t = e["time"] - (1e-3 if i == len(edges) - 1 else 0.0)
+        assert _close(e["strike_min"], _sn_band_at(bands, t)[0], rel=1e-12)
+        assert e["strike_min"] >= bands[i][1]
     # A constant vol is read unclamped (exact steps, no local vol).
     v = _ok(client, load_json(data_dir / EXAMPLES / "scotia_ndx_vendor_constant_vol.json"))
     assert v["arbitrage"]["clamp_edges"] == []

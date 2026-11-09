@@ -299,9 +299,11 @@ class BlackVolSpec(object):
     # expiry, one entry per `expiries` entry (both arrays or neither, each
     # > 0, min < max, within the grid's strikes). At time t the local vol
     # is read at the simulated level clamped to the range of the first
-    # expiry at or after t (the last expiry's beyond it), instead of the
-    # grid's first and last strike. Absent: the grid's edges at every
-    # time. `/calibrate-vol-surface` fills them with the region it checked
+    # expiry at or after t (the last expiry's beyond it), intersected
+    # within 2e-4 years of an expiry with the range on the other side of
+    # it (since 0.16.9: a read on an expiry evaluates both intervals in
+    # its time stencil), instead of the grid's first and last strike.
+    # Absent: the grid's edges at every time. `/calibrate-vol-surface` fills them with the region it checked
     # (see `LocalVolCheck`). No Black vol read is affected.
     # BlackVolSpec
     def LocalVolStrikeMin(self, j):

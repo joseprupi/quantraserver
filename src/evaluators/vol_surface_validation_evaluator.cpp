@@ -33,6 +33,8 @@ using QuantLib::Handle;
 
 constexpr unsigned kCheckStrikes = 201;
 constexpr double kCheckTimeOffset = 2.0e-4;
+// Log-strike offset of the scan points either side of a clamp edge.
+constexpr double kEdgeProbe = 1.0e-3;
 constexpr double kReachStdDevs = 5.0;
 constexpr unsigned kSliceCheckPoints = 201;
 constexpr double kLeeSlope = 2.0;
@@ -102,6 +104,9 @@ std::vector<double> localVolCheckTimes(const std::vector<double>& expiryTimes) {
     for (double T : expiryTimes) {
         t.push_back(0.5 * (prev + T));
         if (T - kCheckTimeOffset > 0.0) t.push_back(T - kCheckTimeOffset);
+        // The expiry itself: a simulation grid steps on it, and the time
+        // stencil of a read there straddles both neighbouring intervals.
+        t.push_back(T);
         t.push_back(T + kCheckTimeOffset);
         prev = T;
     }
@@ -143,25 +148,65 @@ LocalVolCheckData checkLocalVol(
         s->enableExtrapolation();
         lv = Handle<QuantLib::LocalVolTermStructure>(s);
     }
+    // The clamp the note applies (absent for a constant or term vol).
+    const auto* clamp = dynamic_cast<const mc::EdgeClampedLocalVol*>(lv.currentLink().get());
     const std::vector<double> times = localVolCheckTimes(expiryTimes);
     c.times = static_cast<unsigned>(times.size());
     c.strikes = kCheckStrikes;
-    for (double t : times) {
-        const std::size_t r = std::min<std::size_t>(
-            regions.size() - 1,
+    const std::size_t nr = regions.size();
+    // The region of a time x: that of the first expiry at or after x (the
+    // last beyond the last expiry).
+    auto regionOf = [&](double x) {
+        return std::min<std::size_t>(
+            nr - 1,
             static_cast<std::size_t>(
-                std::lower_bound(regionTimes.begin(), regionTimes.end(), t) - regionTimes.begin()));
-        const double kMin = regions[r].first, kMax = regions[r].second;
+                std::lower_bound(regionTimes.begin(), regionTimes.end(), x) - regionTimes.begin()));
+    };
+    for (double t : times) {
+        // The strikes a simulation step at t can read: the union of the
+        // regions of every time within the stencil window around t (one
+        // region inside an interval, the two around an expiry).
+        const std::size_t from = regionOf(t - mc::EdgeClampedLocalVol::kBandTimeWindow);
+        const std::size_t to = regionOf(t + mc::EdgeClampedLocalVol::kBandTimeWindow);
+        double kMin = regions[from].first, kMax = regions[from].second;
+        for (std::size_t r = from + 1; r <= to; ++r) {
+            kMin = std::min(kMin, regions[r].first);
+            kMax = std::max(kMax, regions[r].second);
+        }
+        std::vector<double> strikes;
+        strikes.reserve(kCheckStrikes + 6);
+        for (unsigned j = 0; j < kCheckStrikes; ++j) {
+            strikes.push_back(
+                kMin *
+                std::exp(std::log(kMax / kMin) * static_cast<double>(j) / (kCheckStrikes - 1)));
+        }
+        // The clamp's edges at the time read, and just inside and outside
+        // them: where a level crossing the edge changes what is read.
+        if (clamp) {
+            const auto band = clamp->strikeBand(clamp->clampedTime(t));
+            for (double edge : {band.first, band.second}) {
+                // An open side (0, an eSSVI surface's QL_EPSILON, QL_MAX_REAL): no edge.
+                if (!(edge > 2.0 * QL_EPSILON) || !(edge < 0.5 * QL_MAX_REAL)) continue;
+                for (double d : {-kEdgeProbe, 0.0, kEdgeProbe})
+                    strikes.push_back(edge * std::exp(d));
+            }
+            // Increasing, without a point repeated (an edge probe can fall
+            // on a region end to the last bit).
+            std::sort(strikes.begin(), strikes.end());
+            strikes.erase(
+                std::unique(
+                    strikes.begin(), strikes.end(),
+                    [](double x, double y) { return y - x <= 1e-12 * y; }),
+                strikes.end());
+        }
         LocalVolGridRowData* row = nullptr;
         if (grid) {
             grid->rows.emplace_back();
             row = &grid->rows.back();
             row->time = t;
         }
-        for (unsigned j = 0; j < kCheckStrikes; ++j) {
-            const double K =
-                kMin *
-                std::exp(std::log(kMax / kMin) * static_cast<double>(j) / (kCheckStrikes - 1));
+        for (unsigned j = 0; j < strikes.size(); ++j) {
+            const double K = strikes[j];
             ++c.points;
             if (row) {
                 row->strikes.push_back(K);
@@ -353,18 +398,30 @@ std::vector<ClampEdgeData> clampEdges(const BlackVolEntry& entry, const mc::Bask
             a = lo;
             b = hi;
         }
-        if (a > 0.0) e.strikeMin = a;
+        // An eSSVI surface's own minStrike is QL_EPSILON: an open side.
+        if (lo > QL_EPSILON) e.strikeMin = a;
         if (b < 0.5 * QL_MAX_REAL) e.strikeMax = b;
         if (e.strikeMin || e.strikeMax) out.push_back(e);
     };
     if (!asset.localVolStrikeBands.empty()) {
+        // The edges a step at each expiry reads at (its band intersected
+        // with the next one, at the time read), from the note's own clamp.
+        mc::BasketAsset probe = asset;
+        mc::LocalVolCache cache;
+        cache.attach(probe);
+        const auto* clamp =
+            dynamic_cast<const mc::EdgeClampedLocalVol*>(probe.localVol.currentLink().get());
+        if (!clamp) QUANTRA_ERROR("local vol clamp: per-expiry bands without a clamp");
         for (std::size_t i = 0; i < asset.localVolStrikeBands.size(); ++i) {
             const auto& b = asset.localVolStrikeBands[i];
             ClampEdgeData e;
             e.scope = "PerExpiry";
             e.expiryIso = DateToIso(entry.localVolStrikeBands.at(i).expiry);
             e.time = b.time;
-            edge(b.minStrike, b.maxStrike, e);
+            const auto band = clamp->strikeBand(clamp->clampedTime(b.time));
+            e.strikeMin = band.first;
+            e.strikeMax = band.second;
+            out.push_back(e);
         }
         return out;
     }
@@ -712,6 +769,12 @@ VolSurfaceValidationResult VolSurfaceValidationEvaluator::evaluate(
         } else if (entry.localVolStrikeRange) {
             clampLo = std::min(clampLo, entry.localVolStrikeRange->first);
             clampHi = std::max(clampHi, entry.localVolStrikeRange->second);
+        } else if (entry.localVolStrikeBands.empty()) {
+            // A payload read unclamped (an SVI or eSSVI payload without
+            // strike limits): the regions reach as far as the quotes' vols
+            // carry a path, no strike limit.
+            clampLo = 0.0;
+            clampHi = QL_MAX_REAL;
         }
         const auto regions = quoteRegions(rq, clampLo, clampHi);
         std::vector<double> expiryTimes;

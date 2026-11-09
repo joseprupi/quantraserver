@@ -84,7 +84,8 @@ def test_ssvi_recovers_the_generating_slices(client, data_dir, example, preset, 
     assert spec["id"] == request["vol_surface_id"]
     payload = spec["payload"]
     assert payload["spot"] == out["spot"]
-    assert payload["local_vol_strike_range"] == "PerExpiry"
+    # Unclamped: no strike range on the payload or its slices.
+    assert "local_vol_strike_range" not in payload
     assert "local_vol_time_extrapolation" not in payload
     slices = payload["slices"]
     assert [s["expiry"] for s in slices] == list(truth)
@@ -94,7 +95,7 @@ def test_ssvi_recovers_the_generating_slices(client, data_dir, example, preset, 
         assert s["rho"] == pytest.approx(p["rho"], abs=tol), s["expiry"]
         assert s["psi"] == pytest.approx(p["psi"], rel=tol), s["expiry"]
         assert s["forward"] == pytest.approx(truth[s["expiry"]]["forward"], rel=1e-9)
-        assert s["strike_min"] < s["forward"] < s["strike_max"]
+        assert "strike_min" not in s and "strike_max" not in s
         assert e["ssvi"] == {"theta": s["theta"], "rho": s["rho"], "psi": s["psi"]}
         assert e["ssvi_anchor_clamped"] is False
     # One flag on the calibrate response; the margins, the closed-form
@@ -120,6 +121,7 @@ def test_ssvi_recovers_the_generating_slices(client, data_dir, example, preset, 
     check = arb["local_vol_check"]
     assert check["arbitrage_free"] and check["refused"] == 0, check
     assert check["points"] == check["times"] * check["strikes"]
+    assert arb["clamp_edges"] == []
     assert "vol_surface_spec_svi" not in out and "arbitrage_free_svi" not in out
     assert "Ssvi" in out["vol_surface_spec_svi_note"]
     # The slices are the generating surface: every used quote inside.
@@ -250,9 +252,10 @@ def _slices(note):
      "SsviVolSpec.slices[1].expiry: slices must be strictly increasing"),
     (lambda p: p["slices"][0].update(expiry="2020-01-01"),
      "SsviVolSpec.slices[0].expiry must be after reference_date"),
-    (lambda p: p["slices"][0].update(strike_min=p["slices"][0]["strike_max"]),
+    # Caller-supplied ranges (the returned payload carries none).
+    (lambda p: p["slices"][0].update(strike_min=30000.0, strike_max=30000.0),
      "SsviVolSpec.slices[0].strike_min must be below strike_max"),
-    (lambda p: p["slices"][2].pop("strike_max"),
+    (lambda p: p.update(local_vol_strike_range="PerExpiry"),
      "strike_min and strike_max are required with local_vol_strike_range PerExpiry"),
     (lambda p: p.update(local_vol_time_extrapolation="FlatImpliedVol"),
      "FlatImpliedVol is not an eSSVI reading"),

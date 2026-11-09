@@ -92,10 +92,21 @@
  * Black vol itself (vanilla pricing, diagnostics) is unchanged.
  *
  * Per-expiry strike bands. `BasketAsset::localVolStrikeBands` (from a
- * BlackVolSpec's local_vol_strike_min / _max or an SviVolSpec with
- * local_vol_strike_range PerExpiry) replace the single strike range: at
- * time t the level is clamped to the band of the first expiry at or after
- * t (the last band beyond the last expiry), with the same margin.
+ * BlackVolSpec's local_vol_strike_min / _max or an SviVolSpec /
+ * SsviVolSpec with local_vol_strike_range PerExpiry) replace the single
+ * strike range. The band of a time x is the band of the first expiry at or
+ * after x (the last band beyond the last expiry): between two expiries the
+ * later one's, the range over which both slices are checked. A read at t
+ * evaluates the Black variance at every time of LocalVolSurface's stencil
+ * (t +/- dt, dt <= 1e-4), so the level is clamped to the INTERSECTION of
+ * the bands of the times within kBandTimeWindow (2e-4 years) of t
+ * (strikeBand): inside an interval its one band, within the window of an
+ * expiry the bands of both intervals around it. A step landing exactly on
+ * an expiry therefore never reads the next slice beyond the next band
+ * (before 0.16.9 it used the earlier band alone, and where that reached
+ * further than the next one the stencil read the next slice on its
+ * unchecked wing). Disjoint bands fall back to the band of t itself. The
+ * time used is the time read (after the FlatLocalVol clamp).
  *
  * Local vol floor. With `BasketAsset::localVolFloor` the local vol is
  * computed in EdgeClampedLocalVol::dupire with QuantLib's
@@ -198,10 +209,11 @@ struct BasketAsset {
     /// vol's minStrike() / maxStrike(). LocalVolCache applies it.
     std::optional<std::pair<QuantLib::Real, QuantLib::Real>> localVolStrikeRange;
     /// Optional: per-expiry strike ranges (expiry time, min strike, max
-    /// strike; times strictly increasing). When given they replace
-    /// `localVolStrikeRange`: at time t the level is clamped to the range of
-    /// the first band whose time is >= t (the last band's beyond it).
-    /// LocalVolCache applies it.
+    /// strike; times strictly increasing, one per expiry of `vol`). When
+    /// given they replace `localVolStrikeRange`: at time t the level is
+    /// clamped to the band of the first expiry at or after t, intersected
+    /// with the neighbouring band within the stencil window of an expiry
+    /// (EdgeClampedLocalVol::strikeBand). LocalVolCache applies it.
     std::vector<LocalVolStrikeBand> localVolStrikeBands;
     /// Optional local vol floor (> 0): the local vol simulated is
     /// max(Dupire, floor), and a read where QuantLib's LocalVolSurface would
@@ -241,6 +253,9 @@ public:
     /// Clamp margin in years below the last expiry (FlatLocalVol): wider
     /// than LocalVolSurface's time stencil (dt <= 1e-4).
     static constexpr double kTimeMargin = 1.0e-3;
+    /// Half-width of the time window whose strike bands are intersected
+    /// (per-expiry bands): twice LocalVolSurface's time stencil.
+    static constexpr double kBandTimeWindow = 2.0e-4;
 
     /// `maxTime`: the Black surface's maxTime() to hold the local vol flat
     /// beyond (FlatLocalVol), or QuantLib::Null<Time>() for no time clamp. A
@@ -259,8 +274,15 @@ public:
         QuantLib::Time maxTime = QuantLib::Null<QuantLib::Time>());
 
     /// The level the inner local vol is read at for a simulated level `s`
-    /// (at time `t` when the clamp has per-expiry bands).
+    /// (at read time `t` when the clamp has per-expiry bands).
     QuantLib::Real clampedLevel(QuantLib::Real s, QuantLib::Time t = 0.0) const;
+    /// The strike interval a read at time `t` (the time read, after
+    /// clampedTime) is clamped to, margins applied: the intersection of the
+    /// per-expiry bands within kBandTimeWindow of t (see the file comment),
+    /// or the single range.
+    std::pair<QuantLib::Real, QuantLib::Real> strikeBand(QuantLib::Time t) const;
+    /// True iff the clamp has per-expiry bands.
+    bool perExpiry() const { return !bands_.empty(); }
     /// The time the inner local vol is read at for a simulation time `t`.
     QuantLib::Time clampedTime(QuantLib::Time t) const;
 

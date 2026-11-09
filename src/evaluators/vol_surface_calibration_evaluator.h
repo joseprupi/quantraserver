@@ -80,8 +80,9 @@
  *    Each returned spec is rebuilt as the structured
  *    note pricer builds it (BasketAsset + LocalVolCache, per-expiry strike
  *    bands = the regions, FlatLocalVol) on the sheet's forwards and
- *    QuantLib's LocalVolSurface is evaluated at every expiry +/- 2e-4, the
- *    midpoints and T_last - 1e-3 on 201 strikes over the region. A
+ *    QuantLib's LocalVolSurface is evaluated at every expiry, every expiry
+ *    +/- 2e-4, the midpoints and T_last - 1e-3 on 201 strikes over the
+ *    regions read at that time and at the clamp's edges (see checkLocalVol). A
  *    refusal makes arbitrage_free false; for the SVI payload the slices
  *    involved get a larger margin / butterfly weight and are refitted
  *    (at most 3 passes).
@@ -98,7 +99,10 @@
  *    and forwards; any grid date up to the last expiry), the slices are
  *    returned as an SsviVolSpec payload, and its closed-form local vol is
  *    checked as in 3c (the model's own continuation beyond the last slice,
- *    no refit: the slices are arbitrage-free).
+ *    no refit: the slices are arbitrage-free). The payload carries no
+ *    strike range (no slice strike_min / strike_max, no
+ *    local_vol_strike_range): the formula is valid at every strike, so its
+ *    local vol is read unclamped and the check reads it the same way.
  *
  * 4. Grid and calendar check. Strikes = moneyness * spot (default 0.50 ..
  *    1.50 step 0.025, 41 points, at least 2; Andreasen-Huge: the model's
@@ -124,7 +128,10 @@
  *    slices are returned as well, as an SviVolSpec payload with
  *    local_vol_strike_range PerExpiry and each slice's region as its
  *    strike_min / strike_max (the mapper builds it from `expiries[].svi`
- *    and `forwards`).
+ *    and `forwards`); the note's local vol reads it as
+ *    mc::EdgeClampedLocalVol::strikeBand says (the range of the expiry
+ *    closing the interval, intersected with the next one within 2e-4 of
+ *    an expiry).
  *
  * INVARIANT: this file (and its .cpp) must NEVER include any *_generated.h or
  * mention FlatBuffers/gRPC namespaces. Suite 0 (scripts/check_evaluator_boundary.sh)
@@ -191,6 +198,7 @@ struct VolSurfaceExpiryReportData {
     std::optional<SviParams> svi;
     /// SviPerExpiry: the strike range checked around the expiry (the
     /// slice's strike_min / strike_max, local_vol_strike_range PerExpiry).
+    /// Never set for Ssvi (the eSSVI payload is unclamped).
     std::optional<double> strikeMin, strikeMax;
     std::optional<double> butterflyMinG;
     bool butterflyViolation = false;

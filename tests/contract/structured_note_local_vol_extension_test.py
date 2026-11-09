@@ -243,7 +243,10 @@ def test_daily_expiries_calendar_consistent_and_the_note_prices(client, data_dir
                        checks={"fit": False, "arbitrage": True})["arbitrage"]
         check = arb["local_vol_check"]
         assert check["arbitrage_free"] and check["refused"] == 0, check
-        assert check["points"] == check["times"] * check["strikes"]
+        # 201 strikes per time plus the clamp's two edges and 1e-3 either
+        # side (a probe that falls on a scan strike is not repeated).
+        assert check["times"] * check["strikes"] < check["points"]
+        assert check["points"] <= check["times"] * (check["strikes"] + 6)
         if payload == "svi":
             # The fitted margin: 1 % forward vol between consecutive slices.
             for c in arb["svi_slices"][1:]:
