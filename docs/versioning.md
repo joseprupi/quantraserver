@@ -26,6 +26,22 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.16.8 (November 2026) — container build: one verified Envoy binary
+
+`v0.16.8` changes nothing in the engine, the API or the wire: every 0.16.7
+request returns the same result. It fixes how the container image is built.
+
+The `production` stage of the Dockerfile downloaded Envoy a second time,
+independently of the `deps` stage that downloads and checks it, with a
+`curl` that saved whatever the server answered. On 2026-11-09 the release
+CDN answered a 92-byte "504 Gateway Time-out" page and the published
+`0.16.6` image shipped it as `/usr/local/bin/envoy`; the container exited
+at start with "Exec format error". The production stage now copies the
+binary the `deps` stage verified (`COPY --from=deps`) and runs `envoy
+--version` again; the download itself fails on an HTTP error (`curl -f`)
+and retries a transient one. The `0.16.6` and `0.16.7` images were rebuilt
+from their own tags and checked by running them.
+
 ## Version 0.16.7 (November 2026) — surface validation as its own endpoint
 
 `v0.16.7` separates checking a volatility surface from building it and from

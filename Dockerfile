@@ -46,8 +46,12 @@ ENV DEPS_INSTALL_PREFIX=/opt/quantra-deps
 # -----------------------------------------------------------------------------
 # Envoy (download pre-built binary)
 # -----------------------------------------------------------------------------
+# -f fails on an HTTP error page instead of saving it as the binary; the
+# retries cover a transient 5xx from the release CDN; `envoy --version`
+# proves the file is the binary before the layer is kept.
 RUN echo "=== Installing Envoy ${ENVOY_VERSION} ===" && \
-    curl -L https://github.com/envoyproxy/envoy/releases/download/v${ENVOY_VERSION}/envoy-${ENVOY_VERSION}-linux-x86_64 \
+    curl -fL --retry 5 --retry-delay 10 --retry-all-errors \
+        https://github.com/envoyproxy/envoy/releases/download/v${ENVOY_VERSION}/envoy-${ENVOY_VERSION}-linux-x86_64 \
         -o /usr/local/bin/envoy && \
     chmod +x /usr/local/bin/envoy && \
     envoy --version
@@ -223,10 +227,10 @@ RUN apt-get update && \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Envoy
-RUN curl -L https://github.com/envoyproxy/envoy/releases/download/v${ENVOY_VERSION}/envoy-${ENVOY_VERSION}-linux-x86_64 \
-        -o /usr/local/bin/envoy && \
-    chmod +x /usr/local/bin/envoy
+# Envoy: the binary the deps stage downloaded and verified, not a second
+# download (a production image once shipped a 92-byte error page as envoy).
+COPY --from=deps /usr/local/bin/envoy /usr/local/bin/envoy
+RUN envoy --version
 
 COPY --from=builder /opt/quantra-deps/lib /opt/quantra-deps/lib
 COPY --from=builder /etc/ld.so.conf.d/quantra-deps.conf /etc/ld.so.conf.d/
