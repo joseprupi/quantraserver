@@ -97,7 +97,8 @@ class SviSlice(object):
     # range is [min of every slice's strike_min, max of every slice's
     # strike_max] (a slice without one leaves that side open); with
     # PerExpiry it is this slice's range for the times up to its expiry
-    # (after the previous slice's). A simulated level beyond it reads the
+    # (after the previous slice's), intersected with the next slice's
+    # within 2e-4 years of the expiry (see the enum). A simulated level beyond it reads the
     # local vol at the edge. No Black
     # vol read is affected (vanilla options read the formula at every
     # strike). Absent: no edge. Each > 0 and strike_min < strike_max when

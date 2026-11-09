@@ -2087,9 +2087,11 @@ struct BlackVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   /// expiry, one entry per `expiries` entry (both arrays or neither, each
   /// > 0, min < max, within the grid's strikes). At time t the local vol
   /// is read at the simulated level clamped to the range of the first
-  /// expiry at or after t (the last expiry's beyond it), instead of the
-  /// grid's first and last strike. Absent: the grid's edges at every
-  /// time. `/calibrate-vol-surface` fills them with the region it checked
+  /// expiry at or after t (the last expiry's beyond it), intersected
+  /// within 2e-4 years of an expiry with the range on the other side of
+  /// it (since 0.16.9: a read on an expiry evaluates both intervals in
+  /// its time stencil), instead of the grid's first and last strike.
+  /// Absent: the grid's edges at every time. `/calibrate-vol-surface` fills them with the region it checked
   /// (see `LocalVolCheck`). No Black vol read is affected.
   const ::flatbuffers::Vector<double> *local_vol_strike_min() const {
     return GetPointer<const ::flatbuffers::Vector<double> *>(VT_LOCAL_VOL_STRIKE_MIN);
@@ -2553,7 +2555,8 @@ struct SviSlice FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   /// range is [min of every slice's strike_min, max of every slice's
   /// strike_max] (a slice without one leaves that side open); with
   /// PerExpiry it is this slice's range for the times up to its expiry
-  /// (after the previous slice's). A simulated level beyond it reads the
+  /// (after the previous slice's), intersected with the next slice's
+  /// within 2e-4 years of the expiry (see the enum). A simulated level beyond it reads the
   /// local vol at the edge. No Black
   /// vol read is affected (vanilla options read the formula at every
   /// strike). Absent: no edge. Each > 0 and strike_min < strike_max when
@@ -2892,8 +2895,9 @@ struct SsviSlice FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   /// Optional strike range (absolute) a structured note holds the local
   /// vol to, exactly as `SviSlice.strike_min` / `strike_max` (and
   /// `SsviVolSpec.local_vol_strike_range`). `/calibrate-vol-surface`
-  /// fills both with the region it checked around the expiry. No Black
-  /// vol read is affected. Each > 0 and strike_min < strike_max when both
+  /// leaves both absent (since 0.16.9): the eSSVI formula is valid at
+  /// every strike and its conditions are checked when read, so its local
+  /// vol is read unclamped. No Black vol read is affected. Each > 0 and strike_min < strike_max when both
   /// are given (400 otherwise).
   ::flatbuffers::Optional<double> strike_min() const {
     return GetOptional<double, double>(VT_STRIKE_MIN);
@@ -3075,7 +3079,7 @@ struct SsviVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   }
   /// Optional. How the slices' strike_min / strike_max bound the local
   /// vol, as on `SviVolSpec` (absent = Global). `/calibrate-vol-surface`
-  /// returns PerExpiry with each slice's checked region.
+  /// leaves it absent and the slices without a range (unclamped).
   ::flatbuffers::Optional<quantra::enums::LocalVolStrikeRange> local_vol_strike_range() const {
     return GetOptional<int8_t, quantra::enums::LocalVolStrikeRange>(VT_LOCAL_VOL_STRIKE_RANGE);
   }

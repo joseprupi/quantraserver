@@ -4970,8 +4970,9 @@ CASES = [
             "Fitted one by one the daily slices cross and the note is a 400 "
             "(decreasing variance); the calendar-consistent fit orders them "
             "and returns per-expiry local-vol strike ranges "
-            "(local_vol_strike_range PerExpiry), which the reference applies "
-            "in Python. Dupire local vol on 252 steps per year, 4096 Sobol "
+            "(local_vol_strike_range PerExpiry; within 2e-4 years of an "
+            "expiry the two ranges around it intersected), which the "
+            "reference applies in Python. Dupire local vol on 252 steps per year, 4096 Sobol "
             "paths with Brownian bridge and antithetic variates. Synthetic "
             "vols; the price is not a market value. Same-stream Monte Carlo "
             "parity on every reported scalar."
@@ -4995,9 +4996,9 @@ CASES = [
             "same synthetic sheet (three slices raised at the money where the "
             "jittered quotes break the calendar condition). The note simulates "
             "the closed-form eSSVI local vol (no Dupire stencil), corrected for "
-            "the note's forward against the slices' reference forward, held to "
-            "the per-expiry strike ranges and continued beyond the last slice "
-            "by the model itself. 252 steps per year, 4096 Sobol paths with "
+            "the note's forward against the slices' reference forward, read "
+            "unclamped (the payload carries no strike range) and continued "
+            "beyond the last slice by the model itself. 252 steps per year, 4096 Sobol paths with "
             "Brownian bridge and antithetic variates. Synthetic vols; the price "
             "is not a market value. Same-stream Monte Carlo parity on every "
             "reported scalar (the reference evaluates the eSSVI local vol in "
@@ -5008,7 +5009,7 @@ CASES = [
         "tolerance": STRUCTURED_NOTE_TOLERANCE,
         "compare": "fields",
         "exercises": ["structured note", "single underlying", "eSSVI slices", "SsviVolSpec",
-                      "closed-form local vol", "local_vol_strike_range PerExpiry",
+                      "closed-form local vol", "unclamped local vol",
                       "steps_per_year", "same-stream Monte Carlo parity"],
     },
     {

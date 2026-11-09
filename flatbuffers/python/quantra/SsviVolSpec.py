@@ -116,7 +116,7 @@ class SsviVolSpec(object):
 
     # Optional. How the slices' strike_min / strike_max bound the local
     # vol, as on `SviVolSpec` (absent = Global). `/calibrate-vol-surface`
-    # returns PerExpiry with each slice's checked region.
+    # leaves it absent and the slices without a range (unclamped).
     # SsviVolSpec
     def LocalVolStrikeRange(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))

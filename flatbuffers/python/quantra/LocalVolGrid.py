@@ -8,7 +8,7 @@ np = import_numpy()
 
 # Every point the local vol scan evaluated (`checks.arbitrage_grid`), one
 # row per scan time in increasing time: exactly the `points` of
-# `local_vol_check` (rows x 201). The smallest square of a local vol not
+# `local_vol_check` (rows x 201, plus the clamp edge points). The smallest square of a local vol not
 # refused is `local_vol_check.min_local_variance`. Size: about 5 000
 # points on an 8-expiry sheet, 10 000 to 20 000 on a long one.
 class LocalVolGrid(object):

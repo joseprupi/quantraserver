@@ -815,9 +815,9 @@ struct CalibrateVolSurfaceResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffe
   }
   /// `Ssvi` only: the same surface as its fitted eSSVI slices, an
   /// `SsviVolSpec` payload (one `SsviSlice` per fitted expiry with the
-  /// forward used, theta, rho, psi and the expiry's checked region as
-  /// strike_min / strike_max; `spot` the sheet's spot; base and id as
-  /// `vol_surface_spec`; local_vol_strike_range PerExpiry,
+  /// forward used, theta, rho and psi, no strike_min / strike_max: the
+  /// local vol is read unclamped; `spot` the sheet's spot; base and id as
+  /// `vol_surface_spec`; local_vol_strike_range and
   /// local_vol_time_extrapolation absent: the model's own continuation).
   /// A structured note simulates it with the closed-form local vol.
   const quantra::VolSurfaceSpec *vol_surface_spec_ssvi() const {

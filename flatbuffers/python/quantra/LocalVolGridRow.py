@@ -7,9 +7,10 @@ from flatbuffers.compat import import_numpy
 np = import_numpy()
 
 # One scan time of `local_vol_grid`: the strikes evaluated at that time
-# (201, log-spaced over the region of the expiry the time belongs to, so
-# they differ from row to row), the local vol at each (0 at a refused
-# point) and the indices into `strikes` of the refused points.
+# in increasing order (201 log-spaced over the regions read at that time,
+# plus the clamp edge points, so they differ from row to row), the local
+# vol at each (0 at a refused point) and the indices into `strikes` of the
+# refused points.
 class LocalVolGridRow(object):
     __slots__ = ['_tab']
 

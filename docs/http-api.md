@@ -1429,9 +1429,20 @@ there is no adapter around the original object).
   arbitrage; with `local_vol_strike_range: PerExpiry` (what
   `/calibrate-vol-surface` returns since 0.16.5) the clamp at time `t` is
   the `[strike_min, strike_max]` of the first slice whose expiry is at or
-  after `t` (the last slice's beyond). A grid may carry the same per
+  after `t` (the last slice's beyond; at the time read: `T_last − 0.001`
+  with `FlatLocalVol`) — between two expiries the later one's, the range
+  over which `/calibrate-vol-surface` orders both slices — intersected,
+  within 2e-4 years of an expiry, with the range of the interval on the
+  other side: a read there evaluates both intervals inside its time
+  stencil, so a step landing exactly on an expiry never reads the next
+  slice beyond the next range (since 0.16.9; before, the earlier range
+  alone was used there, and where it reached further than the next one
+  the stencil read the next slice on its unchecked wing). Disjoint ranges
+  fall back to the first one. A grid may carry the same per
   expiry (`local_vol_strike_min` / `local_vol_strike_max`, one entry per
-  expiry, inside its strikes; absent = the grid's edges at every time).
+  expiry, inside its strikes, read by the same rule; absent = the grid's
+  edges at every time). An `SsviVolSpec` carries no range unless the
+  caller adds one (the eSSVI formula is valid at every strike).
   The Black vol is never clamped (vanilla options read the SVI formula at
   every strike).
   Beyond the last expiry, `local_vol_time_extrapolation` on the vol spec
@@ -1956,8 +1967,12 @@ strike ranges (`local_vol_strike_min` / `local_vol_strike_max` on the
 grid — inside its second and second-to-last strike, where the natural
 spline's end condition forces zero curvature — and
 `local_vol_strike_range: PerExpiry` with each slice's `strike_min` /
-`strike_max` on the SVI and SSVI payloads): a path beyond them reads the
-local vol at the edge, so a note never reads where nothing was checked.
+`strike_max` on the SVI payload, read as described under "Structured
+notes" > local vol): a path beyond them reads
+the local vol at the edge, so a note never reads where nothing was
+checked. The SSVI payload carries no range (since 0.16.9): the eSSVI
+formula is valid at every strike and its conditions are checked when it
+is read, so its local vol is read unclamped.
 On the 47-expiry SPX sheet both SVI specs pass without a refit pass;
 `AndreasenHuge` does not (its own fit misses the sheet by 5.7 vol points on
 average and its wing fills are flat), so for structured notes use
@@ -2041,8 +2056,9 @@ them as returned (see "Structured notes" > local vol); with
 
 `AndreasenHuge` and `Ssvi` it is absent and `vol_surface_spec_svi_note`
 says why. `vol_surface_spec_ssvi` (an `SsviVolSpec`: `spot`, one slice per
-fitted expiry with its forward, `theta`, `rho`, `psi` and the region as
-`strike_min` / `strike_max`, `local_vol_strike_range: PerExpiry`, no
+fitted expiry with its forward, `theta`, `rho` and `psi`; no
+`strike_min` / `strike_max`, no `local_vol_strike_range` — unclamped since
+0.16.9, before it carried the regions with `PerExpiry` — and no
 `local_vol_time_extrapolation`) and `arbitrage_free_ssvi` are present
 with `Ssvi` only, `arbitrage_free_svi` and `svi_local_vol_refit_action`
 with `SviPerExpiry` only.
@@ -2183,7 +2199,7 @@ between the calibration and the note.
 | `inputs_echo` | `volatility_id`, `shape` (`SmileCube3D`, `SviSlices`, `SsviSlices`, `Constant`, ...), `underlying_id`, `spot`, `discounting_curve`, `dividend_curve`, `forwards_source` (`"curves"` / `"request"`), `sheet_id`, the `filter` applied, the `checks`, the band edges applied. |
 | `expiries[]` | Every sheet expiry in date order: `time`, `usable` / `dropped_reason`, `forward`, `discount_factor`, `quotes_used`, `quotes_dropped` and every `dropped` line with its reason. |
 | `fit` | `quotes[]`: per used quote `expiry`, `time`, `strike`, `moneyness` (`K / F`), `option_type`, `bid`, `ask`, `mid`, `market_vol` (Black-76 vol of the mid), `bid_vol` / `ask_vol` (Black-76 vols of the bid and of the ask, the same side, forward and discount factor; absent when the price has no implied vol — a zero bid, a price at or below intrinsic — never 0), `model_vol` (the surface's), `model_price`, `inside_spread`, `vol_error = model_vol − market_vol`, `price_error = model_price − mid`. `bands[]`: one row per non-empty cell of moneyness band x maturity bucket (`moneyness_min/max`, `time_min/max`, a bound absent on an open end, lower bound inclusive): `count`, `inside`, `rms_vol_error`, `max_abs_vol_error`. `atm_error_per_expiry[]`: the quote nearest the money of each expiry and its vol error. Totals `count`, `inside`, `rms_vol_error`, `max_abs_vol_error`, `max_abs_price_error`. `verdict`: `pass` when at least 90 % of the quotes are inside and every at-the-money error is within 0.5 vol point, `fail` below 50 % inside, `warn` otherwise, with the numbers. |
-| `arbitrage` | `local_vol_check`: the scan — times every expiry of the surface (the quoted expiries for a constant or term vol) ± 2e-4 years, the midpoints, and the last expiry − 1e-3; at each time 201 log-spaced strikes over the region of the next quoted expiry (from the forward outwards, five standard deviations at the quotes' implied vols, plus the strikes quoted on both that expiry and the one before, within the surface's own strike limits and the quoted strikes): `times`, `strikes`, `points`, `refused`, `first_refusal`, `min_local_variance` and where, `arbitrage_free`. `svi_slices[]` (SVI payload): per slice `butterfly_min_g` and its `k` on 201 points of the slice's strike range, `wing_slope = b (1 + |ρ|)` (Lee's bound 2), against the previous slice `calendar_min_dw` (smallest total variance increase at the same `k`), its `k` and `calendar_min_forward_vol`. `ssvi_check` and `ssvi_slices[]` (SSVI payload): the closed-form conditions violated, the numeric scan of `g` and `dw/dt`, per slice the condition margins. `violations`: the slice conditions broken, in words. `arbitrage_free`: no refusal and no violation. `verdict`. `clamp_edges[]`: the strike clamps a structured note applies when it reads this surface — `scope` `PerExpiry` (the spec's per-expiry ranges: a grid's `local_vol_strike_min` / `_max`, the slices' `strike_min` / `strike_max` with `PerExpiry`; each applies up to its `time`) or `Surface` (one range for the whole surface: a grid's edge strikes, the slices' widest range; repeated per expiry of the surface), `expiry`, `time`, `strike_min`, `strike_max` (the level the local vol is read at beyond the edge: the range moved inside by 1e-3 in log-strike; absent on an open side); empty when the surface is read unclamped (a constant or term vol: no local vol; a payload without strike limits). `local_vol_grid` (with `checks.arbitrage_grid`): `rows[]`, one per scan time in increasing time, each `time`, `strikes` (the 201 strikes evaluated at that time: they follow the region of the expiry the time belongs to, so they differ from row to row), `local_vols` (0 at a refused point) and `refused` (indices into `strikes`); exactly the `points` of `local_vol_check`, whose `min_local_variance` is the smallest squared local vol of the grid. About 5 000 points on an 8-expiry sheet, 10 000 to 20 000 on a long one. |
+| `arbitrage` | `local_vol_check`: the scan — times every expiry of the surface (the quoted expiries for a constant or term vol) itself (a simulation grid steps on it), the same ± 2e-4 years, the midpoints, and the last expiry − 1e-3; at each time 201 log-spaced strikes over the region of the next quoted expiry, together with the following one's within 2e-4 years of an expiry (a region: from the forward outwards, five standard deviations at the quotes' implied vols, plus the strikes quoted on both that expiry and the one before, within the surface's own strike limits and the quoted strikes), and, when a note clamps the local vol, the clamp's two edges at that time and the strikes 1e-3 in log-strike either side of each (up to 6 more points per time; the scan before 0.16.9 skipped the expiry itself, read no edge): `times`, `strikes`, `points`, `refused`, `first_refusal`, `min_local_variance` and where, `arbitrage_free`. `svi_slices[]` (SVI payload): per slice `butterfly_min_g` and its `k` on 201 points of the slice's strike range, `wing_slope = b (1 + |ρ|)` (Lee's bound 2), against the previous slice `calendar_min_dw` (smallest total variance increase at the same `k`), its `k` and `calendar_min_forward_vol`. `ssvi_check` and `ssvi_slices[]` (SSVI payload): the closed-form conditions violated, the numeric scan of `g` and `dw/dt`, per slice the condition margins. `violations`: the slice conditions broken, in words. `arbitrage_free`: no refusal and no violation. `verdict`. `clamp_edges[]`: the strike clamps a structured note applies when it reads this surface — `scope` `PerExpiry` (from the spec's per-expiry ranges — a grid's `local_vol_strike_min` / `_max`, the slices' `strike_min` / `strike_max` with `PerExpiry` — the edges a step at that `time` reads at: its range intersected with the next expiry's; between two expiries the clamp is the later expiry's range) or `Surface` (one range for the whole surface: a grid's edge strikes, the slices' widest range; repeated per expiry of the surface), `expiry`, `time`, `strike_min`, `strike_max` (the level the local vol is read at beyond the edge: the range moved inside by 1e-3 in log-strike; absent on an open side); empty when the surface is read unclamped (a constant or term vol: no local vol; a payload without strike limits, e.g. the eSSVI payload `/calibrate-vol-surface` returns). `local_vol_grid` (with `checks.arbitrage_grid`): `rows[]`, one per scan time in increasing time, each `time`, `strikes` (the strikes evaluated at that time, increasing: 201 over the regions read at that time plus the clamp edge points, so they differ from row to row), `local_vols` (0 at a refused point) and `refused` (indices into `strikes`); exactly the `points` of `local_vol_check` (rows × 201 plus the edge points), whose `min_local_variance` is the smallest squared local vol of the grid. About 5 000 points on an 8-expiry sheet, 10 000 to 20 000 on a long one. |
 | `simulation` | `quotes[]`: per used quote `mc_price = DF x mean(max(±(S_T − K), 0))`, `standard_error`, `mc_vol` (Black-76 vol of `mc_price`, absent when it does not solve), `inside_spread`, `within_noise` (`bid − 3.5 SE ≤ mc_price ≤ ask + 3.5 SE`), `vol_error`, `price_error`; the same `bands[]`; `paths`, `time_steps`, `seed`, `count`, `inside`, `within_noise`, `max_abs_price_error`, `max_abs_vol_error`, `max_standard_error`; `verdict`: `pass` when at least 95 % are within the noise, `fail` below 80 %, `warn` otherwise. The grid is the used expiries refined by `steps_per_year`; a one-underlying structured note whose observation dates are among them draws the same stream on the same grid. |
 | `timing` | Milliseconds per test and in total. |
 

@@ -14,14 +14,18 @@ np = import_numpy()
 # otherwise) and extended in time as the spec says
 # (`local_vol_time_extrapolation`), on the forwards of the checks. The
 # scan: times = every expiry of the surface (the quoted expiries for a
-# constant or term vol) +/- 2e-4 years (outside QuantLib's time stencil of
-# 1e-4), the midpoints between them (and between 0 and the first) and the
-# last expiry - 1e-3; at each time 201 log-spaced strikes over the region
-# of the first usable quoted expiry at or after it (the last one beyond):
-# from the forward outwards, the log-strike distance five standard
-# deviations cover at the quotes' implied vols, together with the strikes
-# quoted on both that expiry and the one before, within the widest of the
-# surface's strike limits and the quoted strikes. A refused point is one
+# constant or term vol) itself (a simulation grid steps on it) and +/-
+# 2e-4 years (outside QuantLib's time stencil of 1e-4), the midpoints
+# between them (and between 0 and the first) and the last expiry - 1e-3;
+# at each time 201 log-spaced strikes over the region of the first usable
+# quoted expiry at or after it (the last one beyond), together with the
+# next one's within 2e-4 years of an expiry — a region: from the forward outwards,
+# the log-strike distance five standard deviations cover at the quotes'
+# implied vols, together with the strikes quoted on both that expiry and
+# the one before, within the widest of the surface's strike limits and
+# the quoted strikes — and, when the local vol is clamped, the clamp's
+# edges at that time and the strikes 1e-3 in log-strike either side of
+# each (up to 6 more points; since 0.16.9). A refused point is one
 # where QuantLib throws ("decreasing variance ..." or "negative local
 # vol^2 ...", for SSVI g <= 0 or a negative local variance).
 class LocalVolCheck(object):

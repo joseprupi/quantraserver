@@ -10,9 +10,12 @@ np = import_numpy()
 # this surface (a simulated level beyond an edge reads the local vol at
 # the edge): the level the local vol is read at, i.e. the spec's range
 # moved inside by 1e-3 in log-strike (unless that leaves no interior).
-# `scope` `PerExpiry`: the spec's per-expiry ranges (`local_vol_strike_min`
-# / `_max` of a grid, `strike_min` / `strike_max` with
-# `local_vol_strike_range: PerExpiry`), each applying up to its `time`;
+# `scope` `PerExpiry`: from the spec's per-expiry ranges
+# (`local_vol_strike_min` / `_max` of a grid, `strike_min` / `strike_max`
+# with `local_vol_strike_range: PerExpiry`), the edges a simulation step
+# at that expiry's `time` reads at: its range intersected with the next
+# expiry's (see `LocalVolStrikeRange`); between two expiries the clamp is
+# the later expiry's range;
 # `Surface`: one range for the whole surface (a grid's edge strikes, the
 # slices' widest `strike_min` / `strike_max`), repeated per expiry of the
 # surface (or once, without expiry, when the surface has none). An edge is

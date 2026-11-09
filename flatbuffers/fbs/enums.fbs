@@ -80,7 +80,12 @@ enum LocalVolTimeExtrapolation : byte {
 ///     strike_max], at every time.
 ///   PerExpiry: at time t, [strike_min, strike_max] of the first slice
 ///     whose expiry is at or after t (the last slice's beyond the last
-///     expiry); every slice must carry both.
+///     expiry), intersected, within 2e-4 years of an expiry, with the range
+///     of the interval on the other side of it: a read there evaluates both
+///     intervals inside its time stencil, so a step landing on an expiry
+///     never reads the next slice beyond the next range (since 0.16.9; if
+///     the two ranges are disjoint, the first one alone). Every slice must
+///     carry both.
 enum LocalVolStrikeRange : byte {
     Global = 0,
     PerExpiry = 1

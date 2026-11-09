@@ -13,18 +13,19 @@ file still carries today's output.
 
 | File | Surface | Checks | Result |
 |---|---|---|---|
-| `scotia_ndx_grid.json` | The grid (`BlackVolSpec`, `CubicStrikeLinearTime`) of method `SviPerExpiry` | fit, arbitrage | fit pass: 189 of 189 quotes inside the bid/ask; arbitrage pass: 5025 of 5025 scan points |
+| `scotia_ndx_grid.json` | The grid (`BlackVolSpec`, `CubicStrikeLinearTime`) of method `SviPerExpiry` | fit, arbitrage | fit pass: 189 of 189 quotes inside the bid/ask; arbitrage pass: 6825 of 6825 scan points |
 | `scotia_ndx_svi.json` | The `SviVolSpec` payload of the same calibration | fit, arbitrage, simulation (2048 Sobol paths, 252 steps per year) | fit and arbitrage pass; simulation warn: 179 of 189 quotes within 3.5 standard errors of their bid/ask (the misses are the 16-day expiry and the deep wings, where 2048 paths are at the sampling limit) |
-| `scotia_ndx_ssvi.json` | The `SsviVolSpec` payload of method `Ssvi` | fit, arbitrage | fit pass, arbitrage pass (the slices' closed-form conditions and scan clean) |
+| `scotia_ndx_ssvi.json` | The `SsviVolSpec` payload of method `Ssvi` | fit, arbitrage | fit pass, arbitrage pass (the slices' closed-form conditions and scan clean; the payload carries no strike range, so the local vol is read unclamped and `clamp_edges` is empty) |
 | `scotia_ndx_vendor_constant_vol.json` | A flat 20 % `BlackVolSpec` (`Constant`), as a vendor feed might supply | fit, arbitrage, simulation (exact steps), custom maturity buckets | fit fail: 0 of 189 inside, RMS vol error 11 vol points (the smile is not flat); arbitrage pass (a constant local vol); simulation fail |
 
 Every fit quote also carries `bid_vol` / `ask_vol` (the spread in vol units),
 and `arbitrage.clamp_edges` the strike range the note's local vol is held to
-per expiry (the grid's `local_vol_strike_min` / `_max`, the slices'
-`strike_min` / `strike_max`, moved inside by 1e-3 in log-strike; empty for
-the constant vol). Add `"arbitrage_grid": true` to `checks` to get every
-scanned local vol point (`arbitrage.local_vol_grid`, 25 rows x 201 strikes
-here).
+per expiry (from the grid's `local_vol_strike_min` / `_max` or the slices'
+`strike_min` / `strike_max`: at each expiry its range intersected with the
+next one's, moved inside by 1e-3 in log-strike; empty for the constant vol and
+the eSSVI payload). Add `"arbitrage_grid": true` to `checks` to get every
+scanned local vol point (`arbitrage.local_vol_grid`, 33 rows of 201 strikes
+plus up to 6 points at the clamp's edges here).
 
 The band table of the fit (`fit.bands`) shows where a surface misses: on the
 flat vol the short-dated put wing (moneyness below 0.8, under three months)

@@ -53,7 +53,7 @@ info:
     \n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond\
     \ \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/bonds/fixed_rate_bond_request.json\n\
     ```\n"
-  version: 0.16.8
+  version: 0.16.9
   contact:
     name: Quantra API Support
     url: https://github.com/joseprupi/quantraserver
@@ -3812,11 +3812,16 @@ components:
 
             is read at the simulated level clamped to the range of the first
 
-            expiry at or after t (the last expiry''s beyond it), instead of the
+            expiry at or after t (the last expiry''s beyond it), intersected
 
-            grid''s first and last strike. Absent: the grid''s edges at every
+            within 2e-4 years of an expiry with the range on the other side of
 
-            time. `/calibrate-vol-surface` fills them with the region it checked
+            it (since 0.16.9: a read on an expiry evaluates both intervals in
+
+            its time stencil), instead of the grid''s first and last strike.
+
+            Absent: the grid''s edges at every time. `/calibrate-vol-surface` fills
+            them with the region it checked
 
             (see `LocalVolCheck`). No Black vol read is affected.'
           items:
@@ -3930,7 +3935,10 @@ components:
 
             PerExpiry it is this slice''s range for the times up to its expiry
 
-            (after the previous slice''s). A simulated level beyond it reads the
+            (after the previous slice''s), intersected with the next slice''s
+
+            within 2e-4 years of the expiry (see the enum). A simulated level beyond
+            it reads the
 
             local vol at the edge. No Black
 
@@ -4040,9 +4048,12 @@ components:
 
             `SsviVolSpec.local_vol_strike_range`). `/calibrate-vol-surface`
 
-            fills both with the region it checked around the expiry. No Black
+            leaves both absent (since 0.16.9): the eSSVI formula is valid at
 
-            vol read is affected. Each > 0 and strike_min < strike_max when both
+            every strike and its conditions are checked when read, so its local
+
+            vol is read unclamped. No Black vol read is affected. Each > 0 and strike_min
+            < strike_max when both
 
             are given (400 otherwise).'
         strike_max:
@@ -11469,21 +11480,29 @@ components:
 
         scan: times = every expiry of the surface (the quoted expiries for a
 
-        constant or term vol) +/- 2e-4 years (outside QuantLib''s time stencil of
+        constant or term vol) itself (a simulation grid steps on it) and +/-
 
-        1e-4), the midpoints between them (and between 0 and the first) and the
+        2e-4 years (outside QuantLib''s time stencil of 1e-4), the midpoints
 
-        last expiry - 1e-3; at each time 201 log-spaced strikes over the region
+        between them (and between 0 and the first) and the last expiry - 1e-3;
 
-        of the first usable quoted expiry at or after it (the last one beyond):
+        at each time 201 log-spaced strikes over the region of the first usable
 
-        from the forward outwards, the log-strike distance five standard
+        quoted expiry at or after it (the last one beyond), together with the
 
-        deviations cover at the quotes'' implied vols, together with the strikes
+        next one''s within 2e-4 years of an expiry — a region: from the forward outwards,
 
-        quoted on both that expiry and the one before, within the widest of the
+        the log-strike distance five standard deviations cover at the quotes''
 
-        surface''s strike limits and the quoted strikes. A refused point is one
+        implied vols, together with the strikes quoted on both that expiry and
+
+        the one before, within the widest of the surface''s strike limits and
+
+        the quoted strikes — and, when the local vol is clamped, the clamp''s
+
+        edges at that time and the strikes 1e-3 in log-strike either side of
+
+        each (up to 6 more points; since 0.16.9). A refused point is one
 
         where QuantLib throws ("decreasing variance ..." or "negative local
 
@@ -11530,11 +11549,13 @@ components:
       description: 'One scan time of `local_vol_grid`: the strikes evaluated at that
         time
 
-        (201, log-spaced over the region of the expiry the time belongs to, so
+        in increasing order (201 log-spaced over the regions read at that time,
 
-        they differ from row to row), the local vol at each (0 at a refused
+        plus the clamp edge points, so they differ from row to row), the local
 
-        point) and the indices into `strikes` of the refused points.'
+        vol at each (0 at a refused point) and the indices into `strikes` of the
+
+        refused points.'
       properties:
         time:
           type: number
@@ -11564,7 +11585,8 @@ components:
 
         row per scan time in increasing time: exactly the `points` of
 
-        `local_vol_check` (rows x 201). The smallest square of a local vol not
+        `local_vol_check` (rows x 201, plus the clamp edge points). The smallest square
+        of a local vol not
 
         refused is `local_vol_check.min_local_variance`. Size: about 5 000
 
@@ -11588,11 +11610,17 @@ components:
 
         moved inside by 1e-3 in log-strike (unless that leaves no interior).
 
-        `scope` `PerExpiry`: the spec''s per-expiry ranges (`local_vol_strike_min`
+        `scope` `PerExpiry`: from the spec''s per-expiry ranges
 
-        / `_max` of a grid, `strike_min` / `strike_max` with
+        (`local_vol_strike_min` / `_max` of a grid, `strike_min` / `strike_max`
 
-        `local_vol_strike_range: PerExpiry`), each applying up to its `time`;
+        with `local_vol_strike_range: PerExpiry`), the edges a simulation step
+
+        at that expiry''s `time` reads at: its range intersected with the next
+
+        expiry''s (see `LocalVolStrikeRange`); between two expiries the clamp is
+
+        the later expiry''s range;
 
         `Surface`: one range for the whole surface (a grid''s edge strikes, the
 
