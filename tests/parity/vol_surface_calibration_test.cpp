@@ -440,9 +440,10 @@ TEST(VolSurfaceCalibration, SequentialFitOrdersDisorderedExpiriesWithTheMargin) 
     EXPECT_EQ(r.sviLocalVolRefitAction, "none");
 }
 
-// The local vol check scans what it says: every expiry +/- 2e-4, the
-// midpoints and T_last - 1e-3, 201 strikes per time; on the SSVI truth
-// nothing is refused and the smallest local variance is positive.
+// The local vol check scans what it says: every expiry, every expiry
+// +/- 2e-4, the midpoints and T_last - 1e-3, 201 strikes per time plus the
+// clamp's two edges and the points 1e-3 either side of each; on the SSVI
+// truth nothing is refused and the smallest local variance is positive.
 TEST(VolSurfaceCalibration, LocalVolCheckScansTheReturnedSurfaces) {
     Market mkt;
     auto in = baseInputs(VolSurfaceFitMethod::SviPerExpiry);
@@ -450,9 +451,10 @@ TEST(VolSurfaceCalibration, LocalVolCheckScansTheReturnedSurfaces) {
     const auto r = VolSurfaceCalibrationEvaluator().evaluate(in, mkt.reg, mkt.ctx);
     const unsigned n = static_cast<unsigned>(mkt.expiries.size());
     for (const auto* c : {&r.localVolCheck, &*r.localVolCheckSvi}) {
-        EXPECT_EQ(c->times, 3 * n + 1);
+        EXPECT_EQ(c->times, 4 * n + 1);
         EXPECT_EQ(c->strikes, 201u);
-        EXPECT_EQ(c->points, c->times * c->strikes);
+        EXPECT_GT(c->points, c->times * c->strikes);
+        EXPECT_LE(c->points, c->times * (c->strikes + 6));
         EXPECT_EQ(c->refused, 0u);
         EXPECT_TRUE(c->arbitrageFree);
         ASSERT_TRUE(c->minLocalVariance.has_value());
@@ -733,9 +735,12 @@ BlackVolEntry sliceEntry(const VolSurfaceCalibrationResult& r, const Date& asOf,
         } else {
             svi.push_back({*x.forward, x.svi->a, x.svi->b, x.svi->sigma, x.svi->rho, x.svi->m});
         }
-        e.localVolStrikeBands.push_back({x.expiry, *x.strikeMin, *x.strikeMax});
-        lo = std::min(lo, *x.strikeMin);
-        hi = std::max(hi, *x.strikeMax);
+        // The eSSVI payload carries no strike range (read unclamped).
+        if (x.strikeMin && x.strikeMax) {
+            e.localVolStrikeBands.push_back({x.expiry, *x.strikeMin, *x.strikeMax});
+            lo = std::min(lo, *x.strikeMin);
+            hi = std::max(hi, *x.strikeMax);
+        }
     }
     std::shared_ptr<QuantLib::BlackVolTermStructure> s;
     if (ssvi) {
@@ -751,7 +756,7 @@ BlackVolEntry sliceEntry(const VolSurfaceCalibrationResult& r, const Date& asOf,
     e.referenceDate = asOf;
     e.dayCounter = dc;
     e.pillarDates = dates;
-    e.localVolStrikeRange = std::make_pair(lo, hi);
+    if (lo < hi) e.localVolStrikeRange = std::make_pair(lo, hi);
     e.flatLocalVolBeyondLastExpiry = !ssvi;
     e.allowExtrapolation = true;
     return e;

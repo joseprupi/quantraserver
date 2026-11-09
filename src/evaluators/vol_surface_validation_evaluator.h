@@ -36,8 +36,11 @@
  * LocalVolSurface, or SsviLocalVol for an SSVI payload, held at the spec's
  * strike limits and extended in time as the spec says), evaluated at
  * localVolCheckTimes(surface expiries) x 201 log-spaced strikes over the
- * quote region (quoteRegions) of the first usable expiry at or after each
- * time. A refusal (QuantLib throws) fails the check. An SVI payload adds
+ * union of the quote regions (quoteRegions) of the times within the
+ * stencil window of each time (the first usable expiry at or after it; both
+ * around an expiry), plus the clamp's edges and the points 1e-3 in
+ * log-strike either side of them. A refusal (QuantLib throws) fails the
+ * check. An SVI payload adds
  * per slice Durrleman's g on 201 points of its strike range, the wing slope
  * against Lee's bound 2 and the smallest total variance increase at the same
  * log-moneyness against the previous slice; an SSVI payload the closed-form
@@ -121,11 +124,13 @@ struct LocalVolGridData {
 };
 
 /// A strike clamp the note's local vol applies when reading the surface:
-/// per expiry (the spec's per-expiry ranges) or surface-wide (one entry per
-/// surface expiry, or one without expiry when the surface has none); each
-/// edge is the level the local vol is read at beyond it (the range moved
-/// inside by EdgeClampedLocalVol::kEdgeMargin in log-strike), absent on an
-/// open side.
+/// per expiry (the spec's per-expiry ranges: the edges a simulation step AT
+/// that expiry reads at: its range intersected with the next expiry's,
+/// see mc::EdgeClampedLocalVol::strikeBand) or surface-wide (one
+/// entry per surface expiry, or one without expiry when the surface has
+/// none); each edge is the level the local vol is read at beyond it (the
+/// range moved inside by EdgeClampedLocalVol::kEdgeMargin in log-strike),
+/// absent on an open side.
 struct ClampEdgeData {
     std::string scope; // "PerExpiry" | "Surface"
     std::optional<std::string> expiryIso;
@@ -149,8 +154,9 @@ void applyLocalVolSettings(const BlackVolEntry& entry, mc::BasketAsset& asset);
 /// `entry` is null).
 mc::LocalVolTimeExtrapolation localVolTimeOf(const BlackVolEntry* entry);
 
-/// Scan times: every expiry +/- 2e-4, the midpoints (and between 0 and the
-/// first), and the last expiry - 1e-3 (where FlatLocalVol reads).
+/// Scan times: every expiry, every expiry +/- 2e-4, the midpoints (and
+/// between 0 and the first), and the last expiry - 1e-3 (where FlatLocalVol
+/// reads).
 std::vector<double> localVolCheckTimes(const std::vector<double>& expiryTimes);
 
 /**
@@ -158,9 +164,13 @@ std::vector<double> localVolCheckTimes(const std::vector<double>& expiryTimes);
  * LocalVolCache, with `bands` / `strikeRange` / `timeExtension` applied as
  * the note applies them; a constant or term vol: QuantLib's LocalVolSurface
  * on it), evaluated at localVolCheckTimes(expiryTimes) x 201 strikes
- * log-spaced over `regions[r]`, r the first `regionTimes[r]` >= t (the last
- * beyond). `refusedTimes` (optional) receives each refused time with whether
- * the message was a calendar one ("decreasing variance").
+ * log-spaced over the union of `regions[r]` for r the first
+ * `regionTimes[r]` >= x (the last beyond), x every time within
+ * EdgeClampedLocalVol::kBandTimeWindow of t (one region inside an interval,
+ * both around an expiry), plus, when the local vol is clamped, the clamp's edges at the
+ * time read and the strikes 1e-3 in log-strike either side of each.
+ * `refusedTimes` (optional) receives each refused time with whether the
+ * message was a calendar one ("decreasing variance").
  */
 LocalVolCheckData checkLocalVol(
     const QuantLib::Handle<QuantLib::BlackVolTermStructure>& surface,

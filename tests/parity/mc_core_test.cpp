@@ -1089,8 +1089,9 @@ TEST(McCoreTest, LocalVolFloorIsBitIdenticalWhereItDoesNotBindAndCountsWhereItDo
 
 // Per-expiry strike bands (BlackVolSpec local_vol_strike_min / _max,
 // SviVolSpec local_vol_strike_range PerExpiry): at time t the level is
-// clamped to the band of the first expiry at or after t, the last band
-// beyond the last expiry; inside the band the value is QuantLib's.
+// clamped to the band of the first expiry at or after t (the last band
+// beyond the last expiry), intersected with the neighbouring band within
+// 2e-4 years of an expiry; inside the band the value is QuantLib's.
 TEST(McCoreTest, PerExpiryStrikeBandsClampTheLocalVolByTime) {
     McMarket m;
     const Real S = 100.0, r = 0.03, q = 0.01;
@@ -1122,11 +1123,20 @@ TEST(McCoreTest, PerExpiryStrikeBandsClampTheLocalVolByTime) {
     EXPECT_EQ(clamped->clampedLevel(50.0, 0.5), 80.0 * e);
     EXPECT_EQ(clamped->clampedLevel(50.0, 0.7), 60.0 * e);
     EXPECT_EQ(
+        clamped->clampedLevel(500.0, 0.7), 150.0 * std::exp(-mc::EdgeClampedLocalVol::kEdgeMargin));
+    EXPECT_EQ(
         clamped->clampedLevel(500.0, 3.0), 150.0 * std::exp(-mc::EdgeClampedLocalVol::kEdgeMargin));
+    // Within the stencil window of the first expiry both bands hold.
+    EXPECT_EQ(clamped->clampedLevel(50.0, 0.5 + 1e-4), 80.0 * e);
+    EXPECT_EQ(
+        clamped->clampedLevel(500.0, 0.5 - 1e-4),
+        120.0 * std::exp(-mc::EdgeClampedLocalVol::kEdgeMargin));
+    EXPECT_EQ(clamped->clampedLevel(50.0, 0.5 + 1e-3), 60.0 * e);
     EXPECT_EQ(clamped->clampedLevel(100.0, 0.7), 100.0);
     QuantLib::LocalVolSurface ql(vol, asset.riskFree, asset.dividend, asset.spot);
     EXPECT_EQ(asset.localVol->localVol(0.3, 70.0, true), ql.localVol(0.3, 80.0 * e, true));
     EXPECT_EQ(asset.localVol->localVol(0.8, 70.0, true), ql.localVol(0.8, 70.0, true));
+    EXPECT_EQ(asset.localVol->localVol(1.5, 70.0, true), ql.localVol(1.5, 70.0, true));
     auto other = asset;
     other.localVolStrikeBands = {{0.5, 80.0, 120.0}};
     cache.attach(other);
