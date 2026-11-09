@@ -1409,8 +1409,10 @@ there is no adapter around the original object).
   log-strike and time; for an `SsviVolSpec` the closed-form local variance
   of its slices instead) with log-Euler steps on the `steps_per_year`
   grid. A grid is read with its `surface_interpolator`
-  (`Bilinear` by default for a supplied grid, `CubicStrikeLinearTime` on
-  the grids `/calibrate-vol-surface` returns, `Bicubic` on request; see
+  (`Bilinear` by default for a supplied grid,
+  `CubicStrikeLinearTimeForwardMoneyness` on the grids
+  `/calibrate-vol-surface` returns, `CubicStrikeLinearTime` or `Bicubic`
+  on request; see
   "Volatility surface from option quotes" > "The payloads") with
   CONSTANT strike extrapolation on both sides (a strike beyond the grid
   reads the edge strike's vol; the same object the equity option pricer
@@ -1742,7 +1744,8 @@ committed.
 implied-volatility surface on a strike x expiry grid: the second step of the
 chain quotes → forwards → surface → models. It returns a complete
 `VolSurfaceSpec` (a `BlackVolSpec` of shape `SmileCube3D`, read with
-`surface_interpolator: CubicStrikeLinearTime`) ready to paste into
+`surface_interpolator: CubicStrikeLinearTimeForwardMoneyness`, with its
+`expiry_forwards` and `spot`) ready to paste into
 `pricing.volatility.vol_surfaces`, with `SviPerExpiry` a second spec of
 the same surface as its fitted SVI slices (`vol_surface_spec_svi`, an
 `SviVolSpec` payload, also ready to paste), the forwards it used, a
@@ -1873,26 +1876,27 @@ expiry back, each held under the slice after it:
   the call wing less far), together with the strikes quoted on both this
   expiry and the one before, within the output grid's range and the widest
   quoted range;
-- between expiries `T_{i−1}` and `T_i` the surface interpolates total
-  variance linearly in time at fixed strike, and a structured note's
-  Dupire local vol differentiates it in time along the forward
-  (QuantLib's `LocalVolSurface` moves the strike with the forward); with
-  `x = ln(F_i / F_{i−1})` and `s = dw / d ln K`, that time derivative is
-  non-negative over the whole interval iff, at every strike,
-  `w_i(K) − w_{i−1}(K) + x s_{i−1}(K) ≥ m` and
-  `w_i(K) − w_{i−1}(K) + x s_i(K) ≥ m`, `m = min_forward_vol² (T_i −
-  T_{i−1})`. Neither comparing at fixed strike nor at fixed forward
-  moneyness alone is enough with daily expiries (the skew times the
-  forward's move exceeds the margin);
-- both conditions are checked on 401 log-spaced strikes over the later
-  expiry's region (widened by the forward's move); when the independently
-  fitted slice (or its butterfly refit) breaks them, it is refitted with
-  the butterfly penalty and a calendar penalty on the excess together
-  (from its fit and from the next slice moved to its forward and lowered
-  by the margin, the better objective kept; the calendar weight rises
-  tenfold up to twice while the excess stays above a tenth of the margin),
-  then lowered by whatever excess remains (`a − d`) so that the
-  conditions hold at every point;
+- between expiries `T_{i−1}` and `T_i` the returned surfaces interpolate
+  total variance linearly in time at fixed forward moneyness `k` (since
+  0.16.10; see "Time interpolation at fixed forward moneyness"), and a
+  structured note's Dupire local vol differentiates it in time along the
+  forward (QuantLib's `LocalVolSurface` moves the strike with the
+  forward), where `k` is fixed; that time derivative is non-negative over
+  the whole interval iff, at every moneyness of the region,
+  `w_i(k) − w_{i−1}(k) ≥ m`, `m = min_forward_vol² (T_i − T_{i−1})`
+  (before 0.16.10, with the fixed-strike reading, two conditions at every
+  strike involving the skew times the forward's move were needed, and a
+  smile's curvature could still break them between the two ends);
+- the condition is checked on 401 log-spaced points over the later
+  expiry's region (widened by the forward's move, so every moneyness a
+  strike of the region has at a time of the interval is covered); when
+  the independently fitted slice (or its butterfly refit) breaks it, it
+  is refitted with the butterfly penalty and a calendar penalty on the
+  excess together (from its fit and from the next slice lowered by the
+  margin, the better objective kept; the calendar weight rises tenfold up
+  to twice while the excess stays above a tenth of the margin), then
+  lowered by whatever excess remains (`a − d`) so that the condition holds
+  at every point;
 - the report says per expiry whether the refit acted (`calendar_refit`),
   the largest vol change it made over the slice's quoted strikes
   (`calendar_refit_max_vol_shift`) and what was done
@@ -1965,7 +1969,9 @@ three passes, listed in `svi_local_vol_refit_action` (`"none"` when the
 first scan passes). Both specs carry the regions as per-expiry local-vol
 strike ranges (`local_vol_strike_min` / `local_vol_strike_max` on the
 grid — inside its second and second-to-last strike, where the natural
-spline's end condition forces zero curvature — and
+spline's end condition forces zero curvature, pulled in by the forward's
+move over the interval each expiry closes (since 0.16.10: read at fixed
+forward moneyness, a row is evaluated at `K F_i / F(t)`) — and
 `local_vol_strike_range: PerExpiry` with each slice's `strike_min` /
 `strike_max` on the SVI payload, read as described under "Structured
 notes" > local vol): a path beyond them reads
@@ -2009,7 +2015,9 @@ average and its wing fills are flat), so for structured notes use
       "expiries": [{"n": 16, "unit": "Days"}, {"n": 51, "unit": "Days"}, "..."],
       "strikes": [12000.0, 12600.0, "..."],
       "surface_vols": {"n_rows": 8, "n_cols": 41, "values": ["row-major by expiry then strike"]},
-      "allow_extrapolation": true, "surface_interpolator": "CubicStrikeLinearTime",
+      "allow_extrapolation": true,
+      "surface_interpolator": "CubicStrikeLinearTimeForwardMoneyness",
+      "spot": 24000.0, "expiry_forwards": [24033.597, "..."],
       "local_vol_time_extrapolation": "FlatLocalVol",
       "local_vol_strike_min": [20935.6, "..."], "local_vol_strike_max": [27551.1, "..."]
     }
@@ -2022,7 +2030,8 @@ average and its wing fills are flat), so for structured notes use
       "slices": [{"expiry": "2026-10-16", "forward": 24033.597,
                   "a": 0.000591, "b": 0.024078, "sigma": 0.034390, "rho": -0.7, "m": 0.033709,
                   "strike_min": 19200.0, "strike_max": 28800.0}, "..."],
-      "time_interpolation": "LinearTotalVariance", "allow_extrapolation": true,
+      "time_interpolation": "LinearTotalVarianceForwardMoneyness", "spot": 24000.0,
+      "allow_extrapolation": true,
       "local_vol_time_extrapolation": "FlatLocalVol", "local_vol_strike_range": "PerExpiry"
     }
   },
@@ -2067,8 +2076,8 @@ with `SviPerExpiry` only.
 
 | Payload | Reading | Use |
 |---|---|---|
-| `BlackVolSpec` `SmileCube3D` (the grid, `vol_surface_spec`) | `surface_interpolator`: `Bilinear` (default of a supplied grid — QuantLib `BlackVarianceSurface`, linear in total variance inside every cell, so the smile's curvature is lost between nodes and a Dupire local vol derived from it misprices vanillas by 2 to 3 vol points at a year), `Bicubic` (QuantLib's 2-D spline, a spline in time too through the zero-variance column at t = 0, which distorts the short end; ~15x the cost), `CubicStrikeLinearTime` (what `/calibrate-vol-surface` returns: per expiry a natural cubic spline of total variance in log-strike — C2, every node reproduced, the curvature kept between nodes — linear in total variance between expiries at fixed strike, constant beyond the first and last strike, flat implied vol beyond the last expiry; two 1-D evaluations per read). Optional `local_vol_time_extrapolation` (`FlatImpliedVol` when absent, `FlatLocalVol` from this endpoint): how a structured note's local vol continues beyond the last expiry. A grid you supply yourself keeps `Bilinear` unless it says otherwise: no existing request changes. | Any grid, from this endpoint or elsewhere. |
-| `SviVolSpec` (the slices, `vol_surface_spec_svi`) | The raw SVI total variance of each slice, `w(k) = a + b (ρ (k − m) + sqrt((k − m)² + σ²))`, `k = ln(K / forward)`, Black vol `sqrt(w / T)`; linear in total variance between the bracketing slices at fixed strike (`time_interpolation: LinearTotalVariance`, the only value), `w(T₁, K) t / T₁` before the first slice and `w(Tₙ, K) t / Tₙ` after the last (flat implied vol on both ends; `allow_extrapolation` gates reading past the last slice). The formula is global in strike: no strike extrapolation exists or is needed for a Black vol read. Optional per slice: `strike_min` / `strike_max`, the quoted strike range (`/calibrate-vol-surface` fills them; `> 0`, `strike_min < strike_max`, else `400`), where a structured note's local vol holds its edge value. Optional `local_vol_time_extrapolation` (`FlatImpliedVol` when absent, `FlatLocalVol` from `/calibrate-vol-surface`): how a structured note's local vol continues beyond the last slice. The exact surface the quotes were fitted to, with its exact curvature. `base.shape`, `constant_vol` and `quote_id` must be absent (`400`); slices strictly increasing after `reference_date`, `forward > 0`, `b ≥ 0`, `σ > 0`, `|ρ| < 1`, `a + bσ sqrt(1 − ρ²) ≥ 0` (`400` naming the slice). | Everywhere a Black vol is referenced: `volatility` on an equity option (a European option prices at the Black price of the slice's vol), `underlyings[].volatility_id` on a structured note (strike-dependent: Dupire local vol, `steps_per_year` required; vega bumps shift every vol by the bump — a shifted SVI smile is no SVI slice, so the shift is applied at every read), `/sample-vol-surfaces` `EquityBlack`. |
+| `BlackVolSpec` `SmileCube3D` (the grid, `vol_surface_spec`) | `surface_interpolator`: `Bilinear` (default of a supplied grid — QuantLib `BlackVarianceSurface`, linear in total variance inside every cell, so the smile's curvature is lost between nodes and a Dupire local vol derived from it misprices vanillas by 2 to 3 vol points at a year), `Bicubic` (QuantLib's 2-D spline, a spline in time too through the zero-variance column at t = 0, which distorts the short end; ~15x the cost), `CubicStrikeLinearTime` (per expiry a natural cubic spline of total variance in log-strike — C2, every node reproduced, the curvature kept between nodes — linear in total variance between expiries at fixed strike, constant beyond the first and last strike, flat implied vol beyond the last expiry; two 1-D evaluations per read; what this endpoint returned before 0.16.10), `CubicStrikeLinearTimeForwardMoneyness` (what `/calibrate-vol-surface` returns since 0.16.10: the same rows, linear in total variance between expiries at fixed forward moneyness `k = ln(K / F(t))`, each row read at `F_i e^k` — see "Time interpolation at fixed forward moneyness" below; the forward `F(t)` from the optional `expiry_forwards`, one per expiry, ln-linear in time through `spot` and them, or without them from `spot` / `spot_quote_id` and the discount and dividend inputs, `spot D_q / D_r`; `400` naming the fields when neither is given, when both are, or when `expiry_forwards` is given with another interpolator). Optional `local_vol_time_extrapolation` (`FlatImpliedVol` when absent, `FlatLocalVol` from this endpoint): how a structured note's local vol continues beyond the last expiry. A grid you supply yourself keeps `Bilinear` unless it says otherwise: no existing request changes. | Any grid, from this endpoint or elsewhere. |
+| `SviVolSpec` (the slices, `vol_surface_spec_svi`) | The raw SVI total variance of each slice, `w(k) = a + b (ρ (k − m) + sqrt((k − m)² + σ²))`, `k = ln(K / forward)`, Black vol `sqrt(w / T)`; linear in total variance between the bracketing slices, at fixed strike with `time_interpolation: LinearTotalVariance` (the default) or at fixed forward moneyness with `LinearTotalVarianceForwardMoneyness` (what `/calibrate-vol-surface` returns since 0.16.10; the forward ln-linear in time through the optional `spot` and the slices' forwards, see below; `spot` with `LinearTotalVariance` is a `400`), `w(T₁, ·) t / T₁` before the first slice and `w(Tₙ, K) t / Tₙ` after the last (flat implied vol on both ends; `allow_extrapolation` gates reading past the last slice). The formula is global in strike: no strike extrapolation exists or is needed for a Black vol read. Optional per slice: `strike_min` / `strike_max`, the quoted strike range (`/calibrate-vol-surface` fills them; `> 0`, `strike_min < strike_max`, else `400`), where a structured note's local vol holds its edge value. Optional `local_vol_time_extrapolation` (`FlatImpliedVol` when absent, `FlatLocalVol` from `/calibrate-vol-surface`): how a structured note's local vol continues beyond the last slice. The exact surface the quotes were fitted to, with its exact curvature. `base.shape`, `constant_vol` and `quote_id` must be absent (`400`); slices strictly increasing after `reference_date`, `forward > 0`, `b ≥ 0`, `σ > 0`, `|ρ| < 1`, `a + bσ sqrt(1 − ρ²) ≥ 0` (`400` naming the slice). | Everywhere a Black vol is referenced: `volatility` on an equity option (a European option prices at the Black price of the slice's vol), `underlyings[].volatility_id` on a structured note (strike-dependent: Dupire local vol, `steps_per_year` required; vega bumps shift every vol by the bump — a shifted SVI smile is no SVI slice, so the shift is applied at every read), `/sample-vol-surfaces` `EquityBlack`. |
 | `SsviVolSpec` (eSSVI slices, `vol_surface_spec_ssvi`) | `spot` (presence-required, `> 0`) and per slice `expiry`, `forward`, `theta`, `rho`, `psi` (each presence-required, `400` naming it), optional `strike_min` / `strike_max` as on `SviSlice`. Total variance `w(k) = ½ (θ + ρψk + sqrt(ψ²k² + 2ρψθk + θ²))` at `k = ln(K / F_ref(t))`, Black vol `sqrt(w / t)`. In time the parameters, not the variances, are interpolated: `θ`, `ψ` and `ρψ` linear between two slices, the first slice scaled by `t / T₁` before it, `ψ` and `ρ` held and `θ` continuing the last forward variance `(θₙ − θₙ₋₁) / (Tₙ − Tₙ₋₁)` after the last (`θ₁ / T₁` with one slice): arbitrage free at every time given arbitrage-free slices. The reference forward `F_ref` has `ln F_ref` linear in time through `ln spot` at the reference date and `ln forward` at each slice, continuing the last slope beyond, so the payload needs no curve. Defined at every time and strike (no `allow_extrapolation`). The slices must satisfy the conditions of the `Ssvi` method (butterfly per slice, calendar between consecutive slices, the sufficient `ψ / θ` or quadratic condition) and a numeric scan of `g` and `dw/dt` (`400` listing every violation with its slices and amount). `local_vol_time_extrapolation`: absent = the model's own continuation (what `/calibrate-vol-surface` returns); `FlatLocalVol` = held at `T_last − 0.001` as for the other payloads; `FlatImpliedVol` is `400` (the model does not extend its implied vol flat). `base.shape`, `constant_vol` and `quote_id` must be absent (`400`). | Everywhere a Black vol is referenced: `volatility` on an equity option, `/sample-vol-surfaces` `EquityBlack`, `underlyings[].volatility_id` on a structured note (strike-dependent: local vol, `steps_per_year` required). A note reads the closed-form Dupire local variance of the slices, `σ²_loc = (∂w/∂t + ∂w/∂k Δμ) / g(k, k − ln(F_note / F_ref))` with `Δμ` the note's forward drift minus the reference one (a quanto drift, another dividend curve, a bumped spot: sticky strike), no finite differences; the strike edges or per-expiry bands, `FlatLocalVol` and `monte_carlo.local_vol_floor` apply to it as to the others (the floor reads the closed form; a refused point — `g ≤ 0` or a negative numerator — takes the floor). Vega bumps shift every slice's at-the-money vol, `θ' = (sqrt(θ / T) + bump)² T`, `ρ` and `ψ` kept (still eSSVI, re-validated: `400` if the bumped slices admit arbitrage). |
 
 ### Using the surface
@@ -2093,7 +2102,51 @@ quotes through the paths (see "Validating a surface"). Both
 returned payloads pass that check on the Scotia synthetic-surface example
 every option beyond the first expiry and the deep wings within the Monte Carlo noise of its bid/ask, the mean vol error per expiry within 0.12 vol points at 65 536 paths; the same grid read `Bilinear` does not (2 to 3 vol points
 high at a year: the interpolation loses the smile's curvature), which is
-why a grid from this endpoint carries `CubicStrikeLinearTime`.
+why a grid from this endpoint carries a cubic-in-strike interpolator.
+
+#### Time interpolation at fixed forward moneyness
+
+Between two expiries the grid rows and the SVI slices are interpolated
+linearly in total variance. Since 0.16.10 the surfaces this endpoint
+returns do it at fixed forward moneyness `k = ln(K / F(t))`:
+
+```
+w(t, K) = (1 − λ) w_i(F_i e^k) + λ w_{i+1}(F_{i+1} e^k),   λ = (t − T_i) / (T_{i+1} − T_i)
+```
+
+with `F_i = F(T_i)` (the forward of each expiry) and `F(t)` the surface's
+own forward: ln F linear in time through the spot at the reference date
+and the expiry forwards, the last slope continued beyond the last expiry
+(without a spot the first slope is continued back; one expiry and no
+spot: a constant). Before the first expiry `w_1(F_1 e^k) t / T_1`, after
+the last `w_n(F_n e^k) t / T_n`; at an expiry the row or slice itself. The
+strike extrapolation of each row (constant beyond the grid edge) and of
+each SVI slice (global) is unchanged.
+
+Why: QuantLib's `LocalVolSurface` differentiates the variance in time
+along the forward (its stencil reads the strike `K F(t + dt) / F(t)`). On
+a forward line with the surface's own drift `k` is fixed, so the Dupire
+numerator between two expiries is `(w_{i+1}(k) − w_i(k)) / (T_{i+1} − T_i)`
+at every strike: slices ordered at fixed moneyness can no longer show a
+decreasing variance along the forward, which the fixed-strike reading
+could (the second-order effect of the forward's move on a curved smile),
+and the result no longer depends on whether the note's dividend curve
+reproduces the calibration forwards exactly. `/calibrate-vol-surface`
+orders the SVI slices at fixed moneyness (`w_{i+1}(k) ≥ w_i(k) + σ_min²
+(T_{i+1} − T_i)` on the region) and clips the grid at the same moneyness.
+
+A structured note's Dupire local vol (and the arbitrage scans, which read
+through the same code) differentiates such a surface against its forward
+reshaped between expiries like the note's own forward: `ln F_read(t) =
+ln F(t) + g(t) − ĝ(t)`, `g = ln(D_q / D_r)` on the note's curves and `ĝ` its
+ln-linear interpolation through the reference date and the expiries. At an
+expiry `F_read = F_i` (the slices are read where they were written); in
+between, the moneyness QuantLib's stencil follows is fixed as long as the
+note's forwards meet the surface's at the expiries, whatever the shape of
+its dividend and discount curves in between. Black vol reads are not
+affected.
+
+A request that does not set the new values reads exactly as before.
 
 ### Rejected requests
 

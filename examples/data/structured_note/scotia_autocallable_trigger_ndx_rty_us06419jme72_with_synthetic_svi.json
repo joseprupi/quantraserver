@@ -321,7 +321,8 @@
                 "m": 0.16194694718
               }
             ],
-            "time_interpolation": "LinearTotalVariance",
+            "time_interpolation": "LinearTotalVarianceForwardMoneyness",
+            "spot": 30408.5,
             "allow_extrapolation": true
           }
         },
@@ -409,7 +410,8 @@
                 "m": 0.17544252609
               }
             ],
-            "time_interpolation": "LinearTotalVariance",
+            "time_interpolation": "LinearTotalVarianceForwardMoneyness",
+            "spot": 2796.864,
             "allow_extrapolation": true
           }
         }

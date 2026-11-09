@@ -3857,14 +3857,16 @@ CASES = [
         "id": "volval_scotia_ndx_grid",
         "product": "validate_vol_surface",
         "family": "Vol / Calibration",
-        "title": "Validate a CubicStrikeLinearTime grid against the synthetic Scotia NDX sheet",
+        "title": "Validate a forward-moneyness cubic grid against the synthetic Scotia NDX sheet",
         "description": (
             "/validate-vol-surface on the grid /calibrate-vol-surface returns "
             "for the synthetic Scotia NDX sheet (SviPerExpiry), on the note's "
             "own curves (USD_TSY, NDX_DIV): per expiry the curve forward and "
             "discount factor, the out-of-the-money quotes used, every quote's "
             "Black-76 price at the surface's own vol read through the "
-            "CubicStrikeLinearTime twin, inside the bid/ask, and the fit "
+            "CubicStrikeLinearTimeForwardMoneyness twin (rows linear in time "
+            "at fixed forward moneyness against the grid's expiry_forwards), "
+            "inside the bid/ask, and the fit "
             "totals; the arbitrage scan runs too (contract side)."
         ),
         "request": "vol_surface_validation/scotia_ndx_grid.json",
@@ -3872,7 +3874,7 @@ CASES = [
         "tolerance": VOL_SURFACE_TOLERANCE,
         "compare": "fields",
         "exercises": ["surface validation", "vanilla repricing", "Black-76", "quote sheet",
-                      "CubicStrikeLinearTime", "band summary"],
+                      "CubicStrikeLinearTimeForwardMoneyness", "band summary"],
     },
     {
         "id": "volval_scotia_ndx_ssvi",
@@ -4881,7 +4883,10 @@ CASES = [
             "The same Scotia request with the two calibrations returned as "
             "SviVolSpec payloads instead of grids: the eight fitted raw SVI "
             "slices per index (a, b, sigma, rho, m about the fitted forward), "
-            "linear in total variance between expiries, the exact surfaces the "
+            "linear in total variance between expiries at fixed forward "
+            "moneyness (time_interpolation LinearTotalVarianceForwardMoneyness, "
+            "the forward ln-linear through the spot and the slices' forwards; "
+            "since 0.16.10), the exact surfaces the "
             "synthetic sheets were generated from. Dupire local vol on 252 steps "
             "per year (no strike edge: the formula is global), 2048 Sobol paths "
             "with Brownian bridge and antithetic variates. Synthetic vols; the "
@@ -4964,7 +4969,8 @@ CASES = [
             "months, 60 % European barrier) on the fifteen SVI slices that "
             "/calibrate-vol-surface returns for a synthetic SPX-like sheet with "
             "eight consecutive daily expiries, jittered at-the-money vols, 1 % "
-            "noise and a minimum price (examples/data/vol_surface/"
+            "noise and a minimum price, read at fixed forward moneyness between "
+            "expiries (examples/data/vol_surface/"
             "synthetic_spx_daily_expiries_sheet_svi.json), next to the dividend "
             "curve /calibrate-implied-forwards returns for the same sheet. "
             "Fitted one by one the daily slices cross and the note is a 400 "

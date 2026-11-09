@@ -291,10 +291,11 @@
                 "strike_max": 45612.75
               }
             ],
-            "time_interpolation": "LinearTotalVariance",
+            "time_interpolation": "LinearTotalVarianceForwardMoneyness",
             "allow_extrapolation": true,
             "local_vol_time_extrapolation": "FlatLocalVol",
-            "local_vol_strike_range": "PerExpiry"
+            "local_vol_strike_range": "PerExpiry",
+            "spot": 30408.5
           }
         }
       ]
