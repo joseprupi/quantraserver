@@ -2,8 +2,8 @@
 """Price a structured note from listed option quotes (level 2 of
 examples/structured_note_workflow/README.md).
 
-Three calibration calls (one for the basket, two per underlying), then
-one pricing per surface payload:
+Three calibration calls (one for the basket, two per underlying), one
+validation per surface payload, then one pricing per surface payload:
 
   0. POST /calibrate-correlation        (with --closes) price histories ->
                                         the correlation matrix spec, sample
@@ -14,11 +14,17 @@ one pricing per surface payload:
                                         surface as a strike x expiry grid
                                         (vol_surface_spec) and, with the SVI
                                         method, as SVI slices
-                                        (vol_surface_spec_svi)
-  3. POST /price-structured-note        the note with the implied dividend
-                                        curves and the surfaces pasted in,
-                                        `diagnostics.vanilla_repricing` with
-                                        the sheets as the acceptance check
+                                        (vol_surface_spec_svi), with the
+                                        Ssvi method as eSSVI slices
+                                        (vol_surface_spec_ssvi)
+  3. POST /validate-vol-surface         each returned payload against its
+                                        sheet on the note's market: the
+                                        Black-76 fit of every quote, the
+                                        local-vol arbitrage scan and the
+                                        Monte Carlo repricing of the quotes
+                                        (the acceptance check of the chain)
+  4. POST /price-structured-note        the note with the implied dividend
+                                        curves and the surfaces pasted in
 
 By default it runs on the Bank of Nova Scotia autocallable
 (examples/data/structured_note/scotia_..._us06419jme72.json, NDX / RTY
@@ -59,12 +65,11 @@ DEFAULT_SHEETS = {
 }
 DEFAULT_CLOSES = REPO / "examples" / "data" / "correlation" / \
     "ndx_rut_closes_2025-09-29_to_2026-09-30.json"
-# The filter of both calibrations and of the repricing diagnostic: the
+# The filter of both calibrations and of the validation: the
 # engine's defaults, written out so that the request files show them.
 FILTER = {"max_relative_spread": 0.05, "min_quotes_per_expiry": 4, "moneyness_window": 0.25}
-# An option is "within noise" when its model price is no further than this
-# many standard errors outside its bid/ask band (the gate's criterion).
-NOISE_Z = 3.5
+PAYLOADS = {"grid": "vol_surface_spec", "svi": "vol_surface_spec_svi",
+            "ssvi": "vol_surface_spec_ssvi"}
 
 
 # ---------------------------------------------------------------------------
@@ -303,28 +308,25 @@ def step_d_surfaces(engine: Engine, note_req: dict, sheets: dict, forwards: dict
                 "forwards": forwards[uid]["expiries"], "method": method,
                 "vol_surface_id": vol_id}
         resp = engine.post("calibrate-vol-surface", body, f"vol_surface_{uid}")
-        vr = resp["vanilla_repricing"]
         grid = resp["vol_surface_spec"]["payload"]
+        flags = ", ".join(f"{name} {'arbitrage free' if resp.get(flag) else 'NOT arbitrage free'}"
+                          for name, flag in (("grid", "arbitrage_free"), ("svi", "arbitrage_free_svi"),
+                                             ("ssvi", "arbitrage_free_ssvi")) if flag in resp)
         print(f"(d) {uid}: {resp['method']}, forwards {resp['forwards_source']}; grid "
               f"{len(resp['grid_expiries'])} expiries x {len(resp['grid_strikes'])} strikes "
-              f"({grid.get('surface_interpolator')}); repricing on the grid: "
-              f"{vr['inside_bid_ask']}/{vr['count']} inside bid/ask, max vol error "
-              f"{vr['max_abs_vol_error'] * 100:.3f} pts"
-              + ("; SVI payload returned" if "vol_surface_spec_svi" in resp else
-                 f"; no SVI payload ({resp.get('vol_surface_spec_svi_note', '')})"))
-        print("      expiry        used  dropped  rmse(pts)  max(pts)  butterfly        calendar")
+              f"({grid.get('surface_interpolator')}); payloads "
+              f"{[p for p, key in PAYLOADS.items() if key in resp]}; {flags}")
+        print("      expiry        used  dropped  butterfly / calendar fit")
         for e in resp["expiries"]:
             if not e["usable"]:
                 print(f"      {e['expiry']}  dropped: {e.get('dropped_reason', '')}")
                 continue
-            bfly = "violation" if e.get("butterfly_violation") else "ok"
-            if e.get("butterfly_action"):
-                bfly += f" ({e['butterfly_action']})"
-            cal = f"{e.get('calendar_violations', 0)} violations"
-            if e.get("calendar_action"):
-                cal += f" ({e['calendar_action']})"
-            print(f"      {e['expiry']}  {e['quotes_used']:4d}  {e['quotes_dropped']:7d}  "
-                  f"{e['rmse_vol'] * 100:9.4f}  {e['max_abs_error_vol'] * 100:8.4f}  {bfly:16s} {cal}")
+            action = e.get("butterfly_action", "")
+            if e.get("calendar_refit"):
+                action += f"; calendar refit, max vol shift {e['calendar_refit_max_vol_shift'] * 100:.3f} pts"
+            if e.get("ssvi_anchor_clamped"):
+                action += "; SSVI anchor raised (the quotes cross at the money)"
+            print(f"      {e['expiry']}  {e['quotes_used']:4d}  {e['quotes_dropped']:7d}  {action or '-'}")
         out[uid] = resp
     return out
 
@@ -348,10 +350,9 @@ def _strip_vol_and_dividends(note_req: dict, uids) -> dict:
 
 
 def note_request(note_req: dict, sheets: dict, forwards: dict, vol_specs: dict,
-                 paths: int, steps_per_year: int | None, repricing: bool = True) -> dict:
+                 paths: int, steps_per_year: int | None) -> dict:
     """The note on the implied dividend curves and the given vol specs (one
-    per underlying, under the note's own vol ids), the sheets under the
-    repricing diagnostic."""
+    per underlying, under the note's own vol ids)."""
     req = _strip_vol_and_dividends(note_req, sheets.keys())
     pricing = req["pricing"]
     note = req["notes"][0]
@@ -368,11 +369,49 @@ def note_request(note_req: dict, sheets: dict, forwards: dict, vol_specs: dict,
     if steps_per_year is not None:
         mc["steps_per_year"] = steps_per_year
     req["diagnostics"] = {"timing": True}
-    if repricing:
-        req["diagnostics"].update({"vanilla_repricing": True,
-                                   "vanilla_repricing_sheets": [sheets[uid]["sheet"] for uid in sheets],
-                                   "vanilla_repricing_filter": FILTER})
     return req
+
+
+def step_e_validate(engine: Engine, note_req: dict, sheets: dict, priced: dict, name: str,
+                    paths: int, steps_per_year: int | None, simulation: bool) -> dict:
+    """POST /validate-vol-surface for each underlying's surface on the note's
+    own market (`priced`: the note request with the implied dividend curves
+    and the payload pasted): the fit, the arbitrage scan and, unless
+    --no-simulation, the Monte Carlo repricing at the note's paths."""
+    note = priced["notes"][0]
+    rows = {}
+    for uid, loaded in sheets.items():
+        vol_id = find(note["underlyings"], "underlying_id", uid)["volatility_id"]
+        body = {"pricing": priced["pricing"], "volatility_id": vol_id, "underlying_id": uid,
+                "discounting_curve": note["discounting_curve"], "quotes": loaded["sheet"],
+                "filter": FILTER,
+                "checks": {"fit": True, "arbitrage": True, "simulation": simulation}}
+        if simulation:
+            body["simulation"] = {"paths": paths, "seed": 42, "sequence": "Sobol",
+                                  "antithetic": True, "brownian_bridge": True}
+            if steps_per_year is not None:  # a surface: local vol on a refined grid
+                body["simulation"]["steps_per_year"] = steps_per_year
+        v = engine.post("validate-vol-surface", body, f"validate_{name}_{uid}")
+        fit, arb, sim = v["fit"], v["arbitrage"], v.get("simulation")
+        print(f"(e) {name} {uid}: fit {fit['verdict']}")
+        print(f"      arbitrage {arb['verdict']}")
+        if sim:
+            print(f"      simulation {sim['verdict']}")
+        missed = [c for c in fit["bands"] if c["inside"] < c["count"]]
+        if missed:
+            print("      cells with quotes outside the bid/ask:")
+            print("      band (K/F)        years        quotes  inside  rms(pts)  max(pts)")
+        for c in missed:
+            m = f"{c.get('moneyness_min', 0):.2f}-{c['moneyness_max']:.2f}" if "moneyness_max" in c \
+                else f">= {c['moneyness_min']:.2f}"
+            t = f"{c.get('time_min', 0):.2f}-{c['time_max']:.2f}" if "time_max" in c \
+                else f">= {c['time_min']:.2f}"
+            print(f"      {m:16s} {t:12s} {c['count']:6d}  {c['inside']:6d}  "
+                  f"{c.get('rms_vol_error', 0) * 100:8.3f}  {c.get('max_abs_vol_error', 0) * 100:8.3f}")
+        rows[uid] = {"fit": (fit["inside"], fit["count"]), "arbitrage_free": arb["arbitrage_free"],
+                     "simulation": (sim["within_noise"], sim["count"], sim.get("max_abs_vol_error"))
+                     if sim else None}
+    return rows
 
 
 def flat_vol_spec(as_of: str, vol: float) -> dict:
@@ -411,34 +450,24 @@ def summarise(note: dict) -> dict:
            "vol_shapes": [u["vol_shape"] for u in note["model"]["underlyings"]],
            "time_steps": note["model"]["time_steps"],
            "ms": note.get("timing", {}).get("total_milliseconds")}
-    vr = note.get("vanilla_repricing")
-    if vr:
-        within = 0
-        for u in vr["underlyings"]:
-            for o in u["options"]:
-                p = o["model_price"]
-                excess = max(o["bid"] - p, p - o["ask"], 0.0)
-                within += excess == 0.0 or (o["standard_error"] > 0.0 and excess <= NOISE_Z * o["standard_error"])
-        row.update({"rp_inside": vr["inside_bid_ask"], "rp_within": within, "rp_count": vr["count"],
-                    "rp_max_vol_err": vr.get("max_abs_vol_error"), "rp_max_se": vr["max_standard_error"],
-                    "rp_note_npv": vr["note_npv"], "rp_note_se": vr["note_standard_error"]})
     return row
 
 
-def print_table(rows: dict) -> None:
+def print_table(rows: dict, checks: dict) -> None:
     print("(g)")
     print("    run    price      +/- SE   status  p_call  p_breach      bond   coupons   cap.loss"
-          "  repricing inside/within noise/total  max vol err")
+          "  validation per underlying: fit inside / arbitrage / MC within noise")
     for name, r in rows.items():
         p_call = f"{r['p_call']:.3f}" if r["p_call"] is not None else "   -  "
         p_br = f"{r['p_breach']:.3f}" if r["p_breach"] is not None else "   -  "
-        if "rp_count" in r:
-            rp = f"{r['rp_inside']:4d} / {r['rp_within']:4d} / {r['rp_count']:4d}"
-            err = f"{r['rp_max_vol_err'] * 100:6.2f} pts" if r.get("rp_max_vol_err") is not None else "     -"
-        else:
-            rp, err = "            -         ", "     -"
+        cells = []
+        for uid, c in (checks.get(name) or {}).items():
+            cell = f"{uid} {c['fit'][0]}/{c['fit'][1]} {'ok' if c['arbitrage_free'] else 'ARB'}"
+            if c["simulation"]:
+                cell += f" {c['simulation'][0]}/{c['simulation'][1]}"
+            cells.append(cell)
         print(f"    {name:5s}  {r['npv']:8.2f}  {r['se']:7.2f}   {r['status']:7s} {p_call:6s}   {p_br:6s}  "
-              f"{r['bond']:8.1f}  {r['coupons']:8.1f}  {r['capital_loss']:9.1f}  {rp:>29s}  {err}")
+              f"{r['bond']:8.1f}  {r['coupons']:8.1f}  {r['capital_loss']:9.1f}  {'; '.join(cells) or '-'}")
 
 
 def main() -> int:
@@ -457,14 +486,17 @@ def main() -> int:
                          "calibrate-correlation request on the note's underlyings) and paste it into "
                          "the note; without a FILE, the shipped NDX / RTY closes")
     ap.add_argument("--paths", type=int, default=2048,
-                    help="Monte Carlo paths (default %(default)s; the local-vol run and its repricing run "
-                         "cost about 1 s per 1,000 paths each, against the JSON gateway's 10 s RPC deadline)")
-    ap.add_argument("--no-repricing", action="store_true",
-                    help="skip the vanilla_repricing diagnostic (halves the cost of each pricing)")
+                    help="Monte Carlo paths of the note and of the validation's simulation (default "
+                         "%(default)s; a local-vol run costs about 1 s per 1,000 paths, against the JSON "
+                         "gateway's RPC deadline)")
+    ap.add_argument("--no-simulation", "--no-repricing", dest="no_simulation", action="store_true",
+                    help="validate the surfaces without the Monte Carlo repricing of the quotes")
     ap.add_argument("--steps-per-year", type=int, default=252,
                     help="time steps per year of the local-vol simulation (default %(default)s)")
-    ap.add_argument("--method", choices=["SviPerExpiry", "AndreasenHuge"], default="SviPerExpiry",
-                    help="surface fit (default %(default)s; AndreasenHuge returns the grid only)")
+    ap.add_argument("--method", choices=["SviPerExpiry", "Ssvi", "AndreasenHuge"],
+                    default="SviPerExpiry",
+                    help="surface fit (default %(default)s; Ssvi also returns eSSVI slices; "
+                         "AndreasenHuge returns the grid only)")
     ap.add_argument("--flat", action="store_true",
                     help="also price with flat vols = the one-year ATM implied vol of each sheet "
                          "(the level-1 comparison line)")
@@ -482,20 +514,20 @@ def main() -> int:
         forwards = step_c_forwards(engine, note_req, sheets)
         surfaces = step_d_surfaces(engine, note_req, sheets, forwards, args.method)
 
-        runs = {"grid": {uid: s["vol_surface_spec"] for uid, s in surfaces.items()}}
-        if all("vol_surface_spec_svi" in s for s in surfaces.values()):
-            runs["svi"] = {uid: s["vol_surface_spec_svi"] for uid, s in surfaces.items()}
-        rows = {}
+        runs = {}
+        for name, key in PAYLOADS.items():
+            if all(key in s for s in surfaces.values()):
+                runs[name] = {uid: s[key] for uid, s in surfaces.items()}
+        rows, checks = {}, {}
         for name, specs in runs.items():
-            body = note_request(note_req, sheets, forwards, specs, args.paths, args.steps_per_year,
-                                repricing=not args.no_repricing)
+            body = note_request(note_req, sheets, forwards, specs, args.paths, args.steps_per_year)
+            checks[name] = step_e_validate(engine, note_req, sheets, body, name, args.paths,
+                                           args.steps_per_year, not args.no_simulation)
             resp = engine.post("price-structured-note", body, f"price_note_{name}")
             note = resp["notes"][0]
             rows[name] = r = summarise(note)
-            print(f"(e) {name}: {' / '.join(r['vol_shapes'])}, {r['time_steps']} time steps, {args.paths} paths: "
+            print(f"(f) {name}: {' / '.join(r['vol_shapes'])}, {r['time_steps']} time steps, {args.paths} paths: "
                   f"{r['npv']:.2f} +/- {r['se']:.2f} per {note_req['notes'][0]['notional']:g}"
-                  + (f"; repriced on its own paths {r['rp_note_npv']:.2f} +/- {r['rp_note_se']:.2f}; "
-                     f"{r['rp_count']} quotes, max SE {r['rp_max_se']:.3f}" if "rp_count" in r else "")
                   + f"; engine {r['ms'] / 1000:.1f} s")
         if args.flat:
             specs = {}
@@ -503,13 +535,14 @@ def main() -> int:
                 expiry, strike, vol = one_year_atm_vol(as_of, loaded["sheet"], forwards[uid])
                 print(f"(f) {uid}: flat vol {vol * 100:.2f}% = the {expiry} ATM quote (strike {strike:,.2f})")
                 specs[uid] = flat_vol_spec(as_of, vol)
-            body = note_request(note_req, sheets, forwards, specs, args.paths, None,
-                                repricing=not args.no_repricing)
+            body = note_request(note_req, sheets, forwards, specs, args.paths, None)
+            checks["flat"] = step_e_validate(engine, note_req, sheets, body, "flat", args.paths,
+                                             None, not args.no_simulation)
             note = engine.post("price-structured-note", body, "price_note_flat")["notes"][0]
             rows["flat"] = r = summarise(note)
             print(f"(f) flat: {' / '.join(r['vol_shapes'])}, {r['time_steps']} time steps: "
                   f"{r['npv']:.2f} +/- {r['se']:.2f}; engine {r['ms'] / 1000:.1f} s")
-        print_table(rows)
+        print_table(rows, checks)
         print(f"request and response bodies: {out_dir}")
     except EngineError as exc:
         print(f"error: {exc}", file=sys.stderr)

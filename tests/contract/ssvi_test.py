@@ -33,6 +33,7 @@ import pytest
 
 import ql_reference
 from ql_reference import load_json, price_equity_option_ql, sample_vol_surfaces_ql
+from vol_validation import validate
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "tests" / "tools"))
@@ -95,25 +96,34 @@ def test_ssvi_recovers_the_generating_slices(client, data_dir, example, preset, 
         assert s["forward"] == pytest.approx(truth[s["expiry"]]["forward"], rel=1e-9)
         assert s["strike_min"] < s["forward"] < s["strike_max"]
         assert e["ssvi"] == {"theta": s["theta"], "rho": s["rho"], "psi": s["psi"]}
-        assert e["rmse_vol"] < 1e-7
         assert e["ssvi_anchor_clamped"] is False
-        assert e["ssvi_margin_butterfly_psi"] >= 0.0
-        assert e["ssvi_margin_butterfly_psi2"] >= 0.0
-    for e in out["expiries"][1:]:
-        assert e["ssvi_margin_calendar_theta"] >= 0.0
-        assert e["ssvi_margin_calendar_psi"] >= 0.0
-        assert e["ssvi_margin_calendar_a"] >= 0.0
-    assert "ssvi_margin_calendar_theta" not in out["expiries"][0]
-    arb = out["ssvi_arbitrage"]
-    assert arb["violations"] == []
-    assert arb["scan_min_g"] >= 0.0 and arb["scan_min_dw_dt"] >= 0.0
-    check = out["local_vol_check_ssvi"]
+    # One flag on the calibrate response; the margins, the closed-form
+    # conditions, the scan, the local vol check and the fit are
+    # /validate-vol-surface's.
+    assert out["arbitrage_free_ssvi"] is True
+    for gone in ("ssvi_arbitrage", "local_vol_check_ssvi", "vanilla_repricing"):
+        assert gone not in out
+    v = validate(client, request, out, "ssvi")
+    arb = v["arbitrage"]
+    assert arb["arbitrage_free"] is True and arb["violations"] == []
+    assert arb["ssvi_check"]["violations"] == []
+    assert arb["ssvi_check"]["scan_min_g"] >= 0.0 and arb["ssvi_check"]["scan_min_dw_dt"] >= 0.0
+    slices_checked = arb["ssvi_slices"]
+    for c in slices_checked:
+        assert c["margin_butterfly_psi"] >= 0.0
+        assert c["margin_butterfly_psi2"] >= 0.0
+    for c in slices_checked[1:]:
+        assert c["margin_calendar_theta"] >= 0.0
+        assert c["margin_calendar_psi"] >= 0.0
+        assert c["margin_calendar_a"] >= 0.0
+    assert "margin_calendar_theta" not in slices_checked[0]
+    check = arb["local_vol_check"]
     assert check["arbitrage_free"] and check["refused"] == 0, check
     assert check["points"] == check["times"] * check["strikes"]
-    assert "vol_surface_spec_svi" not in out and "local_vol_check_svi" not in out
+    assert "vol_surface_spec_svi" not in out and "arbitrage_free_svi" not in out
     assert "Ssvi" in out["vol_surface_spec_svi_note"]
-    rp = out["vanilla_repricing"]
-    assert rp["inside_bid_ask"] == rp["count"] > 0
+    # The slices are the generating surface: every used quote inside.
+    assert v["fit"]["inside"] == v["fit"]["count"] > 0
 
 
 def test_ssvi_settings_drop_quotes_by_moneyness(client, data_dir):
@@ -190,7 +200,7 @@ def test_daily_note_example_carries_the_returned_payload_and_prices(client, data
     sheet = load_json(data_dir / DAILY_SHEET)
     sheet["method"] = "Ssvi"
     out = _ok(client, sheet)
-    assert out["local_vol_check_ssvi"]["arbitrage_free"]
+    assert out["arbitrage_free_ssvi"]
     note = load_json(data_dir / DAILY_NOTE_SSVI)
     assert note["pricing"]["volatility"]["vol_surfaces"] == [out["vol_surface_spec_ssvi"]]
     priced = _ok(client, note, "structured_note")["notes"][0]

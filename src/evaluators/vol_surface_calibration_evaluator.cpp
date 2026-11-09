@@ -58,8 +58,6 @@ constexpr double kCalendarSlack = 2.0 * kCalendarFloor;
 // Local vol check: strikes per scan time, offset of the scan times from the
 // expiries, refit passes of the SVI payload, the margin multiplier per pass
 // and the forward vol a raised margin starts from.
-constexpr unsigned kCheckStrikes = 201;
-constexpr double kCheckTimeOffset = 2.0e-4;
 constexpr unsigned kLocalVolCheckRefits = 3;
 constexpr double kMarginRaise = 4.0;
 constexpr double kRaisedForwardVol = 0.01;
@@ -326,91 +324,6 @@ bool calendarOnly(const std::vector<std::pair<double, bool>>& refused) {
     return std::all_of(refused.begin(), refused.end(), [](const auto& r) { return r.second; });
 }
 
-/// Scan times of the local vol check: every expiry +/- 2e-4 (outside
-/// QuantLib's time stencil, dt <= 1e-4, on both sides of the node), the
-/// midpoints between expiries (and between 0 and the first), and the last
-/// expiry - 1e-3 (where the FlatLocalVol extension reads).
-std::vector<double> localVolCheckTimes(const std::vector<double>& expiryTimes) {
-    std::vector<double> t;
-    double prev = 0.0;
-    for (double T : expiryTimes) {
-        t.push_back(0.5 * (prev + T));
-        if (T - kCheckTimeOffset > 0.0) t.push_back(T - kCheckTimeOffset);
-        t.push_back(T + kCheckTimeOffset);
-        prev = T;
-    }
-    if (expiryTimes.back() > 2.0 * mc::EdgeClampedLocalVol::kTimeMargin)
-        t.push_back(expiryTimes.back() - mc::EdgeClampedLocalVol::kTimeMargin);
-    std::sort(t.begin(), t.end());
-    t.erase(std::unique(t.begin(), t.end()), t.end());
-    return t;
-}
-
-/**
- * The local vol a structured note derives from `surface`, built through the
- * pricer's own code path (BasketAsset + LocalVolCache: QuantLib's
- * LocalVolSurface held at the per-expiry strike `bands` the returned spec
- * carries, and FlatLocalVol beyond the last expiry), evaluated on the scan times x `kCheckStrikes` log-spaced strikes
- * over the region of the expiry bracketing each time (`regions[i]` for the
- * first `regionTimes[i]` >= t, the last one beyond). `refusedTimes`
- * (optional) receives the time of every refused point with whether
- * QuantLib's message was a calendar one.
- */
-LocalVolCheckData checkLocalVol(
-    const std::shared_ptr<QuantLib::BlackVolTermStructure>& surface,
-    const std::vector<mc::LocalVolStrikeBand>& bands,
-    const Handle<QuantLib::Quote>& spot,
-    const Handle<QuantLib::YieldTermStructure>& riskFree,
-    const Handle<QuantLib::YieldTermStructure>& dividend,
-    const std::vector<double>& expiryTimes,
-    const std::vector<double>& regionTimes,
-    const std::vector<std::pair<double, double>>& regions,
-    std::vector<std::pair<double, bool>>* refusedTimes = nullptr,
-    mc::LocalVolTimeExtrapolation timeExtension = mc::LocalVolTimeExtrapolation::FlatLocalVol) {
-    LocalVolCheckData c;
-    mc::BasketAsset asset = mc::MakeBasketAsset(
-        "check", spot, dividend, riskFree, Handle<QuantLib::BlackVolTermStructure>(surface));
-    asset.localVolTime = timeExtension;
-    asset.localVolStrikeBands = bands;
-    mc::LocalVolCache cache;
-    cache.attach(asset);
-    const auto& lv = asset.localVol;
-    const std::vector<double> times = localVolCheckTimes(expiryTimes);
-    c.times = static_cast<unsigned>(times.size());
-    c.strikes = kCheckStrikes;
-    for (double t : times) {
-        const std::size_t r = std::min<std::size_t>(
-            regions.size() - 1,
-            static_cast<std::size_t>(
-                std::lower_bound(regionTimes.begin(), regionTimes.end(), t) - regionTimes.begin()));
-        const double kMin = regions[r].first, kMax = regions[r].second;
-        for (unsigned j = 0; j < kCheckStrikes; ++j) {
-            const double K =
-                kMin *
-                std::exp(std::log(kMax / kMin) * static_cast<double>(j) / (kCheckStrikes - 1));
-            ++c.points;
-            try {
-                const double v = lv->localVol(t, K, true);
-                if (!std::isfinite(v)) QUANTRA_ERROR("non-finite local vol");
-                const double var = v * v;
-                if (!c.minLocalVariance || var < *c.minLocalVariance) {
-                    c.minLocalVariance = var;
-                    c.minLocalVarianceTime = t;
-                    c.minLocalVarianceStrike = K;
-                }
-            } catch (const std::exception& ex) {
-                const std::string what = ex.what();
-                if (c.refused++ == 0) c.firstRefusal = trimMessage(what);
-                if (refusedTimes)
-                    refusedTimes->emplace_back(
-                        t, what.find("decreasing variance") != std::string::npos);
-            }
-        }
-    }
-    c.arbitrageFree = c.refused == 0 && c.minLocalVariance.has_value();
-    return c;
-}
-
 } // namespace
 
 double sviTotalVariance(const SviParams& p, double k) {
@@ -649,17 +562,19 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
     // (log-linear) and a dividend curve with DF_q(T) = F DF / S, so the
     // forwards and the discounting are the sheet's (the Andreasen-Huge model
     // and the local vol check read them).
-    std::vector<Date> curveDates{asOf};
-    std::vector<QuantLib::DiscountFactor> rDfs{1.0}, qDfs{1.0};
-    for (const auto& w : work) {
-        curveDates.push_back(w.expiry);
-        rDfs.push_back(w.df);
-        qDfs.push_back(w.forward * w.df / spot);
+    Handle<QuantLib::YieldTermStructure> rTS, qTS;
+    {
+        std::vector<Date> dates;
+        std::vector<double> fwds, dfs;
+        for (const auto& w : work) {
+            dates.push_back(w.expiry);
+            fwds.push_back(w.forward);
+            dfs.push_back(w.df);
+        }
+        const SheetForwardCurves sc = sheetForwardCurves(asOf, spot, dates, fwds, dfs);
+        rTS = sc.riskFree;
+        qTS = sc.dividend;
     }
-    Handle<QuantLib::YieldTermStructure> rTS(
-        std::make_shared<QuantLib::DiscountCurve>(curveDates, rDfs, dc));
-    Handle<QuantLib::YieldTermStructure> qTS(
-        std::make_shared<QuantLib::DiscountCurve>(curveDates, qDfs, dc));
     Handle<QuantLib::Quote> spotH(std::make_shared<QuantLib::SimpleQuote>(spot));
     // The region each expiry is held to: where a simulation goes around
     // that expiry. From the forward outwards on each side, the log-strike
@@ -675,47 +590,13 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
             clampLo = std::min(clampLo, w.used.front().strike);
             clampHi = std::max(clampHi, w.used.back().strike);
         }
-        // Log-moneyness reached on one side (direction +1 calls, -1 puts).
-        auto reachOf = [&](const ExpiryWork& w, int direction) {
-            std::vector<std::pair<double, double>> kv; // |k| beyond the forward, vol
-            for (const auto& u : w.used) {
-                const double k = std::log(u.strike / w.forward) * direction;
-                kv.emplace_back(k, u.vol);
-            }
-            std::sort(kv.begin(), kv.end());
-            // Start at the quote nearest the forward.
-            const auto start =
-                std::min_element(kv.begin(), kv.end(), [](const auto& a, const auto& b) {
-                    return std::fabs(a.first) < std::fabs(b.first);
-                });
-            double budget = kReachStdDevs * std::sqrt(w.time);
-            double k = 0.0, vol = start->second;
-            for (auto it = start; it != kv.end(); ++it) {
-                if (it->first <= k) continue;
-                const double step = it->first - k;
-                const double cost = step * 0.5 * (1.0 / vol + 1.0 / it->second);
-                if (cost >= budget) return k + budget / (0.5 * (1.0 / vol + 1.0 / it->second));
-                budget -= cost;
-                k = it->first;
-                vol = it->second;
-            }
-            return k + budget * vol;
-        };
+        std::vector<RegionQuotes> rq;
+        for (const auto& w : work)
+            rq.push_back({w.time, w.forward, &w.used});
+        const auto regions = quoteRegions(rq, clampLo, clampHi);
         for (std::size_t i = 0; i < work.size(); ++i) {
-            auto& w = work[i];
-            const std::size_t j = i == 0 ? 0 : i - 1;
-            w.regionLo = w.forward * std::exp(-std::max(reachOf(w, -1), reachOf(work[j], -1)));
-            w.regionHi = w.forward * std::exp(std::max(reachOf(w, +1), reachOf(work[j], +1)));
-            const double qLo = std::max(w.used.front().strike, work[j].used.front().strike);
-            const double qHi = std::min(w.used.back().strike, work[j].used.back().strike);
-            if (qLo < qHi) {
-                w.regionLo = std::min(w.regionLo, qLo);
-                w.regionHi = std::max(w.regionHi, qHi);
-            }
-            // Never beyond the strikes a note's local vol is held at (the
-            // grid's edges, the SVI payload's widest quoted range).
-            w.regionLo = std::max(w.regionLo, clampLo);
-            w.regionHi = std::min(w.regionHi, clampHi);
+            work[i].regionLo = regions[i].first;
+            work[i].regionHi = regions[i].second;
         }
     }
     std::vector<double> workTimes;
@@ -1206,8 +1087,9 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
         for (unsigned iter = 0;; ++iter) {
             std::vector<std::pair<double, bool>> refusedAt;
             check = checkLocalVol(
-                sviSurface(), sviBands, spotH, rTS, qTS, workTimes, workTimes, workRegions,
-                &refusedAt);
+                Handle<QuantLib::BlackVolTermStructure>(sviSurface()), sviBands, std::nullopt,
+                mc::LocalVolTimeExtrapolation::FlatLocalVol, spotH, rTS, qTS, workTimes, workTimes,
+                workRegions, &refusedAt);
             if (check.arbitrageFree || iter == kLocalVolCheckRefits) break;
             // The expiry pair whose interval holds each refused time (a
             // time on a node's far side belongs to the next interval): a
@@ -1249,7 +1131,7 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
             fitSlicesDownFrom(from);
             reportCalendarMargins();
         }
-        check.action = action.empty() ? "none" : action;
+        out.sviLocalVolRefitAction = action.empty() ? "none" : action;
         out.localVolCheckSvi = check;
 
         for (std::size_t i = 0; i < nExp; ++i) {
@@ -1372,11 +1254,10 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
         std::vector<mc::LocalVolStrikeBand> bands;
         for (const auto& w : work)
             bands.push_back({w.time, w.regionLo, w.regionHi});
-        LocalVolCheckData check = checkLocalVol(
-            ssviSurface, bands, spotH, rTS, qTS, workTimes, workTimes, workRegions, nullptr,
-            mc::LocalVolTimeExtrapolation::FlatImpliedVol);
-        check.action = "none";
-        out.localVolCheckSsvi = check;
+        out.localVolCheckSsvi = checkLocalVol(
+            Handle<QuantLib::BlackVolTermStructure>(ssviSurface), bands, std::nullopt,
+            mc::LocalVolTimeExtrapolation::FlatImpliedVol, spotH, rTS, qTS, workTimes, workTimes,
+            workRegions);
 
         for (std::size_t i = 0; i < nExp; ++i)
             for (std::size_t j = 0; j < nStr; ++j)
@@ -1483,7 +1364,7 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
     }
 
     // ------------------------------------------------------------------
-    // 5. Vanilla repricing on the returned surface, read as the pricers
+    // 5. The fit of the used quotes on the returned surface, read as the pricers
     //    read it (CubicStrikeLinearTime, the output spec's interpolator).
     // ------------------------------------------------------------------
     {
@@ -1500,30 +1381,20 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
             asOf, QuantLib::NullCalendar(), QuantLib::Unadjusted, dc, gridDates, out.gridStrikes,
             rows);
         surface->enableExtrapolation();
-        auto& rp = out.repricing;
-        for (const auto& w : work) {
-            for (const auto& u : w.used) {
-                VanillaRepricePointData r;
-                r.expiryIso = DateToIso(w.expiry);
-                r.strike = u.strike;
-                r.isCall = u.isCall;
-                r.bid = u.bid;
-                r.ask = u.ask;
-                r.mid = u.mid;
-                r.marketVol = u.vol;
-                r.modelVol = surface->blackVol(w.expiry, u.strike, true);
-                r.modelPrice = QuantLib::blackFormula(
-                    u.isCall ? QuantLib::Option::Call : QuantLib::Option::Put, u.strike, w.forward,
-                    r.modelVol * std::sqrt(w.time), w.df);
-                r.insideBidAsk = r.modelPrice >= u.bid && r.modelPrice <= u.ask;
-                r.priceError = r.modelPrice - u.mid;
-                r.volError = r.modelVol - u.vol;
-                ++rp.count;
-                if (r.insideBidAsk) ++rp.insideBidAsk;
-                rp.maxAbsPriceError = std::max(rp.maxAbsPriceError, std::fabs(r.priceError));
-                rp.maxAbsVolError = std::max(rp.maxAbsVolError, std::fabs(r.volError));
-                rp.quotes.push_back(r);
+        {
+            std::vector<ValidationExpiry> ve;
+            for (const auto& w : work) {
+                ValidationExpiry v;
+                v.expiryIso = DateToIso(w.expiry);
+                v.expiry = w.expiry;
+                v.time = w.time;
+                v.usable = true;
+                v.forward = w.forward;
+                v.discountFactor = w.df;
+                v.used = w.used;
+                ve.push_back(std::move(v));
             }
+            out.fit = fitQuotes(*surface, ve, defaultBandEdges());
         }
         // ------------------------------------------------------------------
         // 6. The returned grid's local vol, read as the note pricer reads it.
@@ -1553,9 +1424,10 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
             out.gridLocalVolStrikeMin.push_back(lo);
             out.gridLocalVolStrikeMax.push_back(hi);
         }
-        out.localVolCheck =
-            checkLocalVol(surface, gridBands, spotH, rTS, qTS, gridTimes, workTimes, workRegions);
-        out.localVolCheck.action = "none";
+        out.localVolCheck = checkLocalVol(
+            Handle<QuantLib::BlackVolTermStructure>(surface), gridBands, std::nullopt,
+            mc::LocalVolTimeExtrapolation::FlatLocalVol, spotH, rTS, qTS, gridTimes, workTimes,
+            workRegions);
     }
     return out;
 }

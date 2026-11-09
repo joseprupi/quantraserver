@@ -29,6 +29,7 @@
 #include "sample_vol_surfaces_handler.h"
 #include "structured_note_handler.h"
 #include "swaption_handler.h"
+#include "validate_vol_surface_handler.h"
 #include "vanilla_swap_handler.h"
 #include "year_on_year_inflation_cap_floor_handler.h"
 #include "year_on_year_inflation_swap_handler.h"

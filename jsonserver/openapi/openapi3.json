@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Quantra Pricing API",
-    "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Zero Coupon Bond | `/price-zero-coupon-bond` | Price zero-coupon (single redemption) bonds |\n| Zero Coupon Swap | `/price-zero-coupon-swap` | Price zero-coupon fixed-vs-compounded-floating swaps |\n| Year-on-Year Inflation Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation caps, floors, and collars |\n| Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |\n| FX Forward | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount curves |\n| Cross-Currency Swap | `/price-cross-currency-swap` | Price cross-currency swaps (two SwapLeg entries in two currencies, fixed / IBOR / overnight coupons, principal exchanges) |\n| Structured Note | `/price-structured-note` | Price structured notes on equity-index baskets (autocallables, Phoenix / Athena coupons, capital barriers) by Monte Carlo |\n| Calibrate Implied Forwards | `/calibrate-implied-forwards` | Implied forwards, funding and dividend yields per expiry from listed-option quotes (put-call parity fit), with a ready-to-use dividend curve |\n| Calibrate Vol Surface | `/calibrate-vol-surface` | Arbitrage-checked Black implied-vol surface from listed-option quotes (Andreasen-Huge or SVI per expiry), with a ready-to-paste `BlackVolSpec` and a vanilla-repricing report |\n| Calibrate Correlation | `/calibrate-correlation` | Correlation matrix from price histories (aligned returns, Ledoit-Wolf shrinkage, eigenvalue floor), as a ready-to-paste `CorrelationMatrixSpec` |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/bonds/fixed_rate_bond_request.json\n```\n",
-    "version": "0.16.6",
+    "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Zero Coupon Bond | `/price-zero-coupon-bond` | Price zero-coupon (single redemption) bonds |\n| Zero Coupon Swap | `/price-zero-coupon-swap` | Price zero-coupon fixed-vs-compounded-floating swaps |\n| Year-on-Year Inflation Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation caps, floors, and collars |\n| Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |\n| FX Forward | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount curves |\n| Cross-Currency Swap | `/price-cross-currency-swap` | Price cross-currency swaps (two SwapLeg entries in two currencies, fixed / IBOR / overnight coupons, principal exchanges) |\n| Structured Note | `/price-structured-note` | Price structured notes on equity-index baskets (autocallables, Phoenix / Athena coupons, capital barriers) by Monte Carlo |\n| Calibrate Implied Forwards | `/calibrate-implied-forwards` | Implied forwards, funding and dividend yields per expiry from listed-option quotes (put-call parity fit), with a ready-to-use dividend curve |\n| Calibrate Vol Surface | `/calibrate-vol-surface` | Black implied-vol surface from listed-option quotes (Andreasen-Huge, SVI per expiry or eSSVI), as ready-to-paste payloads with one arbitrage-free flag each |\n| Validate Vol Surface | `/validate-vol-surface` | Test any equity Black vol surface against listed-option quotes: Black-76 fit per quote, local-vol arbitrage scan as a note reads it, optional Monte Carlo repricing; tables by moneyness band and maturity, verdicts |\n| Calibrate Correlation | `/calibrate-correlation` | Correlation matrix from price histories (aligned returns, Ledoit-Wolf shrinkage, eigenvalue floor), as a ready-to-paste `CorrelationMatrixSpec` |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/bonds/fixed_rate_bond_request.json\n```\n",
+    "version": "0.16.7",
     "contact": {
       "name": "Quantra API Support",
       "url": "https://github.com/joseprupi/quantraserver"
@@ -1825,7 +1825,7 @@
     "/calibrate-vol-surface": {
       "post": {
         "summary": "Calibrate a Black Volatility Surface from Option Quotes",
-        "description": "From a listed-option quote sheet (the same OptionQuoteSheet as /calibrate-implied-forwards) and per-expiry forwards (pasted from that endpoint's response, or fitted here with the same filter): implied Black-76 vols of the out-of-the-money mids on the fitted forward and implied discount factor (mids below 1e-5 of the spot or outside the Black bounds are dropped with reasons), then either Andreasen-Huge local-vol interpolation (QuantLib AndreasenHugeVolatilityInterpl, cubic-spline, calls and puts, arbitrage-free by construction; sampled through AndreasenHugeVolatilityAdapter) or one raw SVI slice per expiry (QuantLib SviInterpolation, vega-weighted Levenberg-Marquardt) with Durrleman's butterfly check (penalized refit when violated) and a calendar check of total variance across grid expiries (clipped when violated). Returns a complete VolSurfaceSpec (BlackVolSpec, strike x expiry surface on a moneyness grid converted to absolute strikes with the spot, bilinear, extrapolation allowed) ready for pricing.volatility.vol_surfaces, the forwards used, a per-expiry report (quotes used and dropped, RMSE and max error in vol units, SVI parameters, arbitrage findings and actions) and the vanilla repricing of every used quote on the returned surface (model vs mid, inside the bid/ask, largest price and vol excursions). European exercise only.",
+        "description": "From a listed-option quote sheet (the same OptionQuoteSheet as /calibrate-implied-forwards) and per-expiry forwards (pasted from that endpoint's response, or fitted here with the same filter): implied Black-76 vols of the out-of-the-money mids on the fitted forward and implied discount factor (mids below 1e-5 of the spot or outside the Black bounds are dropped with reasons), then Andreasen-Huge local-vol interpolation (QuantLib AndreasenHugeVolatilityInterpl), one raw SVI slice per expiry (QuantLib SviInterpolation, sequential calendar-consistent fit with butterfly and calendar penalties) or eSSVI slices (arbitrage-free by construction). Returns a complete VolSurfaceSpec (BlackVolSpec, strike x expiry grid read CubicStrikeLinearTime, extrapolation allowed, per-expiry local-vol strike limits) ready for pricing.volatility.vol_surfaces, the SVI or SSVI payload of the same surface when the method has one, the forwards used, a per-expiry report of how the surface was built (quotes used and dropped, parameters, refit actions) and one arbitrage_free flag per payload (the local-vol scan of /validate-vol-surface). Fit statistics, the full arbitrage checks and the Monte Carlo repricing are /validate-vol-surface. European exercise only.",
         "tags": [
           "Volatility"
         ],
@@ -1909,6 +1909,69 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/quantra_CalibrateCorrelationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/validate-vol-surface": {
+      "post": {
+        "summary": "Validate a Volatility Surface against Option Quotes",
+        "description": "Tests an equity Black vol surface already in pricing.volatility.vol_surfaces (any shape: a strike x expiry grid, an SviVolSpec or SsviVolSpec payload, a constant or term vol), read exactly as the pricers read it, against a listed-option quote sheet. Forwards and discount factors come from the discounting curve and the underlying's dividend curve (a structured note's market) or, when forwards are pasted from /calibrate-implied-forwards, from the sheet. Fit: every usable out-of-the-money quote priced with Black-76 at the surface's vol (model vol and price, inside the bid/ask, vol and price errors), summarised by moneyness band x maturity bucket, with the at-the-money error per expiry and a verdict. Arbitrage: the surface's Dupire local vol built through the structured-note pricer's own code path (strike limits and time extension of the spec), scanned at every expiry +/- 2e-4, the midpoints and the last expiry - 1e-3 on 201 strikes over the quoted region, plus the slice conditions of an SVI payload (Durrleman g, Lee's wing bound, total variance increase) or an SSVI payload (closed-form conditions, numeric scan, margins). Simulation (opt-in, with a MonteCarloSpec): every quote priced by Monte Carlo on that local vol with the structured-note path engine, with standard errors, Monte Carlo implied vols, the same band summary and a verdict. Inputs echo and timing. 400 naming the field for a sheet of another underlying, a non-European sheet, simulation without its Monte Carlo spec (or a spec without the check), unsorted band edges, no check selected, or an interest-rate vol id; 404 for an unknown vol, underlying or curve id.",
+        "tags": [
+          "Volatility"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/quantra_ValidateVolSurfaceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful pricing response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/quantra_ValidateVolSurfaceResponse"
                 }
               }
             }
@@ -7398,57 +7461,6 @@
         },
         "additionalProperties": false
       },
-      "quantra_SsviArbitrageCheck": {
-        "type": "object",
-        "description": "Static-arbitrage check of the fitted eSSVI slices (`Ssvi` only): the\nclosed-form butterfly and calendar conditions (see `SsviVolSpec`) and a\nnumeric scan of Durrleman's g(k) and of dw/dt at fixed k at the slice\ntimes, their midpoints, half the first and 1.5 times the last, on 201\npoints of k in [-1.5, 1.0].",
-        "properties": {
-          "violations": {
-            "type": "array",
-            "description": "Violated conditions (\"butterfly_psi at slice 3 (by 1e-5)\", ...);\nempty on success (the fit guarantees it).",
-            "items": {
-              "type": "string"
-            }
-          },
-          "scan_min_g": {
-            "type": "number"
-          },
-          "scan_min_g_time": {
-            "type": "number"
-          },
-          "scan_min_g_k": {
-            "type": "number"
-          },
-          "scan_min_dw_dt": {
-            "type": "number"
-          },
-          "scan_min_dw_dt_time": {
-            "type": "number"
-          },
-          "scan_min_dw_dt_k": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "violations"
-        ],
-        "additionalProperties": false
-      },
-      "quantra_AndreasenHugeCalibrationError": {
-        "type": "object",
-        "description": "Andreasen-Huge calibration error over the whole calibration set, in\nvolatility units (QuantLib `calibrationError()`).",
-        "properties": {
-          "min_vol": {
-            "type": "number"
-          },
-          "max_vol": {
-            "type": "number"
-          },
-          "avg_vol": {
-            "type": "number"
-          }
-        },
-        "additionalProperties": false
-      },
       "quantra_VolSurfaceExpiryReport": {
         "type": "object",
         "description": "Per-expiry report. Every sheet expiry appears once, in date order.",
@@ -7490,26 +7502,12 @@
               "$ref": "#/components/schemas/quantra_DroppedQuote"
             }
           },
-          "rmse_vol": {
-            "type": "number",
-            "description": "Fit error of the calibrated object (the SVI slice, the Andreasen-Huge\nsurface) against the market implied vols of the used quotes, in vol\nunits (0.01 = one vol point), unweighted."
-          },
-          "max_abs_error_vol": {
-            "type": "number"
-          },
           "svi": {
             "$ref": "#/components/schemas/quantra_SviParameters"
           },
-          "butterfly_min_g": {
-            "type": "number",
-            "description": "`SviPerExpiry` only: minimum of Durrleman's g(k) over the output\nstrike range (negative = butterfly arbitrage) after whatever was done."
-          },
-          "butterfly_violation": {
-            "type": "boolean"
-          },
           "butterfly_action": {
             "type": "string",
-            "description": "What was found and done (\"none\", \"refit with penalty: min g ... -> ...\")."
+            "description": "`SviPerExpiry` only: what the fit found (Durrleman's g(k) < 0 or a\nwing steeper than Lee's bound on the independent fit) and did (\"none\",\n\"refit with penalty: min g ... -> ...\")."
           },
           "calendar_refit": {
             "type": "boolean",
@@ -7518,14 +7516,6 @@
           "calendar_refit_max_vol_shift": {
             "type": "number",
             "description": "Largest change in vol the calendar refit made over the slice's quoted\nstrikes (absent when it did not act)."
-          },
-          "calendar_min_margin": {
-            "type": "number",
-            "description": "After the fit: the smallest excess of the slice's total variance over\nthe previous slice's plus the requested margin min_forward_vol^2\n(T_i - T_{i-1}) on the calendar grid (>= 0 = constraint met)."
-          },
-          "calendar_min_forward_vol": {
-            "type": "number",
-            "description": "After the fit: the smallest forward vol between the previous slice and\nthis one on the calendar grid, sqrt((w_i - w_{i-1}) / (T_i - T_{i-1}))\n(negative when total variance decreases there)."
           },
           "calendar_fit_action": {
             "type": "string",
@@ -7558,22 +7548,6 @@
             "type": "boolean",
             "description": "`Ssvi` only: true when the anchor's total variance was raised to\nkeep the calendar conditions feasible against the previous slice."
           },
-          "ssvi_margin_butterfly_psi": {
-            "type": "number",
-            "description": "`Ssvi` only: margins of the arbitrage conditions (right-hand side\nminus left-hand side, >= 0 when met): 4 - psi (1 + |rho|),\n4 theta - psi^2 (1 + |rho|), and against the previous slice (absent\non the first) theta_i - theta_{i-1}, psi_i - psi_{i-1} and\n(psi_i - psi_{i-1}) - |rho_i psi_i - rho_{i-1} psi_{i-1}|."
-          },
-          "ssvi_margin_butterfly_psi2": {
-            "type": "number"
-          },
-          "ssvi_margin_calendar_theta": {
-            "type": "number"
-          },
-          "ssvi_margin_calendar_psi": {
-            "type": "number"
-          },
-          "ssvi_margin_calendar_a": {
-            "type": "number"
-          },
           "grid_points_filled": {
             "type": "integer",
             "description": "`AndreasenHuge` only: grid strikes where the model's out-of-the-money\nprice is below 1e-4 of the spot (finite-difference noise would move\nthe vol by more than a tenth of a point) or its inversion failed,\nfilled flat from the nearest inverted strike of the expiry.",
@@ -7583,140 +7557,6 @@
         },
         "required": [
           "expiry"
-        ],
-        "additionalProperties": false
-      },
-      "quantra_LocalVolCheck": {
-        "type": "object",
-        "description": "Dupire local vol of a returned surface, read exactly as the structured\nnote pricer reads it: QuantLib's LocalVolSurface on the surface as the\nparser builds it, on the sheet's forwards (risk-free curve on the implied\ndiscount factors, dividend curve F DF / S), held at the strike edges\n(the grid's first and last strike; for the SVI payload the widest quoted\nrange, min strike_min .. max strike_max) and flat beyond the last expiry\n(FlatLocalVol). The scan: times = every expiry +/- 2e-4 years (outside\nQuantLib's time stencil of 1e-4 on both sides of the node), the midpoints\nbetween expiries (and between 0 and the first) and the last expiry -\n1e-3; strikes = 201 log-spaced over the output strikes and every quoted\nstrike. A refused point is one where QuantLib throws (\"decreasing variance\n...\" or \"negative local vol^2 ...\").",
-        "properties": {
-          "arbitrage_free": {
-            "type": "boolean",
-            "description": "True iff every scan point evaluated (no refusal): the surface can be\nsimulated as local vol everywhere the scan reached."
-          },
-          "times": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 4294967295
-          },
-          "strikes": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 4294967295
-          },
-          "points": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 4294967295
-          },
-          "refused": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 4294967295
-          },
-          "first_refusal": {
-            "type": "string",
-            "description": "QuantLib's message at the first refused point."
-          },
-          "min_local_variance": {
-            "type": "number",
-            "description": "Smallest local variance (sigma_loc^2) over the points that evaluated,\nand its time (Act/365F years) and strike."
-          },
-          "min_local_variance_time": {
-            "type": "number"
-          },
-          "min_local_variance_strike": {
-            "type": "number"
-          },
-          "action": {
-            "type": "string",
-            "description": "What was done when the check failed: \"none\", or for the SVI payload\nthe refit passes (the flagged slices refitted with a larger calendar\nmargin and butterfly weight, at most 3 passes)."
-          }
-        },
-        "additionalProperties": false
-      },
-      "quantra_VanillaRepricePoint": {
-        "type": "object",
-        "description": "One used quote repriced on the returned surface.",
-        "properties": {
-          "expiry": {
-            "type": "string"
-          },
-          "strike": {
-            "type": "number"
-          },
-          "option_type": {
-            "$ref": "#/components/schemas/quantra_enums_EquityOptionType"
-          },
-          "bid": {
-            "type": "number"
-          },
-          "ask": {
-            "type": "number"
-          },
-          "mid": {
-            "type": "number"
-          },
-          "market_vol": {
-            "type": "number",
-            "description": "Implied vol of the mid (Black-76 on the fitted forward and implied\ndiscount factor)."
-          },
-          "model_vol": {
-            "type": "number",
-            "description": "Black vol read off the returned grid surface as the pricers read it\n(`vol_surface_spec`: CubicStrikeLinearTime, a natural cubic spline of\ntotal variance in log-strike per expiry) at this expiry and strike."
-          },
-          "model_price": {
-            "type": "number",
-            "description": "Black price at `model_vol` on the same forward and discount factor."
-          },
-          "inside_bid_ask": {
-            "type": "boolean"
-          },
-          "price_error": {
-            "type": "number",
-            "description": "model_price - mid."
-          },
-          "vol_error": {
-            "type": "number",
-            "description": "model_vol - market_vol."
-          }
-        },
-        "required": [
-          "expiry"
-        ],
-        "additionalProperties": false
-      },
-      "quantra_VanillaRepricing": {
-        "type": "object",
-        "description": "Vanilla repricing of every used quote on the returned surface: the\nacceptance check of the surface.",
-        "properties": {
-          "count": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 4294967295
-          },
-          "inside_bid_ask": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 4294967295
-          },
-          "max_abs_price_error": {
-            "type": "number",
-            "description": "Largest |model_price - mid| over the used quotes (price units)."
-          },
-          "max_abs_vol_error": {
-            "type": "number",
-            "description": "Largest |model_vol - market_vol| (vol units)."
-          },
-          "quotes": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/quantra_VanillaRepricePoint"
-            }
-          }
-        },
-        "required": [
-          "quotes"
         ],
         "additionalProperties": false
       },
@@ -7777,9 +7617,6 @@
               "type": "string"
             }
           },
-          "andreasen_huge_error": {
-            "$ref": "#/components/schemas/quantra_AndreasenHugeCalibrationError"
-          },
           "vol_surface_spec": {
             "$ref": "#/components/schemas/quantra_VolSurfaceSpec"
           },
@@ -7793,20 +7630,21 @@
           "vol_surface_spec_ssvi": {
             "$ref": "#/components/schemas/quantra_VolSurfaceSpec"
           },
-          "ssvi_arbitrage": {
-            "$ref": "#/components/schemas/quantra_SsviArbitrageCheck"
+          "arbitrage_free": {
+            "type": "boolean",
+            "description": "Whether the Dupire local vol of `vol_surface_spec`, read as a\nstructured note reads it on the sheet's forwards, evaluates at every\npoint of the scan `/validate-vol-surface` runs (`LocalVolCheck`):\nthe surface can be simulated as local vol. The full check, the fit\nstatistics and the Monte Carlo repricing are `/validate-vol-surface`."
           },
-          "vanilla_repricing": {
-            "$ref": "#/components/schemas/quantra_VanillaRepricing"
+          "arbitrage_free_svi": {
+            "type": "boolean",
+            "description": "The same for `vol_surface_spec_svi` (`SviPerExpiry` only)."
           },
-          "local_vol_check": {
-            "$ref": "#/components/schemas/quantra_LocalVolCheck"
+          "arbitrage_free_ssvi": {
+            "type": "boolean",
+            "description": "The same for `vol_surface_spec_ssvi` (`Ssvi` only; the closed-form\nlocal vol, plus the slices' closed-form conditions)."
           },
-          "local_vol_check_svi": {
-            "$ref": "#/components/schemas/quantra_LocalVolCheck"
-          },
-          "local_vol_check_ssvi": {
-            "$ref": "#/components/schemas/quantra_LocalVolCheck"
+          "svi_local_vol_refit_action": {
+            "type": "string",
+            "description": "`SviPerExpiry` only: what the local vol check of the SVI payload made\nthe fit do: \"none\", or the refit passes (the flagged slices refitted\nwith a larger calendar margin and butterfly weight, at most 3)."
           }
         },
         "required": [
@@ -7819,9 +7657,7 @@
           "strikes_as_moneyness",
           "grid_strikes",
           "grid_expiries",
-          "vol_surface_spec",
-          "vanilla_repricing",
-          "local_vol_check"
+          "vol_surface_spec"
         ],
         "additionalProperties": false
       },
@@ -9437,7 +9273,7 @@
       },
       "quantra_StructuredNoteDiagnosticsSpec": {
         "type": "object",
-        "description": "Opt-in diagnostic blocks, each computed from the SAME paths as the\nprice so the parts add up to the headline (the terms echo, the\nseasoning resolution and the model echo are always returned). Absent =\nno diagnostic block.",
+        "description": "Opt-in diagnostic blocks, each computed from the SAME paths as the\nprice so the parts add up to the headline (the terms echo, the\nseasoning resolution and the model echo are always returned). Absent =\nno diagnostic block. Repricing listed quotes through the Monte Carlo of a\nsurface is `/validate-vol-surface` (`checks.simulation`).",
         "properties": {
           "market": {
             "type": "boolean",
@@ -9464,20 +9300,6 @@
             "description": "Number of individual paths returned with `distribution` (basket\nperformance per event, payout, call date), capped at 100; 0 = none.\nRaw underlying levels are never returned.",
             "minimum": 0,
             "maximum": 4294967295
-          },
-          "vanilla_repricing": {
-            "type": "boolean",
-            "description": "Vanilla repricing through the Monte Carlo, the acceptance check of\nthe quotes -> surface -> simulation chain: every usable quote of\n`vanilla_repricing_sheets` is priced as a European option on\nsimulated paths of the note's own model (same market, curves,\ncorrelation, random sequence, seed and path count; the time grid is\nthe note's grid with the sheet expiries added as mandatory dates,\nrefined by `steps_per_year` as usual) and compared with its bid/ask.\nIt is a separate simulation: the headline and every other block are\nunchanged by this flag. Requires `vanilla_repricing_sheets`.\nDefinitions: `StructuredNoteVanillaRepricing` in\nstructured_note_response.fbs."
-          },
-          "vanilla_repricing_sheets": {
-            "type": "array",
-            "description": "The listed-option quote sheets to reprice, at most one per\nunderlying, matched to the notes' underlyings by\n`OptionQuoteSheet.underlying_id`; every sheet must belong to an\nunderlying of some note and every note must have a sheet for at\nleast one of its underlyings (400 otherwise). A sheet for a quanto\nunderlying is a 400: the listed options live in the underlying's\nown measure, the note simulates the quanto-adjusted one. European\nstyle only. Requires `vanilla_repricing = true`.",
-            "items": {
-              "$ref": "#/components/schemas/quantra_OptionQuoteSheet"
-            }
-          },
-          "vanilla_repricing_filter": {
-            "$ref": "#/components/schemas/quantra_QuoteFilter"
           }
         },
         "additionalProperties": false
@@ -11315,220 +11137,6 @@
         ],
         "additionalProperties": false
       },
-      "quantra_StructuredNoteRepricedOption": {
-        "type": "object",
-        "description": "One listed quote repriced on the simulated paths\n(`diagnostics.vanilla_repricing`).",
-        "properties": {
-          "expiry": {
-            "type": "string",
-            "description": "Expiry date (YYYY-MM-DD), a point of the repricing time grid."
-          },
-          "time": {
-            "type": "number",
-            "description": "Actual/365 (Fixed) years from the valuation date."
-          },
-          "strike": {
-            "type": "number"
-          },
-          "option_type": {
-            "$ref": "#/components/schemas/quantra_enums_EquityOptionType"
-          },
-          "bid": {
-            "type": "number"
-          },
-          "ask": {
-            "type": "number"
-          },
-          "mid": {
-            "type": "number"
-          },
-          "model_price": {
-            "type": "number",
-            "description": "`discount_factor x mean of max(+/-(S_T - K), 0)` over the simulated\npaths, `S_T` the simulated level at the expiry grid point and\n`discount_factor` the note's discounting curve without the funding\nspread (listed options are not note liabilities)."
-          },
-          "standard_error": {
-            "type": "number",
-            "description": "Monte Carlo standard error of `model_price` (the path engine's\nestimator, discounted)."
-          },
-          "inside_bid_ask": {
-            "type": "boolean",
-            "description": "bid <= model_price <= ask."
-          },
-          "price_error": {
-            "type": "number",
-            "description": "model_price - mid."
-          },
-          "market_vol": {
-            "type": "number",
-            "description": "Black-76 implied vol of the mid on the model forward and discount\nfactor of the expiry; absent when the mid does not solve (outside\nthe Black bounds)."
-          },
-          "model_vol": {
-            "type": "number",
-            "description": "Black-76 implied vol of `model_price` on the same forward and\ndiscount factor; absent when it does not solve."
-          },
-          "vol_error": {
-            "type": "number",
-            "description": "model_vol - market_vol; absent when either is."
-          }
-        },
-        "required": [
-          "expiry"
-        ],
-        "additionalProperties": false
-      },
-      "quantra_StructuredNoteRepricingExpiry": {
-        "type": "object",
-        "description": "One sheet expiry as the repricing used it.",
-        "properties": {
-          "expiry": {
-            "type": "string"
-          },
-          "time": {
-            "type": "number"
-          },
-          "forward": {
-            "type": "number",
-            "description": "The model forward of the underlying at the expiry: spot x\nD_div(T) / D_note(T) on the simulation's time axis (the forward the\nprocess drifts along, quanto excluded)."
-          },
-          "discount_factor": {
-            "type": "number",
-            "description": "D_note(T), the discounting curve without the funding spread."
-          },
-          "quotes_used": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 4294967295
-          },
-          "quotes_dropped": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 4294967295
-          },
-          "dropped": {
-            "type": "array",
-            "description": "Every line not used, with its reason (the per-line quality rules of\n`/calibrate-implied-forwards`, then the out-of-the-money side's mid\nbelow 1e-5 of the spot or without an implied vol).",
-            "items": {
-              "$ref": "#/components/schemas/quantra_DroppedQuote"
-            }
-          }
-        },
-        "required": [
-          "expiry",
-          "dropped"
-        ],
-        "additionalProperties": false
-      },
-      "quantra_StructuredNoteVanillaRepricingUnderlying": {
-        "type": "object",
-        "description": "The repricing of one sheet (one underlying).",
-        "properties": {
-          "underlying_id": {
-            "type": "string"
-          },
-          "sheet_id": {
-            "type": "string"
-          },
-          "spot": {
-            "type": "number"
-          },
-          "expiries": {
-            "type": "array",
-            "description": "Every sheet expiry in date order (an expiry on or before the\nvaluation date is reported with every line dropped).",
-            "items": {
-              "$ref": "#/components/schemas/quantra_StructuredNoteRepricingExpiry"
-            }
-          },
-          "count": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 4294967295
-          },
-          "inside_bid_ask": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 4294967295
-          },
-          "max_abs_price_error": {
-            "type": "number",
-            "description": "Largest |model_price - mid| over the used quotes (price units)."
-          },
-          "max_abs_vol_error": {
-            "type": "number",
-            "description": "Largest |model_vol - market_vol| (vol units) over the used quotes\nwhere both solve; absent when none does."
-          },
-          "max_standard_error": {
-            "type": "number",
-            "description": "Largest standard error over the used quotes, in price units."
-          },
-          "options": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/quantra_StructuredNoteRepricedOption"
-            }
-          }
-        },
-        "required": [
-          "underlying_id",
-          "sheet_id",
-          "expiries",
-          "options"
-        ],
-        "additionalProperties": false
-      },
-      "quantra_StructuredNoteVanillaRepricing": {
-        "type": "object",
-        "description": "`diagnostics.vanilla_repricing`: every usable quote of the request's\nsheets priced as a European option on ONE extra simulation of the\nnote's model (same market, correlation, sequence, seed and paths; the\ntime grid is the note's grid with the sheet expiries added as mandatory\ndates), so that the quotes a surface was calibrated to are repriced\nthrough the very paths the note is priced on. The headline and every\nother block are computed on the note's own grid and are unchanged by\nthis flag; `note_npv` is the note walked on the repricing grid so the\neffect of the extra grid points is visible (Monte Carlo noise: with\n`steps_per_year` the grid refinement differs where an expiry splits an\ninterval, and without it the exact lognormal steps simply pass through\nmore dates; both change the random stream, neither changes the model).",
-        "properties": {
-          "paths": {
-            "type": "integer",
-            "description": "Paths simulated (the note's `monte_carlo.paths`).",
-            "minimum": 0,
-            "maximum": 4294967295
-          },
-          "time_steps": {
-            "type": "integer",
-            "description": "Steps of the repricing grid (the note's grid plus the expiries).",
-            "minimum": 0,
-            "maximum": 4294967295
-          },
-          "note_npv": {
-            "type": "number",
-            "description": "The note's NPV and standard error on the repricing paths."
-          },
-          "note_standard_error": {
-            "type": "number"
-          },
-          "count": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 4294967295
-          },
-          "inside_bid_ask": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 4294967295
-          },
-          "max_abs_price_error": {
-            "type": "number"
-          },
-          "max_abs_vol_error": {
-            "type": "number"
-          },
-          "max_standard_error": {
-            "type": "number"
-          },
-          "underlyings": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/quantra_StructuredNoteVanillaRepricingUnderlying"
-            }
-          }
-        },
-        "required": [
-          "underlyings"
-        ],
-        "additionalProperties": false
-      },
       "quantra_StructuredNoteResult": {
         "type": "object",
         "description": "Pricing result of one structured note. The headline is `npv` with its\nstandard error, the path count and the seed; the terms echo, the\nseasoning resolution and the model echo are always present so the\nbooked terms can be checked before the price is trusted; Greeks and\nthe diagnostic blocks are present only when requested. For a note whose\npast already decided it (`seasoning.status` Called or Matured) nothing\nis simulated: `paths` is 0 and every simulation statistic is absent.",
@@ -11606,9 +11214,6 @@
           },
           "timing": {
             "$ref": "#/components/schemas/quantra_StructuredNoteTimingDiagnostics"
-          },
-          "vanilla_repricing": {
-            "$ref": "#/components/schemas/quantra_StructuredNoteVanillaRepricing"
           }
         },
         "required": [
@@ -11780,6 +11385,876 @@
         },
         "required": [
           "swaptions"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_VolSurfaceValidationChecks": {
+        "type": "object",
+        "description": "Which tests `/validate-vol-surface` runs. At least one must be on.",
+        "properties": {
+          "fit": {
+            "type": "boolean",
+            "description": "Every usable quote priced with Black-76 on the surface's own vol at\nits expiry and strike, compared with its bid/ask."
+          },
+          "arbitrage": {
+            "type": "boolean",
+            "description": "The surface's Dupire local vol read as a structured note reads it,\nscanned for refusals, plus the slice conditions of an SVI or SSVI\npayload."
+          },
+          "simulation": {
+            "type": "boolean",
+            "description": "Every usable quote priced by Monte Carlo on the local vol derived\nfrom the surface. Requires `simulation` (the Monte Carlo settings)."
+          },
+          "arbitrage_grid": {
+            "type": "boolean",
+            "description": "With `arbitrage`: also return every point the local vol scan\nevaluated (`arbitrage.local_vol_grid`: about 25 rows of 201 strikes\non an 8-expiry surface, 10 000 to 20 000 points on a long sheet).\nOff: nothing more is returned. `true` without `arbitrage` is a 400."
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_VolSurfaceValidationBands": {
+        "type": "object",
+        "description": "Edges of the summary table (`bands` of the fit and simulation blocks).\nEach list strictly increasing, finite and > 0; the cells are the open\nintervals below the first edge and above the last one and the half-open\nintervals [edge_i, edge_i+1) in between.",
+        "properties": {
+          "moneyness": {
+            "type": "array",
+            "description": "Moneyness K / F edges. Default when absent or empty:\n0.8, 0.9, 0.95, 1.05, 1.1, 1.2.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "maturities": {
+            "type": "array",
+            "description": "Time-to-expiry edges in Act/365F years. Default when absent or empty:\n1/12, 0.25, 0.5, 1, 2.",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_ValidateVolSurfaceRequest": {
+        "type": "object",
+        "description": "Request for `/validate-vol-surface`: test an equity Black vol surface\n(any shape: a strike x expiry grid, an `SviVolSpec` or `SsviVolSpec`\npayload, a constant or term vol) against a sheet of listed option quotes.\nNothing is fitted: the surface in `pricing.volatility.vol_surfaces` is\nread exactly as the pricers read it.",
+        "properties": {
+          "pricing": {
+            "$ref": "#/components/schemas/quantra_Pricing"
+          },
+          "volatility_id": {
+            "type": "string",
+            "description": "Id of the surface under test in `pricing.volatility.vol_surfaces`\n(an equity Black vol: `BlackVolSpec`, `SviVolSpec` or `SsviVolSpec`)."
+          },
+          "underlying_id": {
+            "type": "string",
+            "description": "`EquityUnderlyingSpec.id`: the spot and the dividend curve."
+          },
+          "discounting_curve": {
+            "type": "string",
+            "description": "Curve id in `pricing.rates.curves`: the risk-free curve of the\nunderlying's currency (the discount factors, and the drift of the\nsimulation, as a structured note's `discounting_curve`)."
+          },
+          "quotes": {
+            "$ref": "#/components/schemas/quantra_OptionQuoteSheet"
+          },
+          "filter": {
+            "$ref": "#/components/schemas/quantra_QuoteFilter"
+          },
+          "forwards": {
+            "type": "array",
+            "description": "Optional: the `expiries` array of a `/calibrate-implied-forwards`\nresponse (or the `forwards` of a `/calibrate-vol-surface` response\nwith `usable: true`), pasted as is. Present: every check reads the\nsheet's forward F and implied discount factor DF per expiry (a\nrisk-free curve on the DFs, log-linear, and a dividend curve\nDF_q = F DF / S, the market `/calibrate-vol-surface` fits on), and an\nexpiry not listed is dropped. Absent: F = S D_div(T) / D(T) and\nDF = D(T) from `discounting_curve` and the underlying's dividend\ncurve, the market a structured note simulates on.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_ImpliedForwardExpiry"
+            }
+          },
+          "checks": {
+            "$ref": "#/components/schemas/quantra_VolSurfaceValidationChecks"
+          },
+          "simulation": {
+            "$ref": "#/components/schemas/quantra_MonteCarloSpec"
+          },
+          "bands": {
+            "$ref": "#/components/schemas/quantra_VolSurfaceValidationBands"
+          }
+        },
+        "required": [
+          "pricing",
+          "volatility_id",
+          "underlying_id",
+          "discounting_curve",
+          "quotes"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_VolSurfaceValidationExpiry": {
+        "type": "object",
+        "description": "One sheet expiry as the checks used it. Every sheet expiry appears once,\nin date order.",
+        "properties": {
+          "expiry": {
+            "type": "string"
+          },
+          "time": {
+            "type": "number",
+            "description": "Act/365F years from `pricing.as_of_date`."
+          },
+          "usable": {
+            "type": "boolean",
+            "description": "True iff the expiry's quotes entered the checks."
+          },
+          "dropped_reason": {
+            "type": "string",
+            "description": "Why not (absent when `usable`)."
+          },
+          "forward": {
+            "type": "number",
+            "description": "The forward and discount factor the quotes were read on (see\n`ValidateVolSurfaceRequest.forwards`); absent when the expiry has\nnone (on or before the as-of date, or not in `forwards`)."
+          },
+          "discount_factor": {
+            "type": "number"
+          },
+          "quotes_used": {
+            "type": "integer",
+            "description": "Out-of-the-money quotes with an implied vol (the side\n`/calibrate-vol-surface` fits: the call for K >= F, the put below).",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "quotes_dropped": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "dropped": {
+            "type": "array",
+            "description": "Every line not used, with its reason.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_DroppedQuote"
+            }
+          }
+        },
+        "required": [
+          "expiry",
+          "dropped"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_VolSurfaceBandCell": {
+        "type": "object",
+        "description": "One cell of the summary table: quotes whose moneyness K / F and time to\nexpiry fall in the cell's ranges (a bound is absent on an open end; the\nlower bound is inclusive, the upper exclusive). Only cells with at least\none quote are listed, ordered by maturity then moneyness.",
+        "properties": {
+          "moneyness_min": {
+            "type": "number"
+          },
+          "moneyness_max": {
+            "type": "number"
+          },
+          "time_min": {
+            "type": "number"
+          },
+          "time_max": {
+            "type": "number"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "inside": {
+            "type": "integer",
+            "description": "Quotes priced inside their bid/ask.",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "rms_vol_error": {
+            "type": "number",
+            "description": "Root mean square and largest absolute vol error (vol units, 0.01 =\none vol point) over the cell's quotes that have one; absent when none."
+          },
+          "max_abs_vol_error": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_VolSurfaceQuoteFit": {
+        "type": "object",
+        "description": "One used quote priced on the surface (`fit`).",
+        "properties": {
+          "expiry": {
+            "type": "string"
+          },
+          "time": {
+            "type": "number"
+          },
+          "strike": {
+            "type": "number"
+          },
+          "moneyness": {
+            "type": "number",
+            "description": "K / F."
+          },
+          "option_type": {
+            "$ref": "#/components/schemas/quantra_enums_EquityOptionType"
+          },
+          "bid": {
+            "type": "number"
+          },
+          "ask": {
+            "type": "number"
+          },
+          "mid": {
+            "type": "number"
+          },
+          "market_vol": {
+            "type": "number",
+            "description": "Black-76 implied vol of the mid on the expiry's forward and discount\nfactor."
+          },
+          "model_vol": {
+            "type": "number",
+            "description": "The surface's Black vol at (expiry, strike), read through the vol\nterm structure the pricers use (extrapolation allowed)."
+          },
+          "model_price": {
+            "type": "number",
+            "description": "Black-76 price at `model_vol` on the same forward and discount factor."
+          },
+          "inside_spread": {
+            "type": "boolean",
+            "description": "bid <= model_price <= ask."
+          },
+          "vol_error": {
+            "type": "number",
+            "description": "model_vol - market_vol."
+          },
+          "price_error": {
+            "type": "number",
+            "description": "model_price - mid."
+          },
+          "bid_vol": {
+            "type": "number",
+            "description": "Black-76 implied vols of the bid and of the ask (the same side,\nforward and discount factor as `market_vol`): the quote's spread in\nvol units. Absent when the price has no implied vol (a zero bid, a\nprice at or below intrinsic value); never 0."
+          },
+          "ask_vol": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "expiry"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_VolSurfaceAtmError": {
+        "type": "object",
+        "description": "The vol error at the quote nearest the money of one expiry (smallest\n|ln(K / F)|).",
+        "properties": {
+          "expiry": {
+            "type": "string"
+          },
+          "time": {
+            "type": "number"
+          },
+          "strike": {
+            "type": "number"
+          },
+          "moneyness": {
+            "type": "number"
+          },
+          "market_vol": {
+            "type": "number"
+          },
+          "model_vol": {
+            "type": "number"
+          },
+          "vol_error": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "expiry"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_VolSurfaceFitValidation": {
+        "type": "object",
+        "description": "`fit`: every used quote priced with Black-76 on the surface's own vol.\nVerdict: \"pass\" when at least 90 % of the quotes are inside their bid/ask\nand every at-the-money vol error is within 0.5 vol point, \"fail\" below\n50 % inside, \"warn\" otherwise; the string carries the numbers.",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "inside": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "rms_vol_error": {
+            "type": "number"
+          },
+          "max_abs_vol_error": {
+            "type": "number"
+          },
+          "max_abs_price_error": {
+            "type": "number"
+          },
+          "quotes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_VolSurfaceQuoteFit"
+            }
+          },
+          "bands": {
+            "type": "array",
+            "description": "Summary by moneyness band x maturity bucket.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_VolSurfaceBandCell"
+            }
+          },
+          "atm_error_per_expiry": {
+            "type": "array",
+            "description": "One entry per usable expiry, date order.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_VolSurfaceAtmError"
+            }
+          },
+          "verdict": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "quotes",
+          "bands",
+          "atm_error_per_expiry",
+          "verdict"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_LocalVolCheck": {
+        "type": "object",
+        "description": "Dupire local vol of the surface, read exactly as a structured note reads\nit: QuantLib's LocalVolSurface (the closed-form local vol for an\n`SsviVolSpec`) on the surface as the parser builds it, held at the\nsurface's own strike limits (`local_vol_strike_min` / `_max` of a grid,\n`strike_min` / `strike_max` of the slices; the grid's edge strikes\notherwise) and extended in time as the spec says\n(`local_vol_time_extrapolation`), on the forwards of the checks. The\nscan: times = every expiry of the surface (the quoted expiries for a\nconstant or term vol) +/- 2e-4 years (outside QuantLib's time stencil of\n1e-4), the midpoints between them (and between 0 and the first) and the\nlast expiry - 1e-3; at each time 201 log-spaced strikes over the region\nof the first usable quoted expiry at or after it (the last one beyond):\nfrom the forward outwards, the log-strike distance five standard\ndeviations cover at the quotes' implied vols, together with the strikes\nquoted on both that expiry and the one before, within the widest of the\nsurface's strike limits and the quoted strikes. A refused point is one\nwhere QuantLib throws (\"decreasing variance ...\" or \"negative local\nvol^2 ...\", for SSVI g <= 0 or a negative local variance).",
+        "properties": {
+          "arbitrage_free": {
+            "type": "boolean",
+            "description": "True iff every scan point evaluated (no refusal): the surface can be\nsimulated as local vol everywhere the scan reached."
+          },
+          "times": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "strikes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "points": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "refused": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "first_refusal": {
+            "type": "string",
+            "description": "QuantLib's message at the first refused point."
+          },
+          "min_local_variance": {
+            "type": "number",
+            "description": "Smallest local variance (sigma_loc^2) over the points that evaluated,\nand its time (Act/365F years) and strike."
+          },
+          "min_local_variance_time": {
+            "type": "number"
+          },
+          "min_local_variance_strike": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_LocalVolGridRow": {
+        "type": "object",
+        "description": "One scan time of `local_vol_grid`: the strikes evaluated at that time\n(201, log-spaced over the region of the expiry the time belongs to, so\nthey differ from row to row), the local vol at each (0 at a refused\npoint) and the indices into `strikes` of the refused points.",
+        "properties": {
+          "time": {
+            "type": "number"
+          },
+          "strikes": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "local_vols": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "refused": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            }
+          }
+        },
+        "required": [
+          "strikes",
+          "local_vols",
+          "refused"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_LocalVolGrid": {
+        "type": "object",
+        "description": "Every point the local vol scan evaluated (`checks.arbitrage_grid`), one\nrow per scan time in increasing time: exactly the `points` of\n`local_vol_check` (rows x 201). The smallest square of a local vol not\nrefused is `local_vol_check.min_local_variance`. Size: about 5 000\npoints on an 8-expiry sheet, 10 000 to 20 000 on a long one.",
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_LocalVolGridRow"
+            }
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_ClampEdge": {
+        "type": "object",
+        "description": "A strike clamp the structured note's local vol applies when it reads\nthis surface (a simulated level beyond an edge reads the local vol at\nthe edge): the level the local vol is read at, i.e. the spec's range\nmoved inside by 1e-3 in log-strike (unless that leaves no interior).\n`scope` `PerExpiry`: the spec's per-expiry ranges (`local_vol_strike_min`\n/ `_max` of a grid, `strike_min` / `strike_max` with\n`local_vol_strike_range: PerExpiry`), each applying up to its `time`;\n`Surface`: one range for the whole surface (a grid's edge strikes, the\nslices' widest `strike_min` / `strike_max`), repeated per expiry of the\nsurface (or once, without expiry, when the surface has none). An edge is\nabsent on an open side.",
+        "properties": {
+          "scope": {
+            "type": "string"
+          },
+          "expiry": {
+            "type": "string"
+          },
+          "time": {
+            "type": "number"
+          },
+          "strike_min": {
+            "type": "number"
+          },
+          "strike_max": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "scope"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_SsviArbitrageCheck": {
+        "type": "object",
+        "description": "Static-arbitrage check of eSSVI slices: the closed-form butterfly and\ncalendar conditions (see `SsviVolSpec`) and a numeric scan of\nDurrleman's g(k) and of dw/dt at fixed k at the slice times, their\nmidpoints, half the first and 1.5 times the last, on 201 points of k in\n[-1.5, 1.0].",
+        "properties": {
+          "violations": {
+            "type": "array",
+            "description": "Violated conditions (\"butterfly_psi at slice 3 (by 1e-5)\", ...);\nempty when the slices are free of static arbitrage.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scan_min_g": {
+            "type": "number"
+          },
+          "scan_min_g_time": {
+            "type": "number"
+          },
+          "scan_min_g_k": {
+            "type": "number"
+          },
+          "scan_min_dw_dt": {
+            "type": "number"
+          },
+          "scan_min_dw_dt_time": {
+            "type": "number"
+          },
+          "scan_min_dw_dt_k": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "violations"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_SsviSliceCheck": {
+        "type": "object",
+        "description": "Margins of one eSSVI slice's arbitrage conditions (right-hand side minus\nleft-hand side, >= 0 when met): 4 - psi (1 + |rho|),\n4 theta - psi^2 (1 + |rho|), and against the previous slice (absent on\nthe first) theta_i - theta_{i-1}, psi_i - psi_{i-1} and\n(psi_i - psi_{i-1}) - |rho_i psi_i - rho_{i-1} psi_{i-1}|.",
+        "properties": {
+          "expiry": {
+            "type": "string"
+          },
+          "time": {
+            "type": "number"
+          },
+          "theta": {
+            "type": "number"
+          },
+          "rho": {
+            "type": "number"
+          },
+          "psi": {
+            "type": "number"
+          },
+          "margin_butterfly_psi": {
+            "type": "number"
+          },
+          "margin_butterfly_psi2": {
+            "type": "number"
+          },
+          "margin_calendar_theta": {
+            "type": "number"
+          },
+          "margin_calendar_psi": {
+            "type": "number"
+          },
+          "margin_calendar_a": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "expiry"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_SviSliceCheck": {
+        "type": "object",
+        "description": "One raw SVI slice: Durrleman's butterfly function g(k) (negative =\nbutterfly arbitrage) on 201 points of k = ln(K / F) over the slice's\nstrike range (`strike_min` / `strike_max`; without them the quoted\nstrikes of the sheet), the wing slope b (1 + |rho|) against Roger Lee's\nbound 2, and against the previous slice (absent on the first) the\nsmallest increase of total variance at the same k on the same points\n(negative = calendar arbitrage) and the forward vol it implies,\nsqrt(dw / dT) (negative when dw < 0).",
+        "properties": {
+          "expiry": {
+            "type": "string"
+          },
+          "time": {
+            "type": "number"
+          },
+          "butterfly_min_g": {
+            "type": "number"
+          },
+          "butterfly_min_g_k": {
+            "type": "number"
+          },
+          "wing_slope": {
+            "type": "number"
+          },
+          "calendar_min_dw": {
+            "type": "number"
+          },
+          "calendar_min_dw_k": {
+            "type": "number"
+          },
+          "calendar_min_forward_vol": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "expiry"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_VolSurfaceArbitrageValidation": {
+        "type": "object",
+        "description": "`arbitrage`: the local vol scan, plus the slice conditions of an SVI or\nSSVI payload. Verdict: \"pass\" when the scan has no refusal and the slice\nconditions hold, \"fail\" otherwise, with the numbers.",
+        "properties": {
+          "arbitrage_free": {
+            "type": "boolean",
+            "description": "True iff the local vol scan has no refusal and no slice condition is\nviolated."
+          },
+          "local_vol_check": {
+            "$ref": "#/components/schemas/quantra_LocalVolCheck"
+          },
+          "svi_slices": {
+            "type": "array",
+            "description": "`SviVolSpec` only: one entry per slice.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_SviSliceCheck"
+            }
+          },
+          "ssvi_check": {
+            "$ref": "#/components/schemas/quantra_SsviArbitrageCheck"
+          },
+          "ssvi_slices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_SsviSliceCheck"
+            }
+          },
+          "violations": {
+            "type": "array",
+            "description": "Violated slice conditions in words (empty when none, or for a shape\nwithout slices).",
+            "items": {
+              "type": "string"
+            }
+          },
+          "verdict": {
+            "type": "string"
+          },
+          "local_vol_grid": {
+            "$ref": "#/components/schemas/quantra_LocalVolGrid"
+          },
+          "clamp_edges": {
+            "type": "array",
+            "description": "The strike clamps the note applies when reading the surface; empty\nwhen it reads it unclamped (a constant or term vol: exact lognormal\nsteps, no local vol; a payload without strike limits).",
+            "items": {
+              "$ref": "#/components/schemas/quantra_ClampEdge"
+            }
+          }
+        },
+        "required": [
+          "local_vol_check",
+          "violations",
+          "verdict",
+          "clamp_edges"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_VolSurfaceQuoteSimulation": {
+        "type": "object",
+        "description": "One used quote priced by Monte Carlo (`simulation`).",
+        "properties": {
+          "expiry": {
+            "type": "string"
+          },
+          "time": {
+            "type": "number"
+          },
+          "strike": {
+            "type": "number"
+          },
+          "moneyness": {
+            "type": "number"
+          },
+          "option_type": {
+            "$ref": "#/components/schemas/quantra_enums_EquityOptionType"
+          },
+          "bid": {
+            "type": "number"
+          },
+          "ask": {
+            "type": "number"
+          },
+          "mid": {
+            "type": "number"
+          },
+          "market_vol": {
+            "type": "number",
+            "description": "Black-76 implied vol of the mid (as in `fit`)."
+          },
+          "mc_price": {
+            "type": "number",
+            "description": "DF x mean of max(+/-(S_T - K), 0) over the simulated paths."
+          },
+          "standard_error": {
+            "type": "number",
+            "description": "Monte Carlo standard error of `mc_price` (the path engine's\nestimator, discounted)."
+          },
+          "mc_vol": {
+            "type": "number",
+            "description": "Black-76 implied vol of `mc_price`; absent when it does not solve."
+          },
+          "inside_spread": {
+            "type": "boolean",
+            "description": "bid <= mc_price <= ask."
+          },
+          "within_noise": {
+            "type": "boolean",
+            "description": "bid - 3.5 SE <= mc_price <= ask + 3.5 SE: inside the bid/ask up to\nthe Monte Carlo noise."
+          },
+          "vol_error": {
+            "type": "number",
+            "description": "mc_vol - market_vol; absent when mc_vol is."
+          },
+          "price_error": {
+            "type": "number",
+            "description": "mc_price - mid."
+          }
+        },
+        "required": [
+          "expiry"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_VolSurfaceSimulationValidation": {
+        "type": "object",
+        "description": "`simulation`: every used quote priced as a European option on paths of\nthe local vol derived from the surface (one asset; the process, the\npath engine and the local vol a structured note uses: spot, dividend and\nrisk-free curves of the checks, the surface's strike limits and time\nextension, `local_vol_floor` when given). The grid is the used expiries,\nrefined by `steps_per_year`. Verdict: \"pass\" when at least 95 % of the\nquotes are within the noise (`within_noise`), \"fail\" below 80 %, \"warn\"\notherwise.",
+        "properties": {
+          "paths": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "time_steps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "seed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 18446744073709551615
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "inside": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "within_noise": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "max_abs_price_error": {
+            "type": "number"
+          },
+          "max_abs_vol_error": {
+            "type": "number",
+            "description": "Largest |vol_error| over the quotes that have one; absent when none."
+          },
+          "max_standard_error": {
+            "type": "number"
+          },
+          "quotes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_VolSurfaceQuoteSimulation"
+            }
+          },
+          "bands": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_VolSurfaceBandCell"
+            }
+          },
+          "verdict": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "quotes",
+          "bands",
+          "verdict"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_VolSurfaceValidationInputsEcho": {
+        "type": "object",
+        "description": "What the checks ran on.",
+        "properties": {
+          "volatility_id": {
+            "type": "string"
+          },
+          "shape": {
+            "$ref": "#/components/schemas/quantra_enums_VolSurfaceShape"
+          },
+          "underlying_id": {
+            "type": "string"
+          },
+          "spot": {
+            "type": "number"
+          },
+          "discounting_curve": {
+            "type": "string"
+          },
+          "dividend_curve": {
+            "type": "string"
+          },
+          "forwards_source": {
+            "type": "string",
+            "description": "\"request\" when `forwards` was given, \"curves\" otherwise."
+          },
+          "sheet_id": {
+            "type": "string"
+          },
+          "filter": {
+            "$ref": "#/components/schemas/quantra_QuoteFilter"
+          },
+          "checks": {
+            "$ref": "#/components/schemas/quantra_VolSurfaceValidationChecks"
+          },
+          "moneyness_edges": {
+            "type": "array",
+            "description": "The band edges applied.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "maturity_edges": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "volatility_id",
+          "underlying_id",
+          "discounting_curve",
+          "dividend_curve",
+          "forwards_source",
+          "sheet_id",
+          "filter",
+          "checks",
+          "moneyness_edges",
+          "maturity_edges"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_VolSurfaceValidationTiming": {
+        "type": "object",
+        "description": "Wall-clock milliseconds per check (absent when not run) and in total.",
+        "properties": {
+          "fit_milliseconds": {
+            "type": "number"
+          },
+          "arbitrage_milliseconds": {
+            "type": "number"
+          },
+          "simulation_milliseconds": {
+            "type": "number"
+          },
+          "total_milliseconds": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_ValidateVolSurfaceResponse": {
+        "type": "object",
+        "description": "Response of `/validate-vol-surface`. A block is present iff its check ran.",
+        "properties": {
+          "inputs_echo": {
+            "$ref": "#/components/schemas/quantra_VolSurfaceValidationInputsEcho"
+          },
+          "expiries": {
+            "type": "array",
+            "description": "Every sheet expiry, date order.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_VolSurfaceValidationExpiry"
+            }
+          },
+          "fit": {
+            "$ref": "#/components/schemas/quantra_VolSurfaceFitValidation"
+          },
+          "arbitrage": {
+            "$ref": "#/components/schemas/quantra_VolSurfaceArbitrageValidation"
+          },
+          "simulation": {
+            "$ref": "#/components/schemas/quantra_VolSurfaceSimulationValidation"
+          },
+          "timing": {
+            "$ref": "#/components/schemas/quantra_VolSurfaceValidationTiming"
+          }
+        },
+        "required": [
+          "inputs_echo",
+          "expiries",
+          "timing"
         ],
         "additionalProperties": false
       },

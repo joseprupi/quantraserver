@@ -1203,13 +1203,41 @@ def test_bootstrapped_curve_unchanged_by_a_request_at_another_as_of(
         "a request at another as-of changed the cached ZeroRate curve")
 
 
+def _next_target_business_day(d):
+    """`d` or the first TARGET business day after it (weekends, 1 January,
+    Good Friday, Easter Monday, 1 May, 25 and 26 December)."""
+    def easter(year):  # anonymous Gregorian algorithm
+        a, b, c = year % 19, year // 100, year % 100
+        g = (b - (b + 8) // 25 + 1) // 3
+        h = (19 * a + b - b // 4 - g + 15) % 30
+        i, k = c // 4, c % 4
+        L = (32 + 2 * (b % 4) + 2 * i - h - k) % 7
+        m = (a + 11 * h + 22 * L) // 451
+        return datetime.date(year, (h + L - 7 * m + 114) // 31, (h + L - 7 * m + 114) % 31 + 1)
+
+    while True:
+        e = easter(d.year)
+        holiday = (d.weekday() >= 5 or (d.month, d.day) in ((1, 1), (5, 1), (12, 25), (12, 26))
+                   or d in (e - datetime.timedelta(days=2), e + datetime.timedelta(days=1)))
+        if not holiday:
+            return d
+        d += datetime.timedelta(days=1)
+
+
 def test_bootstrapped_curve_with_calendar_overrides_unchanged_at_the_resting_date(
         nocache_client, cache_client, data_dir):
     """The same with holiday overrides on the curve's calendar, at the
     worker's resting date (today: the evaluation date is unset between
     requests). A request there does not move the evaluation date, so helpers
-    that another request re-dated without the overrides would stay so."""
-    today = datetime.date.today()
+    that another request re-dated without the overrides would stay so.
+
+    The as-of is today adjusted to the next TARGET business day: the curve's
+    deposit helper (fixing_days 2) refuses an evaluation date that is not a
+    business day, so on a weekend or a TARGET holiday the request moves to
+    the next business day (there the test still compares the cache with the
+    overrides against cache-OFF; the resting-date case is exercised on
+    business days)."""
+    today = _next_target_business_day(datetime.date.today())
     plain = _eur_curve_request(data_dir, "ZeroRate", "Linear", as_of=today.isoformat())
     request = copy.deepcopy(plain)
     request["pricing"]["calendar_overrides"] = [{

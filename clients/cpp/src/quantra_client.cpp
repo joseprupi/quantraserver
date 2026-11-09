@@ -485,6 +485,13 @@ JsonResponse QuantraClient::CalibrateCorrelationJSON(
         request_id);
 }
 
+JsonResponse QuantraClient::ValidateVolSurfaceJSON(
+    const std::string& json, const std::string& request_id) {
+    return impl_->CallJSON<ValidateVolSurfaceRequest, ValidateVolSurfaceResponse>(
+        ProductType::ValidateVolSurface, json, &QuantraServer::Stub::ValidateVolSurface,
+        request_id);
+}
+
 JsonResponse QuantraClient::PriceEquityOptionJSON(
     const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<PriceEquityOptionRequest, PriceEquityOptionResponse>(
@@ -709,6 +716,14 @@ grpc::Status QuantraClient::CalibrateCorrelation(
     grpc::ClientContext context;
     SetDefaultDeadline(context);
     return impl_->GetStub()->CalibrateCorrelation(&context, request, response);
+}
+
+grpc::Status QuantraClient::ValidateVolSurface(
+    const Message<ValidateVolSurfaceRequest>& request,
+    Message<ValidateVolSurfaceResponse>* response) {
+    grpc::ClientContext context;
+    SetDefaultDeadline(context);
+    return impl_->GetStub()->ValidateVolSurface(&context, request, response);
 }
 
 grpc::Status QuantraClient::PriceEquityOption(

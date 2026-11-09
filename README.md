@@ -43,10 +43,12 @@ Utility endpoints cover yield- and inflation-curve bootstrapping, volatility
 surface sampling, Hull-White and SABR calibration, calendar date arithmetic,
 and the equity market-data chain for the option and structured-note
 pricers: implied forwards and dividends from listed option quotes
-(`/calibrate-implied-forwards`), an arbitrage-checked Black volatility
-surface (`/calibrate-vol-surface`, Andreasen-Huge or SVI per expiry) and a
-correlation matrix from price histories (`/calibrate-correlation`, aligned
-returns, Ledoit-Wolf shrinkage, eigenvalue floor).
+(`/calibrate-implied-forwards`), a Black volatility surface
+(`/calibrate-vol-surface`, Andreasen-Huge, SVI per expiry or eSSVI), its
+validation against the quotes (`/validate-vol-surface`: fit, local-vol
+arbitrage scan, Monte Carlo repricing) and a correlation matrix from price
+histories (`/calibrate-correlation`, aligned returns, Ledoit-Wolf shrinkage,
+eigenvalue floor).
 
 Features that apply across products:
 
@@ -109,12 +111,12 @@ The published GHCR image starts both the JSON API and the gRPC/Envoy endpoint:
 - gRPC/Envoy endpoint: `50051`
 
 ```bash
-docker pull ghcr.io/joseprupi/quantra-server:0.16.4
+docker pull ghcr.io/joseprupi/quantra-server:0.16.7
 
 docker run --rm \
   -p 8080:8080 \
   -p 50051:50051 \
-  ghcr.io/joseprupi/quantra-server:0.16.4
+  ghcr.io/joseprupi/quantra-server:0.16.7
 ```
 
 Check the running service:
@@ -133,7 +135,7 @@ docker run --rm \
   -e QUANTRA_WORKERS=2 \
   -p 8080:8080 \
   -p 50051:50051 \
-  ghcr.io/joseprupi/quantra-server:0.16.4
+  ghcr.io/joseprupi/quantra-server:0.16.7
 ```
 
 See `docs/process-manager.md` for the full scaling model (load balancing, health

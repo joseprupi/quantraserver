@@ -15,12 +15,17 @@
 #include "date_convert.h"
 #include "error.h"
 #include "implied_forwards_evaluator.h"
+#include "smile_slice_vol_surface.h"
+#include "ssvi_vol_surface.h"
 #include "vol_surface_calibration_evaluator.h"
+#include "vol_surface_validation_evaluator.h"
 
 #include <ql/pricingengines/blackformula.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/settings.hpp>
+#include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
+#include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
 
 #include <gtest/gtest.h>
@@ -210,10 +215,10 @@ TEST(VolSurfaceCalibration, SviPerExpiryRecoversAnSsviSurface) {
     }
     EXPECT_LT(maxErr, 0.001) << "max grid error in vol units: " << maxErr; // 0.1 vol point
     // Every used quote repriced on the returned surface lies inside its bid/ask.
-    EXPECT_EQ(r.repricing.count, used);
+    EXPECT_EQ(r.fit.count, used);
     EXPECT_GT(used, 150u);
-    EXPECT_EQ(r.repricing.insideBidAsk, used);
-    EXPECT_LT(r.repricing.maxAbsVolError, 1e-6);
+    EXPECT_EQ(r.fit.inside, used);
+    EXPECT_LT(r.fit.maxAbsVolError, 1e-6);
 }
 
 TEST(VolSurfaceCalibration, AndreasenHugeReproducesAnSsviSurfaceInsideTheQuotedRange) {
@@ -263,11 +268,11 @@ TEST(VolSurfaceCalibration, AndreasenHugeReproducesAnSsviSurfaceInsideTheQuotedR
     // their 1 % bid/ask (180 of 189 observed; the rest are short-dated wing
     // quotes priced below 1e-4 of the spot, where the model's price noise is
     // a visible fraction of the spread).
-    EXPECT_GT(r.repricing.count, 150u);
-    EXPECT_GE(r.repricing.insideBidAsk * 100u, r.repricing.count * 95u)
-        << "inside bid/ask: " << r.repricing.insideBidAsk << " of " << r.repricing.count;
-    RecordProperty("inside_bid_ask", r.repricing.insideBidAsk);
-    RecordProperty("repriced", r.repricing.count);
+    EXPECT_GT(r.fit.count, 150u);
+    EXPECT_GE(r.fit.inside * 100u, r.fit.count * 95u)
+        << "inside bid/ask: " << r.fit.inside << " of " << r.fit.count;
+    RecordProperty("inside_bid_ask", r.fit.inside);
+    RecordProperty("repriced", r.fit.count);
 }
 
 // (b) flat 20 %: SVI returns 20 % on the whole default grid within 0.1 vol
@@ -305,7 +310,7 @@ TEST(VolSurfaceCalibration, FlatTwentyPercentIsRecoveredByBothMethods) {
         // Andreasen-Huge on its own finite-difference strikes: the model's
         // price noise puts at most one wing quote just outside its 1 %
         // spread.
-        EXPECT_GE(r.repricing.insideBidAsk + (svi ? 0u : 1u), r.repricing.count)
+        EXPECT_GE(r.fit.inside + (svi ? 0u : 1u), r.fit.count)
             << "method " << static_cast<int>(method);
     }
 }
@@ -374,7 +379,7 @@ TEST(VolSurfaceCalibration, CalendarViolationIsRefittedUnderTheNextExpiry) {
     auto inAh = baseInputs(VolSurfaceFitMethod::AndreasenHuge);
     inAh.base.quotes = in.base.quotes;
     const auto r3 = VolSurfaceCalibrationEvaluator().evaluate(inAh, mkt.reg, mkt.ctx);
-    EXPECT_LT(r3.repricing.insideBidAsk, r3.repricing.count);
+    EXPECT_LT(r3.fit.inside, r3.fit.count);
     for (std::size_t j = 0; j < r3.gridStrikes.size(); ++j) {
         EXPECT_GE(
             gridVol(r3, 1, j) * gridVol(r3, 1, j) * T1,
@@ -432,7 +437,7 @@ TEST(VolSurfaceCalibration, SequentialFitOrdersDisorderedExpiriesWithTheMargin) 
     EXPECT_TRUE(r.localVolCheck.arbitrageFree) << r.localVolCheck.firstRefusal;
     ASSERT_TRUE(r.localVolCheckSvi.has_value());
     EXPECT_TRUE(r.localVolCheckSvi->arbitrageFree) << r.localVolCheckSvi->firstRefusal;
-    EXPECT_EQ(r.localVolCheckSvi->action, "none");
+    EXPECT_EQ(r.sviLocalVolRefitAction, "none");
 }
 
 // The local vol check scans what it says: every expiry +/- 2e-4, the
@@ -452,8 +457,8 @@ TEST(VolSurfaceCalibration, LocalVolCheckScansTheReturnedSurfaces) {
         EXPECT_TRUE(c->arbitrageFree);
         ASSERT_TRUE(c->minLocalVariance.has_value());
         EXPECT_GT(*c->minLocalVariance, 0.0);
-        EXPECT_EQ(c->action, "none");
     }
+    EXPECT_EQ(r.sviLocalVolRefitAction, "none");
 }
 
 // Butterfly arbitrage: an SVI slice whose Durrleman g is -0.41 near the money
@@ -487,7 +492,7 @@ TEST(VolSurfaceCalibration, ButterflyViolationIsReportedAndRefitted) {
     EXPECT_GE(*e.butterflyMinG, -1e-6) << e.butterflyAction;
     // The refitted slice is a different, arbitrage-free smile: it no longer
     // reprices every quote, and says so.
-    EXPECT_LT(r.repricing.insideBidAsk, r.repricing.count);
+    EXPECT_LT(r.fit.inside, r.fit.count);
 
     in.enforceButterfly = false;
     const auto r2 = VolSurfaceCalibrationEvaluator().evaluate(in, one.reg, one.ctx);
@@ -495,7 +500,7 @@ TEST(VolSurfaceCalibration, ButterflyViolationIsReportedAndRefitted) {
     EXPECT_LT(*r2.expiries[0].butterflyMinG, -0.3);
     EXPECT_NE(r2.expiries[0].butterflyAction.find("reported only"), std::string::npos);
     EXPECT_NEAR(r2.expiries[0].svi->b, bad.b, 1e-4);
-    EXPECT_EQ(r2.repricing.insideBidAsk, r2.repricing.count);
+    EXPECT_EQ(r2.fit.inside, r2.fit.count);
 }
 
 // Forwards pasted from the implied-forward fit give the same surface as the
@@ -529,7 +534,7 @@ TEST(VolSurfaceCalibration, PastedForwardsAndCustomGrid) {
     // Same slices: the 1.0 strike of the first expiry equals the fitted run's.
     EXPECT_NEAR(gridVol(r, 0, 2), gridVol(fitted, 0, 20), 1e-12);
     EXPECT_NEAR(gridVol(r, 1, 2), gridVol(fitted, 4, 20), 1e-12);
-    EXPECT_EQ(r.repricing.count, fitted.repricing.count);
+    EXPECT_EQ(r.fit.count, fitted.fit.count);
 
     // SviPerExpiry: a grid expiry off the sheet is a 400; Andreasen-Huge
     // accepts it.
@@ -673,6 +678,362 @@ TEST(VolSurfaceCalibration, RejectedRequests) {
         l.callBid = *l.callAsk + 1.0;
     EXPECT_THROW(
         VolSurfaceCalibrationEvaluator().evaluate(bad, mkt.reg, mkt.ctx), QuantraInvalidArgument);
+}
+
+// ===========================================================================
+// /validate-vol-surface: the one implementation of each test, shared with the
+// calibrate endpoint.
+// ===========================================================================
+
+namespace {
+
+/// The registry entry the parser builds from the returned payloads.
+BlackVolEntry gridEntry(const VolSurfaceCalibrationResult& r, const Date& asOf) {
+    const QuantLib::DayCounter dc = QuantLib::Actual365Fixed();
+    std::vector<Date> dates;
+    for (int d : r.gridExpiryDays)
+        dates.push_back(asOf + d);
+    const std::size_t nStr = r.gridStrikes.size();
+    std::vector<std::vector<double>> rows(dates.size(), std::vector<double>(nStr));
+    for (std::size_t i = 0; i < dates.size(); ++i)
+        for (std::size_t j = 0; j < nStr; ++j)
+            rows[i][j] = r.gridVols[i * nStr + j];
+    auto s = makeCubicStrikeLinearTimeSurface(
+        asOf, QuantLib::NullCalendar(), QuantLib::Unadjusted, dc, dates, r.gridStrikes, rows);
+    s->enableExtrapolation();
+    BlackVolEntry e;
+    e.handle = Handle<QuantLib::BlackVolTermStructure>(s);
+    e.shapeFb = quantra::enums::VolSurfaceShape_SmileCube3D;
+    e.referenceDate = asOf;
+    e.dayCounter = dc;
+    e.pillarDates = dates;
+    e.strikes = r.gridStrikes;
+    e.flatLocalVolBeyondLastExpiry = true;
+    e.allowExtrapolation = true;
+    for (std::size_t i = 0; i < dates.size(); ++i)
+        e.localVolStrikeBands.push_back(
+            {dates[i], r.gridLocalVolStrikeMin[i], r.gridLocalVolStrikeMax[i]});
+    return e;
+}
+
+BlackVolEntry sliceEntry(const VolSurfaceCalibrationResult& r, const Date& asOf, bool ssvi) {
+    const QuantLib::DayCounter dc = QuantLib::Actual365Fixed();
+    std::vector<Date> dates;
+    std::vector<SviSliceParams> svi;
+    std::vector<SsviSliceParams> ss;
+    std::vector<double> fwds;
+    BlackVolEntry e;
+    double lo = QL_MAX_REAL, hi = 0.0;
+    for (const auto& x : r.expiries) {
+        if (!x.usable) continue;
+        dates.push_back(x.expiry);
+        fwds.push_back(*x.forward);
+        if (ssvi) {
+            ss.push_back(*x.ssvi);
+        } else {
+            svi.push_back({*x.forward, x.svi->a, x.svi->b, x.svi->sigma, x.svi->rho, x.svi->m});
+        }
+        e.localVolStrikeBands.push_back({x.expiry, *x.strikeMin, *x.strikeMax});
+        lo = std::min(lo, *x.strikeMin);
+        hi = std::max(hi, *x.strikeMax);
+    }
+    std::shared_ptr<QuantLib::BlackVolTermStructure> s;
+    if (ssvi) {
+        s = makeSsviSurface(
+            asOf, QuantLib::NullCalendar(), QuantLib::Unadjusted, dc, dates, ss, fwds, r.spot);
+    } else {
+        s = makeSviSurface(asOf, QuantLib::NullCalendar(), QuantLib::Unadjusted, dc, dates, svi);
+    }
+    s->enableExtrapolation();
+    e.handle = Handle<QuantLib::BlackVolTermStructure>(s);
+    e.shapeFb = ssvi ? quantra::enums::VolSurfaceShape_SsviSlices
+                     : quantra::enums::VolSurfaceShape_SviSlices;
+    e.referenceDate = asOf;
+    e.dayCounter = dc;
+    e.pillarDates = dates;
+    e.localVolStrikeRange = std::make_pair(lo, hi);
+    e.flatLocalVolBeyondLastExpiry = !ssvi;
+    e.allowExtrapolation = true;
+    return e;
+}
+
+VolSurfaceValidationInputs validationInputs(
+    const VolSurfaceCalibrationInputs& cin, const VolSurfaceCalibrationResult& r) {
+    VolSurfaceValidationInputs v;
+    v.volatilityId = "NDX_VOL";
+    v.underlyingId = "NDX";
+    v.discountingCurveId = "USD_OIS";
+    v.sheetId = cin.base.sheetId;
+    v.sheetUnderlyingId = cin.base.underlyingId;
+    v.quotes = cin.base.quotes;
+    v.filter = cin.base.filter;
+    v.forwards = r.forwards;
+    return v;
+}
+
+void expectSameCheck(const LocalVolCheckData& a, const LocalVolCheckData& b) {
+    EXPECT_EQ(a.arbitrageFree, b.arbitrageFree);
+    EXPECT_EQ(a.times, b.times);
+    EXPECT_EQ(a.strikes, b.strikes);
+    EXPECT_EQ(a.points, b.points);
+    EXPECT_EQ(a.refused, b.refused);
+    EXPECT_EQ(a.firstRefusal, b.firstRefusal);
+    ASSERT_EQ(a.minLocalVariance.has_value(), b.minLocalVariance.has_value());
+    if (a.minLocalVariance) {
+        EXPECT_EQ(*a.minLocalVariance, *b.minLocalVariance);
+        EXPECT_EQ(*a.minLocalVarianceTime, *b.minLocalVarianceTime);
+        EXPECT_EQ(*a.minLocalVarianceStrike, *b.minLocalVarianceStrike);
+    }
+}
+
+} // namespace
+
+// Band summary: cells, open ends, inclusive lower bounds, RMS and max over the
+// quotes that carry a vol error; empty cells are not listed.
+TEST(VolSurfaceValidation, BandSummaryArithmetic) {
+    VolSurfaceBandEdges edges{{0.9, 1.1}, {0.5}};
+    std::vector<BandPoint> pts{
+        {0.85, 0.2, true, 0.01},         // m < 0.9, t < 0.5
+        {0.90, 0.2, false, -0.02},       // [0.9, 1.1): lower bound inclusive
+        {1.00, 0.2, true, 0.04},         // same cell
+        {1.10, 0.7, true, std::nullopt}, // m >= 1.1, t >= 0.5, no vol error
+        {1.20, 0.5, false, 0.03},        // t = 0.5 is in the upper bucket
+    };
+    const auto cells = summarizeBands(pts, edges);
+    ASSERT_EQ(cells.size(), 3u);
+    EXPECT_FALSE(cells[0].moneynessMin.has_value());
+    EXPECT_EQ(*cells[0].moneynessMax, 0.9);
+    EXPECT_FALSE(cells[0].timeMin.has_value());
+    EXPECT_EQ(*cells[0].timeMax, 0.5);
+    EXPECT_EQ(cells[0].count, 1u);
+    EXPECT_EQ(cells[0].inside, 1u);
+    EXPECT_DOUBLE_EQ(*cells[0].rmsVolError, 0.01);
+    EXPECT_EQ(*cells[1].moneynessMin, 0.9);
+    EXPECT_EQ(*cells[1].moneynessMax, 1.1);
+    EXPECT_EQ(cells[1].count, 2u);
+    EXPECT_EQ(cells[1].inside, 1u);
+    EXPECT_DOUBLE_EQ(*cells[1].rmsVolError, std::sqrt((0.02 * 0.02 + 0.04 * 0.04) / 2.0));
+    EXPECT_DOUBLE_EQ(*cells[1].maxAbsVolError, 0.04);
+    EXPECT_EQ(*cells[2].moneynessMin, 1.1);
+    EXPECT_FALSE(cells[2].moneynessMax.has_value());
+    EXPECT_EQ(*cells[2].timeMin, 0.5);
+    EXPECT_FALSE(cells[2].timeMax.has_value());
+    EXPECT_EQ(cells[2].count, 2u);
+    EXPECT_EQ(cells[2].inside, 1u);
+    EXPECT_DOUBLE_EQ(*cells[2].rmsVolError, 0.03); // the quote without one is left out
+    // Defaults and the 400s.
+    const auto d = resolveBandEdges({}, "bands");
+    EXPECT_EQ(d.moneyness, (std::vector<double>{0.8, 0.9, 0.95, 1.05, 1.1, 1.2}));
+    EXPECT_EQ(d.maturities.size(), 5u);
+    EXPECT_THROW(resolveBandEdges({{1.0, 0.9}, {}}, "bands"), QuantraInvalidArgument);
+    EXPECT_THROW(resolveBandEdges({{}, {0.0}}, "bands"), QuantraInvalidArgument);
+}
+
+// The fit of a freshly calibrated grid equals the calibrate-time fit to the
+// bit (same function, same forwards, same quotes, the surface rebuilt as the
+// parser builds it); the local vol checks of the grid and the SVI payload
+// equal the calibrate endpoint's own.
+TEST(VolSurfaceValidation, FitAndArbitrageEqualTheCalibrateTimeNumbers) {
+    Market mkt;
+    auto in = baseInputs(VolSurfaceFitMethod::SviPerExpiry);
+    in.base.quotes = mkt.lines(mkt.ssvi(), kQuotedMoneyness);
+    const auto r = VolSurfaceCalibrationEvaluator().evaluate(in, mkt.reg, mkt.ctx);
+
+    PricingRegistry& reg = mkt.reg;
+    reg.volatility.blackVols["NDX_VOL"] = gridEntry(r, mkt.asOf);
+    const auto v = VolSurfaceValidationEvaluator().evaluate(validationInputs(in, r), reg, mkt.ctx);
+    ASSERT_TRUE(v.fit.has_value());
+    EXPECT_EQ(v.forwardsSource, "request");
+    ASSERT_EQ(v.fit->quotes.size(), r.fit.quotes.size());
+    EXPECT_GT(v.fit->count, 150u);
+    for (std::size_t i = 0; i < r.fit.quotes.size(); ++i) {
+        const auto &a = v.fit->quotes[i], &b = r.fit.quotes[i];
+        EXPECT_EQ(a.expiryIso, b.expiryIso);
+        EXPECT_EQ(a.strike, b.strike);
+        EXPECT_EQ(a.marketVol, b.marketVol);
+        EXPECT_EQ(a.modelVol, b.modelVol);
+        EXPECT_EQ(a.modelPrice, b.modelPrice);
+        EXPECT_EQ(a.insideSpread, b.insideSpread);
+    }
+    EXPECT_EQ(v.fit->count, r.fit.count);
+    EXPECT_EQ(v.fit->inside, r.fit.inside);
+    EXPECT_EQ(v.fit->rmsVolError, r.fit.rmsVolError);
+    EXPECT_EQ(v.fit->verdict.rfind("pass", 0), 0u) << v.fit->verdict;
+    ASSERT_EQ(v.fit->atm.size(), 8u);
+    ASSERT_TRUE(v.arbitrage.has_value());
+    expectSameCheck(v.arbitrage->localVol, r.localVolCheck);
+    EXPECT_TRUE(v.arbitrage->arbitrageFree);
+
+    reg.volatility.blackVols["NDX_VOL"] = sliceEntry(r, mkt.asOf, false);
+    const auto vs = VolSurfaceValidationEvaluator().evaluate(validationInputs(in, r), reg, mkt.ctx);
+    ASSERT_TRUE(vs.arbitrage.has_value());
+    ASSERT_TRUE(r.localVolCheckSvi.has_value());
+    expectSameCheck(vs.arbitrage->localVol, *r.localVolCheckSvi);
+    ASSERT_TRUE(vs.arbitrage->sviSlices.has_value());
+    ASSERT_EQ(vs.arbitrage->sviSlices->size(), 8u);
+    for (const auto& c : *vs.arbitrage->sviSlices) {
+        EXPECT_GE(c.butterflyMinG, 0.0) << c.expiryIso;
+        EXPECT_LE(c.wingSlope, 2.0) << c.expiryIso;
+        if (c.calendarMinDw) {
+            EXPECT_GE(*c.calendarMinDw, 0.0) << c.expiryIso;
+        }
+    }
+    EXPECT_TRUE(vs.arbitrage->violations.empty());
+    EXPECT_TRUE(vs.arbitrage->arbitrageFree) << vs.arbitrage->verdict;
+    // On the SVI payload the fit reads the slices themselves: inside too.
+    EXPECT_EQ(vs.fit->inside, vs.fit->count);
+}
+
+TEST(VolSurfaceValidation, SsviArbitrageEqualsTheCalibrateTimeCheck) {
+    Market mkt;
+    auto in = baseInputs(VolSurfaceFitMethod::Ssvi);
+    in.base.quotes = mkt.lines(mkt.ssvi(), kQuotedMoneyness);
+    const auto r = VolSurfaceCalibrationEvaluator().evaluate(in, mkt.reg, mkt.ctx);
+    ASSERT_TRUE(r.localVolCheckSsvi.has_value());
+    PricingRegistry& reg = mkt.reg;
+    reg.volatility.blackVols["NDX_VOL"] = sliceEntry(r, mkt.asOf, true);
+    const auto v = VolSurfaceValidationEvaluator().evaluate(validationInputs(in, r), reg, mkt.ctx);
+    ASSERT_TRUE(v.arbitrage.has_value());
+    expectSameCheck(v.arbitrage->localVol, *r.localVolCheckSsvi);
+    ASSERT_TRUE(v.arbitrage->ssvi.has_value());
+    ASSERT_TRUE(r.ssviArbitrage.has_value());
+    EXPECT_EQ(v.arbitrage->ssvi->violations, r.ssviArbitrage->violations);
+    EXPECT_EQ(v.arbitrage->ssvi->scanMinG, r.ssviArbitrage->scanMinG);
+    EXPECT_EQ(v.arbitrage->ssvi->scanMinDwDt, r.ssviArbitrage->scanMinDwDt);
+    ASSERT_TRUE(v.arbitrage->ssviSlices.has_value());
+    for (std::size_t i = 0; i < v.arbitrage->ssviSlices->size(); ++i) {
+        const auto& c = (*v.arbitrage->ssviSlices)[i];
+        const auto& e = r.expiries[i];
+        EXPECT_EQ(c.marginButterflyPsi, *e.ssviMarginButterflyPsi);
+        EXPECT_EQ(c.marginButterflyPsi2, *e.ssviMarginButterflyPsi2);
+        EXPECT_EQ(c.marginCalendarTheta.has_value(), e.ssviMarginCalendarTheta.has_value());
+    }
+    EXPECT_TRUE(v.arbitrage->arbitrageFree) << v.arbitrage->verdict;
+}
+
+// Monte Carlo on a constant vol (exact lognormal steps, Mersenne Twister):
+// every quote, the exact Black price with a 1 % bid/ask on the curves'
+// forwards, is reproduced within 3.5 SE; the expiry report carries the
+// curve forward and discount factor; the dropped lines carry their reasons;
+// and the 400 rows.
+TEST(VolSurfaceValidation, SimulationReproducesBlackOnAConstantVol) {
+    Market mkt;
+    const double vol = 0.25;
+    PricingRegistry& reg = mkt.reg;
+    auto dividend = std::make_shared<QuantLib::FlatForward>(mkt.asOf, kDiv, mkt.dc);
+    reg.equity.equityUnderlyings["NDX"].dividend = Handle<QuantLib::YieldTermStructure>(dividend);
+    BlackVolEntry e;
+    e.handle = Handle<QuantLib::BlackVolTermStructure>(std::make_shared<QuantLib::BlackConstantVol>(
+        mkt.asOf, QuantLib::NullCalendar(), vol, mkt.dc));
+    e.constantVol = vol;
+    e.shapeFb = quantra::enums::VolSurfaceShape_Constant;
+    reg.volatility.blackVols["FLAT"] = e;
+    auto in = baseInputs(VolSurfaceFitMethod::SviPerExpiry);
+    in.base.quotes = mkt.lines(Market::flat(vol), grid(0.80, 1.20, 0.05), 0.01, 3);
+    {
+        OptionQuoteLine crossed = in.base.quotes.front();
+        crossed.strike = 19000.0;
+        crossed.callBid = *crossed.callAsk * 1.1; // crossed: dropped by the filter
+        in.base.quotes.push_back(crossed);
+    }
+    VolSurfaceValidationInputs v;
+    v.volatilityId = "FLAT";
+    v.underlyingId = "NDX";
+    v.discountingCurveId = "USD_OIS";
+    v.sheetId = "NDX_TEST";
+    v.sheetUnderlyingId = "NDX";
+    v.quotes = in.base.quotes;
+    v.checkSimulation = true;
+    MonteCarloData mc;
+    mc.paths = 1 << 15;
+    mc.sequence = RandomSequenceKind::PseudoRandom;
+    mc.brownianBridge = false;
+    v.simulation = mc;
+    const auto r = VolSurfaceValidationEvaluator().evaluate(v, reg, mkt.ctx);
+    ASSERT_EQ(r.expiries.size(), 3u);
+    unsigned used = 0;
+    for (const auto& x : r.expiries) {
+        ASSERT_TRUE(x.usable) << x.droppedReason;
+        EXPECT_NEAR(*x.discountFactor, mkt.df(x.expiry), 1e-15);
+        EXPECT_NEAR(*x.forward, mkt.forward(x.expiry), 1e-9);
+        EXPECT_GE(x.used.size(), 6u);
+        used += static_cast<unsigned>(x.used.size());
+    }
+    EXPECT_TRUE(
+        std::any_of(
+            r.expiries[0].dropped.begin(), r.expiries[0].dropped.end(),
+            [](const DroppedQuoteData& d) {
+                return d.reason.find("crossed") != std::string::npos;
+            }));
+    ASSERT_TRUE(r.fit && r.arbitrage && r.simulation);
+    EXPECT_EQ(r.fit->inside, r.fit->count); // the exact surface
+    EXPECT_TRUE(r.arbitrage->arbitrageFree);
+    const auto& s = *r.simulation;
+    EXPECT_EQ(s.count, used);
+    EXPECT_EQ(s.timeSteps, 3u); // exact steps, no refinement
+    EXPECT_EQ(s.paths, mc.paths);
+    for (const auto& q : s.quotes) {
+        ASSERT_GT(q.standardError, 0.0);
+        EXPECT_LE(std::fabs(q.mcPrice - q.mid) / q.standardError, 3.5)
+            << q.expiryIso << " " << q.strike;
+        EXPECT_TRUE(q.withinNoise);
+        ASSERT_TRUE(q.mcVol.has_value());
+        EXPECT_NEAR(*q.volError, *q.mcVol - q.marketVol, 1e-15);
+    }
+    EXPECT_EQ(s.withinNoise, s.count);
+    EXPECT_EQ(s.verdict.rfind("pass", 0), 0u) << s.verdict;
+    ASSERT_TRUE(s.maxAbsVolError.has_value());
+    EXPECT_LT(*s.maxAbsVolError, 0.01);
+
+    auto expect400 = [&](const VolSurfaceValidationInputs& bad, const char* needle) {
+        try {
+            VolSurfaceValidationEvaluator().evaluate(bad, reg, mkt.ctx);
+            FAIL() << "expected a 400 containing '" << needle << "'";
+        } catch (const QuantraInvalidArgument& ex) {
+            EXPECT_NE(std::string(ex.what()).find(needle), std::string::npos) << ex.what();
+        }
+    };
+    {
+        auto bad = v;
+        bad.simulation.reset();
+        expect400(bad, "simulation: required");
+    }
+    {
+        auto bad = v;
+        bad.checkSimulation = false;
+        expect400(bad, "simulation: must be absent");
+    }
+    {
+        auto bad = v;
+        bad.simulation->stepsPerYear = 52;
+        expect400(bad, "simulation.steps_per_year: must be absent");
+    }
+    {
+        auto bad = v;
+        bad.sheetUnderlyingId = "SPX";
+        expect400(bad, "quotes.underlying_id 'SPX' must equal underlying_id 'NDX'");
+    }
+    {
+        auto bad = v;
+        bad.style = OptionSheetStyle::American;
+        expect400(bad, "quotes.option_style must be European");
+    }
+    {
+        auto bad = v;
+        bad.bands.maturities = {1.0, 0.5};
+        expect400(bad, "bands.maturities must be strictly increasing");
+    }
+    {
+        auto bad = v;
+        bad.checkFit = bad.checkArbitrage = bad.checkSimulation = false;
+        bad.simulation.reset();
+        expect400(bad, "checks: at least one");
+    }
+    {
+        auto bad = v;
+        bad.volatilityId = "NOPE";
+        EXPECT_THROW(VolSurfaceValidationEvaluator().evaluate(bad, reg, mkt.ctx), QuantraNotFound);
+    }
 }
 
 }} // namespace quantra::testing

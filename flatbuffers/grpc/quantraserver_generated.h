@@ -69,6 +69,8 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 #include "sample_vol_surfaces_response_generated.h"
 #include "structured_note_response_generated.h"
 #include "swaption_response_generated.h"
+#include "validate_vol_surface_request_generated.h"
+#include "validate_vol_surface_response_generated.h"
 #include "vanilla_swap_response_generated.h"
 #include "year_on_year_inflation_cap_floor_response_generated.h"
 #include "year_on_year_inflation_swap_response_generated.h"

@@ -27,6 +27,7 @@ from pathlib import Path
 import pytest
 
 from ql_reference import load_json
+from vol_validation import validate
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "tests" / "tools"))
@@ -142,14 +143,18 @@ def test_calibrate_reports_the_quoted_strike_range_and_the_wings(client, data_di
     for sl in slices:
         assert 0.50 * spot - 1e-6 <= sl["strike_min"] < spot < sl["strike_max"] <= 1.50 * spot + 1e-6
     assert slices[-1]["strike_min"] < slices[0]["strike_min"]
-    assert out["local_vol_check_svi"]["arbitrage_free"]
+    assert out["arbitrage_free_svi"]
     # The raw wings beyond the checked range (50 % .. 150 %) carry butterfly
     # arbitrage on the long slices: reported, never enforced.
     beyond = [e for e in out["expiries"]
               if "beyond the checked strike range (reported only" in e.get("butterfly_action", "")]
     assert len(beyond) >= 3, [e.get("butterfly_action") for e in out["expiries"]]
+    checks = {c["expiry"]: c for c in validate(client, request, out, "svi",
+                                                checks={"fit": False, "arbitrage": True})
+              ["arbitrage"]["svi_slices"]}
     for e in beyond:
-        assert e["butterfly_min_g"] >= -1e-5  # the output range itself is clean
+        # The slice's own strike range is clean.
+        assert checks[e["expiry"]]["butterfly_min_g"] >= -1e-5
         assert "min g -" in e["butterfly_action"]
 
 
@@ -214,10 +219,12 @@ def test_daily_expiries_fitted_one_by_one_cross_and_the_note_is_400(client, data
     request = load_json(data_dir / DAILY_SHEET)
     request["svi"] = {"enforce_calendar": False}
     out = _ok(client, request, "calibrate_vol_surface")
-    crossed = [e for e in out["expiries"][1:] if e["calendar_min_margin"] < 0.0]
-    assert len(crossed) >= 3
-    assert not out["local_vol_check_svi"]["arbitrage_free"]
-    assert "decreasing variance" in out["local_vol_check_svi"]["first_refusal"]
+    assert out["arbitrage_free_svi"] is False
+    arb = validate(client, request, out, "svi", checks={"fit": False, "arbitrage": True})["arbitrage"]
+    crossed = [c for c in arb["svi_slices"][1:] if c["calendar_min_forward_vol"] < 0.01]
+    assert len(crossed) >= 3, arb["svi_slices"]
+    assert not arb["local_vol_check"]["arbitrage_free"]
+    assert "decreasing variance" in arb["local_vol_check"]["first_refusal"]
     note = load_json(data_dir / DAILY_NOTE)
     note["pricing"]["volatility"]["vol_surfaces"] = [out["vol_surface_spec_svi"]]
     _400(client, note, "could not be evaluated along the simulated paths",
@@ -228,14 +235,19 @@ def test_daily_expiries_calendar_consistent_and_the_note_prices(client, data_dir
     request = load_json(data_dir / DAILY_SHEET)
     out = _ok(client, request, "calibrate_vol_surface")
     for e in out["expiries"][1:]:
-        assert e["calendar_min_margin"] >= -1e-12, e["expiry"]
-        assert e["calendar_min_forward_vol"] >= 0.01 - 1e-9, e["expiry"]
         assert e["calendar_violations"] == 0, e["calendar_action"]
     assert any(e["calendar_refit"] for e in out["expiries"])
-    for key in ("local_vol_check", "local_vol_check_svi"):
-        check = out[key]
+    assert out["arbitrage_free"] is True and out["arbitrage_free_svi"] is True
+    for payload in ("grid", "svi"):
+        arb = validate(client, request, out, payload,
+                       checks={"fit": False, "arbitrage": True})["arbitrage"]
+        check = arb["local_vol_check"]
         assert check["arbitrage_free"] and check["refused"] == 0, check
         assert check["points"] == check["times"] * check["strikes"]
+        if payload == "svi":
+            # The fitted margin: 1 % forward vol between consecutive slices.
+            for c in arb["svi_slices"][1:]:
+                assert c["calendar_min_forward_vol"] >= 0.01 - 1e-4, c
     # The example note carries this very payload, as returned.
     note = load_json(data_dir / DAILY_NOTE)
     assert note["pricing"]["volatility"]["vol_surfaces"] == [out["vol_surface_spec_svi"]]

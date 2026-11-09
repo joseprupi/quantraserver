@@ -346,8 +346,8 @@ TEST(VolSurfaceCalibrationSsvi, RecoversAnSsviSurfaceArbitrageFree) {
     EXPECT_EQ(r.localVolCheckSsvi->refused, 0u);
     EXPECT_EQ(r.localVolCheckSsvi->points, r.localVolCheckSsvi->times * 201u);
     EXPECT_FALSE(r.localVolCheckSvi.has_value());
-    EXPECT_EQ(r.repricing.count, used);
-    EXPECT_EQ(r.repricing.insideBidAsk, used);
+    EXPECT_EQ(r.fit.count, used);
+    EXPECT_EQ(r.fit.inside, used);
 }
 
 TEST(VolSurfaceCalibrationSsvi, GridBetweenExpiriesAndMoneynessCut) {

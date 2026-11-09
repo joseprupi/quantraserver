@@ -6,18 +6,24 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Dupire local vol of a returned surface, read exactly as the structured
-# note pricer reads it: QuantLib's LocalVolSurface on the surface as the
-# parser builds it, on the sheet's forwards (risk-free curve on the implied
-# discount factors, dividend curve F DF / S), held at the strike edges
-# (the grid's first and last strike; for the SVI payload the widest quoted
-# range, min strike_min .. max strike_max) and flat beyond the last expiry
-# (FlatLocalVol). The scan: times = every expiry +/- 2e-4 years (outside
-# QuantLib's time stencil of 1e-4 on both sides of the node), the midpoints
-# between expiries (and between 0 and the first) and the last expiry -
-# 1e-3; strikes = 201 log-spaced over the output strikes and every quoted
-# strike. A refused point is one where QuantLib throws ("decreasing variance
-# ..." or "negative local vol^2 ...").
+# Dupire local vol of the surface, read exactly as a structured note reads
+# it: QuantLib's LocalVolSurface (the closed-form local vol for an
+# `SsviVolSpec`) on the surface as the parser builds it, held at the
+# surface's own strike limits (`local_vol_strike_min` / `_max` of a grid,
+# `strike_min` / `strike_max` of the slices; the grid's edge strikes
+# otherwise) and extended in time as the spec says
+# (`local_vol_time_extrapolation`), on the forwards of the checks. The
+# scan: times = every expiry of the surface (the quoted expiries for a
+# constant or term vol) +/- 2e-4 years (outside QuantLib's time stencil of
+# 1e-4), the midpoints between them (and between 0 and the first) and the
+# last expiry - 1e-3; at each time 201 log-spaced strikes over the region
+# of the first usable quoted expiry at or after it (the last one beyond):
+# from the forward outwards, the log-strike distance five standard
+# deviations cover at the quotes' implied vols, together with the strikes
+# quoted on both that expiry and the one before, within the widest of the
+# surface's strike limits and the quoted strikes. A refused point is one
+# where QuantLib throws ("decreasing variance ..." or "negative local
+# vol^2 ...", for SSVI g <= 0 or a negative local variance).
 class LocalVolCheck(object):
     __slots__ = ['_tab']
 
@@ -104,18 +110,8 @@ class LocalVolCheck(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
 
-    # What was done when the check failed: "none", or for the SVI payload
-    # the refit passes (the flagged slices refitted with a larger calendar
-    # margin and butterfly weight, at most 3 passes).
-    # LocalVolCheck
-    def Action(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
-        if o != 0:
-            return self._tab.String(o + self._tab.Pos)
-        return None
-
 def LocalVolCheckStart(builder):
-    builder.StartObject(10)
+    builder.StartObject(9)
 
 def Start(builder):
     LocalVolCheckStart(builder)
@@ -174,12 +170,6 @@ def LocalVolCheckAddMinLocalVarianceStrike(builder, minLocalVarianceStrike):
 def AddMinLocalVarianceStrike(builder, minLocalVarianceStrike):
     LocalVolCheckAddMinLocalVarianceStrike(builder, minLocalVarianceStrike)
 
-def LocalVolCheckAddAction(builder, action):
-    builder.PrependUOffsetTRelativeSlot(9, flatbuffers.number_types.UOffsetTFlags.py_type(action), 0)
-
-def AddAction(builder, action):
-    LocalVolCheckAddAction(builder, action)
-
 def LocalVolCheckEnd(builder):
     return builder.EndObject()
 
@@ -200,7 +190,6 @@ class LocalVolCheckT(object):
         self.minLocalVariance = None  # type: Optional[float]
         self.minLocalVarianceTime = None  # type: Optional[float]
         self.minLocalVarianceStrike = None  # type: Optional[float]
-        self.action = None  # type: str
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -232,14 +221,11 @@ class LocalVolCheckT(object):
         self.minLocalVariance = localVolCheck.MinLocalVariance()
         self.minLocalVarianceTime = localVolCheck.MinLocalVarianceTime()
         self.minLocalVarianceStrike = localVolCheck.MinLocalVarianceStrike()
-        self.action = localVolCheck.Action()
 
     # LocalVolCheckT
     def Pack(self, builder):
         if self.firstRefusal is not None:
             firstRefusal = builder.CreateString(self.firstRefusal)
-        if self.action is not None:
-            action = builder.CreateString(self.action)
         LocalVolCheckStart(builder)
         LocalVolCheckAddArbitrageFree(builder, self.arbitrageFree)
         LocalVolCheckAddTimes(builder, self.times)
@@ -251,7 +237,5 @@ class LocalVolCheckT(object):
         LocalVolCheckAddMinLocalVariance(builder, self.minLocalVariance)
         LocalVolCheckAddMinLocalVarianceTime(builder, self.minLocalVarianceTime)
         LocalVolCheckAddMinLocalVarianceStrike(builder, self.minLocalVarianceStrike)
-        if self.action is not None:
-            LocalVolCheckAddAction(builder, action)
         localVolCheck = LocalVolCheckEnd(builder)
         return localVolCheck

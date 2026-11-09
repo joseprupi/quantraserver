@@ -6,10 +6,11 @@ count, and its printed table is parsed back.
 Locked here: exit 0; the --closes step (the correlation matrix estimated
 from the shipped NDX / RTY closes, pasted into every pricing request in
 place of the booked 0.747); the grid and the SVI prices within 3 combined
-standard errors of each other (same stream, same model: the test suite's
-repricing test holds them to one); the `vanilla_repricing` block in both
-written responses with every sheet quote of the vol-surface calibration;
-the --flat comparison row; the request bodies on disk (replayable by
+standard errors of each other (same stream, same model); the
+/validate-vol-surface step on every payload (the fit, the arbitrage scan
+and the Monte Carlo repricing of every sheet quote the calibration used,
+at the note's paths); the --flat comparison row (validated too: a flat vol
+does not reprice the smile); the request bodies on disk (replayable by
 price_note_from_quotes.sh) and the shipped sheet files equal to the
 generator's svi_scotia_ndx / svi_scotia_rty output (nothing in them is
 market data).
@@ -35,7 +36,17 @@ PATHS = 2048
 ROW = re.compile(
     r"^\s+(?P<run>grid|svi|flat)\s+(?P<npv>-?\d+\.\d+)\s+(?P<se>\d+\.\d+)\s+(?P<status>\w+)\s+"
     r"(?P<p_call>\d\.\d+)\s+(?P<p_breach>\d\.\d+)\s+(?P<bond>-?\d+\.\d)\s+(?P<coupons>-?\d+\.\d)\s+"
-    r"(?P<loss>-?\d+\.\d)\s+(?P<inside>\d+)\s*/\s*(?P<within>\d+)\s*/\s*(?P<count>\d+)\s+(?P<err>\d+\.\d+) pts$")
+    r"(?P<loss>-?\d+\.\d)\s+(?P<checks>.+)$")
+CELL = re.compile(r"(?P<uid>\w+) (?P<inside>\d+)/(?P<count>\d+) (?P<arb>ok|ARB) "
+                  r"(?P<within>\d+)/(?P<simcount>\d+)")
+
+
+def _validation(row):
+    """Sum of the per-underlying validation cells of a table row."""
+    cells = [m.groupdict() for m in CELL.finditer(row["checks"])]
+    assert [c["uid"] for c in cells] == ["NDX", "RTY"], row["checks"]
+    return {k: sum(int(c[k]) for c in cells) for k in ("inside", "count", "within", "simcount")} | \
+        {"arbitrage_free": all(c["arb"] == "ok" for c in cells)}
 
 
 def test_shipped_sheets_equal_the_generator(data_dir):
@@ -72,23 +83,24 @@ def test_workflow_script_runs_end_to_end(client, data_dir, tmp_path):
     for r in (grid, svi, flat):
         assert r["status"] == "Alive"
         assert 0.0 < float(r["p_call"]) < 1.0 and 0.0 < float(r["p_breach"]) < 1.0
-        assert 0 <= int(r["inside"]) <= int(r["within"]) <= int(r["count"])
-        assert int(r["count"]) == 189 + 194  # the quotes /calibrate-vol-surface used
+        v = _validation(r)
+        assert v["count"] == v["simcount"] == 189 + 194  # the quotes /calibrate-vol-surface used
+        assert 0 <= v["within"] <= v["simcount"] and v["arbitrage_free"]
     # Local vol reprices the smile; a flat vol does not (the point of level 2).
-    assert int(grid["within"]) > 0.9 * int(grid["count"])
-    assert int(flat["within"]) < int(grid["within"])
-    assert float(flat["err"]) > float(grid["err"])
+    g, f = _validation(grid), _validation(flat)
+    assert g["inside"] == g["count"] and g["within"] > 0.9 * g["simcount"]
+    assert f["inside"] < 0.2 * f["count"] and f["within"] < g["within"]
 
     # The bodies on disk: every call's request and response, replayable.
     names = {"correlation", "implied_forwards_NDX", "implied_forwards_RTY", "vol_surface_NDX",
-             "vol_surface_RTY", "price_note_grid", "price_note_svi", "price_note_flat"}
+             "vol_surface_RTY", "price_note_grid", "price_note_svi", "price_note_flat"} | \
+        {f"validate_{run}_{uid}" for run in ("grid", "svi", "flat") for uid in ("NDX", "RTY")}
     for name in names:
         assert (out_dir / f"{name}_request.json").is_file(), name
         assert (out_dir / f"{name}_response.json").is_file(), name
     for name in ("grid", "svi", "flat"):
         req = load_json(out_dir / f"price_note_{name}_request.json")
-        assert req["diagnostics"]["vanilla_repricing"] is True
-        assert [s["underlying_id"] for s in req["diagnostics"]["vanilla_repricing_sheets"]] == ["NDX", "RTY"]
+        assert "vanilla_repricing" not in req["diagnostics"]
         assert req["notes"][0]["monte_carlo"]["paths"] == PATHS
         assert ("steps_per_year" in req["notes"][0]["monte_carlo"]) == (name != "flat")
         ids = {u["id"]: u["dividend_yield_curve_id"] for u in req["pricing"]["equity"]["equity_underlyings"]}
@@ -102,10 +114,14 @@ def test_workflow_script_runs_end_to_end(client, data_dir, tmp_path):
         assert req["pricing"]["correlations"]["matrices"] == [corr]
         assert req["notes"][0]["correlation_id"] == "NDX_RTY"
         note = load_json(out_dir / f"price_note_{name}_response.json")["notes"][0]
-        vr = note["vanilla_repricing"]
-        assert vr["count"] == int(rows[name]["count"])
         assert abs(note["npv"] - float(rows[name]["npv"])) < 0.01
-        assert [u["underlying_id"] for u in vr["underlyings"]] == ["NDX", "RTY"]
+        for uid in ("NDX", "RTY"):
+            vreq = load_json(out_dir / f"validate_{name}_{uid}_request.json")
+            assert vreq["pricing"] == req["pricing"]  # the note's own market
+            assert vreq["simulation"]["paths"] == PATHS
+            assert ("steps_per_year" in vreq["simulation"]) == (name != "flat")
+            vresp = load_json(out_dir / f"validate_{name}_{uid}_response.json")
+            assert vresp["inputs_echo"]["forwards_source"] == "curves"
     grid_req = load_json(out_dir / "price_note_grid_request.json")
     svi_req = load_json(out_dir / "price_note_svi_request.json")
     assert {v["payload_type"] for v in grid_req["pricing"]["volatility"]["vol_surfaces"]} == {"BlackVolSpec"}

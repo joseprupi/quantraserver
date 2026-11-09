@@ -3774,17 +3774,16 @@ CASES = [
             "fitted internally, out-of-the-money mids inverted to Black-76 vols, "
             "sampled on the model's own finite-difference strikes inside the "
             "output range and the expiries' regions (QuantLib "
-            "Concentrating1dMesher); every used quote "
-            "repriced on the returned surface read CubicStrikeLinearTime. Compares the forwards, the "
-            "per-expiry fit errors, the grid strikes, every grid vol and the "
-            "per-quote model vol and price."
+            "Concentrating1dMesher). Compares the forwards, the quotes used "
+            "per expiry, the grid strikes and every grid vol (the fit of the "
+            "quotes is /validate-vol-surface's)."
         ),
         "request": "vol_surface/synthetic_svi_sheet_2026-09-30_andreasen_huge.json",
         "ql_pricer": "calibrate_vol_surface_ql",
         "tolerance": VOL_SURFACE_TOLERANCE,
         "compare": "fields",
         "exercises": ["vol surface", "Andreasen-Huge", "implied vol", "quote sheet",
-                      "vanilla repricing", "BlackVolSpec output"],
+                      "BlackVolSpec output"],
     },
     {
         "id": "volsurf_synthetic_svi_sheet_svi_per_expiry",
@@ -3799,17 +3798,16 @@ CASES = [
             "expiries (met by the generating surface: no refit), sampled on the "
             "default 41 x 8 grid, the slices also returned as an SviVolSpec "
             "payload. The fit recovers the generating slices to machine "
-            "precision (rmse_vol ~1e-16). Compares the forwards, the SVI "
-            "parameters and fit errors per expiry, the slices of the SVI "
-            "payload, the grid strikes, every grid vol and the per-quote model "
-            "vol and price on the grid read CubicStrikeLinearTime."
+            "precision. Compares the forwards, the SVI parameters per expiry, "
+            "the slices of the SVI payload, the grid strikes and every grid "
+            "vol."
         ),
         "request": "vol_surface/synthetic_svi_sheet_2026-09-30_svi.json",
         "ql_pricer": "calibrate_vol_surface_ql",
         "tolerance": VOL_SURFACE_TOLERANCE,
         "compare": "fields",
         "exercises": ["vol surface", "SVI", "butterfly arbitrage check",
-                      "calendar arbitrage check", "implied vol", "vanilla repricing"],
+                      "calendar arbitrage check", "implied vol"],
     },
     {
         "id": "volsurf_synthetic_svi_sheet_ssvi",
@@ -3824,18 +3822,16 @@ CASES = [
             "conditions, so the slices are free of static arbitrage by "
             "construction. The reference is the generating surface (no Python "
             "port of the calibrator; the sheet is checked to be the "
-            "generator's): compares the forwards, theta, rho and psi and the "
-            "fit errors per expiry, the SsviVolSpec payload's slices and "
-            "strike ranges, the grid sampled from the eSSVI surface and the "
-            "per-quote model vol and price on the grid read "
-            "CubicStrikeLinearTime."
+            "generator's): compares the forwards, theta, rho and psi per "
+            "expiry, the SsviVolSpec payload's slices and strike ranges and "
+            "the grid sampled from the eSSVI surface."
         ),
         "request": "vol_surface/synthetic_svi_sheet_2026-09-30_ssvi.json",
         "ql_pricer": "calibrate_vol_surface_ql",
         "tolerance": VOL_SURFACE_TOLERANCE,
         "compare": "fields",
         "exercises": ["vol surface", "eSSVI", "SsviVolSpec", "butterfly arbitrage check",
-                      "calendar arbitrage check", "implied vol", "vanilla repricing"],
+                      "calendar arbitrage check", "implied vol"],
     },
     {
         "id": "volsurf_synthetic_spx_essvi_sheet_ssvi",
@@ -3855,7 +3851,67 @@ CASES = [
         "tolerance": VOL_SURFACE_TOLERANCE,
         "compare": "fields",
         "exercises": ["vol surface", "eSSVI", "SsviVolSpec", "BidAsk weighting",
-                      "implied vol", "vanilla repricing"],
+                      "implied vol"],
+    },
+    {
+        "id": "volval_scotia_ndx_grid",
+        "product": "validate_vol_surface",
+        "family": "Vol / Calibration",
+        "title": "Validate a CubicStrikeLinearTime grid against the synthetic Scotia NDX sheet",
+        "description": (
+            "/validate-vol-surface on the grid /calibrate-vol-surface returns "
+            "for the synthetic Scotia NDX sheet (SviPerExpiry), on the note's "
+            "own curves (USD_TSY, NDX_DIV): per expiry the curve forward and "
+            "discount factor, the out-of-the-money quotes used, every quote's "
+            "Black-76 price at the surface's own vol read through the "
+            "CubicStrikeLinearTime twin, inside the bid/ask, and the fit "
+            "totals; the arbitrage scan runs too (contract side)."
+        ),
+        "request": "vol_surface_validation/scotia_ndx_grid.json",
+        "ql_pricer": "validate_vol_surface_ql",
+        "tolerance": VOL_SURFACE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["surface validation", "vanilla repricing", "Black-76", "quote sheet",
+                      "CubicStrikeLinearTime", "band summary"],
+    },
+    {
+        "id": "volval_scotia_ndx_ssvi",
+        "product": "validate_vol_surface",
+        "family": "Vol / Calibration",
+        "title": "Validate an eSSVI payload against the synthetic Scotia NDX sheet",
+        "description": (
+            "The SsviVolSpec payload the Ssvi method returns on the same "
+            "sheet, read as the pricers read it (the eSSVI slices with the "
+            "model's own time interpolation and reference forward): the "
+            "per-quote Black-76 fit compared field for field with the Python "
+            "twin of the surface."
+        ),
+        "request": "vol_surface_validation/scotia_ndx_ssvi.json",
+        "ql_pricer": "validate_vol_surface_ql",
+        "tolerance": VOL_SURFACE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["surface validation", "eSSVI", "SsviVolSpec", "Black-76"],
+    },
+    {
+        "id": "volval_scotia_ndx_vendor_constant_vol_simulation",
+        "product": "validate_vol_surface",
+        "family": "Vol / Calibration",
+        "title": "Validate a vendor-style flat 20 % vol against the Scotia NDX sheet, with Monte Carlo",
+        "description": (
+            "A constant 20 % Black vol (as a vendor feed might supply) "
+            "validated against the synthetic Scotia NDX smile: the fit is "
+            "outside the spread almost everywhere (verdict fail), and the "
+            "simulation prices every quote by Monte Carlo (2048 Sobol paths, "
+            "exact lognormal steps between the expiries) on the engine's own "
+            "random stream: compares the fit and every quote's Monte Carlo "
+            "price and standard error with the Python twin of the path engine."
+        ),
+        "request": "vol_surface_validation/scotia_ndx_vendor_constant_vol.json",
+        "ql_pricer": "validate_vol_surface_ql",
+        "tolerance": STRUCTURED_NOTE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["surface validation", "Monte Carlo repricing", "constant vol",
+                      "same-stream parity"],
     },
     # ------------------------------------------------------------------
     # Correlation / Calibration — correlation matrices from price histories
@@ -4800,14 +4856,12 @@ CASES = [
             "of total variance in log-strike per expiry, linear in time). The "
             "surfaces make the simulation Dupire local vol on 252 steps per year "
             "(edge-clamped, constant strike extrapolation); 2048 Sobol paths "
-            "with Brownian bridge and antithetic variates. The two sheets are "
-            "pasted under diagnostics.vanilla_repricing_sheets: every used quote "
-            "repriced on one extra simulation (the note's grid plus the sheet "
-            "expiries) and compared with its bid/ask. Shows the shape of a "
-            "surface-priced note; the price is not a market value. Same-stream "
-            "Monte Carlo parity on every reported scalar, the repricing summary "
-            "and a sample of the repriced options included (the reference "
-            "evaluates the cubic slices and QuantLib's Dupire stencil in Python)."
+            "with Brownian bridge and antithetic variates (the quotes the "
+            "surfaces came from are repriced through the same local vol by "
+            "/validate-vol-surface). Shows the shape of a surface-priced note; "
+            "the price is not a market value. Same-stream Monte Carlo parity on "
+            "every reported scalar (the reference evaluates the cubic slices and "
+            "QuantLib's Dupire stencil in Python)."
         ),
         "request": "structured_note/scotia_autocallable_trigger_ndx_rty_us06419jme72_with_synthetic_surface.json",
         "ql_pricer": "price_structured_note_ql",
@@ -4815,7 +4869,7 @@ CASES = [
         "compare": "fields",
         "exercises": ["structured note", "worst-of", "strike x expiry vol surface",
                       "CubicStrikeLinearTime", "Dupire local vol", "steps_per_year",
-                      "synthetic surface from option quotes", "vanilla repricing",
+                      "synthetic surface from option quotes",
                       "same-stream Monte Carlo parity"],
     },
     {
@@ -4830,12 +4884,10 @@ CASES = [
             "linear in total variance between expiries, the exact surfaces the "
             "synthetic sheets were generated from. Dupire local vol on 252 steps "
             "per year (no strike edge: the formula is global), 2048 Sobol paths "
-            "with Brownian bridge and antithetic variates, the two sheets under "
-            "diagnostics.vanilla_repricing_sheets. Synthetic vols; the price is "
-            "not a market value. Same-stream Monte Carlo parity on every "
-            "reported scalar, the repricing summary and a sample of the repriced "
-            "options (the reference evaluates the SVI slices and QuantLib's "
-            "Dupire stencil in Python)."
+            "with Brownian bridge and antithetic variates. Synthetic vols; the "
+            "price is not a market value. Same-stream Monte Carlo parity on "
+            "every reported scalar (the reference evaluates the SVI slices and "
+            "QuantLib's Dupire stencil in Python)."
         ),
         "request": "structured_note/scotia_autocallable_trigger_ndx_rty_us06419jme72_with_synthetic_svi.json",
         "ql_pricer": "price_structured_note_ql",
@@ -4843,7 +4895,7 @@ CASES = [
         "compare": "fields",
         "exercises": ["structured note", "worst-of", "SVI slices", "SviVolSpec",
                       "Dupire local vol", "steps_per_year", "synthetic surface from option quotes",
-                      "vanilla repricing", "same-stream Monte Carlo parity"],
+                      "same-stream Monte Carlo parity"],
     },
     {
         "id": "structured_note_synthetic_ndx_rty_5y_autocall_svi_flat_local_vol",

@@ -1,0 +1,3305 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "quantra_enums_DayCounter" : {
+      "type" : "string",
+      "enum": ["Actual360", "Actual365Fixed", "Actual365NoLeap", "ActualActual", "ActualActualISMA", "ActualActualBond", "ActualActualISDA", "ActualActualHistorical", "ActualActual365", "ActualActualAFB", "ActualActualEuro", "Business252", "One", "Simple", "Thirty360"]
+    },
+    "quantra_enums_Interpolator" : {
+      "type" : "string",
+      "enum": ["BackwardFlat", "ForwardFlat", "Linear", "LogCubic", "LogLinear"]
+    },
+    "quantra_enums_SurfaceInterpolator2D" : {
+      "type" : "string",
+      "enum": ["Bilinear", "Bicubic", "CubicStrikeLinearTime"]
+    },
+    "quantra_enums_SviTimeInterpolation" : {
+      "type" : "string",
+      "enum": ["LinearTotalVariance"]
+    },
+    "quantra_enums_LocalVolTimeExtrapolation" : {
+      "type" : "string",
+      "enum": ["FlatImpliedVol", "FlatLocalVol"]
+    },
+    "quantra_enums_LocalVolStrikeRange" : {
+      "type" : "string",
+      "enum": ["Global", "PerExpiry"]
+    },
+    "quantra_enums_BootstrapTrait" : {
+      "type" : "string",
+      "enum": ["Discount", "FwdRate", "InterpolatedDiscount", "InterpolatedFwd", "InterpolatedZero", "ZeroRate"]
+    },
+    "quantra_enums_TimeUnit" : {
+      "type" : "string",
+      "enum": ["Days", "Hours", "Microseconds", "Milliseconds", "Minutes", "Months", "Seconds", "Weeks", "Years"]
+    },
+    "quantra_enums_Calendar" : {
+      "type" : "string",
+      "enum": ["Argentina", "Australia", "BespokeCalendar", "Brazil", "Canada", "China", "CzechRepublic", "Denmark", "Finland", "Germany", "HongKong", "Hungary", "Iceland", "India", "Indonesia", "Israel", "Italy", "Japan", "Mexico", "NewZealand", "Norway", "NullCalendar", "Poland", "Romania", "Russia", "SaudiArabia", "Singapore", "Slovakia", "SouthAfrica", "SouthKorea", "Sweden", "Switzerland", "TARGET", "Taiwan", "Turkey", "Ukraine", "UnitedKingdom", "UnitedStates", "UnitedStatesGovernmentBond", "UnitedStatesNERC", "UnitedStatesNYSE", "UnitedStatesSettlement", "WeekendsOnly"]
+    },
+    "quantra_enums_BusinessDayConvention" : {
+      "type" : "string",
+      "enum": ["Following", "HalfMonthModifiedFollowing", "ModifiedFollowing", "ModifiedPreceding", "Nearest", "Preceding", "Unadjusted"]
+    },
+    "quantra_enums_Frequency" : {
+      "type" : "string",
+      "enum": ["Annual", "Bimonthly", "Biweekly", "Daily", "EveryFourthMonth", "EveryFourthWeek", "Monthly", "NoFrequency", "Once", "OtherFrequency", "Quarterly", "Semiannual", "Weekly"]
+    },
+    "quantra_enums_DateGenerationRule" : {
+      "type" : "string",
+      "enum": ["Backward", "CDS", "Forward", "OldCDS", "ThirdWednesday", "Twentieth", "TwentiethIMM", "Zero"]
+    },
+    "quantra_enums_CdsEngineType" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsHelperModel" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsQuoteType" : {
+      "type" : "string",
+      "enum": ["ParSpread", "Upfront"]
+    },
+    "quantra_enums_CdsIsdaNumericalFix" : {
+      "type" : "string",
+      "enum": ["None", "Taylor"]
+    },
+    "quantra_enums_CdsIsdaAccrualBias" : {
+      "type" : "string",
+      "enum": ["HalfDayBias", "NoBias"]
+    },
+    "quantra_enums_CdsIsdaForwardsInCouponPeriod" : {
+      "type" : "string",
+      "enum": ["Flat", "Piecewise"]
+    },
+    "quantra_enums_Compounding" : {
+      "type" : "string",
+      "enum": ["Compounded", "Continuous", "Simple", "SimpleThenCompounded"]
+    },
+    "quantra_enums_RateAveragingType" : {
+      "type" : "string",
+      "enum": ["Compound", "Simple"]
+    },
+    "quantra_enums_SwapType" : {
+      "type" : "string",
+      "enum": ["Payer", "Receiver"]
+    },
+    "quantra_enums_PayReceive" : {
+      "type" : "string",
+      "enum": ["Pay", "Receive"]
+    },
+    "quantra_enums_FRAType" : {
+      "type" : "string",
+      "enum": ["Long", "Short"]
+    },
+    "quantra_enums_CapFloorType" : {
+      "type" : "string",
+      "enum": ["Cap", "Floor", "Collar"]
+    },
+    "quantra_enums_CallabilityType" : {
+      "type" : "string",
+      "enum": ["Call", "Put"]
+    },
+    "quantra_enums_VolSurfaceFitMethod" : {
+      "type" : "string",
+      "enum": ["AndreasenHuge", "SviPerExpiry", "Ssvi"]
+    },
+    "quantra_enums_SsviQuoteWeighting" : {
+      "type" : "string",
+      "enum": ["Uniform", "Vega", "BidAsk"]
+    },
+    "quantra_enums_ExerciseType" : {
+      "type" : "string",
+      "enum": ["European", "Bermudan", "American"]
+    },
+    "quantra_enums_SettlementType" : {
+      "type" : "string",
+      "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_SettlementMethod" : {
+      "type" : "string",
+      "enum": ["PhysicalOTC", "PhysicalCleared", "CollateralizedCashPrice", "ParYieldCurve"]
+    },
+    "quantra_enums_ProtectionSide" : {
+      "type" : "string",
+      "enum": ["Buyer", "Seller"]
+    },
+    "quantra_enums_VolatilityType" : {
+      "type" : "string",
+      "enum": ["Normal", "Lognormal", "ShiftedLognormal"]
+    },
+    "quantra_enums_VolSurfaceShape" : {
+      "type" : "string",
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate", "SviSlices", "SsviSlices"]
+    },
+    "quantra_enums_YoYInflationCapFloorEngineType" : {
+      "type" : "string",
+      "enum": ["Black", "UnitDisplacedBlack", "Bachelier"]
+    },
+    "quantra_enums_SwaptionVolKind" : {
+      "type" : "string",
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SabrParams", "SabrCalibrate"]
+    },
+    "quantra_enums_SwaptionStrikeKind" : {
+      "type" : "string",
+      "enum": ["Absolute", "SpreadFromATM"]
+    },
+    "quantra_enums_InflationCurveKind" : {
+      "type" : "string",
+      "enum": ["ZeroInflation", "YoYInflation"]
+    },
+    "quantra_enums_InflationCurveMeasure" : {
+      "type" : "string",
+      "enum": ["ZeroRate", "YoYRate"]
+    },
+    "quantra_enums_CPIInterpolationType" : {
+      "type" : "string",
+      "enum": ["AsIndex", "Flat", "Linear"]
+    },
+    "quantra_enums_BondPriceType" : {
+      "type" : "string",
+      "enum": ["Clean", "Dirty"]
+    },
+    "quantra_enums_IrModelType" : {
+      "type" : "string",
+      "enum": ["Black", "ShiftedBlack", "Bachelier", "HullWhiteLattice"]
+    },
+    "quantra_enums_ModelParamMode" : {
+      "type" : "string",
+      "enum": ["Explicit", "Calibrate"]
+    },
+    "quantra_enums_CmsPricerType" : {
+      "type" : "string",
+      "enum": ["LinearTsr", "HaganAnalytic", "HaganNumeric"]
+    },
+    "quantra_enums_CmsYieldCurveModel" : {
+      "type" : "string",
+      "enum": ["Standard", "ExactYield", "ParallelShifts", "NonParallelShifts"]
+    },
+    "quantra_enums_EquityModelType" : {
+      "type" : "string",
+      "enum": ["BlackScholesAnalytic", "BinomialCRR"]
+    },
+    "quantra_enums_EquityOptionType" : {
+      "type" : "string",
+      "enum": ["Call", "Put"]
+    },
+    "quantra_enums_EquitySettlementType" : {
+      "type" : "string",
+      "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_EquityBarrierType" : {
+      "type" : "string",
+      "enum": ["DownIn", "UpIn", "DownOut", "UpOut"]
+    },
+    "quantra_enums_EquityBarrierMonitoring" : {
+      "type" : "string",
+      "enum": ["Continuous", "Discrete"]
+    },
+    "quantra_enums_FxDirection" : {
+      "type" : "string",
+      "enum": ["BuyBase", "SellBase"]
+    },
+    "quantra_enums_SwapFlowKind" : {
+      "type" : "string",
+      "enum": ["Coupon", "NotionalExchange"]
+    },
+    "quantra_enums_BasketPerformanceRule" : {
+      "type" : "string",
+      "enum": ["WorstOf", "BestOf", "Average"]
+    },
+    "quantra_enums_CapitalBarrierMonitoring" : {
+      "type" : "string",
+      "enum": ["European", "DailyClose"]
+    },
+    "quantra_enums_RandomSequence" : {
+      "type" : "string",
+      "enum": ["Sobol", "PseudoRandom"]
+    },
+    "quantra_enums_StructuredNoteStatus" : {
+      "type" : "string",
+      "enum": ["Alive", "Called", "Matured"]
+    },
+    "quantra_enums_ReturnType" : {
+      "type" : "string",
+      "enum": ["Log", "Simple"]
+    },
+    "quantra_enums_ReturnFrequency" : {
+      "type" : "string",
+      "enum": ["Daily", "Weekly"]
+    },
+    "quantra_enums_CorrelationShrinkage" : {
+      "type" : "string",
+      "enum": ["None", "LedoitWolf", "Fixed"]
+    },
+    "quantra_Flow" : {
+      "type" : "string",
+      "enum": ["NONE", "FlowInterest", "FlowPastInterest", "FlowNotional"]
+    },
+    "quantra_IndexType" : {
+      "type" : "string",
+      "enum": ["Ibor", "Overnight"]
+    },
+    "quantra_Point" : {
+      "type" : "string",
+      "enum": ["NONE", "DepositHelper", "FRAHelper", "FutureHelper", "SwapHelper", "BondHelper", "OISHelper", "DatedOISHelper", "ZeroRatePoint", "TenorBasisSwapHelper", "FxSwapHelper", "CrossCcyBasisHelper", "DiscountFactorPoint", "ForwardRatePoint"]
+    },
+    "quantra_SwaptionVolPayload" : {
+      "type" : "string",
+      "enum": ["NONE", "SwaptionVolConstantSpec", "SwaptionVolAtmMatrixSpec", "SwaptionVolSmileCubeSpec", "SwaptionSabrParamsSpec", "SwaptionSabrCalibrateSpec"]
+    },
+    "quantra_VolPayload" : {
+      "type" : "string",
+      "enum": ["NONE", "OptionletVolSpec", "SwaptionVolSpec", "BlackVolSpec", "YoYOptionletVolSpec", "SviVolSpec", "SsviVolSpec"]
+    },
+    "quantra_QuoteKind" : {
+      "type" : "string",
+      "enum": ["Rate", "Spread", "Price", "FuturesPrice", "FxSpot", "FxPoints"]
+    },
+    "quantra_QuoteType" : {
+      "type" : "string",
+      "enum": ["Curve", "Volatility", "Credit", "Fx"]
+    },
+    "quantra_ModelPayload" : {
+      "type" : "string",
+      "enum": ["NONE", "CapFloorModelSpec", "SwaptionModelSpec", "CdsModelSpec", "EquityVanillaModelSpec"]
+    },
+    "quantra_SwapIndexKind" : {
+      "type" : "string",
+      "enum": ["IborSwapIndex", "OisSwapIndex"]
+    },
+    "quantra_EquityExercise" : {
+      "type" : "string",
+      "enum": ["NONE", "EquityEuropeanExercise", "EquityAmericanExercise", "EquityBermudanExercise"]
+    },
+    "quantra_EquityPayoff" : {
+      "type" : "string",
+      "enum": ["NONE", "EquityPlainVanillaPayoff", "EquityCashOrNothingPayoff", "EquityAssetOrNothingPayoff"]
+    },
+    "quantra_InflationPoint" : {
+      "type" : "string",
+      "enum": ["NONE", "ZeroCouponInflationSwapHelper", "YearOnYearInflationSwapHelper"]
+    },
+    "quantra_Schedule" : {
+      "type" : "object",
+      "description" : "Date schedule definition for payment and accrual dates.",
+      "properties" : {
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "effective_date" : {
+                "type" : "string"
+              },
+        "termination_date" : {
+                "type" : "string"
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              },
+        "convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "termination_date_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "date_generation_rule" : {
+                "$ref" : "#/definitions/quantra_enums_DateGenerationRule"
+              },
+        "end_of_month" : {
+                "type" : "boolean",
+                "description" : "Presence-required: absent-vs-false silently changes schedule dates for\nmonth-end-anchored (money-market) schedules."
+              },
+        "first_date" : {
+                "type" : "string",
+                "description" : "Optional. ISO-8601 (YYYY-MM-DD). When present, passed as QuantLib's\nfirstDate, which controls the FIRST stub coupon: with Backward date\ngeneration a first_date after effective_date creates a short/long first\nperiod; with Forward generation it anchors the regular periods. Must lie\nstrictly between effective_date and termination_date. Omit for no first\nstub (bit-identical to prior behaviour)."
+              },
+        "next_to_last_date" : {
+                "type" : "string",
+                "description" : "Optional. ISO-8601 (YYYY-MM-DD). When present, passed as QuantLib's\nnextToLastDate, controlling the LAST stub coupon symmetrically to\nfirst_date. Must lie strictly between effective_date and\ntermination_date (and, when first_date is also present, on or after it).\nOmit for no last stub (bit-identical to prior behaviour)."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Period" : {
+      "type" : "object",
+      "description" : "Canonical period type used across APIs. Both fields are presence-required:\na bare `n` would silently default to 0 and an omitted `unit` would silently\nmean Months, so a forgotten value is a 400 naming the field rather than a\nsilent (0 Months) tenor.",
+      "properties" : {
+        "n" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "unit" : {
+                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Yield" : {
+      "type" : "object",
+      "description" : "Yield/compounding convention specification.",
+      "properties" : {
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "compounding" : {
+                "$ref" : "#/definitions/quantra_enums_Compounding"
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Error" : {
+      "type" : "object",
+      "description" : "Error message container.",
+      "properties" : {
+        "error_message" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowInterest" : {
+      "type" : "object",
+      "description" : "Interest cash flow with fixing and accrual metadata.",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "rate" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowPastInterest" : {
+      "type" : "object",
+      "description" : "Past fixed interest cash flow.",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "rate" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowNotional" : {
+      "type" : "object",
+      "description" : "Notional exchange cash flow.",
+      "properties" : {
+        "date" : {
+                "type" : "string"
+              },
+        "amount" : {
+                "type" : "number"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowsWrapper" : {
+      "type" : "object",
+      "description" : "Wrapper for a single flow in a collection.",
+      "properties" : {
+        "flow_type" : {
+                "$ref" : "#/definitions/quantra_Flow"
+              },
+        "flow" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_FlowInterest" },{ "$ref" : "#/definitions/quantra_FlowPastInterest" },{ "$ref" : "#/definitions/quantra_FlowNotional" }]
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Fixing" : {
+      "type" : "object",
+      "description" : "Historical index fixing for seasoned instruments.",
+      "properties" : {
+        "date" : {
+                "type" : "string"
+              },
+        "value" : {
+                "type" : "number"
+              }
+      },
+      "required" : ["date"],
+      "additionalProperties" : false
+    },
+    "quantra_IndexDef" : {
+      "type" : "object",
+      "description" : "Complete index definition. Registered once per request, referenced by id.",
+      "properties" : {
+        "id" : {
+                "type" : "string",
+                "description" : "Unique identifier (e.g., \"EUR_6M\", \"USD_SOFR\", \"MY_CUSTOM_3M\")."
+              },
+        "name" : {
+                "type" : "string",
+                "description" : "Human-readable name / family label (e.g., \"Euribor\", \"SOFR\")."
+              },
+        "index_type" : {
+                "$ref" : "#/definitions/quantra_IndexType",
+                "description" : "IBOR or Overnight. Determines QuantLib class used. Presence-required: an\nomitted value is a 400, never the silent Ibor default."
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Tenor period (e.g., 6 Months for Euribor 6M, 0 Days for overnight)."
+              },
+        "fixing_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR). Presence-required."
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Calendar for fixing/payment dates. Presence-required."
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Business day convention. Presence-required."
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter",
+                "description" : "Day count convention. Presence-required."
+              },
+        "end_of_month" : {
+                "type" : "boolean",
+                "description" : "End of month rule (IBOR only, ignored for overnight). Presence-required:\nabsent-vs-false silently changes money-market schedule dates."
+              },
+        "currency" : {
+                "type" : "string",
+                "description" : "ISO currency code (e.g., \"EUR\", \"USD\", \"GBP\", \"JPY\")."
+              },
+        "fixings" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Fixing"},
+                "description" : "Past fixings needed for seasoned instruments."
+              }
+      },
+      "required" : ["id", "name"],
+      "additionalProperties" : false
+    },
+    "quantra_IndexRef" : {
+      "type" : "object",
+      "description" : "Reference to an IndexDef by its id.",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              }
+      },
+      "required" : ["id"],
+      "additionalProperties" : false
+    },
+    "quantra_CurveRef" : {
+      "type" : "object",
+      "description" : "Exogenous curve reference for multi-curve bootstrapping.",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              }
+      },
+      "required" : ["id"],
+      "additionalProperties" : false
+    },
+    "quantra_HelperDependencies" : {
+      "type" : "object",
+      "description" : "Exogenous curve dependencies for dual-curve bootstrapping.",
+      "properties" : {
+        "discount_curve" : {
+                "$ref" : "#/definitions/quantra_CurveRef",
+                "description" : "Exogenous discount curve for dual-curve bootstrapping."
+              },
+        "projection_curve" : {
+                "$ref" : "#/definitions/quantra_CurveRef",
+                "description" : "Exogenous projection/forwarding curve. Reserved for\nTenorBasisSwapHelper (not implemented yet); rejected on SwapHelper,\nOISHelper and DatedOISHelper, whose projection curve is always the\ncurve being bootstrapped. The FX helpers carry their own explicit\ncurve references instead."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_DepositHelper" : {
+      "type" : "object",
+      "description" : "Money market deposit helper.",
+      "properties" : {
+        "rate" : {
+                "type" : "number",
+                "description" : "Deposit rate. One of rate or quote_id must be provided."
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
+              },
+        "fixing_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "quote_id" : {
+                "type" : "string",
+                "description" : "Optional: reference a shared quote by id instead of inline rate."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FRAHelper" : {
+      "type" : "object",
+      "description" : "FRA helper for curve bootstrap.",
+      "properties" : {
+        "rate" : {
+                "type" : "number",
+                "description" : "FRA rate. One of rate or quote_id must be provided."
+              },
+        "months_to_start" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "months_to_end" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "fixing_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "quote_id" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FutureHelper" : {
+      "type" : "object",
+      "description" : "Futures helper for curve bootstrap.",
+      "properties" : {
+        "rate" : {
+                "type" : "number",
+                "description" : "Implied rate. Used when futures_price is absent. One of rate,\nfutures_price or quote_id must be provided."
+              },
+        "future_start_date" : {
+                "type" : "string"
+              },
+        "future_months" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "futures_price" : {
+                "type" : "number",
+                "description" : "Futures price (e.g., 95.25); when present, rate is ignored."
+              },
+        "convexity_adjustment" : {
+                "type" : "number",
+                "description" : "Convexity adjustment added to implied rate."
+              },
+        "quote_id" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwapHelper" : {
+      "type" : "object",
+      "description" : "Vanilla IBOR swap helper. Uses IndexRef to reference an IndexDef.",
+      "properties" : {
+        "rate" : {
+                "type" : "number",
+                "description" : "Swap rate. One of rate or quote_id must be provided."
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "sw_fixed_leg_frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              },
+        "sw_fixed_leg_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "sw_fixed_leg_day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "float_index" : {
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Reference to an IndexDef by id (e.g., \"EUR_6M\")."
+              },
+        "spread" : {
+                "type" : "number"
+              },
+        "fwd_start_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "deps" : {
+                "$ref" : "#/definitions/quantra_HelperDependencies",
+                "description" : "Exogenous discount curve for multi-curve bootstrapping."
+              },
+        "quote_id" : {
+                "type" : "string"
+              }
+      },
+      "required" : ["float_index"],
+      "additionalProperties" : false
+    },
+    "quantra_BondHelper" : {
+      "type" : "object",
+      "description" : "Bond helper for curve bootstrap.",
+      "properties" : {
+        "rate" : {
+                "type" : "number",
+                "description" : "Bond quote as a rate-style value. Used when price is absent. One of\nrate, price or quote_id must be provided."
+              },
+        "settlement_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "face_amount" : {
+                "type" : "number",
+                "description" : "Bond face amount. Presence-required and must be > 0 (a bare double would\ndefault to a silent zero face)."
+              },
+        "schedule" : {
+                "$ref" : "#/definitions/quantra_Schedule"
+              },
+        "coupon_rate" : {
+                "type" : "number",
+                "description" : "Coupon rate. Presence-required (a bare double would default to a silent\nzero coupon); may be negative, only a missing or non-finite value is rejected."
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "redemption" : {
+                "type" : "number",
+                "description" : "Redemption as a percentage of face. Presence-required and must be > 0\n(a bare double would default to a silent zero redemption that destroys\nthe helper)."
+              },
+        "issue_date" : {
+                "type" : "string"
+              },
+        "price" : {
+                "type" : "number",
+                "description" : "Bond (clean) price; when present, rate is ignored."
+              },
+        "quote_id" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_OISHelper" : {
+      "type" : "object",
+      "description" : "OIS helper. Uses IndexRef to reference an overnight IndexDef.",
+      "properties" : {
+        "rate" : {
+                "type" : "number",
+                "description" : "OIS rate. One of rate or quote_id must be provided."
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
+              },
+        "overnight_index" : {
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Reference to an overnight IndexDef by id (e.g., \"USD_SOFR\")."
+              },
+        "settlement_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Required. Feeds QuantLib's PAYMENT calendar slot on the bootstrapped\nOIS (payment-date adjustment on both legs)."
+              },
+        "fixed_leg_frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency",
+                "description" : "Required. Feeds QuantLib's PAYMENT frequency slot on the bootstrapped\nOIS (the coupon frequency of both legs unless overridden by QuantLib's\nfixed-frequency override, which is not exposed here)."
+              },
+        "fixed_leg_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Required. Feeds QuantLib's PAYMENT business-day convention slot on the\nbootstrapped OIS."
+              },
+        "fixed_leg_day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter",
+                "description" : "DEPRECATED / accepted-but-unused. No QuantLib OISRateHelper overload\naccepts a fixed-leg or payment day counter (the day counts come from the\novernight index and QuantLib's internal fixed-leg default), so this field\nis ignored if present and may be omitted. Kept optional for backward\ncompatibility."
+              },
+        "payment_lag" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Payment lag in business days between accrual end and payment. Required;\nmust be >= 0. Name mirrors OvernightCoupons.payment_lag."
+              },
+        "averaging_method" : {
+                "$ref" : "#/definitions/quantra_enums_RateAveragingType",
+                "description" : "Compound or Simple averaging of the overnight fixings. Required.\nName mirrors OvernightCoupons.averaging_method."
+              },
+        "lookback_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Fixing lookback in business days. Required; must be >= 0; 0 = no\nlookback (the index's own fixing delay applies — QuantLib encodes this\nas Null, not as a zero-day lookback). Name mirrors\nOvernightCoupons.lookback_days."
+              },
+        "lockout_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Lockout (rate-cutoff) days at period end. Required; must be >= 0;\n0 = no lockout. Name mirrors OvernightCoupons.lockout_days."
+              },
+        "apply_observation_shift" : {
+                "type" : "boolean",
+                "description" : "Whether the observation-shift convention applies to the lookback.\nRequired. Name mirrors OvernightCoupons.apply_observation_shift."
+              },
+        "deps" : {
+                "$ref" : "#/definitions/quantra_HelperDependencies",
+                "description" : "Exogenous discount curve for dual-curve OIS bootstrapping."
+              },
+        "quote_id" : {
+                "type" : "string"
+              }
+      },
+      "required" : ["overnight_index"],
+      "additionalProperties" : false
+    },
+    "quantra_DatedOISHelper" : {
+      "type" : "object",
+      "description" : "Dated OIS helper with explicit start/end dates.",
+      "properties" : {
+        "rate" : {
+                "type" : "number",
+                "description" : "OIS rate. One of rate or quote_id must be provided."
+              },
+        "start_date" : {
+                "type" : "string"
+              },
+        "end_date" : {
+                "type" : "string"
+              },
+        "overnight_index" : {
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Reference to an overnight IndexDef by id."
+              },
+        "settlement_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Required. Despite the generic name, this feeds QuantLib's PAYMENT\ncalendar slot on the bootstrapped OIS (kept under its historical name\nfor wire compatibility)."
+              },
+        "fixed_leg_frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency",
+                "description" : "Required. Feeds QuantLib's PAYMENT frequency slot on the bootstrapped\nOIS (the coupon frequency of both legs unless overridden by QuantLib's\nfixed-frequency override, which is not exposed here). Name mirrors\nOISHelper.fixed_leg_frequency."
+              },
+        "fixed_leg_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Required. Despite the fixed-leg name, this feeds QuantLib's PAYMENT\nbusiness-day convention slot on the bootstrapped OIS (kept under its\nhistorical name for wire compatibility)."
+              },
+        "fixed_leg_day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter",
+                "description" : "DEPRECATED / accepted-but-unused. No QuantLib OISRateHelper overload\naccepts a fixed-leg or payment day counter, so this field is ignored if\npresent and may be omitted. Kept optional for backward compatibility."
+              },
+        "payment_lag" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Payment lag in business days between accrual end and payment. Required;\nmust be >= 0. Name mirrors OvernightCoupons.payment_lag."
+              },
+        "averaging_method" : {
+                "$ref" : "#/definitions/quantra_enums_RateAveragingType",
+                "description" : "Compound or Simple averaging of the overnight fixings. Required.\nName mirrors OvernightCoupons.averaging_method."
+              },
+        "lookback_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Fixing lookback in business days. Required; must be >= 0; 0 = no\nlookback (the index's own fixing delay applies — QuantLib encodes this\nas Null, not as a zero-day lookback). Name mirrors\nOvernightCoupons.lookback_days."
+              },
+        "lockout_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Lockout (rate-cutoff) days at period end. Required; must be >= 0;\n0 = no lockout. Name mirrors OvernightCoupons.lockout_days."
+              },
+        "apply_observation_shift" : {
+                "type" : "boolean",
+                "description" : "Whether the observation-shift convention applies to the lookback.\nRequired. Name mirrors OvernightCoupons.apply_observation_shift."
+              },
+        "deps" : {
+                "$ref" : "#/definitions/quantra_HelperDependencies",
+                "description" : "Exogenous discount curve for dual-curve OIS bootstrapping."
+              },
+        "quote_id" : {
+                "type" : "string"
+              }
+      },
+      "required" : ["start_date", "end_date", "overnight_index"],
+      "additionalProperties" : false
+    },
+    "quantra_ZeroRatePoint" : {
+      "type" : "object",
+      "description" : "Zero rate point for direct curve construction (no bootstrapping).",
+      "properties" : {
+        "date" : {
+                "type" : "string",
+                "description" : "Maturity date for the zero rate (YYYY-MM-DD)."
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Alternative: tenor from reference date."
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "zero_rate" : {
+                "type" : "number",
+                "description" : "Zero rate for this maturity. Required."
+              },
+        "compounding" : {
+                "$ref" : "#/definitions/quantra_enums_Compounding",
+                "description" : "Compounding convention for the zero rate."
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency",
+                "description" : "Frequency (used when compounding != Continuous)."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_DiscountFactorPoint" : {
+      "type" : "object",
+      "description" : "Discount-factor point for direct curve construction (no bootstrapping).\nFeeds a QuantLib InterpolatedDiscountCurve: the discount factors are\ninterpolated directly, which differs from interpolating zero rates.",
+      "properties" : {
+        "date" : {
+                "type" : "string",
+                "description" : "Maturity date for the discount factor (YYYY-MM-DD)."
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Alternative: tenor from reference date."
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "discount_factor" : {
+                "type" : "number",
+                "description" : "Discount factor to this maturity. Required; must be > 0 (above 1 under\nnegative rates). The first point (reference date) must carry a discount\nfactor of exactly 1.0."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_ForwardRatePoint" : {
+      "type" : "object",
+      "description" : "Forward-rate point for direct curve construction (no bootstrapping).\nFeeds a QuantLib InterpolatedForwardCurve: the INSTANTANEOUS,\ncontinuously-compounded forward rate f(t) is interpolated directly (this is\nthe quantity InterpolatedForwardCurve integrates to obtain zero rates and\ndiscount factors — NOT a simple/discrete forward over a period). This\ninterpolates a DIFFERENT quantity than InterpolatedZero or\nInterpolatedDiscount, so off-node values differ for the same market data.",
+      "properties" : {
+        "date" : {
+                "type" : "string",
+                "description" : "Node date for the forward rate (YYYY-MM-DD)."
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Alternative: tenor from reference date."
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "forward_rate" : {
+                "type" : "number",
+                "description" : "Instantaneous, continuously-compounded forward rate at this node.\nRequired. May be negative in some markets; only non-finite is rejected."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_TenorBasisSwapHelper" : {
+      "type" : "object",
+      "description" : "Tenor basis swap helper.",
+      "properties" : {
+        "spread" : {
+                "type" : "number",
+                "description" : "Basis spread. One of spread or quote_id must be provided."
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
+              },
+        "index_short" : {
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Short tenor index (e.g., \"EUR_3M\")."
+              },
+        "index_long" : {
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Long tenor index (e.g., \"EUR_6M\")."
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "deps" : {
+                "$ref" : "#/definitions/quantra_HelperDependencies"
+              },
+        "quote_id" : {
+                "type" : "string"
+              }
+      },
+      "required" : ["index_short", "index_long"],
+      "additionalProperties" : false
+    },
+    "quantra_FxSwapHelper" : {
+      "type" : "object",
+      "description" : "FX swap helper (QuantLib FxSwapRateHelper). Bootstraps the discount curve\nof the NON-collateral currency of the pair from FX swap points, given the\nspot and the discount curve of the collateral currency: the implied\nforward S + points must reprice to S * DF_collateral(T) / DF_other(T) from\nthe spot date. The curve being bootstrapped is always the other\ncurrency's discount curve; the collateral curve is an exogenous curve the\nbootstrapper builds first (dependency ordering), so the two may never be\nthe same curve.",
+      "properties" : {
+        "fx_points" : {
+                "type" : "number",
+                "description" : "FX forward points in price units of the pair (forward = spot + points;\ne.g. 0.0025 for 25 pips on EUR/USD). Exactly one of fx_points or\nquote_id must be present. May be negative."
+              },
+        "quote_id" : {
+                "type" : "string",
+                "description" : "Reference to a shared quote in pricing.quotes (quote_type = Curve: the\npoints move with rates, so they take part in the curve bump) instead of\nan inline fx_points value."
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Forward tenor from the spot date (1W, 1M, 3M, ...). Required."
+              },
+        "fx_spot" : {
+                "type" : "string",
+                "description" : "Id of the FxSpotSpec in pricing.fx.spots. Required. The spot supplies\nthe pair, the spot rate, the spot lag (QuantLib fixingDays), the joint\nsettlement calendar and the business-day convention of the helper."
+              },
+        "end_of_month" : {
+                "type" : "boolean",
+                "description" : "End-of-month rule for the forward date. Required."
+              },
+        "collateral_currency" : {
+                "type" : "string",
+                "description" : "ISO code of the collateral currency: the currency whose discount curve\nis given (collateral_curve). Required; must equal the spot's\nbase_currency or quote_currency. The curve being bootstrapped is then\nthe discount curve of the other currency of the pair."
+              },
+        "collateral_curve" : {
+                "$ref" : "#/definitions/quantra_CurveRef",
+                "description" : "Discount curve of the collateral currency, by id. Required; must name\nanother curve of pricing.rates.curves, which is bootstrapped first."
+              }
+      },
+      "required" : ["tenor", "fx_spot", "collateral_currency", "collateral_curve"],
+      "additionalProperties" : false
+    },
+    "quantra_CrossCcyBasisHelper" : {
+      "type" : "object",
+      "description" : "Cross-currency basis swap helper (QuantLib\nConstNotionalCrossCurrencyBasisSwapRateHelper). Bootstraps the discount\ncurve of ONE currency of the pair from a constant-notional cross-currency\nbasis swap: a base-currency floating leg against a quote-currency floating\nleg, notional 1 in each currency exchanged at the start and at the end of\nthe swap, the basis spread added to one of the two legs. The other\ncurrency's discount curve, both legs' forwarding curves and the two indices\nare given; the curve being bootstrapped is the discount curve of the leg\nwhose *_discount_curve reference is absent (the classic use: a EUR curve\nfor USD-collateralised trades, quote_discount_curve = the USD OIS curve,\nbase_discount_curve absent).\n\nConstant notional: both notionals stay fixed for the life of the swap, so\nthe FX spot rate cancels from the par condition and never enters the\nbootstrap. The spot is still referenced (fx_spot) because it names the\npair: the two indices must be in its base and quote currencies, and its\nspot lag is the swap's settlement lag.\n\nLegs: an IBOR index pays at its own tenor (one fixing per period); an\novernight index pays a compounded coupon every payment_frequency. The\nspread_on_base_leg flag, the collateral side and the basis sign follow\nQuantLib's convention for the pair (EUR/USD: collateral in USD, basis on\nthe EUR leg, typically negative).",
+      "properties" : {
+        "spread" : {
+                "type" : "number",
+                "description" : "Basis spread (decimal, -0.0015 = -15 bp) added to the leg selected by\nspread_on_base_leg. Exactly one of spread or quote_id must be present.\nMay be negative."
+              },
+        "quote_id" : {
+                "type" : "string",
+                "description" : "Reference to a shared quote in pricing.quotes (quote_type = Curve: the\nbasis moves with rates, so it takes part in the curve bump) instead of\nan inline spread."
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Swap tenor from the settlement (spot) date. Required."
+              },
+        "fx_spot" : {
+                "type" : "string",
+                "description" : "Id of the FxSpotSpec in pricing.fx.spots. Required. The spot names the\npair (base_index must be in its base_currency, quote_index in its\nquote_currency) and supplies the settlement lag (spot_days, QuantLib\nfixingDays). Its rate does not enter a constant-notional bootstrap; its\nsettlement calendars and convention are not used either: the swap\nschedule follows this helper's own calendar / business_day_convention\n/ end_of_month."
+              },
+        "base_index" : {
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Forwarding index of the base-currency leg (IndexDef id). Required; its\nIndexDef.currency must equal the spot's base_currency. IBOR or\novernight (see payment_frequency)."
+              },
+        "base_forwarding_curve" : {
+                "$ref" : "#/definitions/quantra_CurveRef",
+                "description" : "Forwarding curve of base_index, by id. Required; must name another\ncurve of pricing.rates.curves (bootstrapped first), never the curve\nbeing bootstrapped: the leg's forwards are projected off this curve\nwhile the curve under construction only discounts."
+              },
+        "base_discount_curve" : {
+                "$ref" : "#/definitions/quantra_CurveRef",
+                "description" : "Discount curve of the base-currency leg, by id. Exactly one of\nbase_discount_curve / quote_discount_curve is given: the given one is\nthe collateral currency's discount curve (bootstrapped first), the\nabsent one is the curve being bootstrapped."
+              },
+        "quote_index" : {
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Forwarding index of the quote-currency leg (IndexDef id). Required; its\nIndexDef.currency must equal the spot's quote_currency. IBOR or\novernight (see payment_frequency)."
+              },
+        "quote_forwarding_curve" : {
+                "$ref" : "#/definitions/quantra_CurveRef",
+                "description" : "Forwarding curve of quote_index, by id. Required; same rules as\nbase_forwarding_curve. It may be the same curve as the quote leg's\ndiscount curve (a single USD OIS curve both projects and discounts)."
+              },
+        "quote_discount_curve" : {
+                "$ref" : "#/definitions/quantra_CurveRef",
+                "description" : "Discount curve of the quote-currency leg, by id. See\nbase_discount_curve."
+              },
+        "spread_on_base_leg" : {
+                "type" : "boolean",
+                "description" : "true: the basis spread is added to the base-currency leg; false: to\nthe quote-currency leg. Required."
+              },
+        "payment_frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency",
+                "description" : "Coupon frequency of a compounded overnight leg. Required when\nbase_index or quote_index is an overnight index (QuantLib builds the\novernight leg as compounded coupons on this schedule); when the other\nleg is an IBOR index the value must equal that index's tenor. Must be\nabsent when both indices are IBOR: each leg then pays at its index\ntenor and there is nothing to choose."
+              },
+        "payment_lag" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Payment lag in business days (helper calendar, Following) applied to\nevery coupon and to the final notional exchange of both legs. Required;\nmust be >= 0. The pillar date of the helper is the last payment date,\nso a non-zero lag moves it."
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Calendar of the swap schedule (settlement date = valuation date +\nspot_days on it, coupon dates, payment lag). Required."
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Business-day convention of the swap schedule. Required."
+              },
+        "end_of_month" : {
+                "type" : "boolean",
+                "description" : "End-of-month rule of the swap schedule. Required."
+              },
+        "mtm_reset" : {
+                "type" : "boolean",
+                "description" : "Mark-to-market (resetting) notionals. Required; must be false in this\nversion: a resetting-notional swap (QuantLib\nMtMCrossCurrencyBasisSwapRateHelper) is not supported yet and is\nrejected with 400."
+              }
+      },
+      "required" : ["tenor", "fx_spot", "base_index", "base_forwarding_curve", "quote_index", "quote_forwarding_curve"],
+      "additionalProperties" : false
+    },
+    "quantra_PointsWrapper" : {
+      "type" : "object",
+      "description" : "Wrapper for a single curve point.",
+      "properties" : {
+        "point_type" : {
+                "$ref" : "#/definitions/quantra_Point"
+              },
+        "point" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_DepositHelper" },{ "$ref" : "#/definitions/quantra_FRAHelper" },{ "$ref" : "#/definitions/quantra_FutureHelper" },{ "$ref" : "#/definitions/quantra_SwapHelper" },{ "$ref" : "#/definitions/quantra_BondHelper" },{ "$ref" : "#/definitions/quantra_OISHelper" },{ "$ref" : "#/definitions/quantra_DatedOISHelper" },{ "$ref" : "#/definitions/quantra_ZeroRatePoint" },{ "$ref" : "#/definitions/quantra_TenorBasisSwapHelper" },{ "$ref" : "#/definitions/quantra_FxSwapHelper" },{ "$ref" : "#/definitions/quantra_CrossCcyBasisHelper" },{ "$ref" : "#/definitions/quantra_DiscountFactorPoint" },{ "$ref" : "#/definitions/quantra_ForwardRatePoint" }]
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_TermStructure" : {
+      "type" : "object",
+      "description" : "Term structure (yield curve) definition.",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              },
+        "bootstrap_trait" : {
+                "$ref" : "#/definitions/quantra_enums_BootstrapTrait",
+                "description" : "Curve family selector. Present ⇒ selects how the curve is built from its\npoints (Discount/ZeroRate/FwdRate bootstrap from rate helpers;\nInterpolatedZero interpolates explicit zero-rate points). Absent ⇒ the\nrequest is rejected — there is no auto-dispatch by point type."
+              },
+        "points" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_PointsWrapper"}
+              },
+        "reference_date" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_QuoteMatrix2D" : {
+      "type" : "object",
+      "description" : "2D quote matrix (n_rows x n_cols). Interpretation depends on caller.",
+      "properties" : {
+        "n_rows" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "n_cols" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "values" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Row-major, length = n_rows*n_cols."
+              },
+        "quote_ids" : {
+                "type" : "array", "items" : {"type" : "string"},
+                "description" : "Optional, length = values. Empty => inline values."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_QuoteTensor3D" : {
+      "type" : "object",
+      "description" : "3D quote tensor (n_1 x n_2 x n_3). Interpretation depends on caller.",
+      "properties" : {
+        "n_1" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "n_2" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "n_3" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "values" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Row-major, length = n_1*n_2*n_3."
+              },
+        "quote_ids" : {
+                "type" : "array", "items" : {"type" : "string"},
+                "description" : "Optional, length = values. Empty => inline values."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_IrVolBaseSpec" : {
+      "type" : "object",
+      "description" : "IR volatility base (Normal, Lognormal, ShiftedLognormal). Supports caps/floors and swaptions.",
+      "properties" : {
+        "reference_date" : {
+                "type" : "string"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "shape" : {
+                "$ref" : "#/definitions/quantra_enums_VolSurfaceShape"
+              },
+        "volatility_type" : {
+                "$ref" : "#/definitions/quantra_enums_VolatilityType",
+                "description" : "Quotation convention of the supplied vols. Presence-required: an omitted\ntype is a 400, never the alphabetical-0 default (Normal), which would\nprice a lognormal-quoted surface as normal vols."
+              },
+        "displacement" : {
+                "type" : "number",
+                "description" : "Only meaningful for ShiftedLognormal."
+              },
+        "constant_vol" : {
+                "type" : "number"
+              },
+        "quote_id" : {
+                "type" : "string",
+                "description" : "Optional: resolve constant_vol from pricing.quotes."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_BlackVolBaseSpec" : {
+      "type" : "object",
+      "description" : "Equity/FX volatility base (always lognormal, no displacement).",
+      "properties" : {
+        "reference_date" : {
+                "type" : "string"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "shape" : {
+                "$ref" : "#/definitions/quantra_enums_VolSurfaceShape"
+              },
+        "constant_vol" : {
+                "type" : "number"
+              },
+        "quote_id" : {
+                "type" : "string",
+                "description" : "Optional: resolve constant_vol from pricing.quotes."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_OptionletVolSpec" : {
+      "type" : "object",
+      "description" : "Optionlet volatility for caps/floors.",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_IrVolBaseSpec"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionVolConstantSpec" : {
+      "type" : "object",
+      "description" : "Constant swaption volatility.",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_IrVolBaseSpec"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionVolAtmMatrixSpec" : {
+      "type" : "object",
+      "description" : "ATM matrix swaption volatility (expiry x tenor).",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_IrVolBaseSpec"
+              },
+        "expiries" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "tenors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "vols" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D"
+              },
+        "expiry_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              },
+        "tenor_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionVolSmileCubeSpec" : {
+      "type" : "object",
+      "description" : "Smile cube swaption volatility (expiry x tenor x strike).",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_IrVolBaseSpec"
+              },
+        "allow_external_atm" : {
+                "type" : "boolean",
+                "description" : "Require explicit opt-in when client provides atm_forwards."
+              },
+        "expiries" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "tenors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "strikes" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "strike_kind" : {
+                "$ref" : "#/definitions/quantra_enums_SwaptionStrikeKind"
+              },
+        "atm_forwards" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D",
+                "description" : "Optional for Absolute, required for SpreadFromATM."
+              },
+        "vols" : {
+                "$ref" : "#/definitions/quantra_QuoteTensor3D"
+              },
+        "expiry_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              },
+        "tenor_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              },
+        "strike_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionSabrParamsSpec" : {
+      "type" : "object",
+      "description" : "SABR parameter grid swaption volatility.",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_IrVolBaseSpec"
+              },
+        "expiries" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "tenors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "alpha" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D"
+              },
+        "beta" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D"
+              },
+        "rho" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D"
+              },
+        "nu" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionSabrCalibrateSpec" : {
+      "type" : "object",
+      "description" : "SABR calibrate swaption volatility.\n\nStrike axis interpretation: `strikes` are spreads from the per-node ATM\nforward (rate units, e.g. -0.02 = -200bp). The same spread vector applies\nat every (expiry, tenor) node, matching QuantLib's XabrSwaptionVolatilityCube\nAPI. 0.0 spread (true ATM) is not required to be in the grid — per-node ATM\nvols are interpolated from the user grid at spread=0.\n\n`vols` is row-major nExp*nTen*nStrikes; values are absolute market vols.\n\n`weights` is rejected in v1 — set `vega_weighted_smile_fit=true` for\nvega-weighted fitting instead. Per-strike non-uniform weights are not\nexposed by QuantLib 1.41's calibrator.",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_IrVolBaseSpec"
+              },
+        "expiries" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "tenors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "strikes" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "vols" : {
+                "$ref" : "#/definitions/quantra_QuoteTensor3D"
+              },
+        "beta_fixed" : {
+                "type" : "boolean"
+              },
+        "beta_value" : {
+                "type" : "number"
+              },
+        "weights" : {
+                "$ref" : "#/definitions/quantra_QuoteTensor3D",
+                "description" : "Reserved. Must be empty/absent in v1; otherwise parse-time rejection."
+              },
+        "vega_weighted_smile_fit" : {
+                "type" : "boolean",
+                "description" : "When true, the SABR calibrator weights residuals by Black vega. This is\nthe standard \"vega-weighted smile fit\" QL flag (cube-level, not per\nstrike)."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionVolSpec" : {
+      "type" : "object",
+      "description" : "Swaption volatility specification.",
+      "properties" : {
+        "swap_index_id" : {
+                "type" : "string",
+                "description" : "Required convention anchor for all swaption vol surfaces."
+              },
+        "payload_type" : {
+                "$ref" : "#/definitions/quantra_SwaptionVolPayload"
+              },
+        "payload" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_SwaptionVolConstantSpec" },{ "$ref" : "#/definitions/quantra_SwaptionVolAtmMatrixSpec" },{ "$ref" : "#/definitions/quantra_SwaptionVolSmileCubeSpec" },{ "$ref" : "#/definitions/quantra_SwaptionSabrParamsSpec" },{ "$ref" : "#/definitions/quantra_SwaptionSabrCalibrateSpec" }]
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_BlackVolSpec" : {
+      "type" : "object",
+      "description" : "Black volatility for equity/FX/commodity options.",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_BlackVolBaseSpec"
+              },
+        "expiries" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"},
+                "description" : "Term/surface expiry pillars from base.reference_date."
+              },
+        "strikes" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Surface strike axis (required only for shape=SmileCube3D)."
+              },
+        "term_vols" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D",
+                "description" : "Term vols as QuoteMatrix2D with dims (n_expiries x 1), row-major."
+              },
+        "surface_vols" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D",
+                "description" : "Surface vols as QuoteMatrix2D with dims (n_expiries x n_strikes), row-major by expiry then strike."
+              },
+        "surface_prices" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D",
+                "description" : "Surface prices as QuoteMatrix2D with dims (n_price_expiries x n_price_strikes), row-major by expiry then strike.\nUsed only when base.shape=SurfaceFromPrices."
+              },
+        "price_expiries" : {
+                "type" : "array", "items" : {"type" : "string"},
+                "description" : "Absolute expiry dates (YYYY-MM-DD). Used only when base.shape=SurfaceFromPrices."
+              },
+        "price_strikes" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Surface strike axis for prices matrix. Used only when base.shape=SurfaceFromPrices."
+              },
+        "price_option_type" : {
+                "$ref" : "#/definitions/quantra_enums_EquityOptionType",
+                "description" : "Option type used for implied-vol inversion from prices. Used only when base.shape=SurfaceFromPrices."
+              },
+        "spot" : {
+                "type" : "number",
+                "description" : "Spot level for implied-vol inversion. Optional if spot_quote_id is provided."
+              },
+        "spot_quote_id" : {
+                "type" : "string",
+                "description" : "Optional: resolve spot from pricing.quotes."
+              },
+        "discount_curve_id" : {
+                "type" : "string",
+                "description" : "Discount curve id in pricing.curves used for implied-vol inversion."
+              },
+        "use_flat_discount_rate" : {
+                "type" : "boolean",
+                "description" : "If true and discount_curve_id is empty, use flat_discount_rate."
+              },
+        "flat_discount_rate" : {
+                "type" : "number",
+                "description" : "Continuously-compounded flat risk-free rate used when use_flat_discount_rate=true."
+              },
+        "dividend_curve_id" : {
+                "type" : "string",
+                "description" : "Dividend yield curve id in pricing.curves used for implied-vol inversion."
+              },
+        "use_flat_dividend_rate" : {
+                "type" : "boolean",
+                "description" : "If true and dividend_curve_id is empty, use flat_dividend_rate."
+              },
+        "flat_dividend_rate" : {
+                "type" : "number",
+                "description" : "Continuously-compounded flat dividend yield used when use_flat_dividend_rate=true."
+              },
+        "allow_extrapolation" : {
+                "type" : "boolean",
+                "description" : "Default extrapolation mode for this surface when consumed by pricing endpoints."
+              },
+        "surface_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_SurfaceInterpolator2D",
+                "description" : "Interpolation of a strike x expiry surface (see the enum): Bilinear\nunless asked; `/calibrate-vol-surface` returns CubicStrikeLinearTime."
+              },
+        "expiry_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator",
+                "description" : "Deprecated for BlackVolSpec surfaces; retained for backward compatibility.\nMapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic."
+              },
+        "strike_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator",
+                "description" : "Deprecated for BlackVolSpec surfaces; retained for backward compatibility.\nMapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic."
+              },
+        "local_vol_time_extrapolation" : {
+                "$ref" : "#/definitions/quantra_enums_LocalVolTimeExtrapolation",
+                "description" : "Optional. For a strike-dependent surface simulated as Dupire local\nvol by a structured note: how the local vol is extended beyond the\nlast expiry (see the enum). Absent = FlatImpliedVol (the local vol of\nthe flat-implied-vol extension). `/calibrate-vol-surface` returns\nFlatLocalVol. No effect on a Constant or AtmMatrix2D vol, nor on any\nBlack vol read (vanilla options, diagnostics)."
+              },
+        "local_vol_strike_min" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Optional, a strike x expiry surface only (SmileCube3D): the strike\nrange a structured note holds the Dupire local vol to around each\nexpiry, one entry per `expiries` entry (both arrays or neither, each\n> 0, min < max, within the grid's strikes). At time t the local vol\nis read at the simulated level clamped to the range of the first\nexpiry at or after t (the last expiry's beyond it), instead of the\ngrid's first and last strike. Absent: the grid's edges at every\ntime. `/calibrate-vol-surface` fills them with the region it checked\n(see `LocalVolCheck`). No Black vol read is affected."
+              },
+        "local_vol_strike_max" : {
+                "type" : "array", "items" : {"type" : "number"}
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_YoYOptionletVolSpec" : {
+      "type" : "object",
+      "description" : "Constant year-on-year inflation optionlet volatility, referenced by id from\nyear-on-year inflation cap/floor trades. Currently a single flat vol; a\nstrike/tenor surface form is a future additive extension (add optional\naxis/matrix fields alongside `constant_vol`, mirroring OptionletVolSpec ->\nAtmMatrix growth). The surface frequency and index-interpolation flag are\nNOT carried here: they are taken at pricing time from the year-on-year\ninflation index/curve the trade references, so the vol surface stays\nconvention-consistent with its index.",
+      "properties" : {
+        "constant_vol" : {
+                "type" : "number",
+                "description" : "Flat lognormal/normal optionlet volatility. Presence-required: an\nomitted vol is a 400, never a silent 0.0."
+              },
+        "vol_type" : {
+                "$ref" : "#/definitions/quantra_enums_YoYInflationCapFloorEngineType",
+                "description" : "Pricing formula / engine selector (Black / UnitDisplacedBlack /\nBachelier). Presence-required."
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter",
+                "description" : "Day counter for the vol surface time axis. Presence-required."
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Calendar the vol surface advances the reference date on.\nPresence-required."
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Business-day convention for the vol surface. Presence-required."
+              },
+        "observation_lag" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Observation lag of the vol surface (e.g. 3 Months)."
+              }
+      },
+      "required" : ["observation_lag"],
+      "additionalProperties" : false
+    },
+    "quantra_SviSlice" : {
+      "type" : "object",
+      "description" : "One expiry of an `SviVolSpec`: the raw SVI total variance\nw(k) = a + b (rho (k - m) + sqrt((k - m)^2 + sigma^2)), k = ln(K / forward)\n(Gatheral's raw parameterisation, QuantLib `SviSmileSection`), the Black\nvol being sqrt(w(k) / T) with T the base day counter's year fraction from\nthe reference date to `expiry`. The formula is global in strike: the\nBlack vol read (vanilla options, diagnostics) has no strike edge.",
+      "properties" : {
+        "expiry" : {
+                "type" : "string",
+                "description" : "Expiry date (YYYY-MM-DD), strictly after the reference date; slices\nmust be strictly increasing."
+              },
+        "forward" : {
+                "type" : "number",
+                "description" : "The forward the slice is written against (the origin of k), > 0."
+              },
+        "a" : {
+                "type" : "number"
+              },
+        "b" : {
+                "type" : "number",
+                "description" : "b >= 0; the slice must satisfy a + b sigma sqrt(1 - rho^2) >= 0 so the\nminimum total variance is not negative."
+              },
+        "sigma" : {
+                "type" : "number",
+                "description" : "sigma > 0."
+              },
+        "rho" : {
+                "type" : "number",
+                "description" : "-1 < rho < 1."
+              },
+        "m" : {
+                "type" : "number"
+              },
+        "strike_min" : {
+                "type" : "number",
+                "description" : "Optional: a strike range (absolute, same units as `forward`) around\nthe slice; `/calibrate-vol-surface` fills both with the region it\nchecked around the expiry (before 0.16.5: the strikes of the quotes\nthe slice was fitted to). A raw SVI wing beyond the quotes is an extrapolation that\ncan carry butterfly arbitrage (Durrleman's g < 0, a negative Dupire\nlocal variance). When present, a structured note holds the local vol\nat the strike edge beyond them, as for a grid: with the payload's\n`local_vol_strike_range` Global (default) the local vol strike\nrange is [min of every slice's strike_min, max of every slice's\nstrike_max] (a slice without one leaves that side open); with\nPerExpiry it is this slice's range for the times up to its expiry\n(after the previous slice's). A simulated level beyond it reads the\nlocal vol at the edge. No Black\nvol read is affected (vanilla options read the formula at every\nstrike). Absent: no edge. Each > 0 and strike_min < strike_max when\nboth are given (400 otherwise)."
+              },
+        "strike_max" : {
+                "type" : "number"
+              }
+      },
+      "required" : ["expiry"],
+      "additionalProperties" : false
+    },
+    "quantra_SviVolSpec" : {
+      "type" : "object",
+      "description" : "Black volatility as raw SVI slices (what `/calibrate-vol-surface` with\n`SviPerExpiry` returns as `vol_surface_spec_svi`): the smile of every\nquoted expiry with its exact curvature, so that a Dupire local vol\nderived from it reprices the quotes through a Monte Carlo (the grid of\na `BlackVolSpec` loses that curvature between nodes unless it is\ninterpolated with `CubicStrikeLinearTime`). Accepted wherever a Black\nvol is referenced (`price-equity-option` `volatility`, a structured\nnote's `underlyings[].volatility_id`); strike-dependent, so a structured\nnote simulates it as Dupire local vol with `monte_carlo.steps_per_year`.\n`base` carries the reference date, calendar, business-day convention and\nday counter only: `shape` must be left at its default, `constant_vol` and\n`quote_id` absent (400 otherwise).",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_BlackVolBaseSpec"
+              },
+        "slices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SviSlice"},
+                "description" : "At least one slice, strictly increasing expiries."
+              },
+        "time_interpolation" : {
+                "$ref" : "#/definitions/quantra_enums_SviTimeInterpolation"
+              },
+        "allow_extrapolation" : {
+                "type" : "boolean",
+                "description" : "Whether an expiry beyond the last slice may be read at all (flat\nimplied vol); strikes need no flag, the formula is global."
+              },
+        "local_vol_time_extrapolation" : {
+                "$ref" : "#/definitions/quantra_enums_LocalVolTimeExtrapolation",
+                "description" : "Optional. How the Dupire local vol a structured note simulates is\nextended beyond the last slice (see the enum). Absent =\nFlatImpliedVol. `/calibrate-vol-surface` returns FlatLocalVol. No\neffect on any Black vol read (vanilla options, diagnostics)."
+              },
+        "local_vol_strike_range" : {
+                "$ref" : "#/definitions/quantra_enums_LocalVolStrikeRange",
+                "description" : "Optional. How the slices' strike_min / strike_max bound the local\nvol (see the enum). Absent = Global (one range for every time).\nPerExpiry requires strike_min and strike_max on every slice (400\notherwise). `/calibrate-vol-surface` returns PerExpiry with each\nslice's checked region. No Black vol read is affected."
+              }
+      },
+      "required" : ["slices"],
+      "additionalProperties" : false
+    },
+    "quantra_SsviSlice" : {
+      "type" : "object",
+      "description" : "One expiry of an `SsviVolSpec`: an eSSVI slice (Corbetta, Cohort,\nLaachir, Martini 2019, \"Robust calibration and arbitrage-free\ninterpolation of SSVI slices\"). Total variance at log-forward moneyness\nk = ln(K / F_ref(T))\n\nw(k) = 0.5 (theta + rho psi k + sqrt(psi^2 k^2 + 2 rho psi theta k + theta^2)),\n\nthe Black vol being sqrt(w / T), T the base day counter's year fraction\nfrom the reference date to `expiry`. Every field but the strike range is\npresence-required (400 naming it).",
+      "properties" : {
+        "expiry" : {
+                "type" : "string",
+                "description" : "Expiry date (YYYY-MM-DD), strictly after the reference date; slices\nmust be strictly increasing."
+              },
+        "forward" : {
+                "type" : "number",
+                "description" : "The forward F_ref(T) the slice is written against, > 0."
+              },
+        "theta" : {
+                "type" : "number",
+                "description" : "At-the-money total implied variance (sigma_ATM^2 T), > 0."
+              },
+        "rho" : {
+                "type" : "number",
+                "description" : "Skew, -1 < rho < 1."
+              },
+        "psi" : {
+                "type" : "number",
+                "description" : "psi = theta phi (the at-the-money curvature scale), > 0."
+              },
+        "strike_min" : {
+                "type" : "number",
+                "description" : "Optional strike range (absolute) a structured note holds the local\nvol to, exactly as `SviSlice.strike_min` / `strike_max` (and\n`SsviVolSpec.local_vol_strike_range`). `/calibrate-vol-surface`\nfills both with the region it checked around the expiry. No Black\nvol read is affected. Each > 0 and strike_min < strike_max when both\nare given (400 otherwise)."
+              },
+        "strike_max" : {
+                "type" : "number"
+              }
+      },
+      "required" : ["expiry"],
+      "additionalProperties" : false
+    },
+    "quantra_SsviVolSpec" : {
+      "type" : "object",
+      "description" : "Black volatility as eSSVI slices (what `/calibrate-vol-surface` with\nmethod `Ssvi` returns as `vol_surface_spec_ssvi`). Accepted wherever a\nBlack vol is referenced (`price-equity-option`, `sample-vol-surfaces`, a\nstructured note's `underlyings[].volatility_id`).\n\nBetween and beyond the slices the parameters, not the variances, are\ninterpolated: theta, psi and rho psi linear in time between two slices,\nthe first slice scaled by t / T_1 before it, and after the last slice\npsi and rho held while theta continues the last forward variance\n(theta_N - theta_{N-1}) / (T_N - T_{N-1}) (theta_1 / T_1 with one\nslice). The moneyness is taken against the reference forward F_ref(t):\nln F_ref linear in time through ln `spot` at the reference date and ln\n`forward` at every slice, continuing the last slope beyond. The surface\nis defined at every time and strike (no extrapolation flag). The slices\nmust be free of static arbitrage: per slice psi (1 + |rho|) <= 4 and\npsi^2 (1 + |rho|) <= 4 theta; between consecutive slices theta and psi\nnon-decreasing, |rho_i psi_i - rho_{i-1} psi_{i-1}| <= psi_i - psi_{i-1}\nand one of the two sufficient conditions of Hendriks-Martini (psi /\ntheta non-increasing, or the quadratic condition); then a numeric scan\nof Durrleman's g and of dw/dt (400 listing every violation).\n\nA structured note simulates it as local vol with the closed-form Dupire\nlocal variance of the slices (no finite differences), corrected for a\nprocess forward that differs from F_ref (sticky strike):\nsigma_loc^2 = (dw/dt + dw/dk (mu_proc - mu_ref)) / g(k, k - ln(F_proc /\nF_ref)). The strike edges, per-expiry bands and the local vol floor of\nthe other surfaces apply to it unchanged.\n\n`base` carries the reference date, calendar, business-day convention\nand day counter only: `shape` must be left at its default,\n`constant_vol` and `quote_id` absent (400 otherwise).",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_BlackVolBaseSpec"
+              },
+        "spot" : {
+                "type" : "number",
+                "description" : "The spot the forwards were read against (the reference forward at\nthe reference date), > 0. Presence-required."
+              },
+        "slices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SsviSlice"},
+                "description" : "At least one slice, strictly increasing expiries."
+              },
+        "local_vol_time_extrapolation" : {
+                "$ref" : "#/definitions/quantra_enums_LocalVolTimeExtrapolation",
+                "description" : "Optional. Absent: beyond the last slice the local vol is the model's\nown (theta continuing the last forward variance, arbitrage free by\nconstruction). FlatLocalVol: held at T_last - 0.001 years, as for the\nother surfaces. FlatImpliedVol is not an eSSVI reading (the model\ndoes not extend its implied vol flat): 400. No effect on any Black\nvol read. `/calibrate-vol-surface` leaves it absent."
+              },
+        "local_vol_strike_range" : {
+                "$ref" : "#/definitions/quantra_enums_LocalVolStrikeRange",
+                "description" : "Optional. How the slices' strike_min / strike_max bound the local\nvol, as on `SviVolSpec` (absent = Global). `/calibrate-vol-surface`\nreturns PerExpiry with each slice's checked region."
+              }
+      },
+      "required" : ["slices"],
+      "additionalProperties" : false
+    },
+    "quantra_VolSurfaceSpec" : {
+      "type" : "object",
+      "description" : "Volatility surface specification referenced by id in trade requests.",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "payload_type" : {
+                "$ref" : "#/definitions/quantra_VolPayload"
+              },
+        "payload" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_OptionletVolSpec" },{ "$ref" : "#/definitions/quantra_SwaptionVolSpec" },{ "$ref" : "#/definitions/quantra_BlackVolSpec" },{ "$ref" : "#/definitions/quantra_YoYOptionletVolSpec" },{ "$ref" : "#/definitions/quantra_SviVolSpec" },{ "$ref" : "#/definitions/quantra_SsviVolSpec" }]
+              }
+      },
+      "required" : ["id"],
+      "additionalProperties" : false
+    },
+    "quantra_ConstantOptionletVolatility" : {
+      "type" : "object",
+      "description" : "Constant optionlet volatility for coupon pricer.",
+      "properties" : {
+        "settlement_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "volatility" : {
+                "type" : "number",
+                "description" : "Constant optionlet volatility. Presence-required (a bare double would\ndefault to a silent zero) and must be finite and non-negative. A genuine\n0 is valid: for a coupon leg without caps/floors the Black pricer with\nzero vol reproduces the deterministic forward, so 0 is accepted while an\nomitted value is rejected."
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_BlackIborCouponPricer" : {
+      "type" : "object",
+      "description" : "Black Ibor coupon pricer with optionlet volatility.",
+      "properties" : {
+        "optionlet_volatility" : {
+                "$ref" : "#/definitions/quantra_ConstantOptionletVolatility"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CouponPricer" : {
+      "type" : "object",
+      "description" : "Coupon pricer specification referenced by id.",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "black_ibor_coupon_pricer" : {
+                "$ref" : "#/definitions/quantra_BlackIborCouponPricer"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_QuoteSpec" : {
+      "type" : "object",
+      "description" : "Market quote (spot price, FX rate, etc.). Used by Pricing.quotes[] and helper quote_id references.",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "kind" : {
+                "$ref" : "#/definitions/quantra_QuoteKind"
+              },
+        "value" : {
+                "type" : "number",
+                "description" : "Quote value. Presence-required (a bare double would default to 0 and\nsilently bootstrap every referencing helper off a zero rate). May be\nnegative (rates/spreads); only a missing or non-finite value is rejected."
+              },
+        "quote_type" : {
+                "$ref" : "#/definitions/quantra_QuoteType"
+              }
+      },
+      "required" : ["id"],
+      "additionalProperties" : false
+    },
+    "quantra_CapFloorModelSpec" : {
+      "type" : "object",
+      "description" : "Cap/Floor pricing model specification.",
+      "properties" : {
+        "model_type" : {
+                "$ref" : "#/definitions/quantra_enums_IrModelType",
+                "description" : "Pricing model / engine selector. Presence-required: an omitted type is a\n400, never the alphabetical-0 default (Black)."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionHwCalibrationSpec" : {
+      "type" : "object",
+      "description" : "Swaption Hull-White calibration specification.",
+      "properties" : {
+        "swaption_vol_id" : {
+                "type" : "string",
+                "description" : "Swaption volatility surface id used as calibration target."
+              },
+        "discount_curve_id" : {
+                "type" : "string",
+                "description" : "Discount curve id used by both helper pricing and model dynamics."
+              },
+        "forwarding_curve_id" : {
+                "type" : "string",
+                "description" : "Forwarding curve id used to build the floating index in calibration helpers."
+              },
+        "swap_index_id" : {
+                "type" : "string",
+                "description" : "Swap index id defining fixed/float leg conventions for calibration helpers."
+              },
+        "expiries" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"},
+                "description" : "Optional expiry grid override. If omitted, server falls back to ATM matrix expiries."
+              },
+        "tenors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"},
+                "description" : "Optional tenor grid override. If omitted, server falls back to ATM matrix tenors."
+              },
+        "calibrate_a" : {
+                "type" : "boolean",
+                "description" : "Whether to calibrate Hull-White parameter \"a\"."
+              },
+        "calibrate_sigma" : {
+                "type" : "boolean",
+                "description" : "Whether to calibrate Hull-White parameter \"sigma\"."
+              },
+        "a_init" : {
+                "type" : "number",
+                "description" : "Initial guess for Hull-White \"a\". When calibrate_a is true the guess is\nclipped into [a_lower, a_upper] before the fit starts."
+              },
+        "sigma_init" : {
+                "type" : "number",
+                "description" : "Initial guess for Hull-White \"sigma\"."
+              },
+        "a_lower" : {
+                "type" : "number",
+                "description" : "Lower bound on \"a\" during a joint (calibrate_a = true) calibration.\nBelow about 1e-3 the Hull-White objective is numerically flat in \"a\"\nand the fitted value is noise; the optimizer is kept out of that region.\nMust be > 0 and < a_upper. Ignored when calibrate_a is false."
+              },
+        "a_upper" : {
+                "type" : "number",
+                "description" : "Upper bound on \"a\" during a joint calibration. Must be > a_lower.\nIgnored when calibrate_a is false."
+              },
+        "max_iterations" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "EndCriteria max stationarity iterations."
+              },
+        "function_evaluations" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "EndCriteria max function evaluations."
+              },
+        "end_criteria_eps" : {
+                "type" : "number",
+                "description" : "EndCriteria eps for root/function/gradient checks."
+              }
+      },
+      "required" : ["swaption_vol_id", "discount_curve_id", "forwarding_curve_id", "swap_index_id"],
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionModelSpec" : {
+      "type" : "object",
+      "description" : "Swaption pricing model specification.",
+      "properties" : {
+        "model_type" : {
+                "$ref" : "#/definitions/quantra_enums_IrModelType",
+                "description" : "Swaption pricing model type. Presence-required: an omitted type is a\n400, never the alphabetical-0 default (Black)."
+              },
+        "hw_a" : {
+                "type" : "number",
+                "description" : "Explicit Hull-White \"a\" used when param_mode=Explicit."
+              },
+        "hw_sigma" : {
+                "type" : "number",
+                "description" : "Explicit Hull-White \"sigma\" used when param_mode=Explicit."
+              },
+        "lattice_steps" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Number of time steps for TreeSwaptionEngine lattice."
+              },
+        "param_mode" : {
+                "$ref" : "#/definitions/quantra_enums_ModelParamMode",
+                "description" : "Parameter source: Explicit values from this model or Calibrate from hw_calibration."
+              },
+        "hw_calibration" : {
+                "$ref" : "#/definitions/quantra_SwaptionHwCalibrationSpec",
+                "description" : "Calibration configuration used when param_mode=Calibrate."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CdsModelSpec" : {
+      "type" : "object",
+      "description" : "CDS pricing model specification.",
+      "properties" : {
+        "engine_type" : {
+                "$ref" : "#/definitions/quantra_enums_CdsEngineType"
+              },
+        "include_settlement_date_flows" : {
+                "type" : "boolean"
+              },
+        "isda_numerical_fix" : {
+                "$ref" : "#/definitions/quantra_enums_CdsIsdaNumericalFix"
+              },
+        "isda_accrual_bias" : {
+                "$ref" : "#/definitions/quantra_enums_CdsIsdaAccrualBias"
+              },
+        "isda_forwards_in_coupon_period" : {
+                "$ref" : "#/definitions/quantra_enums_CdsIsdaForwardsInCouponPeriod"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_EquityVanillaModelSpec" : {
+      "type" : "object",
+      "description" : "Equity vanilla option pricing model specification (future).",
+      "properties" : {
+        "model_type" : {
+                "$ref" : "#/definitions/quantra_enums_EquityModelType",
+                "description" : "Pricing model / engine selector. Presence-required: an omitted type is a\n400, never the alphabetical-0 default (BlackScholesAnalytic)."
+              },
+        "binomial_steps" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_ModelSpec" : {
+      "type" : "object",
+      "description" : "Model specification referenced by id in trade requests.",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "payload_type" : {
+                "$ref" : "#/definitions/quantra_ModelPayload"
+              },
+        "payload" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_CapFloorModelSpec" },{ "$ref" : "#/definitions/quantra_SwaptionModelSpec" },{ "$ref" : "#/definitions/quantra_CdsModelSpec" },{ "$ref" : "#/definitions/quantra_EquityVanillaModelSpec" }]
+              }
+      },
+      "required" : ["id"],
+      "additionalProperties" : false
+    },
+    "quantra_SwapIndexFixedLegSpec" : {
+      "type" : "object",
+      "description" : "Fixed leg conventions for swap index. Every convention is presence-required.",
+      "properties" : {
+        "fixed_frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              },
+        "fixed_day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "fixed_calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "fixed_bdc" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "fixed_term_bdc" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "fixed_date_rule" : {
+                "$ref" : "#/definitions/quantra_enums_DateGenerationRule"
+              },
+        "fixed_eom" : {
+                "type" : "boolean"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwapIndexFloatLegSpec" : {
+      "type" : "object",
+      "description" : "Floating leg conventions for swap index. Every convention is\npresence-required.",
+      "properties" : {
+        "float_tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
+              },
+        "float_calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "float_bdc" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "float_term_bdc" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "float_date_rule" : {
+                "$ref" : "#/definitions/quantra_enums_DateGenerationRule"
+              },
+        "float_eom" : {
+                "type" : "boolean"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwapIndexDef" : {
+      "type" : "object",
+      "description" : "Swap index definition for swaption smile conventions.",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "kind" : {
+                "$ref" : "#/definitions/quantra_SwapIndexKind"
+              },
+        "spot_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Spot/effective-date lag used for exercise-to-swap-start advancement."
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Metadata only; pricing uses fixed_leg/float_leg conventions."
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Metadata only; pricing uses fixed_leg/float_leg conventions."
+              },
+        "end_of_month" : {
+                "type" : "boolean",
+                "description" : "Metadata only; pricing uses fixed_leg/float_leg conventions."
+              },
+        "fixed_leg" : {
+                "$ref" : "#/definitions/quantra_SwapIndexFixedLegSpec"
+              },
+        "float_index_id" : {
+                "type" : "string",
+                "description" : "Reference to IndexDef by id."
+              },
+        "float_leg" : {
+                "$ref" : "#/definitions/quantra_SwapIndexFloatLegSpec"
+              }
+      },
+      "required" : ["id", "float_index_id"],
+      "additionalProperties" : false
+    },
+    "quantra_CdsQuote" : {
+      "type" : "object",
+      "description" : "CDS market quote specification.",
+      "properties" : {
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
+              },
+        "quote_type" : {
+                "$ref" : "#/definitions/quantra_enums_CdsQuoteType",
+                "description" : "Quote convention (ParSpread / Upfront). Presence-required: an omitted\nvalue is a 400, never the alphabetical-0 default (ParSpread)."
+              },
+        "quote_id" : {
+                "type" : "string",
+                "description" : "Optional; resolves from Pricing.quotes (QuoteType=Credit)."
+              },
+        "quoted_par_spread" : {
+                "type" : "number",
+                "description" : "Used when quote_type=ParSpread (decimal, 0.01=100bps)."
+              },
+        "quoted_upfront" : {
+                "type" : "number",
+                "description" : "Used when quote_type=Upfront (decimal, 0.01=1%)."
+              },
+        "running_coupon" : {
+                "type" : "number",
+                "description" : "Running coupon for upfront quotes (decimal). Optional; presence-driven\n(a genuine 0 running coupon is valid for some upfront quotes, an absent\nvalue on an upfront quote is rejected)."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CdsHelperConventions" : {
+      "type" : "object",
+      "description" : "CDS helper conventions for curve building. Every convention is\npresence-required: an omitted value is a 400 naming the field, never a\nsilent market-default assumption.",
+      "properties" : {
+        "settlement_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "date_generation_rule" : {
+                "$ref" : "#/definitions/quantra_enums_DateGenerationRule"
+              },
+        "last_period_day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "settles_accrual" : {
+                "type" : "boolean"
+              },
+        "pays_at_default_time" : {
+                "type" : "boolean"
+              },
+        "rebates_accrual" : {
+                "type" : "boolean"
+              },
+        "helper_model" : {
+                "$ref" : "#/definitions/quantra_enums_CdsHelperModel"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CreditCurveSpec" : {
+      "type" : "object",
+      "description" : "Default probability curve specification for CDS pricing.",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "reference_date" : {
+                "type" : "string"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "recovery_rate" : {
+                "type" : "number"
+              },
+        "curve_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              },
+        "helper_conventions" : {
+                "$ref" : "#/definitions/quantra_CdsHelperConventions"
+              },
+        "quotes" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CdsQuote"},
+                "description" : "Build from CDS market quotes."
+              },
+        "flat_hazard_rate" : {
+                "type" : "number",
+                "description" : "OR: use flat hazard rate. Optional; presence-driven. Present -> use it;\nabsent with quotes -> bootstrap from quotes; absent with no quotes is an\nerror (no invented default hazard rate)."
+              }
+      },
+      "required" : ["id", "reference_date"],
+      "additionalProperties" : false
+    },
+    "quantra_DiscreteDividend" : {
+      "type" : "object",
+      "description" : "Discrete cash dividend for equity underlyings.",
+      "properties" : {
+        "ex_date" : {
+                "type" : "string"
+              },
+        "amount" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_EquityUnderlyingSpec" : {
+      "type" : "object",
+      "description" : "Shared equity underlying specification referenced by option trades.",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "currency" : {
+                "type" : "string"
+              },
+        "spot_quote_id" : {
+                "type" : "string"
+              },
+        "dividend_yield_curve_id" : {
+                "type" : "string"
+              },
+        "discrete_dividends" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_DiscreteDividend"}
+              }
+      },
+      "required" : ["id", "spot_quote_id", "dividend_yield_curve_id"],
+      "additionalProperties" : false
+    },
+    "quantra_EquityEuropeanExercise" : {
+      "type" : "object",
+      "description" : "European exercise (single expiry date).",
+      "properties" : {
+        "expiry_date" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_EquityAmericanExercise" : {
+      "type" : "object",
+      "description" : "American exercise (start and end dates).",
+      "properties" : {
+        "start_date" : {
+                "type" : "string"
+              },
+        "end_date" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_EquityBermudanExercise" : {
+      "type" : "object",
+      "description" : "Bermudan exercise with explicit exercise dates.",
+      "properties" : {
+        "exercise_dates" : {
+                "type" : "array", "items" : {"type" : "string"}
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_EquityPlainVanillaPayoff" : {
+      "type" : "object",
+      "description" : "Plain vanilla payoff.",
+      "properties" : {
+        "option_type" : {
+                "$ref" : "#/definitions/quantra_enums_EquityOptionType"
+              },
+        "strike" : {
+                "type" : "number",
+                "description" : "Strike price. Presence-required and must be > 0."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_EquityCashOrNothingPayoff" : {
+      "type" : "object",
+      "description" : "Cash-or-nothing digital payoff.",
+      "properties" : {
+        "option_type" : {
+                "$ref" : "#/definitions/quantra_enums_EquityOptionType"
+              },
+        "strike" : {
+                "type" : "number",
+                "description" : "Strike price. Presence-required and must be > 0."
+              },
+        "cash" : {
+                "type" : "number",
+                "description" : "Cash payout on exercise. Presence-required and must be > 0."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_EquityAssetOrNothingPayoff" : {
+      "type" : "object",
+      "description" : "Asset-or-nothing digital payoff.",
+      "properties" : {
+        "option_type" : {
+                "$ref" : "#/definitions/quantra_enums_EquityOptionType"
+              },
+        "strike" : {
+                "type" : "number",
+                "description" : "Strike price. Presence-required and must be > 0."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_EquityBarrierFeature" : {
+      "type" : "object",
+      "description" : "Optional barrier feature.",
+      "properties" : {
+        "barrier_type" : {
+                "$ref" : "#/definitions/quantra_enums_EquityBarrierType"
+              },
+        "level" : {
+                "type" : "number"
+              },
+        "rebate" : {
+                "type" : "number"
+              },
+        "monitoring" : {
+                "$ref" : "#/definitions/quantra_enums_EquityBarrierMonitoring"
+              },
+        "monitoring_dates" : {
+                "type" : "array", "items" : {"type" : "string"}
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_EquityOption" : {
+      "type" : "object",
+      "description" : "Equity option trade definition.",
+      "properties" : {
+        "trade_id" : {
+                "type" : "string"
+              },
+        "underlying_id" : {
+                "type" : "string"
+              },
+        "quantity" : {
+                "type" : "number"
+              },
+        "settlement" : {
+                "$ref" : "#/definitions/quantra_enums_EquitySettlementType"
+              },
+        "payoff_type" : {
+                "$ref" : "#/definitions/quantra_EquityPayoff"
+              },
+        "payoff" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_EquityPlainVanillaPayoff" },{ "$ref" : "#/definitions/quantra_EquityCashOrNothingPayoff" },{ "$ref" : "#/definitions/quantra_EquityAssetOrNothingPayoff" }]
+              },
+        "exercise_type" : {
+                "$ref" : "#/definitions/quantra_EquityExercise"
+              },
+        "exercise" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_EquityEuropeanExercise" },{ "$ref" : "#/definitions/quantra_EquityAmericanExercise" },{ "$ref" : "#/definitions/quantra_EquityBermudanExercise" }]
+              },
+        "barrier" : {
+                "$ref" : "#/definitions/quantra_EquityBarrierFeature"
+              }
+      },
+      "required" : ["trade_id", "underlying_id"],
+      "additionalProperties" : false
+    },
+    "quantra_InflationIndexSpec" : {
+      "type" : "object",
+      "description" : "Inflation index specification. Registered once per request, referenced by id.",
+      "properties" : {
+        "id" : {
+                "type" : "string",
+                "description" : "Unique identifier (e.g., \"UKRPI\", \"EUHICP\", \"USCPI\")."
+              },
+        "family_name" : {
+                "type" : "string",
+                "description" : "Human-readable family name."
+              },
+        "currency" : {
+                "type" : "string",
+                "description" : "ISO currency code (e.g., \"GBP\", \"EUR\", \"USD\")."
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              },
+        "availability_lag" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Publication availability lag (e.g., 2 Months)."
+              },
+        "observation_lag" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Observation lag used for swaps (e.g., 3 Months)."
+              },
+        "interpolated" : {
+                "type" : "boolean",
+                "description" : "Whether the index is interpolated between fixings. Presence-required:\nabsent-vs-false silently changes the observed CPI."
+              },
+        "revised" : {
+                "type" : "boolean",
+                "description" : "Whether index values can be revised (rare). Presence-required."
+              },
+        "kind" : {
+                "$ref" : "#/definitions/quantra_enums_InflationCurveKind"
+              },
+        "underlying_zero_index_id" : {
+                "type" : "string",
+                "description" : "For ratio-based YoY indices, link to the underlying zero inflation index id."
+              },
+        "fixings" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Fixing"},
+                "description" : "Historical CPI/YoY fixings needed for helper-based bootstrap and forecasting."
+              }
+      },
+      "required" : ["id"],
+      "additionalProperties" : false
+    },
+    "quantra_ZeroCouponInflationSwapHelper" : {
+      "type" : "object",
+      "description" : "Zero-coupon inflation swap helper point.",
+      "properties" : {
+        "quote_id" : {
+                "type" : "string",
+                "description" : "Optional: resolve quote from pricing.quotes (QuoteType=Curve)."
+              },
+        "quote_value" : {
+                "type" : "number",
+                "description" : "Inline quote value used when quote_id is empty. Presence-required on the\ninline path (a bare double would default to a silent zero quote); may be\nnegative, only a missing or non-finite value is rejected."
+              },
+        "swap_observation_lag" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Lag applied when observing the CPI index in the swap."
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Relative helper maturity from InflationCurveBaseSpec.reference_date."
+              },
+        "start_date" : {
+                "type" : "string",
+                "description" : "Optional explicit start date for dated helper construction."
+              },
+        "end_date" : {
+                "type" : "string",
+                "description" : "Optional explicit end/maturity date for dated helper construction."
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "payment_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "observation_interpolation" : {
+                "$ref" : "#/definitions/quantra_enums_CPIInterpolationType"
+              }
+      },
+      "required" : ["swap_observation_lag"],
+      "additionalProperties" : false
+    },
+    "quantra_YearOnYearInflationSwapHelper" : {
+      "type" : "object",
+      "description" : "Year-on-year inflation swap helper point.",
+      "properties" : {
+        "quote_id" : {
+                "type" : "string",
+                "description" : "Optional: resolve quote from pricing.quotes (QuoteType=Curve)."
+              },
+        "quote_value" : {
+                "type" : "number",
+                "description" : "Inline quote value used when quote_id is empty. Presence-required on the\ninline path (a bare double would default to a silent zero quote); may be\nnegative, only a missing or non-finite value is rejected."
+              },
+        "swap_observation_lag" : {
+                "$ref" : "#/definitions/quantra_Period"
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
+              },
+        "start_date" : {
+                "type" : "string"
+              },
+        "end_date" : {
+                "type" : "string"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "payment_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "observation_interpolation" : {
+                "$ref" : "#/definitions/quantra_enums_CPIInterpolationType"
+              },
+        "nominal_curve_id" : {
+                "type" : "string",
+                "description" : "QuantLib YoY helper requires a nominal term structure id."
+              }
+      },
+      "required" : ["swap_observation_lag", "nominal_curve_id"],
+      "additionalProperties" : false
+    },
+    "quantra_InflationPointWrapper" : {
+      "type" : "object",
+      "description" : "Wrapper for one inflation curve point.",
+      "properties" : {
+        "point_type" : {
+                "$ref" : "#/definitions/quantra_InflationPoint"
+              },
+        "point" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_ZeroCouponInflationSwapHelper" },{ "$ref" : "#/definitions/quantra_YearOnYearInflationSwapHelper" }]
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_InflationCurveSpec" : {
+      "type" : "object",
+      "description" : "Inflation term-structure definition, modeled like rates `TermStructure`.",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "reference_date" : {
+                "type" : "string"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              },
+        "bootstrap_accuracy" : {
+                "type" : "number",
+                "description" : "Numerical bootstrap tolerance (not a market convention): keeps its default."
+              },
+        "kind" : {
+                "$ref" : "#/definitions/quantra_enums_InflationCurveKind"
+              },
+        "index_id" : {
+                "type" : "string",
+                "description" : "Link to InflationIndexSpec.id."
+              },
+        "discount_curve_id" : {
+                "type" : "string",
+                "description" : "Optional discount curve id for inflation-leg projection/discounting models."
+              },
+        "allow_extrapolation" : {
+                "type" : "boolean"
+              },
+        "points" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_InflationPointWrapper"}
+              }
+      },
+      "required" : ["id", "reference_date", "index_id", "points"],
+      "additionalProperties" : false
+    },
+    "quantra_CalendarOverride" : {
+      "type" : "object",
+      "description" : "Per-request holiday overrides for one calendar. The overrides apply to every\nuse of that calendar while the request is processed and are discarded\nafterwards; nothing is stored on the server.",
+      "properties" : {
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Calendar to override (required). Aliases of the same underlying calendar\n(e.g. UnitedStates / UnitedStatesSettlement) share their overrides."
+              },
+        "added_holidays" : {
+                "type" : "array", "items" : {"type" : "string"},
+                "description" : "Dates (YYYY-MM-DD) that must be treated as holidays. A date that is\nalready a holiday or a weekend is accepted and has no effect."
+              },
+        "removed_holidays" : {
+                "type" : "array", "items" : {"type" : "string"},
+                "description" : "Dates (YYYY-MM-DD) that must be treated as business days. A date that is\nalready a business day is accepted and has no effect; weekend dates are\nrejected."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FxSpotSpec" : {
+      "type" : "object",
+      "description" : "FX spot rate shared by curve helpers and FX products. Referenced by id,\nthe same way curves and indices are.\n\nThe pair is given as two ISO currency codes, never as a six-letter string:\none unit of `base_currency` costs `rate` units of `quote_currency`\n(EUR/USD 1.08 = base EUR, quote USD, rate 1.08).\n\n`rate` is the market spot, i.e. the rate for delivery on the spot date\n(`spot_days` business days after the valuation date on the joint settlement\ncalendar). The engine never turns it into an as-of rate implicitly; where an\nas-of conversion is needed it is computed from the spot and the two discount\ncurves, X = S * DF_quote(spot) / DF_base(spot), the same algebra QuantLib's\nFxSwapRateHelper uses.\n\nThe spot lag and the settlement calendars are per-pair market conventions\n(T+2 for most pairs, T+1 for USD/CAD, USD/TRY, ...; both currencies'\ncalendars, plus the USD calendar for crosses where the market settles\nthrough USD). They are stated by the user on every spot: the engine keeps\nno convention table and never infers them from the currency codes.",
+      "properties" : {
+        "id" : {
+                "type" : "string",
+                "description" : "Identifier referenced by FxSwapHelper.fx_spot, CrossCcyBasisHelper.fx_spot\nand the FX products (e.g. \"EURUSD_SPOT\"). Required; unique within\npricing.fx.spots."
+              },
+        "base_currency" : {
+                "type" : "string",
+                "description" : "ISO 4217 code of the base currency (three uppercase letters). Required."
+              },
+        "quote_currency" : {
+                "type" : "string",
+                "description" : "ISO 4217 code of the quote currency (three uppercase letters). Required;\nmust differ from base_currency."
+              },
+        "rate" : {
+                "type" : "number",
+                "description" : "Spot rate: units of quote_currency per one unit of base_currency, for\ndelivery on the spot date. Exactly one of rate or quote_id must be\npresent. Must be finite and strictly positive."
+              },
+        "quote_id" : {
+                "type" : "string",
+                "description" : "Reference to a shared quote in pricing.quotes instead of an inline rate.\nThe quote must carry quote_type = Fx: curve quotes (quote_type = Curve)\nare shifted by the rate bump-and-reprice machinery, and a spot rate\nmust never move with a parallel rate bump."
+              },
+        "spot_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Spot lag in business days on the joint settlement calendar, from the\nvaluation date to the spot date. Required; must be >= 0 (2 for most\npairs, 1 for USD/CAD, USD/TRY and a few others, 0 for same-day)."
+              },
+        "settlement_calendars" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_enums_Calendar"},
+                "description" : "Calendars whose holidays all count for spot and forward settlement; the\nengine joins them (QuantLib JointCalendar, a holiday in any one is a\nholiday of the pair). Required; at least one entry. Typically the two\ncurrencies' calendars, plus the USD calendar for crosses when the\nmarket convention says so."
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Business-day convention applied when a settlement date (spot or forward\nmaturity) falls on a holiday of the joint calendar. Required."
+              }
+      },
+      "required" : ["id", "base_currency", "quote_currency", "settlement_calendars"],
+      "additionalProperties" : false
+    },
+    "quantra_FxMarketData" : {
+      "type" : "object",
+      "description" : "FX market data grouped under the shared Pricing context.",
+      "properties" : {
+        "spots" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_FxSpotSpec"},
+                "description" : "Spot rates referenced by id from curve helpers and FX products."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CorrelationMatrixSpec" : {
+      "type" : "object",
+      "description" : "Correlation matrix between the underlyings of a basket product, referenced\nby id from the trade (`StructuredNote.correlation_id`). There is no\ncorrelation market: the matrix is an input (historical estimate, dealer\nmark) and the engine only validates it. It must be square, symmetric,\nwith a unit diagonal and every entry in [-1, 1], and positive\nsemi-definite (a Cholesky factorisation must succeed); otherwise the\nrequest is a 400 naming the first offending pair of labels, or \"not\npositive semi-definite\". No repair is applied to the matrix as supplied;\na bump-and-reprice correlation sensitivity may repair the BUMPED matrix\nand says so in the response.",
+      "properties" : {
+        "id" : {
+                "type" : "string",
+                "description" : "Identifier referenced by trades (e.g. \"QUAD_INDEX_HIST_2Y\"). Required;\nunique within pricing.correlations.matrices."
+              },
+        "labels" : {
+                "type" : "array", "items" : {"type" : "string"},
+                "description" : "Ids of the underlyings the rows/columns refer to, in matrix order:\n`EquityUnderlyingSpec.id` (or `FxSpotSpec.id` for products that\nsimulate an FX rate). Required; at least two distinct entries. A\ntrade referencing this matrix must have exactly these underlyings\n(any order; the engine permutes), 400 naming the missing or extra\nlabel otherwise."
+              },
+        "values" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D",
+                "description" : "The matrix: n_rows = n_cols = len(labels), values row-major in label\norder, inline or via quote_ids into pricing.quotes. Required."
+              }
+      },
+      "required" : ["id", "labels", "values"],
+      "additionalProperties" : false
+    },
+    "quantra_CorrelationMarketData" : {
+      "type" : "object",
+      "description" : "Correlation market data grouped under the shared Pricing context.",
+      "properties" : {
+        "matrices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CorrelationMatrixSpec"},
+                "description" : "Correlation matrices referenced by id from basket products."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_RatesMarketData" : {
+      "type" : "object",
+      "description" : "Rates market data shared across interest-rate products.",
+      "properties" : {
+        "indices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_IndexDef"},
+                "description" : "Index definitions used by floating-rate instruments and curve helpers."
+              },
+        "swap_indices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwapIndexDef"},
+                "description" : "Swap index definitions for convention-stable swaption smile ATM computation."
+              },
+        "curves" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_TermStructure"},
+                "description" : "Yield curves for discounting/forwarding."
+              },
+        "coupon_pricers" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CouponPricer"},
+                "description" : "Coupon pricers for floating legs."
+              }
+      },
+      "required" : ["curves"],
+      "additionalProperties" : false
+    },
+    "quantra_CreditMarketData" : {
+      "type" : "object",
+      "description" : "Credit market data grouped under the shared Pricing context.",
+      "properties" : {
+        "credit_curves" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CreditCurveSpec"},
+                "description" : "Credit curves for CDS pricing."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_VolatilityMarketData" : {
+      "type" : "object",
+      "description" : "Volatility and model data grouped under the shared Pricing context.",
+      "properties" : {
+        "vol_surfaces" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_VolSurfaceSpec"},
+                "description" : "Volatility surfaces referenced by pricing and sampling endpoints."
+              },
+        "models" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_ModelSpec"},
+                "description" : "Pricing models/engines referenced by product requests."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_EquityMarketData" : {
+      "type" : "object",
+      "description" : "Equity market data grouped under the shared Pricing context.",
+      "properties" : {
+        "equity_underlyings" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_EquityUnderlyingSpec"},
+                "description" : "Equity underlyings referenced by equity option trades."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_InflationMarketData" : {
+      "type" : "object",
+      "description" : "Inflation market data grouped under the shared Pricing context.",
+      "properties" : {
+        "inflation_indices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_InflationIndexSpec"}
+              },
+        "inflation_curves" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_InflationCurveSpec"}
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_PricingOptions" : {
+      "type" : "object",
+      "description" : "Shared request-level pricing output options.",
+      "properties" : {
+        "bond_pricing_details" : {
+                "type" : "boolean",
+                "description" : "Include bond analytics (duration, convexity). Used by: FixedRateBond, FloatingRateBond."
+              },
+        "bond_pricing_flows" : {
+                "type" : "boolean",
+                "description" : "Include cash flow details. Used by: FixedRateBond, FloatingRateBond."
+              },
+        "swaption_pricing_details" : {
+                "type" : "boolean",
+                "description" : "Include analytic swaption greeks (delta/vega/gamma/theta/DV01) from the\nBlack/Bachelier calculator: rate sensitivities per 1bp (gamma per bp^2),\nvega per 1bp of vol, theta per calendar day. Also fills atm_forward,\nannuity and implied_volatility. See SwaptionResponse field comments."
+              },
+        "swaption_pricing_rebump" : {
+                "type" : "boolean",
+                "description" : "Include bump-and-reprice swaption analytics: dv01 and gamma from a +/-1bp\nparallel curve bump, vega from a +/-1bp vol bump, theta from a 1-calendar-\nday clean market roll (evaluation date AND every explicit reference_date\nmove one day; date-anchored points and fixings stay). Same units as the\nanalytic greeks. When both flags are set the rebump dv01/gamma/vega/theta\noverwrite the analytic ones; delta, atm_forward and annuity are only\nproduced by swaption_pricing_details. Greeks not computed are absent."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Pricing" : {
+      "type" : "object",
+      "description" : "Central pricing configuration grouped by market-data domain.",
+      "properties" : {
+        "as_of_date" : {
+                "type" : "string",
+                "description" : "Valuation date (YYYY-MM-DD). Used by: ALL."
+              },
+        "settlement_date" : {
+                "type" : "string",
+                "description" : "Settlement date (YYYY-MM-DD). Used by: FixedRateBond, FloatingRateBond."
+              },
+        "quotes" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_QuoteSpec"},
+                "description" : "Shared market quotes (spot prices, FX rates, helper quotes)."
+              },
+        "rates" : {
+                "$ref" : "#/definitions/quantra_RatesMarketData"
+              },
+        "credit" : {
+                "$ref" : "#/definitions/quantra_CreditMarketData"
+              },
+        "volatility" : {
+                "$ref" : "#/definitions/quantra_VolatilityMarketData"
+              },
+        "equity" : {
+                "$ref" : "#/definitions/quantra_EquityMarketData"
+              },
+        "inflation" : {
+                "$ref" : "#/definitions/quantra_InflationMarketData"
+              },
+        "options" : {
+                "$ref" : "#/definitions/quantra_PricingOptions"
+              },
+        "calendar_overrides" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CalendarOverride"},
+                "description" : "Per-request holiday overrides (optional). Applied to every use of the\nnamed calendars in this request. Used by: ALL."
+              },
+        "fx" : {
+                "$ref" : "#/definitions/quantra_FxMarketData",
+                "description" : "FX spot rates referenced by FX-implied curve helpers (FxSwapHelper,\nCrossCcyBasisHelper) and FX products. Optional."
+              },
+        "correlations" : {
+                "$ref" : "#/definitions/quantra_CorrelationMarketData",
+                "description" : "Correlation matrices between basket underlyings, referenced by id\nfrom basket products (`StructuredNote.correlation_id`). Optional;\nvalidated (symmetric, unit diagonal, |rho| <= 1, positive\nsemi-definite) on every request that carries the block, whether or\nnot a product references a matrix. Used by: structured notes."
+              }
+      },
+      "required" : ["as_of_date"],
+      "additionalProperties" : false
+    },
+    "quantra_OptionQuote" : {
+      "type" : "object",
+      "description" : "One listed-option quote line: a strike at an expiry with the call and put\nsides as quoted (bid/ask), plus optional liquidity fields. Shared by the\nimplied-forward calibration (`/calibrate-implied-forwards`) and the\nvol-surface calibration that consumes its forwards. Prices are in the\nunderlying's currency per unit of underlying (not per contract).\n\nEvery scalar is presence-required where it is needed: a strike or a price\nthat is absent is reported as a dropped quote with a reason, never read as\n0.0. A line may carry only one side (call or put); it then cannot enter a\nparity fit and is dropped with reason \"missing call or put side\".",
+      "properties" : {
+        "expiry" : {
+                "type" : "string",
+                "description" : "Expiry date (YYYY-MM-DD)."
+              },
+        "strike" : {
+                "type" : "number",
+                "description" : "Strike in underlying price units. Must be > 0."
+              },
+        "call_bid" : {
+                "type" : "number"
+              },
+        "call_ask" : {
+                "type" : "number"
+              },
+        "put_bid" : {
+                "type" : "number"
+              },
+        "put_ask" : {
+                "type" : "number"
+              },
+        "call_volume" : {
+                "type" : "number",
+                "description" : "Traded volume on the quote date (contracts). Informational; echoed\nnowhere, reserved for filters."
+              },
+        "put_volume" : {
+                "type" : "number"
+              },
+        "call_open_interest" : {
+                "type" : "number",
+                "description" : "Open interest (contracts). Used by `QuoteFilter.min_open_interest`."
+              },
+        "put_open_interest" : {
+                "type" : "number"
+              }
+      },
+      "required" : ["expiry"],
+      "additionalProperties" : false
+    },
+    "quantra_OptionQuoteSheet" : {
+      "type" : "object",
+      "description" : "A sheet of listed-option quotes for one underlying on one date (the\nrequest's `pricing.as_of_date`). The spot is NOT on the sheet: it is the\n`spot_quote_id` of the referenced `EquityUnderlyingSpec` in\n`pricing.equity.equity_underlyings`, so the same number prices the\noptions and seeds the forward fit.",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "underlying_id" : {
+                "type" : "string",
+                "description" : "`EquityUnderlyingSpec.id` in `pricing.equity.equity_underlyings`.\nOnly its spot quote is read here; its `dividend_yield_curve_id` must\nresolve (the shared registry requires it) but is not used by the\nimplied-forward fit — a flat 0 % placeholder curve is the convention."
+              },
+        "quotes" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_OptionQuote"}
+              },
+        "option_style" : {
+                "$ref" : "#/definitions/quantra_enums_ExerciseType",
+                "description" : "Exercise style of the listed options. Put-call parity, the identity\nthe forward fit rests on, holds for European exercise only: American\nquotes (single stocks, some ETFs) carry an early-exercise premium that\nbiases the fit, so `/calibrate-implied-forwards` rejects any style\nother than European with 400 naming this field. Index options (NDX,\nRUT, SPX, SX5E) are European."
+              }
+      },
+      "required" : ["id", "underlying_id", "quotes"],
+      "additionalProperties" : false
+    },
+    "quantra_QuoteFilter" : {
+      "type" : "object",
+      "description" : "Quote-quality filter applied before the parity fit. Every threshold is\nechoed back on the response so the caller sees what was applied.",
+      "properties" : {
+        "max_relative_spread" : {
+                "type" : "number",
+                "description" : "Maximum (ask - bid) / mid on EACH side (call and put) of a line.\nMust be > 0."
+              },
+        "min_quotes_per_expiry" : {
+                "type" : "integer", "minimum" : 0, "maximum" : 4294967295,
+                "description" : "Minimum number of call/put pairs an expiry needs AFTER both filter\npasses to be fitted; an expiry with fewer is reported as dropped\n(not a 400, unless no expiry survives). Must be >= 2."
+              },
+        "moneyness_window" : {
+                "type" : "number",
+                "description" : "Second-pass window: after a first fit over every surviving pair gives\na provisional forward F1, only strikes inside\n[F1 * (1 - w), F1 * (1 + w)] enter the final fit. Must be > 0."
+              },
+        "min_open_interest" : {
+                "type" : "number",
+                "description" : "Optional: drop a line whose call OR put open interest is below this\n(a line without open-interest fields is kept when the threshold is\nabsent and dropped when it is present)."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_DroppedQuote" : {
+      "type" : "object",
+      "description" : "One quote line (or one whole expiry, when `strike` is absent) excluded\nfrom the fit, with the rule that excluded it.",
+      "properties" : {
+        "expiry" : {
+                "type" : "string"
+              },
+        "strike" : {
+                "type" : "number",
+                "description" : "Absent when the whole expiry was dropped."
+              },
+        "reason" : {
+                "type" : "string"
+              }
+      },
+      "required" : ["expiry", "reason"],
+      "additionalProperties" : false
+    },
+    "quantra_ImpliedForwardExpiry" : {
+      "type" : "object",
+      "description" : "Per-expiry fit report. Every expiry present on the sheet appears once,\nin date order. Fit outputs (`forward` onwards) are present iff `usable`\nis true; a dropped expiry carries `dropped_reason` and its `dropped`\nlines instead.",
+      "properties" : {
+        "expiry" : {
+                "type" : "string",
+                "description" : "Expiry date (YYYY-MM-DD)."
+              },
+        "time" : {
+                "type" : "number",
+                "description" : "Act/365F year fraction from `pricing.as_of_date` to the expiry."
+              },
+        "quotes_used" : {
+                "type" : "integer", "minimum" : 0, "maximum" : 4294967295,
+                "description" : "Call/put pairs that entered the final fit."
+              },
+        "quotes_dropped" : {
+                "type" : "integer", "minimum" : 0, "maximum" : 4294967295,
+                "description" : "Lines of this expiry excluded by a filter rule (count of `dropped`)."
+              },
+        "dropped" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_DroppedQuote"}
+              },
+        "usable" : {
+                "type" : "boolean",
+                "description" : "True iff the expiry was fitted."
+              },
+        "dropped_reason" : {
+                "type" : "string",
+                "description" : "Why the expiry was not fitted (absent when `usable`)."
+              },
+        "forward" : {
+                "type" : "number",
+                "description" : "Implied forward F: the strike at which C - P = 0 on the fitted line."
+              },
+        "implied_discount_factor" : {
+                "type" : "number",
+                "description" : "Implied discount factor DF = -slope of C - P against K: the market's\nfunding of the index to this expiry."
+              },
+        "curve_discount_factor" : {
+                "type" : "number",
+                "description" : "Discount factor of the request's discounting curve at the expiry."
+              },
+        "implied_funding_bp" : {
+                "type" : "number",
+                "description" : "Continuous spread between the two discount factors, in basis points:\n-ln(DF_implied / DF_curve) / T * 1e4. Positive = the options imply a\nhigher funding rate than the curve."
+              },
+        "implied_dividend_yield" : {
+                "type" : "number",
+                "description" : "Continuous dividend (equity repo + dividend) yield q(T) from\nF = S * exp((r(T) - q(T)) * T), r(T) = -ln(DF_curve) / T."
+              },
+        "fit_residual_rmse" : {
+                "type" : "number",
+                "description" : "Root-mean-square of the fit residuals C - P - (a + b K), price units."
+              },
+        "max_abs_residual" : {
+                "type" : "number",
+                "description" : "Largest absolute residual, price units."
+              }
+      },
+      "required" : ["expiry"],
+      "additionalProperties" : false
+    },
+    "quantra_ImpliedForwardPoint" : {
+      "type" : "object",
+      "description" : "Plain forward table: one row per fitted expiry, in date order.",
+      "properties" : {
+        "expiry" : {
+                "type" : "string"
+              },
+        "time" : {
+                "type" : "number"
+              },
+        "forward" : {
+                "type" : "number"
+              },
+        "implied_dividend_yield" : {
+                "type" : "number"
+              }
+      },
+      "required" : ["expiry"],
+      "additionalProperties" : false
+    },
+    "quantra_CalibrateImpliedForwardsResponse" : {
+      "type" : "object",
+      "description" : "Response of `/calibrate-implied-forwards`.",
+      "properties" : {
+        "sheet_id" : {
+                "type" : "string",
+                "description" : "Echo of `sheet.id`."
+              },
+        "underlying_id" : {
+                "type" : "string",
+                "description" : "Echo of `sheet.underlying_id`."
+              },
+        "spot" : {
+                "type" : "number",
+                "description" : "Spot read from the underlying's spot quote."
+              },
+        "filter" : {
+                "$ref" : "#/definitions/quantra_QuoteFilter",
+                "description" : "The filter actually applied (request values or the defaults)."
+              },
+        "expiries" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_ImpliedForwardExpiry"},
+                "description" : "Per-expiry report, every sheet expiry, date order."
+              },
+        "forwards" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_ImpliedForwardPoint"},
+                "description" : "Fitted expiries only, date order."
+              },
+        "dividend_curve_spec" : {
+                "$ref" : "#/definitions/quantra_TermStructure",
+                "description" : "Ready-to-paste `InterpolatedZero` curve (Act/365F, linear, continuous\nzero points) with id `dividend_curve_id`: a point at the as-of date\ncarrying the first fitted expiry's yield (flat short end; the curve's\nfirst node is its reference date) and one point per fitted expiry\nwith q(T). Discounting on the request curve and dividends on this\ncurve reproduces every fitted forward exactly."
+              }
+      },
+      "required" : ["sheet_id", "underlying_id", "filter", "expiries", "forwards", "dividend_curve_spec"],
+      "additionalProperties" : false
+    },
+    "quantra_QuantoSpec" : {
+      "type" : "object",
+      "description" : "Quanto treatment of one basket underlying whose currency differs from the\nnote currency: the note pays in its own currency the performance of an\nindex quoted in another one. The index keeps its own units and is\nsimulated in the note currency's measure with the drift\nr_local - q - rho * sigma_S * sigma_FX (QuantLib QuantoTermStructure):\nr_local the rate of the underlying's currency (`discounting_curve`), q\nits dividend yield, sigma_S its volatility, sigma_FX the FX volatility\nand rho `fx_underlying_correlation`. Present iff the underlying's\ncurrency differs from `StructuredNote.currency` (400 either way\notherwise: a quanto block on a same-currency underlying, or none on a\nforeign one).",
+      "properties" : {
+        "discounting_curve" : {
+                "type" : "string",
+                "description" : "Id of the discount curve of the UNDERLYING's currency in\npricing.rates.curves: the risk-neutral drift of the underlying in its\nown currency (r_local in the quanto adjustment). The note-currency\ncurve is `StructuredNote.discounting_curve`. Required."
+              },
+        "fx_spot_id" : {
+                "type" : "string",
+                "description" : "Id of the `FxSpotSpec` in pricing.fx.spots quoting the underlying's\ncurrency against the note currency, in either direction. The rate is\nused as quoted, never inverted, and only as the level the FX\nvolatility is read at; that volatility is Constant or term (no\nsmile), so neither the rate nor the quoting direction changes the\nprice or the meaning of `fx_underlying_correlation`. Required."
+              },
+        "fx_volatility_id" : {
+                "type" : "string",
+                "description" : "Id of the `VolSurfaceSpec` (BlackVolSpec payload, Constant or term)\nin pricing.volatility.vol_surfaces holding the volatility of that FX\nrate (the same for either quoting direction); used only for the\nquanto drift adjustment. Required."
+              },
+        "fx_underlying_correlation" : {
+                "type" : "number",
+                "description" : "Correlation, in [-1, 1], between the returns of the underlying and\nthe returns of the FX rate quoted as NOTE-currency units per one unit\nof the UNDERLYING's currency (USD per CHF for a CHF index in a USD\nnote). The drift is r_local - q - rho * sigma_S * sigma_FX: a\npositive correlation lowers it. A correlation measured against the\ninverse quote (CHF per USD in the example) goes in with its sign\nflipped. A scalar input: the FX rate is not simulated and this\ncorrelation is not read from the correlation matrix. Presence-\nrequired (a bare double would silently mean 0 = no adjustment)."
+              }
+      },
+      "required" : ["discounting_curve", "fx_spot_id", "fx_volatility_id"],
+      "additionalProperties" : false
+    },
+    "quantra_BasketUnderlying" : {
+      "type" : "object",
+      "description" : "One underlying of a basket: an equity index (or share) from the shared\nequity market data, its volatility, the level it was struck at, and the\ncloses already observed for a seasoned note.",
+      "properties" : {
+        "underlying_id" : {
+                "type" : "string",
+                "description" : "Id of the `EquityUnderlyingSpec` in pricing.equity.equity_underlyings\n(spot quote, dividend curve, currency). Required."
+              },
+        "volatility_id" : {
+                "type" : "string",
+                "description" : "Id of the `VolSurfaceSpec` (BlackVolSpec payload) in\npricing.volatility.vol_surfaces: constant, term, or strike x expiry\nsurface (a surface makes the simulation local-vol and requires\n`MonteCarloSpec.steps_per_year`). Required."
+              },
+        "initial_level" : {
+                "type" : "number",
+                "description" : "Strike fixing from the term sheet: the closing level on the strike\ndate that every performance S(t) / initial_level is measured against.\nPresence-required and > 0."
+              },
+        "quanto" : {
+                "$ref" : "#/definitions/quantra_QuantoSpec",
+                "description" : "Quanto block. Present iff the underlying's currency differs from the\nnote currency (see `QuantoSpec`)."
+              },
+        "historical_levels" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Fixing"},
+                "description" : "Closing levels on past observation dates (seasoned notes): one\n`Fixing` (date, value > 0) per observation event whose\n`observation_date` is on or before the valuation date and that\ncarries a trigger. Events before the valuation date are resolved from\nthese, never simulated; a past observation without a level is a 400\nnaming the date and the underlying. Accrual-only events need no\nlevel. Levels on other dates are ignored."
+              }
+      },
+      "required" : ["underlying_id", "volatility_id"],
+      "additionalProperties" : false
+    },
+    "quantra_ObservationEvent" : {
+      "type" : "object",
+      "description" : "One date of the note's life. Which tests run at an event is decided by\nwhich triggers are present; the coupon of the event is `coupon`\n(fraction of notional). The basket performance perf = rule over\nS_i(observation_date) / initial_level_i, and every test is \"perf >=\ntrigger\" (triggers are fractions of the initial level: 1.0 = 100%).\n\nautocall_trigger present, coupon_trigger absent (classic autocall):\nthe coupon test IS the call test. perf >= autocall_trigger: notional\nplus this event's coupon plus every unpaid coupon in the memory is\npaid on `payment_date` and the note ends. Otherwise nothing is paid\nand, with `CouponRule.memory`, `coupon` joins the memory.\nautocall_trigger present, coupon_trigger present (Phoenix with a call):\ncoupon test first: perf >= coupon_trigger earns this event's coupon\nplus the memory (paid on `payment_date`, or held until the next call\nwhen `CouponRule.pay_only_on_call`); otherwise the coupon joins the\nmemory. Then the call test: perf >= autocall_trigger pays the\nnotional plus everything held, on `payment_date`, and the note ends.\nautocall_trigger absent, coupon_trigger present (coupon-only date):\nthe coupon test only, as above; the note cannot end here.\nboth absent (accrual-only period):\nnothing is observed and nothing is paid: `coupon` is added to the\nmemory. This encodes a snowball coupon that accrues from the strike\ndate while the first observation is later (a 7% semi-annual coupon\nfirst observed at 12 months pays 2 x 7% on the first call). Requires\n`CouponRule.memory` = true (400 otherwise: nothing could carry the\ncoupon) and `payment_date` absent (400 when present).\n\nThe last event is the final observation: its tests run as above, and\nwhen the note has not ended there the capital test of\n`CapitalProtection` runs on the same perf and the redemption is paid on\n`StructuredNote.maturity_payment_date`. A final event with no trigger at\nall is a 400 unless it is marked `is_final`:\nis_final = true (maturity-only observation):\nnothing but the capital protection block (and `upside`, when present)\nis tested on this date; there is no coupon test and no call test, so\n`coupon`, `coupon_trigger` and `autocall_trigger` must be absent and\nthe coupon memory is NOT paid here (there is no coupon test to pay it\nwith; a factsheet whose final date pays the memory tests a coupon,\nsee below). A final observation that ALSO tests a coupon or a call\n(Santander's 80 % hurdle: `coupon_trigger 0.8`; BNP's 100 % call:\n`autocall_trigger 1.0`) keeps using triggers; `is_final` is for the\nfinal date that only decides the redemption (the Scotia note: 75 %\ntrigger and 250 % upside, no coupon, no call).\nEvents must be in strictly increasing `observation_date` order; events\non or before the valuation date are resolved from\n`BasketUnderlying.historical_levels` and never simulated.",
+      "properties" : {
+        "observation_date" : {
+                "type" : "string",
+                "description" : "Date the basket is observed (closing levels), ISO. Required. For an\naccrual-only event (no triggers) nothing is observed: the date is\nnominal and only orders the event among the others."
+              },
+        "payment_date" : {
+                "type" : "string",
+                "description" : "Date a coupon or call triggered here is paid, ISO, on or after\n`observation_date`. Required (400) whenever `autocall_trigger` or\n`coupon_trigger` is present; must be absent for an accrual-only\nevent."
+              },
+        "autocall_trigger" : {
+                "type" : "number",
+                "description" : "Autocall trigger as a fraction of the initial level (1.0 = 100%);\nperf >= trigger ends the note. Absent = the note cannot be called at\nthis date."
+              },
+        "coupon_trigger" : {
+                "type" : "number",
+                "description" : "Coupon trigger as a fraction of the initial level; perf >= trigger\nearns the coupon. Absent = no coupon test of its own (with an\n`autocall_trigger` the coupon is earned by the call test; with\nneither trigger the event is accrual-only)."
+              },
+        "coupon" : {
+                "type" : "number",
+                "description" : "Coupon of this period as a fraction of notional (0.07 = 7%).\nRequired (400) when `coupon_trigger` is present or the event is\naccrual-only. With only an `autocall_trigger` it may be absent: the\nevent then carries no coupon of its own and a call pays the notional\nplus the memory only."
+              },
+        "is_final" : {
+                "type" : "boolean",
+                "description" : "True: this event is the final observation and only the capital\nprotection block (and `upside`, if present) is tested there: no\ncoupon test, no call test, unpaid coupons in the memory are not paid.\n`coupon`, `coupon_trigger` and `autocall_trigger` must be absent (400\nnaming the field); `payment_date` is required and must equal\n`StructuredNote.maturity_payment_date` (400 otherwise); the event\nmust be the last one (400), so there is at most one. Absent (or\nfalse): the rules above stand, the last event must carry a trigger\nand a final event with a trigger behaves as today."
+              }
+      },
+      "required" : ["observation_date"],
+      "additionalProperties" : false
+    },
+    "quantra_CouponRule" : {
+      "type" : "object",
+      "description" : "How coupons that were earned or missed carry over between events.",
+      "properties" : {
+        "memory" : {
+                "type" : "boolean",
+                "description" : "True: a coupon not paid at its event (test failed, or held because\n`pay_only_on_call`) is added to a memory that is paid in full with\nthe next coupon that is paid; the memory is a sum of coupon amounts,\nso events may carry different coupons. False: a missed coupon is\nlost. Presence-required."
+              },
+        "pay_only_on_call" : {
+                "type" : "boolean",
+                "description" : "True (Athena / snowball): coupons are paid only when the note ends\n(a call, or the final event); an earned coupon at a non-calling\nevent is held in the memory. False (Phoenix): an earned coupon is\npaid on its event's `payment_date`. Presence-required."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CapitalProtection" : {
+      "type" : "object",
+      "description" : "Capital protection at the final observation. With perf the basket\nperformance on the final observation date (or, with DailyClose\nmonitoring, breach = any close below the barrier over the life), the\nredemption is notional x 1 when the barrier holds and\nnotional x (1 - participation x max(put_strike - perf_final, 0)) when it\nis breached, paid on `StructuredNote.maturity_payment_date`.",
+      "properties" : {
+        "barrier" : {
+                "type" : "number",
+                "description" : "Barrier as a fraction of the initial level (0.6 = 60%); the capital\nis at risk when perf < barrier. Presence-required and in (0, 1]."
+              },
+        "monitoring" : {
+                "$ref" : "#/definitions/quantra_enums_CapitalBarrierMonitoring",
+                "description" : "When the barrier is tested. Presence-required."
+              },
+        "put_strike" : {
+                "type" : "number",
+                "description" : "Strike of the embedded put as a fraction of the initial level\n(1.0 = loss measured from 100%, the \"1-for-1\" of a factsheet)."
+              },
+        "participation" : {
+                "type" : "number",
+                "description" : "Gearing of the loss (1.0 = 1-for-1)."
+              },
+        "knocked_in" : {
+                "type" : "boolean",
+                "description" : "Whether a DailyClose barrier has already been breached before the\nvaluation date. Presence-required (400) when `monitoring` is\nDailyClose and any event precedes the valuation date (the engine\ncannot infer it from `historical_levels`, which hold observation\ndates only); must be absent otherwise."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_UpsideParticipation" : {
+      "type" : "object",
+      "description" : "Optional upside at the final observation when the note has not called:\nadds `participation * max(perf - strike, 0)` of the notional, capped at\n`cap` when present. Expresses bonus certificates, capped participation\nnotes and twin-win structures; absent for a plain autocallable.",
+      "properties" : {
+        "strike" : {
+                "type" : "number",
+                "description" : "Strike as a fraction of the initial level. Presence-required."
+              },
+        "participation" : {
+                "type" : "number",
+                "description" : "Participation in the performance above the strike. Presence-required."
+              },
+        "cap" : {
+                "type" : "number",
+                "description" : "Maximum upside as a fraction of the notional (0.3 = at most +30%).\nAbsent = uncapped."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_MonteCarloSpec" : {
+      "type" : "object",
+      "description" : "Monte Carlo settings. Every price carries its standard error, path\ncount and seed, and Greeks are computed by bump-and-reprice on the same\nrandom stream.",
+      "properties" : {
+        "paths" : {
+                "type" : "integer", "minimum" : 0, "maximum" : 4294967295,
+                "description" : "Number of simulated paths (antithetic pairs count as two paths).\nPresence-required and > 0; a power of two is recommended with Sobol."
+              },
+        "seed" : {
+                "type" : "integer", "minimum" : 0, "maximum" : 18446744073709551615,
+                "description" : "Seed of the random sequence (Sobol scrambling / Mersenne Twister)."
+              },
+        "sequence" : {
+                "$ref" : "#/definitions/quantra_enums_RandomSequence",
+                "description" : "Random-number source."
+              },
+        "antithetic" : {
+                "type" : "boolean",
+                "description" : "Antithetic variates (every Gaussian draw is also used negated)."
+              },
+        "brownian_bridge" : {
+                "type" : "boolean",
+                "description" : "Brownian-bridge ordering of the draws (recommended with Sobol)."
+              },
+        "steps_per_year" : {
+                "type" : "integer", "minimum" : 0, "maximum" : 4294967295,
+                "description" : "Time steps per year of the simulation grid between observation\ndates. Required (400) when any underlying's volatility is a strike x\nexpiry surface (local-vol evolution) or the capital barrier is\nmonitored DailyClose; otherwise must be absent and the grid is the\nobservation dates only (exact lognormal steps). Between observation\ndates the processes evolve with log-Euler steps of 1/steps_per_year\nyears. A DailyClose barrier is tested on the simulated closes only:\nset this to the index's trading days per year (about 252); fewer\nsteps under-sample the barrier and bias the price. No continuity\ncorrection (Broadie-Glasserman-Kou) is applied, because the barrier\nis discrete by contract."
+              },
+        "local_vol_floor" : {
+                "type" : "number",
+                "description" : "Optional safety net for a strike-dependent surface simulated as\nDupire local vol. Absent: QuantLib's LocalVolSurface as is; a read\nit refuses (total variance decreasing in time, negative local\nvariance) is a 400 naming the surface. Present (> 0, finite; 400\notherwise, and 400 when no underlying is simulated as local vol):\nthe local vol simulated is max(Dupire, local_vol_floor), and a read\nQuantLib would refuse takes the floor instead. Where no floor applies\nthe local vol is QuantLib's to the bit. The response's\n`model.underlyings[]` reports the fraction of local vol reads that\nwere floored and the refusals floored. A floored fraction above about\n1e-3 means the surface is not usable for the note: recalibrate it."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_StructuredNote" : {
+      "type" : "object",
+      "description" : "A structured note on a basket of equity indices: a strip of observation\nevents (autocall and/or coupon tests on the basket performance), a coupon\ncarry rule, and capital protection at maturity. Classic and snowball\nautocalls, low-hurdle finals, Phoenix coupons, step-down triggers and\ngeared puts are all configurations of these fields; there is one payoff\nwalk, not one product per shape. Priced by Monte Carlo under correlated\nBlack-Scholes (or local-vol) dynamics with quanto drift adjustments,\ndiscounted on `discounting_curve` plus `funding_spread_bp`.",
+      "properties" : {
+        "trade_id" : {
+                "type" : "string",
+                "description" : "Trade identifier echoed in the response. Required."
+              },
+        "currency" : {
+                "type" : "string",
+                "description" : "ISO 4217 code of the note currency (coupons, redemption, NPV).\nRequired."
+              },
+        "notional" : {
+                "type" : "number",
+                "description" : "Notional (denomination x units); coupons and the redemption are\nfractions of it. Presence-required and > 0."
+              },
+        "underlyings" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_BasketUnderlying"},
+                "description" : "The basket. Required; at least one entry; ids distinct; with two or\nmore entries the set of `underlying_id`s must equal the labels of the\ncorrelation matrix `correlation_id`."
+              },
+        "performance_rule" : {
+                "$ref" : "#/definitions/quantra_enums_BasketPerformanceRule",
+                "description" : "Reduction of the underlyings' performances to the tested perf.\nPresence-required."
+              },
+        "events" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_ObservationEvent"},
+                "description" : "The note's dates in strictly increasing `observation_date` order; the\nlast one is the final observation. Required; at least one entry."
+              },
+        "coupon_rule" : {
+                "$ref" : "#/definitions/quantra_CouponRule",
+                "description" : "Coupon carry rule. Required."
+              },
+        "capital" : {
+                "$ref" : "#/definitions/quantra_CapitalProtection",
+                "description" : "Capital protection tested at the final observation. Required."
+              },
+        "maturity_payment_date" : {
+                "type" : "string",
+                "description" : "Date the redemption is paid when the note reaches the final\nobservation without a call, ISO, on or after the final\n`observation_date`. Required."
+              },
+        "discounting_curve" : {
+                "type" : "string",
+                "description" : "Id of the note-currency discount curve in pricing.rates.curves\n(OIS or funding curve). Required."
+              },
+        "funding_spread_bp" : {
+                "type" : "number",
+                "description" : "Issuer funding spread in basis points added to `discounting_curve`\nas a flat zero spread (QuantLib ZeroSpreadedTermStructure) for\ndiscounting every cash flow. 0 = discount on the curve as is."
+              },
+        "correlation_id" : {
+                "type" : "string",
+                "description" : "Id of the `CorrelationMatrixSpec` in pricing.correlations.matrices;\nits labels must be exactly the basket's underlying ids. Required\n(400) when the note has two or more underlyings; must be absent (400)\nwith exactly one underlying, which is simulated on a 1 x 1 unit\nmatrix (a `CorrelationMatrixSpec` lists at least two labels)."
+              },
+        "correlation_markup" : {
+                "type" : "number",
+                "description" : "Uniform additive shift applied to every off-diagonal entry of the\ncorrelation matrix before pricing (the desk's correlation mark-up or\nstress): each entry becomes `rho + correlation_markup` clipped to\n[-1, 1]; when the shifted matrix is not positive semi-definite it is\nrepaired exactly as the Greeks' correlation bump is (eigenvalue\nclipping, rescaled to unit diagonal) and the response says so. The\nGreeks' correlation bump and the correlation-limit checks start from\nthe marked-up matrix. Finite, in [-1, 1] (400 otherwise); must be\nabsent with a single underlying. Absent = no shift."
+              },
+        "upside" : {
+                "$ref" : "#/definitions/quantra_UpsideParticipation",
+                "description" : "Upside participation at the final observation. Absent = none."
+              },
+        "monte_carlo" : {
+                "$ref" : "#/definitions/quantra_MonteCarloSpec",
+                "description" : "Simulation settings. Required."
+              }
+      },
+      "required" : ["trade_id", "currency", "underlyings", "events", "coupon_rule", "capital", "maturity_payment_date", "discounting_curve", "monte_carlo"],
+      "additionalProperties" : false
+    },
+    "quantra_VolSurfaceValidationChecks" : {
+      "type" : "object",
+      "description" : "Which tests `/validate-vol-surface` runs. At least one must be on.",
+      "properties" : {
+        "fit" : {
+                "type" : "boolean",
+                "description" : "Every usable quote priced with Black-76 on the surface's own vol at\nits expiry and strike, compared with its bid/ask."
+              },
+        "arbitrage" : {
+                "type" : "boolean",
+                "description" : "The surface's Dupire local vol read as a structured note reads it,\nscanned for refusals, plus the slice conditions of an SVI or SSVI\npayload."
+              },
+        "simulation" : {
+                "type" : "boolean",
+                "description" : "Every usable quote priced by Monte Carlo on the local vol derived\nfrom the surface. Requires `simulation` (the Monte Carlo settings)."
+              },
+        "arbitrage_grid" : {
+                "type" : "boolean",
+                "description" : "With `arbitrage`: also return every point the local vol scan\nevaluated (`arbitrage.local_vol_grid`: about 25 rows of 201 strikes\non an 8-expiry surface, 10 000 to 20 000 points on a long sheet).\nOff: nothing more is returned. `true` without `arbitrage` is a 400."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_VolSurfaceValidationBands" : {
+      "type" : "object",
+      "description" : "Edges of the summary table (`bands` of the fit and simulation blocks).\nEach list strictly increasing, finite and > 0; the cells are the open\nintervals below the first edge and above the last one and the half-open\nintervals [edge_i, edge_i+1) in between.",
+      "properties" : {
+        "moneyness" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Moneyness K / F edges. Default when absent or empty:\n0.8, 0.9, 0.95, 1.05, 1.1, 1.2."
+              },
+        "maturities" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Time-to-expiry edges in Act/365F years. Default when absent or empty:\n1/12, 0.25, 0.5, 1, 2."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_ValidateVolSurfaceRequest" : {
+      "type" : "object",
+      "description" : "Request for `/validate-vol-surface`: test an equity Black vol surface\n(any shape: a strike x expiry grid, an `SviVolSpec` or `SsviVolSpec`\npayload, a constant or term vol) against a sheet of listed option quotes.\nNothing is fitted: the surface in `pricing.volatility.vol_surfaces` is\nread exactly as the pricers read it.",
+      "properties" : {
+        "pricing" : {
+                "$ref" : "#/definitions/quantra_Pricing",
+                "description" : "Full pricing context: `as_of_date`, the discounting curve in\n`rates.curves`, the underlying's spot in `quotes` and its\n`EquityUnderlyingSpec` (spot quote and dividend curve) in\n`equity.equity_underlyings`, and the surface in\n`volatility.vol_surfaces`."
+              },
+        "volatility_id" : {
+                "type" : "string",
+                "description" : "Id of the surface under test in `pricing.volatility.vol_surfaces`\n(an equity Black vol: `BlackVolSpec`, `SviVolSpec` or `SsviVolSpec`)."
+              },
+        "underlying_id" : {
+                "type" : "string",
+                "description" : "`EquityUnderlyingSpec.id`: the spot and the dividend curve."
+              },
+        "discounting_curve" : {
+                "type" : "string",
+                "description" : "Curve id in `pricing.rates.curves`: the risk-free curve of the\nunderlying's currency (the discount factors, and the drift of the\nsimulation, as a structured note's `discounting_curve`)."
+              },
+        "quotes" : {
+                "$ref" : "#/definitions/quantra_OptionQuoteSheet",
+                "description" : "The option quotes, for `underlying_id` (400 otherwise). European\nstyle only."
+              },
+        "filter" : {
+                "$ref" : "#/definitions/quantra_QuoteFilter",
+                "description" : "Per-line quote rules, the same as `/calibrate-vol-surface` (defaults\nwhen absent); an expiry with fewer than `min_quotes_per_expiry` usable\nquotes is reported and left out. `moneyness_window` is not used."
+              },
+        "forwards" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_ImpliedForwardExpiry"},
+                "description" : "Optional: the `expiries` array of a `/calibrate-implied-forwards`\nresponse (or the `forwards` of a `/calibrate-vol-surface` response\nwith `usable: true`), pasted as is. Present: every check reads the\nsheet's forward F and implied discount factor DF per expiry (a\nrisk-free curve on the DFs, log-linear, and a dividend curve\nDF_q = F DF / S, the market `/calibrate-vol-surface` fits on), and an\nexpiry not listed is dropped. Absent: F = S D_div(T) / D(T) and\nDF = D(T) from `discounting_curve` and the underlying's dividend\ncurve, the market a structured note simulates on."
+              },
+        "checks" : {
+                "$ref" : "#/definitions/quantra_VolSurfaceValidationChecks",
+                "description" : "Which tests to run; defaults (fit and arbitrage on, simulation off)\nwhen absent."
+              },
+        "simulation" : {
+                "$ref" : "#/definitions/quantra_MonteCarloSpec",
+                "description" : "Monte Carlo settings of the simulation test, the same table and rules\nas a structured note's `monte_carlo` (`steps_per_year` required for a\nstrike-dependent surface and absent for a constant or term vol;\n`local_vol_floor` optional). Required with `checks.simulation`, and\nmust be absent without it."
+              },
+        "bands" : {
+                "$ref" : "#/definitions/quantra_VolSurfaceValidationBands",
+                "description" : "Summary-table edges; defaults documented on the table."
+              }
+      },
+      "required" : ["pricing", "volatility_id", "underlying_id", "discounting_curve", "quotes"],
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/quantra_ValidateVolSurfaceRequest"
+}

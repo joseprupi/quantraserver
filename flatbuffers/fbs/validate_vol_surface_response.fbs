@@ -1,0 +1,359 @@
+include "enums.fbs";
+include "option_quotes.fbs";
+include "calibrate_implied_forwards_response.fbs";
+include "validate_vol_surface_request.fbs";
+
+namespace quantra;
+
+/// One sheet expiry as the checks used it. Every sheet expiry appears once,
+/// in date order.
+table VolSurfaceValidationExpiry {
+    expiry:string (required);
+    /// Act/365F years from `pricing.as_of_date`.
+    time:double;
+    /// True iff the expiry's quotes entered the checks.
+    usable:bool;
+    /// Why not (absent when `usable`).
+    dropped_reason:string;
+    /// The forward and discount factor the quotes were read on (see
+    /// `ValidateVolSurfaceRequest.forwards`); absent when the expiry has
+    /// none (on or before the as-of date, or not in `forwards`).
+    forward:double = null;
+    discount_factor:double = null;
+    /// Out-of-the-money quotes with an implied vol (the side
+    /// `/calibrate-vol-surface` fits: the call for K >= F, the put below).
+    quotes_used:uint;
+    quotes_dropped:uint;
+    /// Every line not used, with its reason.
+    dropped:[DroppedQuote] (required);
+}
+
+/// One cell of the summary table: quotes whose moneyness K / F and time to
+/// expiry fall in the cell's ranges (a bound is absent on an open end; the
+/// lower bound is inclusive, the upper exclusive). Only cells with at least
+/// one quote are listed, ordered by maturity then moneyness.
+table VolSurfaceBandCell {
+    moneyness_min:double = null;
+    moneyness_max:double = null;
+    time_min:double = null;
+    time_max:double = null;
+    count:uint;
+    /// Quotes priced inside their bid/ask.
+    inside:uint;
+    /// Root mean square and largest absolute vol error (vol units, 0.01 =
+    /// one vol point) over the cell's quotes that have one; absent when none.
+    rms_vol_error:double = null;
+    max_abs_vol_error:double = null;
+}
+
+/// One used quote priced on the surface (`fit`).
+table VolSurfaceQuoteFit {
+    expiry:string (required);
+    time:double;
+    strike:double;
+    /// K / F.
+    moneyness:double;
+    /// The out-of-the-money side used.
+    option_type:enums.EquityOptionType = null;
+    bid:double;
+    ask:double;
+    mid:double;
+    /// Black-76 implied vol of the mid on the expiry's forward and discount
+    /// factor.
+    market_vol:double;
+    /// The surface's Black vol at (expiry, strike), read through the vol
+    /// term structure the pricers use (extrapolation allowed).
+    model_vol:double;
+    /// Black-76 price at `model_vol` on the same forward and discount factor.
+    model_price:double;
+    /// bid <= model_price <= ask.
+    inside_spread:bool;
+    /// model_vol - market_vol.
+    vol_error:double;
+    /// model_price - mid.
+    price_error:double;
+    /// Black-76 implied vols of the bid and of the ask (the same side,
+    /// forward and discount factor as `market_vol`): the quote's spread in
+    /// vol units. Absent when the price has no implied vol (a zero bid, a
+    /// price at or below intrinsic value); never 0.
+    bid_vol:double = null;
+    ask_vol:double = null;
+}
+
+/// The vol error at the quote nearest the money of one expiry (smallest
+/// |ln(K / F)|).
+table VolSurfaceAtmError {
+    expiry:string (required);
+    time:double;
+    strike:double;
+    moneyness:double;
+    market_vol:double;
+    model_vol:double;
+    vol_error:double;
+}
+
+/// `fit`: every used quote priced with Black-76 on the surface's own vol.
+/// Verdict: "pass" when at least 90 % of the quotes are inside their bid/ask
+/// and every at-the-money vol error is within 0.5 vol point, "fail" below
+/// 50 % inside, "warn" otherwise; the string carries the numbers.
+table VolSurfaceFitValidation {
+    count:uint;
+    inside:uint;
+    rms_vol_error:double;
+    max_abs_vol_error:double;
+    max_abs_price_error:double;
+    quotes:[VolSurfaceQuoteFit] (required);
+    /// Summary by moneyness band x maturity bucket.
+    bands:[VolSurfaceBandCell] (required);
+    /// One entry per usable expiry, date order.
+    atm_error_per_expiry:[VolSurfaceAtmError] (required);
+    verdict:string (required);
+}
+
+/// Dupire local vol of the surface, read exactly as a structured note reads
+/// it: QuantLib's LocalVolSurface (the closed-form local vol for an
+/// `SsviVolSpec`) on the surface as the parser builds it, held at the
+/// surface's own strike limits (`local_vol_strike_min` / `_max` of a grid,
+/// `strike_min` / `strike_max` of the slices; the grid's edge strikes
+/// otherwise) and extended in time as the spec says
+/// (`local_vol_time_extrapolation`), on the forwards of the checks. The
+/// scan: times = every expiry of the surface (the quoted expiries for a
+/// constant or term vol) +/- 2e-4 years (outside QuantLib's time stencil of
+/// 1e-4), the midpoints between them (and between 0 and the first) and the
+/// last expiry - 1e-3; at each time 201 log-spaced strikes over the region
+/// of the first usable quoted expiry at or after it (the last one beyond):
+/// from the forward outwards, the log-strike distance five standard
+/// deviations cover at the quotes' implied vols, together with the strikes
+/// quoted on both that expiry and the one before, within the widest of the
+/// surface's strike limits and the quoted strikes. A refused point is one
+/// where QuantLib throws ("decreasing variance ..." or "negative local
+/// vol^2 ...", for SSVI g <= 0 or a negative local variance).
+table LocalVolCheck {
+    /// True iff every scan point evaluated (no refusal): the surface can be
+    /// simulated as local vol everywhere the scan reached.
+    arbitrage_free:bool;
+    times:uint;
+    strikes:uint;
+    points:uint;
+    refused:uint;
+    /// QuantLib's message at the first refused point.
+    first_refusal:string;
+    /// Smallest local variance (sigma_loc^2) over the points that evaluated,
+    /// and its time (Act/365F years) and strike.
+    min_local_variance:double = null;
+    min_local_variance_time:double = null;
+    min_local_variance_strike:double = null;
+}
+
+/// One scan time of `local_vol_grid`: the strikes evaluated at that time
+/// (201, log-spaced over the region of the expiry the time belongs to, so
+/// they differ from row to row), the local vol at each (0 at a refused
+/// point) and the indices into `strikes` of the refused points.
+table LocalVolGridRow {
+    time:double;
+    strikes:[double] (required);
+    local_vols:[double] (required);
+    refused:[uint] (required);
+}
+
+/// Every point the local vol scan evaluated (`checks.arbitrage_grid`), one
+/// row per scan time in increasing time: exactly the `points` of
+/// `local_vol_check` (rows x 201). The smallest square of a local vol not
+/// refused is `local_vol_check.min_local_variance`. Size: about 5 000
+/// points on an 8-expiry sheet, 10 000 to 20 000 on a long one.
+table LocalVolGrid {
+    rows:[LocalVolGridRow] (required);
+}
+
+/// A strike clamp the structured note's local vol applies when it reads
+/// this surface (a simulated level beyond an edge reads the local vol at
+/// the edge): the level the local vol is read at, i.e. the spec's range
+/// moved inside by 1e-3 in log-strike (unless that leaves no interior).
+/// `scope` `PerExpiry`: the spec's per-expiry ranges (`local_vol_strike_min`
+/// / `_max` of a grid, `strike_min` / `strike_max` with
+/// `local_vol_strike_range: PerExpiry`), each applying up to its `time`;
+/// `Surface`: one range for the whole surface (a grid's edge strikes, the
+/// slices' widest `strike_min` / `strike_max`), repeated per expiry of the
+/// surface (or once, without expiry, when the surface has none). An edge is
+/// absent on an open side.
+table ClampEdge {
+    scope:string (required);
+    expiry:string;
+    time:double = null;
+    strike_min:double = null;
+    strike_max:double = null;
+}
+
+/// Static-arbitrage check of eSSVI slices: the closed-form butterfly and
+/// calendar conditions (see `SsviVolSpec`) and a numeric scan of
+/// Durrleman's g(k) and of dw/dt at fixed k at the slice times, their
+/// midpoints, half the first and 1.5 times the last, on 201 points of k in
+/// [-1.5, 1.0].
+table SsviArbitrageCheck {
+    /// Violated conditions ("butterfly_psi at slice 3 (by 1e-5)", ...);
+    /// empty when the slices are free of static arbitrage.
+    violations:[string] (required);
+    scan_min_g:double;
+    scan_min_g_time:double;
+    scan_min_g_k:double;
+    scan_min_dw_dt:double;
+    scan_min_dw_dt_time:double;
+    scan_min_dw_dt_k:double;
+}
+
+/// Margins of one eSSVI slice's arbitrage conditions (right-hand side minus
+/// left-hand side, >= 0 when met): 4 - psi (1 + |rho|),
+/// 4 theta - psi^2 (1 + |rho|), and against the previous slice (absent on
+/// the first) theta_i - theta_{i-1}, psi_i - psi_{i-1} and
+/// (psi_i - psi_{i-1}) - |rho_i psi_i - rho_{i-1} psi_{i-1}|.
+table SsviSliceCheck {
+    expiry:string (required);
+    time:double;
+    theta:double;
+    rho:double;
+    psi:double;
+    margin_butterfly_psi:double;
+    margin_butterfly_psi2:double;
+    margin_calendar_theta:double = null;
+    margin_calendar_psi:double = null;
+    margin_calendar_a:double = null;
+}
+
+/// One raw SVI slice: Durrleman's butterfly function g(k) (negative =
+/// butterfly arbitrage) on 201 points of k = ln(K / F) over the slice's
+/// strike range (`strike_min` / `strike_max`; without them the quoted
+/// strikes of the sheet), the wing slope b (1 + |rho|) against Roger Lee's
+/// bound 2, and against the previous slice (absent on the first) the
+/// smallest increase of total variance at the same k on the same points
+/// (negative = calendar arbitrage) and the forward vol it implies,
+/// sqrt(dw / dT) (negative when dw < 0).
+table SviSliceCheck {
+    expiry:string (required);
+    time:double;
+    butterfly_min_g:double;
+    butterfly_min_g_k:double;
+    wing_slope:double;
+    calendar_min_dw:double = null;
+    calendar_min_dw_k:double = null;
+    calendar_min_forward_vol:double = null;
+}
+
+/// `arbitrage`: the local vol scan, plus the slice conditions of an SVI or
+/// SSVI payload. Verdict: "pass" when the scan has no refusal and the slice
+/// conditions hold, "fail" otherwise, with the numbers.
+table VolSurfaceArbitrageValidation {
+    /// True iff the local vol scan has no refusal and no slice condition is
+    /// violated.
+    arbitrage_free:bool;
+    local_vol_check:LocalVolCheck (required);
+    /// `SviVolSpec` only: one entry per slice.
+    svi_slices:[SviSliceCheck];
+    /// `SsviVolSpec` only.
+    ssvi_check:SsviArbitrageCheck;
+    ssvi_slices:[SsviSliceCheck];
+    /// Violated slice conditions in words (empty when none, or for a shape
+    /// without slices).
+    violations:[string] (required);
+    verdict:string (required);
+    /// Present iff `checks.arbitrage_grid`.
+    local_vol_grid:LocalVolGrid;
+    /// The strike clamps the note applies when reading the surface; empty
+    /// when it reads it unclamped (a constant or term vol: exact lognormal
+    /// steps, no local vol; a payload without strike limits).
+    clamp_edges:[ClampEdge] (required);
+}
+
+/// One used quote priced by Monte Carlo (`simulation`).
+table VolSurfaceQuoteSimulation {
+    expiry:string (required);
+    time:double;
+    strike:double;
+    moneyness:double;
+    option_type:enums.EquityOptionType = null;
+    bid:double;
+    ask:double;
+    mid:double;
+    /// Black-76 implied vol of the mid (as in `fit`).
+    market_vol:double;
+    /// DF x mean of max(+/-(S_T - K), 0) over the simulated paths.
+    mc_price:double;
+    /// Monte Carlo standard error of `mc_price` (the path engine's
+    /// estimator, discounted).
+    standard_error:double;
+    /// Black-76 implied vol of `mc_price`; absent when it does not solve.
+    mc_vol:double = null;
+    /// bid <= mc_price <= ask.
+    inside_spread:bool;
+    /// bid - 3.5 SE <= mc_price <= ask + 3.5 SE: inside the bid/ask up to
+    /// the Monte Carlo noise.
+    within_noise:bool;
+    /// mc_vol - market_vol; absent when mc_vol is.
+    vol_error:double = null;
+    /// mc_price - mid.
+    price_error:double;
+}
+
+/// `simulation`: every used quote priced as a European option on paths of
+/// the local vol derived from the surface (one asset; the process, the
+/// path engine and the local vol a structured note uses: spot, dividend and
+/// risk-free curves of the checks, the surface's strike limits and time
+/// extension, `local_vol_floor` when given). The grid is the used expiries,
+/// refined by `steps_per_year`. Verdict: "pass" when at least 95 % of the
+/// quotes are within the noise (`within_noise`), "fail" below 80 %, "warn"
+/// otherwise.
+table VolSurfaceSimulationValidation {
+    paths:uint;
+    time_steps:uint;
+    seed:ulong;
+    count:uint;
+    inside:uint;
+    within_noise:uint;
+    max_abs_price_error:double;
+    /// Largest |vol_error| over the quotes that have one; absent when none.
+    max_abs_vol_error:double = null;
+    max_standard_error:double;
+    quotes:[VolSurfaceQuoteSimulation] (required);
+    bands:[VolSurfaceBandCell] (required);
+    verdict:string (required);
+}
+
+/// What the checks ran on.
+table VolSurfaceValidationInputsEcho {
+    volatility_id:string (required);
+    /// Shape of the surface (`SviSlices` / `SsviSlices` for the payloads).
+    shape:enums.VolSurfaceShape = null;
+    underlying_id:string (required);
+    spot:double;
+    discounting_curve:string (required);
+    dividend_curve:string (required);
+    /// "request" when `forwards` was given, "curves" otherwise.
+    forwards_source:string (required);
+    sheet_id:string (required);
+    /// The quote filter applied (request values or the defaults).
+    filter:QuoteFilter (required);
+    checks:VolSurfaceValidationChecks (required);
+    /// The band edges applied.
+    moneyness_edges:[double] (required);
+    maturity_edges:[double] (required);
+}
+
+/// Wall-clock milliseconds per check (absent when not run) and in total.
+table VolSurfaceValidationTiming {
+    fit_milliseconds:double = null;
+    arbitrage_milliseconds:double = null;
+    simulation_milliseconds:double = null;
+    total_milliseconds:double;
+}
+
+/// Response of `/validate-vol-surface`. A block is present iff its check ran.
+table ValidateVolSurfaceResponse {
+    inputs_echo:VolSurfaceValidationInputsEcho (required);
+    /// Every sheet expiry, date order.
+    expiries:[VolSurfaceValidationExpiry] (required);
+    fit:VolSurfaceFitValidation;
+    arbitrage:VolSurfaceArbitrageValidation;
+    simulation:VolSurfaceSimulationValidation;
+    timing:VolSurfaceValidationTiming (required);
+}
+
+root_type ValidateVolSurfaceResponse;
