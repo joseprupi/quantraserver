@@ -356,11 +356,23 @@ def test_api_equals_python_reference(client, data_dir, example, tol):
 def test_flat_twenty_percent(client, method):
     out = _ok(client, gen.build_vol_surface_request(gen.SYNTHETIC_FLAT_20, method))
     grid = _grid(out)
-    assert len(grid) == 8 * 41
+    # SVI samples the 41 default strikes; Andreasen-Huge returns its own
+    # finite-difference strikes within the output range and the regions.
+    n_strikes = len(out["grid_strikes"])
+    assert len(grid) == 8 * n_strikes
+    if method == "SviPerExpiry":
+        assert n_strikes == 41
+    else:
+        assert n_strikes > 41
+        assert out["strikes_as_moneyness"] == pytest.approx(
+            [k / 24000.0 for k in out["grid_strikes"]])
     quoted = [abs(v - 0.20) for (_e, k), v in grid.items() if 0.7 * 24000.0 - 1e-6 <= k <= 1.3 * 24000.0 + 1e-6]
     assert max(quoted) < 1e-3
     assert max(abs(v - 0.20) for v in grid.values()) < (1e-3 if method == "SviPerExpiry" else 1e-2)
-    assert out["vanilla_repricing"]["inside_bid_ask"] == out["vanilla_repricing"]["count"]
+    # Andreasen-Huge on its own strikes: at most one wing quote just outside
+    # its 1 % spread (the model's price noise).
+    rp = out["vanilla_repricing"]
+    assert rp["inside_bid_ask"] + (0 if method == "SviPerExpiry" else 1) >= rp["count"]
     for e in out["expiries"]:
         assert e["calendar_violations"] == 0 and not e["butterfly_violation"]
 
@@ -394,9 +406,17 @@ def test_custom_grid(client, data_dir):
     assert out["grid_expiries"] == ["2026-10-30", "2027-03-19"]
     assert out["vol_surface_spec"]["payload"]["expiries"] == [{"n": 30, "unit": "Days"},
                                                               {"n": 170, "unit": "Days"}]
-    assert out["grid_strikes"] == pytest.approx([19200.0, 21600.0, 24000.0, 26400.0, 28800.0])
-    assert out["expiries"][0]["grid_points_filled"] == 0
-    assert len(out["vol_surface_spec"]["payload"]["surface_vols"]["values"]) == 10
+    # Andreasen-Huge: the model's own strikes, the requested 0.8 .. 1.2
+    # range widened by the expiries' regions, increasing, through the spot.
+    strikes = out["grid_strikes"]
+    assert strikes[0] <= 19200.0 and strikes[-1] >= 28800.0
+    assert all(a < b for a, b in zip(strikes, strikes[1:]))
+    assert min(abs(k - 24000.0) for k in strikes) < 100.0
+    assert len(out["vol_surface_spec"]["payload"]["surface_vols"]["values"]) == 2 * len(strikes)
+    lv_min = out["vol_surface_spec"]["payload"]["local_vol_strike_min"]
+    lv_max = out["vol_surface_spec"]["payload"]["local_vol_strike_max"]
+    assert len(lv_min) == len(lv_max) == 2
+    assert all(strikes[0] < lo < hi < strikes[-1] for lo, hi in zip(lv_min, lv_max))
     # The 1M date is not a sheet expiry: fine for Andreasen-Huge, a 400 for SVI.
     request["method"] = "SviPerExpiry"
     r = _post(client, request)

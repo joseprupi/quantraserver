@@ -21,6 +21,10 @@
       "type" : "string",
       "enum": ["FlatImpliedVol", "FlatLocalVol"]
     },
+    "quantra_enums_LocalVolStrikeRange" : {
+      "type" : "string",
+      "enum": ["Global", "PerExpiry"]
+    },
     "quantra_enums_BootstrapTrait" : {
       "type" : "string",
       "enum": ["Discount", "FwdRate", "InterpolatedDiscount", "InterpolatedFwd", "InterpolatedZero", "ZeroRate"]
@@ -603,6 +607,10 @@
         "steps_per_year" : {
                 "type" : "integer", "minimum" : 0, "maximum" : 4294967295,
                 "description" : "Time steps per year of the simulation grid between observation\ndates. Required (400) when any underlying's volatility is a strike x\nexpiry surface (local-vol evolution) or the capital barrier is\nmonitored DailyClose; otherwise must be absent and the grid is the\nobservation dates only (exact lognormal steps). Between observation\ndates the processes evolve with log-Euler steps of 1/steps_per_year\nyears. A DailyClose barrier is tested on the simulated closes only:\nset this to the index's trading days per year (about 252); fewer\nsteps under-sample the barrier and bias the price. No continuity\ncorrection (Broadie-Glasserman-Kou) is applied, because the barrier\nis discrete by contract."
+              },
+        "local_vol_floor" : {
+                "type" : "number",
+                "description" : "Optional safety net for a strike-dependent surface simulated as\nDupire local vol. Absent: QuantLib's LocalVolSurface as is; a read\nit refuses (total variance decreasing in time, negative local\nvariance) is a 400 naming the surface. Present (> 0, finite; 400\notherwise, and 400 when no underlying is simulated as local vol):\nthe local vol simulated is max(Dupire, local_vol_floor), and a read\nQuantLib would refuse takes the floor instead. Where no floor applies\nthe local vol is QuantLib's to the bit. The response's\n`model.underlyings[]` reports the fraction of local vol reads that\nwere floored and the refusals floored. A floored fraction above about\n1e-3 means the surface is not usable for the note: recalibrate it."
               }
       },
       "additionalProperties" : false

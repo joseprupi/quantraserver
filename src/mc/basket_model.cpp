@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <set>
 #include <sstream>
 
@@ -68,16 +69,152 @@ EdgeClampedLocalVol::EdgeClampedLocalVol(
     registerWith(inner_);
 }
 
-QuantLib::Real EdgeClampedLocalVol::clampedLevel(QuantLib::Real s) const {
-    return std::min(std::max(s, lower_), upper_);
+EdgeClampedLocalVol::EdgeClampedLocalVol(
+    std::shared_ptr<QuantLib::LocalVolTermStructure> inner,
+    const std::vector<LocalVolStrikeBand>& bands,
+    QuantLib::Time maxTime)
+    : EdgeClampedLocalVol(
+          std::move(inner),
+          bands.empty() ? 0.0 : bands.front().minStrike,
+          bands.empty() ? QL_MAX_REAL : bands.front().maxStrike,
+          maxTime) {
+    if (bands.empty()) {
+        QUANTRA_ERROR("basket model: per-expiry local vol strike bands must not be empty");
+    }
+    for (std::size_t i = 0; i < bands.size(); ++i) {
+        LocalVolStrikeBand b = bands[i];
+        if (!(b.minStrike < b.maxStrike) || (i > 0 && !(b.time > bands[i - 1].time))) {
+            QUANTRA_ERROR("basket model: invalid per-expiry local vol strike band");
+        }
+        const QuantLib::Real lo = b.minStrike * std::exp(kEdgeMargin);
+        const QuantLib::Real hi = b.maxStrike * std::exp(-kEdgeMargin);
+        if (lo < hi) {
+            b.minStrike = lo;
+            b.maxStrike = hi;
+        }
+        bands_.push_back(b);
+    }
+}
+
+QuantLib::Real EdgeClampedLocalVol::clampedLevel(QuantLib::Real s, QuantLib::Time t) const {
+    if (bands_.empty()) return std::min(std::max(s, lower_), upper_);
+    auto it = std::lower_bound(
+        bands_.begin(), bands_.end(), t,
+        [](const LocalVolStrikeBand& b, QuantLib::Time x) { return b.time < x; });
+    if (it == bands_.end()) --it;
+    return std::min(std::max(s, it->minStrike), it->maxStrike);
 }
 
 QuantLib::Time EdgeClampedLocalVol::clampedTime(QuantLib::Time t) const {
     return std::min(t, tMax_);
 }
 
+void EdgeClampedLocalVol::setFloor(
+    QuantLib::Real floor,
+    QuantLib::Handle<QuantLib::BlackVolTermStructure> black,
+    QuantLib::Handle<QuantLib::YieldTermStructure> riskFree,
+    QuantLib::Handle<QuantLib::YieldTermStructure> dividend,
+    QuantLib::Handle<QuantLib::Quote> spot) {
+    if (!(floor > 0.0) || black.empty() || riskFree.empty() || dividend.empty() || spot.empty()) {
+        QUANTRA_ERROR("basket model: a local vol floor needs a floor > 0 and linked handles");
+    }
+    floor_ = floor;
+    black_ = std::move(black);
+    riskFree_ = std::move(riskFree);
+    dividend_ = std::move(dividend);
+    spot_ = std::move(spot);
+}
+
+QuantLib::Real EdgeClampedLocalVol::dupire(QuantLib::Time t, QuantLib::Real underlyingLevel) const {
+    // QuantLib 1.44 LocalVolSurface::localVolImpl
+    // (ql/termstructures/volatility/equityfx/localvolsurface.cpp), the same
+    // reads and arithmetic in the same order; each QL_ENSURE returns NaN.
+    using QuantLib::DiscountFactor;
+    using QuantLib::Real;
+    using QuantLib::Time;
+    const Real nan = std::numeric_limits<Real>::quiet_NaN();
+    DiscountFactor dr = riskFree_->discount(t, true);
+    DiscountFactor dq = dividend_->discount(t, true);
+    Real forwardValue = spot_->value() * dq / dr;
+
+    // strike derivatives
+    Real strike, y, dy, strikep, strikem;
+    Real w, wp, wm, dwdy, d2wdy2;
+    strike = underlyingLevel;
+    y = std::log(strike / forwardValue);
+    dy = ((std::fabs(y) > 0.001) ? Real(y * 0.0001) : 0.000001);
+    strikep = strike * std::exp(dy);
+    strikem = strike / std::exp(dy);
+    w = black_->blackVariance(t, strike, true);
+    wp = black_->blackVariance(t, strikep, true);
+    wm = black_->blackVariance(t, strikem, true);
+    dwdy = (wp - wm) / (2.0 * dy);
+    d2wdy2 = (wp - 2.0 * w + wm) / (dy * dy);
+
+    // time derivative
+    Real dt, wpt, wmt, dwdt;
+    if (t == 0.0) {
+        dt = 0.0001;
+        DiscountFactor drpt = riskFree_->discount(t + dt, true);
+        DiscountFactor dqpt = dividend_->discount(t + dt, true);
+        Real strikept = strike * dr * dqpt / (drpt * dq);
+
+        wpt = black_->blackVariance(t + dt, strikept, true);
+        if (!(wpt >= w)) return nan;
+        dwdt = (wpt - w) / dt;
+    } else {
+        dt = std::min<Time>(0.0001, t / 2.0);
+        DiscountFactor drpt = riskFree_->discount(t + dt, true);
+        DiscountFactor drmt = riskFree_->discount(t - dt, true);
+        DiscountFactor dqpt = dividend_->discount(t + dt, true);
+        DiscountFactor dqmt = dividend_->discount(t - dt, true);
+
+        Real strikept = strike * dr * dqpt / (drpt * dq);
+        Real strikemt = strike * dr * dqmt / (drmt * dq);
+
+        wpt = black_->blackVariance(t + dt, strikept, true);
+        wmt = black_->blackVariance(t - dt, strikemt, true);
+
+        if (!(wpt >= w)) return nan;
+        if (!(w >= wmt)) return nan;
+
+        dwdt = (wpt - wmt) / (2.0 * dt);
+    }
+
+    if (dwdy == 0.0 && d2wdy2 == 0.0) { // avoid /w where w might be 0.0
+        return std::sqrt(dwdt);
+    } else {
+        Real den1 = 1.0 - y / w * dwdy;
+        Real den2 = 0.25 * (-0.25 - 1.0 / w + y * y / w / w) * dwdy * dwdy;
+        Real den3 = 0.5 * d2wdy2;
+        Real den = den1 + den2 + den3;
+        Real result = dwdt / den;
+
+        if (!(result >= 0.0)) return nan;
+
+        return std::sqrt(result);
+    }
+}
+
 QuantLib::Volatility EdgeClampedLocalVol::localVolImpl(QuantLib::Time t, QuantLib::Real s) const {
-    return inner_->localVol(clampedTime(t), clampedLevel(s), true);
+    if (!floor_) return inner_->localVol(clampedTime(t), clampedLevel(s, t), true);
+    ++reads_;
+    QuantLib::Real v;
+    try {
+        v = dupire(clampedTime(t), clampedLevel(s, t));
+    } catch (const std::exception&) {
+        v = std::numeric_limits<QuantLib::Real>::quiet_NaN();
+    }
+    if (std::isnan(v)) {
+        ++refusals_;
+        ++floored_;
+        return *floor_;
+    }
+    if (v < *floor_) {
+        ++floored_;
+        return *floor_;
+    }
+    return v;
 }
 
 void LocalVolCache::attach(BasketAsset& asset) {
@@ -96,6 +233,12 @@ void LocalVolCache::attach(BasketAsset& asset) {
     if (!(minStrike < maxStrike)) {
         QUANTRA_ERROR("basket model: empty local vol strike range for asset: " + asset.id);
     }
+    std::vector<QuantLib::Real> bandKey;
+    for (const auto& b : asset.localVolStrikeBands) {
+        bandKey.push_back(b.time);
+        bandKey.push_back(b.minStrike);
+        bandKey.push_back(b.maxStrike);
+    }
     const Key key{
         asset.vol.currentLink().get(),
         asset.spot.currentLink().get(),
@@ -103,7 +246,9 @@ void LocalVolCache::attach(BasketAsset& asset) {
         asset.riskFree.currentLink().get(),
         static_cast<int>(asset.localVolTime),
         minStrike,
-        maxStrike};
+        maxStrike,
+        bandKey,
+        asset.localVolFloor ? *asset.localVolFloor : 0.0};
     auto it = cache_.find(key);
     if (it == cache_.end()) {
         // The very object GeneralizedBlackScholesProcess::localVolatility()
@@ -116,12 +261,15 @@ void LocalVolCache::attach(BasketAsset& asset) {
         const QuantLib::Time maxTime = asset.localVolTime == LocalVolTimeExtrapolation::FlatLocalVol
                                            ? asset.vol->maxTime()
                                            : QuantLib::Null<QuantLib::Time>();
-        it = cache_
-                 .emplace(
-                     key, QuantLib::Handle<QuantLib::LocalVolTermStructure>(
-                              std::make_shared<EdgeClampedLocalVol>(
-                                  inner, minStrike, maxStrike, maxTime)))
-                 .first;
+        auto clamped =
+            asset.localVolStrikeBands.empty()
+                ? std::make_shared<EdgeClampedLocalVol>(inner, minStrike, maxStrike, maxTime)
+                : std::make_shared<EdgeClampedLocalVol>(inner, asset.localVolStrikeBands, maxTime);
+        if (asset.localVolFloor) {
+            clamped->setFloor(
+                *asset.localVolFloor, asset.vol, asset.riskFree, asset.dividend, asset.spot);
+        }
+        it = cache_.emplace(key, QuantLib::Handle<QuantLib::LocalVolTermStructure>(clamped)).first;
     }
     asset.localVol = it->second;
 }

@@ -24,17 +24,39 @@ table VolSurfaceOutputGrid {
 /// Arbitrage handling of the `SviPerExpiry` method (ignored by
 /// `AndreasenHuge`, which is arbitrage-free by construction and only
 /// reports).
+///
+/// The expiries are fitted one after the other in increasing time. From the
+/// second on, the slice must lie above the slice before it on a fine
+/// log-moneyness grid (401 points over the output strikes and every quoted
+/// strike of the sheet, extended to k = +/- 5 sigma_ATM sqrt(T)), both at
+/// the same strike (the surface interpolates linearly in total variance at
+/// fixed strike) and at the same forward moneyness (Dupire's local vol
+/// differentiates in time along the forward):
+///
+///     w_i(k) >= w_{i-1}(k) + min_forward_vol^2 (T_i - T_{i-1}).
 table SviFitOptions {
     /// When the fitted slice has butterfly arbitrage (Durrleman's g(k) < 0
     /// somewhere on the output strike range), refit the five parameters by
     /// Levenberg-Marquardt with a penalty on negative g; the report says what
     /// was found and what was done. Off: report only.
     enforce_butterfly:bool = true;
-    /// When total variance decreases from one grid expiry to the next at a
-    /// grid strike, clip it to the previous expiry's total variance plus
-    /// 1e-8; the report counts the clipped points per expiry. Off: report
-    /// only.
+    /// When the independently fitted slice violates the calendar constraint
+    /// above, refit it by Levenberg-Marquardt with a penalty on the shortfall
+    /// (together with the butterfly penalty when `enforce_butterfly`), then
+    /// lift it by whatever shortfall remains, so the constraint holds on
+    /// every grid point; the report says per expiry whether the refit acted,
+    /// the largest vol change it made over the quoted strikes and the
+    /// smallest margin after the fit. Then, as a last resort, total variance
+    /// that still decreases from one grid expiry to the next at a grid
+    /// strike is clipped to the previous expiry's plus 1e-8 (it should not
+    /// fire after the fit; the report counts the clipped points). Off:
+    /// report only (independent fits, no clip).
     enforce_calendar:bool = true;
+    /// Minimum forward volatility between two consecutive fitted expiries,
+    /// the calendar margin of the constraint above (0.01 = 1 % forward vol).
+    /// 0 = no margin (total variance non-decreasing only). Must be finite
+    /// and >= 0.
+    min_forward_vol:double = 0.01;
 }
 
 /// Request for `/calibrate-vol-surface`: an arbitrage-checked Black implied
@@ -66,7 +88,8 @@ table CalibrateVolSurfaceRequest {
     output_grid:VolSurfaceOutputGrid;
     /// Id given to the returned `vol_surface_spec`.
     vol_surface_id:string (required);
-    /// SVI arbitrage handling; defaults (both on) apply when absent.
+    /// SVI arbitrage handling; defaults (both on, min_forward_vol 0.01)
+    /// apply when absent.
     svi:SviFitOptions;
 }
 

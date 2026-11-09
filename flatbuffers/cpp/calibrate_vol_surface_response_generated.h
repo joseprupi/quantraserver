@@ -36,6 +36,10 @@ struct VolSurfaceExpiryReport;
 struct VolSurfaceExpiryReportBuilder;
 struct VolSurfaceExpiryReportT;
 
+struct LocalVolCheck;
+struct LocalVolCheckBuilder;
+struct LocalVolCheckT;
+
 struct VanillaRepricePoint;
 struct VanillaRepricePointBuilder;
 struct VanillaRepricePointT;
@@ -344,6 +348,11 @@ struct VolSurfaceExpiryReportT : public ::flatbuffers::NativeTable {
   ::flatbuffers::Optional<double> butterfly_min_g = ::flatbuffers::nullopt;
   bool butterfly_violation = false;
   std::string butterfly_action{};
+  bool calendar_refit = false;
+  ::flatbuffers::Optional<double> calendar_refit_max_vol_shift = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> calendar_min_margin = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> calendar_min_forward_vol = ::flatbuffers::nullopt;
+  std::string calendar_fit_action{};
   uint32_t calendar_violations = 0;
   ::flatbuffers::Optional<double> calendar_max_clip_vol = ::flatbuffers::nullopt;
   std::string calendar_action{};
@@ -374,10 +383,15 @@ struct VolSurfaceExpiryReport FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::T
     VT_BUTTERFLY_MIN_G = 28,
     VT_BUTTERFLY_VIOLATION = 30,
     VT_BUTTERFLY_ACTION = 32,
-    VT_CALENDAR_VIOLATIONS = 34,
-    VT_CALENDAR_MAX_CLIP_VOL = 36,
-    VT_CALENDAR_ACTION = 38,
-    VT_GRID_POINTS_FILLED = 40
+    VT_CALENDAR_REFIT = 34,
+    VT_CALENDAR_REFIT_MAX_VOL_SHIFT = 36,
+    VT_CALENDAR_MIN_MARGIN = 38,
+    VT_CALENDAR_MIN_FORWARD_VOL = 40,
+    VT_CALENDAR_FIT_ACTION = 42,
+    VT_CALENDAR_VIOLATIONS = 44,
+    VT_CALENDAR_MAX_CLIP_VOL = 46,
+    VT_CALENDAR_ACTION = 48,
+    VT_GRID_POINTS_FILLED = 50
   };
   const ::flatbuffers::String *expiry() const {
     return GetPointer<const ::flatbuffers::String *>(VT_EXPIRY);
@@ -434,8 +448,34 @@ struct VolSurfaceExpiryReport FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::T
   const ::flatbuffers::String *butterfly_action() const {
     return GetPointer<const ::flatbuffers::String *>(VT_BUTTERFLY_ACTION);
   }
+  /// `SviPerExpiry` only, every fitted expiry after the first: whether the
+  /// calendar penalty refit of the sequential fit acted on this slice.
+  bool calendar_refit() const {
+    return GetField<uint8_t>(VT_CALENDAR_REFIT, 0) != 0;
+  }
+  /// Largest change in vol the calendar refit made over the slice's quoted
+  /// strikes (absent when it did not act).
+  ::flatbuffers::Optional<double> calendar_refit_max_vol_shift() const {
+    return GetOptional<double, double>(VT_CALENDAR_REFIT_MAX_VOL_SHIFT);
+  }
+  /// After the fit: the smallest excess of the slice's total variance over
+  /// the previous slice's plus the requested margin min_forward_vol^2
+  /// (T_i - T_{i-1}) on the calendar grid (>= 0 = constraint met).
+  ::flatbuffers::Optional<double> calendar_min_margin() const {
+    return GetOptional<double, double>(VT_CALENDAR_MIN_MARGIN);
+  }
+  /// After the fit: the smallest forward vol between the previous slice and
+  /// this one on the calendar grid, sqrt((w_i - w_{i-1}) / (T_i - T_{i-1}))
+  /// (negative when total variance decreases there).
+  ::flatbuffers::Optional<double> calendar_min_forward_vol() const {
+    return GetOptional<double, double>(VT_CALENDAR_MIN_FORWARD_VOL);
+  }
+  /// What the sequential fit found and did against the previous slice.
+  const ::flatbuffers::String *calendar_fit_action() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_CALENDAR_FIT_ACTION);
+  }
   /// Grid strikes at which total variance was below the previous grid
-  /// expiry's.
+  /// expiry's (before the clip).
   uint32_t calendar_violations() const {
     return GetField<uint32_t>(VT_CALENDAR_VIOLATIONS, 0);
   }
@@ -476,6 +516,12 @@ struct VolSurfaceExpiryReport FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::T
            VerifyField<uint8_t>(verifier, VT_BUTTERFLY_VIOLATION, 1) &&
            VerifyOffset(verifier, VT_BUTTERFLY_ACTION) &&
            verifier.VerifyString(butterfly_action()) &&
+           VerifyField<uint8_t>(verifier, VT_CALENDAR_REFIT, 1) &&
+           VerifyField<double>(verifier, VT_CALENDAR_REFIT_MAX_VOL_SHIFT, 8) &&
+           VerifyField<double>(verifier, VT_CALENDAR_MIN_MARGIN, 8) &&
+           VerifyField<double>(verifier, VT_CALENDAR_MIN_FORWARD_VOL, 8) &&
+           VerifyOffset(verifier, VT_CALENDAR_FIT_ACTION) &&
+           verifier.VerifyString(calendar_fit_action()) &&
            VerifyField<uint32_t>(verifier, VT_CALENDAR_VIOLATIONS, 4) &&
            VerifyField<double>(verifier, VT_CALENDAR_MAX_CLIP_VOL, 8) &&
            VerifyOffset(verifier, VT_CALENDAR_ACTION) &&
@@ -537,6 +583,21 @@ struct VolSurfaceExpiryReportBuilder {
   void add_butterfly_action(::flatbuffers::Offset<::flatbuffers::String> butterfly_action) {
     fbb_.AddOffset(VolSurfaceExpiryReport::VT_BUTTERFLY_ACTION, butterfly_action);
   }
+  void add_calendar_refit(bool calendar_refit) {
+    fbb_.AddElement<uint8_t>(VolSurfaceExpiryReport::VT_CALENDAR_REFIT, static_cast<uint8_t>(calendar_refit), 0);
+  }
+  void add_calendar_refit_max_vol_shift(double calendar_refit_max_vol_shift) {
+    fbb_.AddElement<double>(VolSurfaceExpiryReport::VT_CALENDAR_REFIT_MAX_VOL_SHIFT, calendar_refit_max_vol_shift);
+  }
+  void add_calendar_min_margin(double calendar_min_margin) {
+    fbb_.AddElement<double>(VolSurfaceExpiryReport::VT_CALENDAR_MIN_MARGIN, calendar_min_margin);
+  }
+  void add_calendar_min_forward_vol(double calendar_min_forward_vol) {
+    fbb_.AddElement<double>(VolSurfaceExpiryReport::VT_CALENDAR_MIN_FORWARD_VOL, calendar_min_forward_vol);
+  }
+  void add_calendar_fit_action(::flatbuffers::Offset<::flatbuffers::String> calendar_fit_action) {
+    fbb_.AddOffset(VolSurfaceExpiryReport::VT_CALENDAR_FIT_ACTION, calendar_fit_action);
+  }
   void add_calendar_violations(uint32_t calendar_violations) {
     fbb_.AddElement<uint32_t>(VolSurfaceExpiryReport::VT_CALENDAR_VIOLATIONS, calendar_violations, 0);
   }
@@ -578,12 +639,20 @@ inline ::flatbuffers::Offset<VolSurfaceExpiryReport> CreateVolSurfaceExpiryRepor
     ::flatbuffers::Optional<double> butterfly_min_g = ::flatbuffers::nullopt,
     bool butterfly_violation = false,
     ::flatbuffers::Offset<::flatbuffers::String> butterfly_action = 0,
+    bool calendar_refit = false,
+    ::flatbuffers::Optional<double> calendar_refit_max_vol_shift = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> calendar_min_margin = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> calendar_min_forward_vol = ::flatbuffers::nullopt,
+    ::flatbuffers::Offset<::flatbuffers::String> calendar_fit_action = 0,
     uint32_t calendar_violations = 0,
     ::flatbuffers::Optional<double> calendar_max_clip_vol = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::String> calendar_action = 0,
     uint32_t grid_points_filled = 0) {
   VolSurfaceExpiryReportBuilder builder_(_fbb);
   if(calendar_max_clip_vol) { builder_.add_calendar_max_clip_vol(*calendar_max_clip_vol); }
+  if(calendar_min_forward_vol) { builder_.add_calendar_min_forward_vol(*calendar_min_forward_vol); }
+  if(calendar_min_margin) { builder_.add_calendar_min_margin(*calendar_min_margin); }
+  if(calendar_refit_max_vol_shift) { builder_.add_calendar_refit_max_vol_shift(*calendar_refit_max_vol_shift); }
   if(butterfly_min_g) { builder_.add_butterfly_min_g(*butterfly_min_g); }
   if(max_abs_error_vol) { builder_.add_max_abs_error_vol(*max_abs_error_vol); }
   if(rmse_vol) { builder_.add_rmse_vol(*rmse_vol); }
@@ -593,6 +662,7 @@ inline ::flatbuffers::Offset<VolSurfaceExpiryReport> CreateVolSurfaceExpiryRepor
   builder_.add_grid_points_filled(grid_points_filled);
   builder_.add_calendar_action(calendar_action);
   builder_.add_calendar_violations(calendar_violations);
+  builder_.add_calendar_fit_action(calendar_fit_action);
   builder_.add_butterfly_action(butterfly_action);
   builder_.add_svi(svi);
   builder_.add_dropped(dropped);
@@ -600,6 +670,7 @@ inline ::flatbuffers::Offset<VolSurfaceExpiryReport> CreateVolSurfaceExpiryRepor
   builder_.add_quotes_used(quotes_used);
   builder_.add_dropped_reason(dropped_reason);
   builder_.add_expiry(expiry);
+  builder_.add_calendar_refit(calendar_refit);
   builder_.add_butterfly_violation(butterfly_violation);
   builder_.add_usable(usable);
   return builder_.Finish();
@@ -622,6 +693,11 @@ inline ::flatbuffers::Offset<VolSurfaceExpiryReport> CreateVolSurfaceExpiryRepor
     ::flatbuffers::Optional<double> butterfly_min_g = ::flatbuffers::nullopt,
     bool butterfly_violation = false,
     const char *butterfly_action = nullptr,
+    bool calendar_refit = false,
+    ::flatbuffers::Optional<double> calendar_refit_max_vol_shift = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> calendar_min_margin = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> calendar_min_forward_vol = ::flatbuffers::nullopt,
+    const char *calendar_fit_action = nullptr,
     uint32_t calendar_violations = 0,
     ::flatbuffers::Optional<double> calendar_max_clip_vol = ::flatbuffers::nullopt,
     const char *calendar_action = nullptr,
@@ -630,6 +706,7 @@ inline ::flatbuffers::Offset<VolSurfaceExpiryReport> CreateVolSurfaceExpiryRepor
   auto dropped_reason__ = dropped_reason ? _fbb.CreateString(dropped_reason) : 0;
   auto dropped__ = dropped ? _fbb.CreateVector<::flatbuffers::Offset<quantra::DroppedQuote>>(*dropped) : 0;
   auto butterfly_action__ = butterfly_action ? _fbb.CreateString(butterfly_action) : 0;
+  auto calendar_fit_action__ = calendar_fit_action ? _fbb.CreateString(calendar_fit_action) : 0;
   auto calendar_action__ = calendar_action ? _fbb.CreateString(calendar_action) : 0;
   return quantra::CreateVolSurfaceExpiryReport(
       _fbb,
@@ -648,6 +725,11 @@ inline ::flatbuffers::Offset<VolSurfaceExpiryReport> CreateVolSurfaceExpiryRepor
       butterfly_min_g,
       butterfly_violation,
       butterfly_action__,
+      calendar_refit,
+      calendar_refit_max_vol_shift,
+      calendar_min_margin,
+      calendar_min_forward_vol,
+      calendar_fit_action__,
       calendar_violations,
       calendar_max_clip_vol,
       calendar_action__,
@@ -655,6 +737,207 @@ inline ::flatbuffers::Offset<VolSurfaceExpiryReport> CreateVolSurfaceExpiryRepor
 }
 
 ::flatbuffers::Offset<VolSurfaceExpiryReport> CreateVolSurfaceExpiryReport(::flatbuffers::FlatBufferBuilder &_fbb, const VolSurfaceExpiryReportT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct LocalVolCheckT : public ::flatbuffers::NativeTable {
+  typedef LocalVolCheck TableType;
+  bool arbitrage_free = false;
+  uint32_t times = 0;
+  uint32_t strikes = 0;
+  uint32_t points = 0;
+  uint32_t refused = 0;
+  std::string first_refusal{};
+  ::flatbuffers::Optional<double> min_local_variance = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> min_local_variance_time = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> min_local_variance_strike = ::flatbuffers::nullopt;
+  std::string action{};
+};
+
+/// Dupire local vol of a returned surface, read exactly as the structured
+/// note pricer reads it: QuantLib's LocalVolSurface on the surface as the
+/// parser builds it, on the sheet's forwards (risk-free curve on the implied
+/// discount factors, dividend curve F DF / S), held at the strike edges
+/// (the grid's first and last strike; for the SVI payload the widest quoted
+/// range, min strike_min .. max strike_max) and flat beyond the last expiry
+/// (FlatLocalVol). The scan: times = every expiry +/- 2e-4 years (outside
+/// QuantLib's time stencil of 1e-4 on both sides of the node), the midpoints
+/// between expiries (and between 0 and the first) and the last expiry -
+/// 1e-3; strikes = 201 log-spaced over the output strikes and every quoted
+/// strike. A refused point is one where QuantLib throws ("decreasing variance
+/// ..." or "negative local vol^2 ...").
+struct LocalVolCheck FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef LocalVolCheckT NativeTableType;
+  typedef LocalVolCheckBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_ARBITRAGE_FREE = 4,
+    VT_TIMES = 6,
+    VT_STRIKES = 8,
+    VT_POINTS = 10,
+    VT_REFUSED = 12,
+    VT_FIRST_REFUSAL = 14,
+    VT_MIN_LOCAL_VARIANCE = 16,
+    VT_MIN_LOCAL_VARIANCE_TIME = 18,
+    VT_MIN_LOCAL_VARIANCE_STRIKE = 20,
+    VT_ACTION = 22
+  };
+  /// True iff every scan point evaluated (no refusal): the surface can be
+  /// simulated as local vol everywhere the scan reached.
+  bool arbitrage_free() const {
+    return GetField<uint8_t>(VT_ARBITRAGE_FREE, 0) != 0;
+  }
+  uint32_t times() const {
+    return GetField<uint32_t>(VT_TIMES, 0);
+  }
+  uint32_t strikes() const {
+    return GetField<uint32_t>(VT_STRIKES, 0);
+  }
+  uint32_t points() const {
+    return GetField<uint32_t>(VT_POINTS, 0);
+  }
+  uint32_t refused() const {
+    return GetField<uint32_t>(VT_REFUSED, 0);
+  }
+  /// QuantLib's message at the first refused point.
+  const ::flatbuffers::String *first_refusal() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_FIRST_REFUSAL);
+  }
+  /// Smallest local variance (sigma_loc^2) over the points that evaluated,
+  /// and its time (Act/365F years) and strike.
+  ::flatbuffers::Optional<double> min_local_variance() const {
+    return GetOptional<double, double>(VT_MIN_LOCAL_VARIANCE);
+  }
+  ::flatbuffers::Optional<double> min_local_variance_time() const {
+    return GetOptional<double, double>(VT_MIN_LOCAL_VARIANCE_TIME);
+  }
+  ::flatbuffers::Optional<double> min_local_variance_strike() const {
+    return GetOptional<double, double>(VT_MIN_LOCAL_VARIANCE_STRIKE);
+  }
+  /// What was done when the check failed: "none", or for the SVI payload
+  /// the refit passes (the flagged slices refitted with a larger calendar
+  /// margin and butterfly weight, at most 3 passes).
+  const ::flatbuffers::String *action() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_ACTION);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint8_t>(verifier, VT_ARBITRAGE_FREE, 1) &&
+           VerifyField<uint32_t>(verifier, VT_TIMES, 4) &&
+           VerifyField<uint32_t>(verifier, VT_STRIKES, 4) &&
+           VerifyField<uint32_t>(verifier, VT_POINTS, 4) &&
+           VerifyField<uint32_t>(verifier, VT_REFUSED, 4) &&
+           VerifyOffset(verifier, VT_FIRST_REFUSAL) &&
+           verifier.VerifyString(first_refusal()) &&
+           VerifyField<double>(verifier, VT_MIN_LOCAL_VARIANCE, 8) &&
+           VerifyField<double>(verifier, VT_MIN_LOCAL_VARIANCE_TIME, 8) &&
+           VerifyField<double>(verifier, VT_MIN_LOCAL_VARIANCE_STRIKE, 8) &&
+           VerifyOffset(verifier, VT_ACTION) &&
+           verifier.VerifyString(action()) &&
+           verifier.EndTable();
+  }
+  LocalVolCheckT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(LocalVolCheckT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<LocalVolCheck> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const LocalVolCheckT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct LocalVolCheckBuilder {
+  typedef LocalVolCheck Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_arbitrage_free(bool arbitrage_free) {
+    fbb_.AddElement<uint8_t>(LocalVolCheck::VT_ARBITRAGE_FREE, static_cast<uint8_t>(arbitrage_free), 0);
+  }
+  void add_times(uint32_t times) {
+    fbb_.AddElement<uint32_t>(LocalVolCheck::VT_TIMES, times, 0);
+  }
+  void add_strikes(uint32_t strikes) {
+    fbb_.AddElement<uint32_t>(LocalVolCheck::VT_STRIKES, strikes, 0);
+  }
+  void add_points(uint32_t points) {
+    fbb_.AddElement<uint32_t>(LocalVolCheck::VT_POINTS, points, 0);
+  }
+  void add_refused(uint32_t refused) {
+    fbb_.AddElement<uint32_t>(LocalVolCheck::VT_REFUSED, refused, 0);
+  }
+  void add_first_refusal(::flatbuffers::Offset<::flatbuffers::String> first_refusal) {
+    fbb_.AddOffset(LocalVolCheck::VT_FIRST_REFUSAL, first_refusal);
+  }
+  void add_min_local_variance(double min_local_variance) {
+    fbb_.AddElement<double>(LocalVolCheck::VT_MIN_LOCAL_VARIANCE, min_local_variance);
+  }
+  void add_min_local_variance_time(double min_local_variance_time) {
+    fbb_.AddElement<double>(LocalVolCheck::VT_MIN_LOCAL_VARIANCE_TIME, min_local_variance_time);
+  }
+  void add_min_local_variance_strike(double min_local_variance_strike) {
+    fbb_.AddElement<double>(LocalVolCheck::VT_MIN_LOCAL_VARIANCE_STRIKE, min_local_variance_strike);
+  }
+  void add_action(::flatbuffers::Offset<::flatbuffers::String> action) {
+    fbb_.AddOffset(LocalVolCheck::VT_ACTION, action);
+  }
+  explicit LocalVolCheckBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<LocalVolCheck> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<LocalVolCheck>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<LocalVolCheck> CreateLocalVolCheck(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    bool arbitrage_free = false,
+    uint32_t times = 0,
+    uint32_t strikes = 0,
+    uint32_t points = 0,
+    uint32_t refused = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> first_refusal = 0,
+    ::flatbuffers::Optional<double> min_local_variance = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> min_local_variance_time = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> min_local_variance_strike = ::flatbuffers::nullopt,
+    ::flatbuffers::Offset<::flatbuffers::String> action = 0) {
+  LocalVolCheckBuilder builder_(_fbb);
+  if(min_local_variance_strike) { builder_.add_min_local_variance_strike(*min_local_variance_strike); }
+  if(min_local_variance_time) { builder_.add_min_local_variance_time(*min_local_variance_time); }
+  if(min_local_variance) { builder_.add_min_local_variance(*min_local_variance); }
+  builder_.add_action(action);
+  builder_.add_first_refusal(first_refusal);
+  builder_.add_refused(refused);
+  builder_.add_points(points);
+  builder_.add_strikes(strikes);
+  builder_.add_times(times);
+  builder_.add_arbitrage_free(arbitrage_free);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<LocalVolCheck> CreateLocalVolCheckDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    bool arbitrage_free = false,
+    uint32_t times = 0,
+    uint32_t strikes = 0,
+    uint32_t points = 0,
+    uint32_t refused = 0,
+    const char *first_refusal = nullptr,
+    ::flatbuffers::Optional<double> min_local_variance = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> min_local_variance_time = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> min_local_variance_strike = ::flatbuffers::nullopt,
+    const char *action = nullptr) {
+  auto first_refusal__ = first_refusal ? _fbb.CreateString(first_refusal) : 0;
+  auto action__ = action ? _fbb.CreateString(action) : 0;
+  return quantra::CreateLocalVolCheck(
+      _fbb,
+      arbitrage_free,
+      times,
+      strikes,
+      points,
+      refused,
+      first_refusal__,
+      min_local_variance,
+      min_local_variance_time,
+      min_local_variance_strike,
+      action__);
+}
+
+::flatbuffers::Offset<LocalVolCheck> CreateLocalVolCheck(::flatbuffers::FlatBufferBuilder &_fbb, const LocalVolCheckT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 struct VanillaRepricePointT : public ::flatbuffers::NativeTable {
   typedef VanillaRepricePoint TableType;
@@ -1014,6 +1297,8 @@ struct CalibrateVolSurfaceResponseT : public ::flatbuffers::NativeTable {
   std::unique_ptr<quantra::VolSurfaceSpecT> vol_surface_spec_svi{};
   std::string vol_surface_spec_svi_note{};
   std::unique_ptr<quantra::VanillaRepricingT> vanilla_repricing{};
+  std::unique_ptr<quantra::LocalVolCheckT> local_vol_check{};
+  std::unique_ptr<quantra::LocalVolCheckT> local_vol_check_svi{};
   CalibrateVolSurfaceResponseT() = default;
   CalibrateVolSurfaceResponseT(const CalibrateVolSurfaceResponseT &o);
   CalibrateVolSurfaceResponseT(CalibrateVolSurfaceResponseT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -1040,7 +1325,9 @@ struct CalibrateVolSurfaceResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffe
     VT_VOL_SURFACE_SPEC = 28,
     VT_VOL_SURFACE_SPEC_SVI = 30,
     VT_VOL_SURFACE_SPEC_SVI_NOTE = 32,
-    VT_VANILLA_REPRICING = 34
+    VT_VANILLA_REPRICING = 34,
+    VT_LOCAL_VOL_CHECK = 36,
+    VT_LOCAL_VOL_CHECK_SVI = 38
   };
   const ::flatbuffers::String *sheet_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_SHEET_ID);
@@ -1098,8 +1385,9 @@ struct CalibrateVolSurfaceResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffe
   /// `SviVolSpec` payload (one `SviSlice` per fitted expiry with the
   /// forward used and the final a, b, sigma, rho, m; same base and id as
   /// `vol_surface_spec`, allow_extrapolation true), ready to paste in
-  /// place of the grid. The calendar clip of step 4 applies to the grid
-  /// only; the slices are reported as fitted (after the butterfly refit).
+  /// place of the grid. The slices are the sequential fit's (after the
+  /// calendar and butterfly refits), so they are ordered in time like the
+  /// grid; the grid's last-resort clip applies to the grid only.
   const quantra::VolSurfaceSpec *vol_surface_spec_svi() const {
     return GetPointer<const quantra::VolSurfaceSpec *>(VT_VOL_SURFACE_SPEC_SVI);
   }
@@ -1111,6 +1399,14 @@ struct CalibrateVolSurfaceResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffe
   /// Every used quote repriced on `vol_surface_spec` (the grid).
   const quantra::VanillaRepricing *vanilla_repricing() const {
     return GetPointer<const quantra::VanillaRepricing *>(VT_VANILLA_REPRICING);
+  }
+  /// Local vol check of `vol_surface_spec`.
+  const quantra::LocalVolCheck *local_vol_check() const {
+    return GetPointer<const quantra::LocalVolCheck *>(VT_LOCAL_VOL_CHECK);
+  }
+  /// Local vol check of `vol_surface_spec_svi` (`SviPerExpiry` only).
+  const quantra::LocalVolCheck *local_vol_check_svi() const {
+    return GetPointer<const quantra::LocalVolCheck *>(VT_LOCAL_VOL_CHECK_SVI);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -1147,6 +1443,10 @@ struct CalibrateVolSurfaceResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffe
            verifier.VerifyString(vol_surface_spec_svi_note()) &&
            VerifyOffsetRequired(verifier, VT_VANILLA_REPRICING) &&
            verifier.VerifyTable(vanilla_repricing()) &&
+           VerifyOffsetRequired(verifier, VT_LOCAL_VOL_CHECK) &&
+           verifier.VerifyTable(local_vol_check()) &&
+           VerifyOffset(verifier, VT_LOCAL_VOL_CHECK_SVI) &&
+           verifier.VerifyTable(local_vol_check_svi()) &&
            verifier.EndTable();
   }
   CalibrateVolSurfaceResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -1206,6 +1506,12 @@ struct CalibrateVolSurfaceResponseBuilder {
   void add_vanilla_repricing(::flatbuffers::Offset<quantra::VanillaRepricing> vanilla_repricing) {
     fbb_.AddOffset(CalibrateVolSurfaceResponse::VT_VANILLA_REPRICING, vanilla_repricing);
   }
+  void add_local_vol_check(::flatbuffers::Offset<quantra::LocalVolCheck> local_vol_check) {
+    fbb_.AddOffset(CalibrateVolSurfaceResponse::VT_LOCAL_VOL_CHECK, local_vol_check);
+  }
+  void add_local_vol_check_svi(::flatbuffers::Offset<quantra::LocalVolCheck> local_vol_check_svi) {
+    fbb_.AddOffset(CalibrateVolSurfaceResponse::VT_LOCAL_VOL_CHECK_SVI, local_vol_check_svi);
+  }
   explicit CalibrateVolSurfaceResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -1224,6 +1530,7 @@ struct CalibrateVolSurfaceResponseBuilder {
     fbb_.Required(o, CalibrateVolSurfaceResponse::VT_GRID_EXPIRIES);
     fbb_.Required(o, CalibrateVolSurfaceResponse::VT_VOL_SURFACE_SPEC);
     fbb_.Required(o, CalibrateVolSurfaceResponse::VT_VANILLA_REPRICING);
+    fbb_.Required(o, CalibrateVolSurfaceResponse::VT_LOCAL_VOL_CHECK);
     return o;
   }
 };
@@ -1245,9 +1552,13 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
     ::flatbuffers::Offset<quantra::VolSurfaceSpec> vol_surface_spec = 0,
     ::flatbuffers::Offset<quantra::VolSurfaceSpec> vol_surface_spec_svi = 0,
     ::flatbuffers::Offset<::flatbuffers::String> vol_surface_spec_svi_note = 0,
-    ::flatbuffers::Offset<quantra::VanillaRepricing> vanilla_repricing = 0) {
+    ::flatbuffers::Offset<quantra::VanillaRepricing> vanilla_repricing = 0,
+    ::flatbuffers::Offset<quantra::LocalVolCheck> local_vol_check = 0,
+    ::flatbuffers::Offset<quantra::LocalVolCheck> local_vol_check_svi = 0) {
   CalibrateVolSurfaceResponseBuilder builder_(_fbb);
   builder_.add_spot(spot);
+  builder_.add_local_vol_check_svi(local_vol_check_svi);
+  builder_.add_local_vol_check(local_vol_check);
   builder_.add_vanilla_repricing(vanilla_repricing);
   builder_.add_vol_surface_spec_svi_note(vol_surface_spec_svi_note);
   builder_.add_vol_surface_spec_svi(vol_surface_spec_svi);
@@ -1283,7 +1594,9 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
     ::flatbuffers::Offset<quantra::VolSurfaceSpec> vol_surface_spec = 0,
     ::flatbuffers::Offset<quantra::VolSurfaceSpec> vol_surface_spec_svi = 0,
     const char *vol_surface_spec_svi_note = nullptr,
-    ::flatbuffers::Offset<quantra::VanillaRepricing> vanilla_repricing = 0) {
+    ::flatbuffers::Offset<quantra::VanillaRepricing> vanilla_repricing = 0,
+    ::flatbuffers::Offset<quantra::LocalVolCheck> local_vol_check = 0,
+    ::flatbuffers::Offset<quantra::LocalVolCheck> local_vol_check_svi = 0) {
   auto sheet_id__ = sheet_id ? _fbb.CreateString(sheet_id) : 0;
   auto underlying_id__ = underlying_id ? _fbb.CreateString(underlying_id) : 0;
   auto forwards_source__ = forwards_source ? _fbb.CreateString(forwards_source) : 0;
@@ -1310,7 +1623,9 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
       vol_surface_spec,
       vol_surface_spec_svi,
       vol_surface_spec_svi_note__,
-      vanilla_repricing);
+      vanilla_repricing,
+      local_vol_check,
+      local_vol_check_svi);
 }
 
 ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurfaceResponse(::flatbuffers::FlatBufferBuilder &_fbb, const CalibrateVolSurfaceResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -1435,6 +1750,11 @@ inline VolSurfaceExpiryReportT::VolSurfaceExpiryReportT(const VolSurfaceExpiryRe
         butterfly_min_g(o.butterfly_min_g),
         butterfly_violation(o.butterfly_violation),
         butterfly_action(o.butterfly_action),
+        calendar_refit(o.calendar_refit),
+        calendar_refit_max_vol_shift(o.calendar_refit_max_vol_shift),
+        calendar_min_margin(o.calendar_min_margin),
+        calendar_min_forward_vol(o.calendar_min_forward_vol),
+        calendar_fit_action(o.calendar_fit_action),
         calendar_violations(o.calendar_violations),
         calendar_max_clip_vol(o.calendar_max_clip_vol),
         calendar_action(o.calendar_action),
@@ -1459,6 +1779,11 @@ inline VolSurfaceExpiryReportT &VolSurfaceExpiryReportT::operator=(VolSurfaceExp
   std::swap(butterfly_min_g, o.butterfly_min_g);
   std::swap(butterfly_violation, o.butterfly_violation);
   std::swap(butterfly_action, o.butterfly_action);
+  std::swap(calendar_refit, o.calendar_refit);
+  std::swap(calendar_refit_max_vol_shift, o.calendar_refit_max_vol_shift);
+  std::swap(calendar_min_margin, o.calendar_min_margin);
+  std::swap(calendar_min_forward_vol, o.calendar_min_forward_vol);
+  std::swap(calendar_fit_action, o.calendar_fit_action);
   std::swap(calendar_violations, o.calendar_violations);
   std::swap(calendar_max_clip_vol, o.calendar_max_clip_vol);
   std::swap(calendar_action, o.calendar_action);
@@ -1490,6 +1815,11 @@ inline void VolSurfaceExpiryReport::UnPackTo(VolSurfaceExpiryReportT *_o, const 
   { auto _e = butterfly_min_g(); _o->butterfly_min_g = _e; }
   { auto _e = butterfly_violation(); _o->butterfly_violation = _e; }
   { auto _e = butterfly_action(); if (_e) _o->butterfly_action = _e->str(); }
+  { auto _e = calendar_refit(); _o->calendar_refit = _e; }
+  { auto _e = calendar_refit_max_vol_shift(); _o->calendar_refit_max_vol_shift = _e; }
+  { auto _e = calendar_min_margin(); _o->calendar_min_margin = _e; }
+  { auto _e = calendar_min_forward_vol(); _o->calendar_min_forward_vol = _e; }
+  { auto _e = calendar_fit_action(); if (_e) _o->calendar_fit_action = _e->str(); }
   { auto _e = calendar_violations(); _o->calendar_violations = _e; }
   { auto _e = calendar_max_clip_vol(); _o->calendar_max_clip_vol = _e; }
   { auto _e = calendar_action(); if (_e) _o->calendar_action = _e->str(); }
@@ -1519,6 +1849,11 @@ inline ::flatbuffers::Offset<VolSurfaceExpiryReport> CreateVolSurfaceExpiryRepor
   auto _butterfly_min_g = _o->butterfly_min_g;
   auto _butterfly_violation = _o->butterfly_violation;
   auto _butterfly_action = _o->butterfly_action.empty() ? 0 : _fbb.CreateString(_o->butterfly_action);
+  auto _calendar_refit = _o->calendar_refit;
+  auto _calendar_refit_max_vol_shift = _o->calendar_refit_max_vol_shift;
+  auto _calendar_min_margin = _o->calendar_min_margin;
+  auto _calendar_min_forward_vol = _o->calendar_min_forward_vol;
+  auto _calendar_fit_action = _o->calendar_fit_action.empty() ? 0 : _fbb.CreateString(_o->calendar_fit_action);
   auto _calendar_violations = _o->calendar_violations;
   auto _calendar_max_clip_vol = _o->calendar_max_clip_vol;
   auto _calendar_action = _o->calendar_action.empty() ? 0 : _fbb.CreateString(_o->calendar_action);
@@ -1540,10 +1875,68 @@ inline ::flatbuffers::Offset<VolSurfaceExpiryReport> CreateVolSurfaceExpiryRepor
       _butterfly_min_g,
       _butterfly_violation,
       _butterfly_action,
+      _calendar_refit,
+      _calendar_refit_max_vol_shift,
+      _calendar_min_margin,
+      _calendar_min_forward_vol,
+      _calendar_fit_action,
       _calendar_violations,
       _calendar_max_clip_vol,
       _calendar_action,
       _grid_points_filled);
+}
+
+inline LocalVolCheckT *LocalVolCheck::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<LocalVolCheckT>(new LocalVolCheckT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void LocalVolCheck::UnPackTo(LocalVolCheckT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = arbitrage_free(); _o->arbitrage_free = _e; }
+  { auto _e = times(); _o->times = _e; }
+  { auto _e = strikes(); _o->strikes = _e; }
+  { auto _e = points(); _o->points = _e; }
+  { auto _e = refused(); _o->refused = _e; }
+  { auto _e = first_refusal(); if (_e) _o->first_refusal = _e->str(); }
+  { auto _e = min_local_variance(); _o->min_local_variance = _e; }
+  { auto _e = min_local_variance_time(); _o->min_local_variance_time = _e; }
+  { auto _e = min_local_variance_strike(); _o->min_local_variance_strike = _e; }
+  { auto _e = action(); if (_e) _o->action = _e->str(); }
+}
+
+inline ::flatbuffers::Offset<LocalVolCheck> LocalVolCheck::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const LocalVolCheckT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateLocalVolCheck(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<LocalVolCheck> CreateLocalVolCheck(::flatbuffers::FlatBufferBuilder &_fbb, const LocalVolCheckT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const LocalVolCheckT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _arbitrage_free = _o->arbitrage_free;
+  auto _times = _o->times;
+  auto _strikes = _o->strikes;
+  auto _points = _o->points;
+  auto _refused = _o->refused;
+  auto _first_refusal = _o->first_refusal.empty() ? 0 : _fbb.CreateString(_o->first_refusal);
+  auto _min_local_variance = _o->min_local_variance;
+  auto _min_local_variance_time = _o->min_local_variance_time;
+  auto _min_local_variance_strike = _o->min_local_variance_strike;
+  auto _action = _o->action.empty() ? 0 : _fbb.CreateString(_o->action);
+  return quantra::CreateLocalVolCheck(
+      _fbb,
+      _arbitrage_free,
+      _times,
+      _strikes,
+      _points,
+      _refused,
+      _first_refusal,
+      _min_local_variance,
+      _min_local_variance_time,
+      _min_local_variance_strike,
+      _action);
 }
 
 inline VanillaRepricePointT *VanillaRepricePoint::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
@@ -1675,7 +2068,9 @@ inline CalibrateVolSurfaceResponseT::CalibrateVolSurfaceResponseT(const Calibrat
         vol_surface_spec((o.vol_surface_spec) ? new quantra::VolSurfaceSpecT(*o.vol_surface_spec) : nullptr),
         vol_surface_spec_svi((o.vol_surface_spec_svi) ? new quantra::VolSurfaceSpecT(*o.vol_surface_spec_svi) : nullptr),
         vol_surface_spec_svi_note(o.vol_surface_spec_svi_note),
-        vanilla_repricing((o.vanilla_repricing) ? new quantra::VanillaRepricingT(*o.vanilla_repricing) : nullptr) {
+        vanilla_repricing((o.vanilla_repricing) ? new quantra::VanillaRepricingT(*o.vanilla_repricing) : nullptr),
+        local_vol_check((o.local_vol_check) ? new quantra::LocalVolCheckT(*o.local_vol_check) : nullptr),
+        local_vol_check_svi((o.local_vol_check_svi) ? new quantra::LocalVolCheckT(*o.local_vol_check_svi) : nullptr) {
   forwards.reserve(o.forwards.size());
   for (const auto &forwards_ : o.forwards) { forwards.emplace_back((forwards_) ? new quantra::VolSurfaceForwardT(*forwards_) : nullptr); }
   expiries.reserve(o.expiries.size());
@@ -1699,6 +2094,8 @@ inline CalibrateVolSurfaceResponseT &CalibrateVolSurfaceResponseT::operator=(Cal
   std::swap(vol_surface_spec_svi, o.vol_surface_spec_svi);
   std::swap(vol_surface_spec_svi_note, o.vol_surface_spec_svi_note);
   std::swap(vanilla_repricing, o.vanilla_repricing);
+  std::swap(local_vol_check, o.local_vol_check);
+  std::swap(local_vol_check_svi, o.local_vol_check_svi);
   return *this;
 }
 
@@ -1727,6 +2124,8 @@ inline void CalibrateVolSurfaceResponse::UnPackTo(CalibrateVolSurfaceResponseT *
   { auto _e = vol_surface_spec_svi(); if (_e) { if(_o->vol_surface_spec_svi) { _e->UnPackTo(_o->vol_surface_spec_svi.get(), _resolver); } else { _o->vol_surface_spec_svi = std::unique_ptr<quantra::VolSurfaceSpecT>(_e->UnPack(_resolver)); } } else if (_o->vol_surface_spec_svi) { _o->vol_surface_spec_svi.reset(); } }
   { auto _e = vol_surface_spec_svi_note(); if (_e) _o->vol_surface_spec_svi_note = _e->str(); }
   { auto _e = vanilla_repricing(); if (_e) { if(_o->vanilla_repricing) { _e->UnPackTo(_o->vanilla_repricing.get(), _resolver); } else { _o->vanilla_repricing = std::unique_ptr<quantra::VanillaRepricingT>(_e->UnPack(_resolver)); } } else if (_o->vanilla_repricing) { _o->vanilla_repricing.reset(); } }
+  { auto _e = local_vol_check(); if (_e) { if(_o->local_vol_check) { _e->UnPackTo(_o->local_vol_check.get(), _resolver); } else { _o->local_vol_check = std::unique_ptr<quantra::LocalVolCheckT>(_e->UnPack(_resolver)); } } else if (_o->local_vol_check) { _o->local_vol_check.reset(); } }
+  { auto _e = local_vol_check_svi(); if (_e) { if(_o->local_vol_check_svi) { _e->UnPackTo(_o->local_vol_check_svi.get(), _resolver); } else { _o->local_vol_check_svi = std::unique_ptr<quantra::LocalVolCheckT>(_e->UnPack(_resolver)); } } else if (_o->local_vol_check_svi) { _o->local_vol_check_svi.reset(); } }
 }
 
 inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CalibrateVolSurfaceResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CalibrateVolSurfaceResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -1753,6 +2152,8 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
   auto _vol_surface_spec_svi = _o->vol_surface_spec_svi ? CreateVolSurfaceSpec(_fbb, _o->vol_surface_spec_svi.get(), _rehasher) : 0;
   auto _vol_surface_spec_svi_note = _o->vol_surface_spec_svi_note.empty() ? 0 : _fbb.CreateString(_o->vol_surface_spec_svi_note);
   auto _vanilla_repricing = _o->vanilla_repricing ? CreateVanillaRepricing(_fbb, _o->vanilla_repricing.get(), _rehasher) : 0;
+  auto _local_vol_check = _o->local_vol_check ? CreateLocalVolCheck(_fbb, _o->local_vol_check.get(), _rehasher) : 0;
+  auto _local_vol_check_svi = _o->local_vol_check_svi ? CreateLocalVolCheck(_fbb, _o->local_vol_check_svi.get(), _rehasher) : 0;
   return quantra::CreateCalibrateVolSurfaceResponse(
       _fbb,
       _sheet_id,
@@ -1770,7 +2171,9 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
       _vol_surface_spec,
       _vol_surface_spec_svi,
       _vol_surface_spec_svi_note,
-      _vanilla_repricing);
+      _vanilla_repricing,
+      _local_vol_check,
+      _local_vol_check_svi);
 }
 
 inline const quantra::CalibrateVolSurfaceResponse *GetCalibrateVolSurfaceResponse(const void *buf) {

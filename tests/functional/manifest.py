@@ -3751,7 +3751,9 @@ CASES = [
             "stated SSVI surface (rho -0.7, ATM vols 23 % to 21 % over 8 "
             "expiries), exact Black mids with a 1 % bid/ask: implied forwards "
             "fitted internally, out-of-the-money mids inverted to Black-76 vols, "
-            "sampled on the default 41 x 8 moneyness grid; every used quote "
+            "sampled on the model's own finite-difference strikes inside the "
+            "output range and the expiries' regions (QuantLib "
+            "Concentrating1dMesher); every used quote "
             "repriced on the returned surface read CubicStrikeLinearTime. Compares the forwards, the "
             "per-expiry fit errors, the grid strikes, every grid vol and the "
             "per-quote model vol and price."
@@ -3771,8 +3773,9 @@ CASES = [
         "description": (
             "One raw SVI slice per expiry (QuantLib SviInterpolation, "
             "vega-weighted Levenberg-Marquardt, five free parameters) on the "
-            "same synthetic SSVI sheet, Durrleman butterfly check and calendar "
-            "check of total variance across the grid expiries, sampled on the "
+            "same synthetic SSVI sheet, Durrleman butterfly and wing-slope check, "
+            "the calendar condition of the local vol between consecutive "
+            "expiries (met by the generating surface: no refit), sampled on the "
             "default 41 x 8 grid, the slices also returned as an SviVolSpec "
             "payload. The fit recovers the generating slices to machine "
             "precision (rmse_vol ~1e-16). Compares the forwards, the SVI "
@@ -4831,6 +4834,36 @@ CASES = [
         "exercises": ["structured note", "single underlying", "SVI slices", "SviVolSpec",
                       "strike_min / strike_max", "Dupire local vol", "steps_per_year",
                       "same-stream Monte Carlo parity"],
+    },
+    {
+        "id": "structured_note_synthetic_spx_1y_autocall_daily_expiry_svi",
+        "product": "structured_note",
+        "family": "Structured Notes",
+        "title": "One-year autocall on SPX under calendar-consistent SVI slices fitted to daily expiries",
+        "description": (
+            "A single-underlying one-year autocall (100 % call after six "
+            "months, 60 % European barrier) on the fifteen SVI slices that "
+            "/calibrate-vol-surface returns for a synthetic SPX-like sheet with "
+            "eight consecutive daily expiries, jittered at-the-money vols, 1 % "
+            "noise and a minimum price (examples/data/vol_surface/"
+            "synthetic_spx_daily_expiries_sheet_svi.json), next to the dividend "
+            "curve /calibrate-implied-forwards returns for the same sheet. "
+            "Fitted one by one the daily slices cross and the note is a 400 "
+            "(decreasing variance); the calendar-consistent fit orders them "
+            "and returns per-expiry local-vol strike ranges "
+            "(local_vol_strike_range PerExpiry), which the reference applies "
+            "in Python. Dupire local vol on 252 steps per year, 4096 Sobol "
+            "paths with Brownian bridge and antithetic variates. Synthetic "
+            "vols; the price is not a market value. Same-stream Monte Carlo "
+            "parity on every reported scalar."
+        ),
+        "request": "structured_note/synthetic_spx_1y_autocall_on_daily_expiry_svi.json",
+        "ql_pricer": "price_structured_note_ql",
+        "tolerance": STRUCTURED_NOTE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["structured note", "single underlying", "SVI slices", "SviVolSpec",
+                      "local_vol_strike_range PerExpiry", "calendar-consistent fit",
+                      "Dupire local vol", "steps_per_year", "same-stream Monte Carlo parity"],
     },
     {
         "id": "structured_note_jpm_review_notes_ndx_rty_spx_46661pt64",

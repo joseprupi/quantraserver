@@ -21,6 +21,10 @@
       "type" : "string",
       "enum": ["FlatImpliedVol", "FlatLocalVol"]
     },
+    "quantra_enums_LocalVolStrikeRange" : {
+      "type" : "string",
+      "enum": ["Global", "PerExpiry"]
+    },
     "quantra_enums_BootstrapTrait" : {
       "type" : "string",
       "enum": ["Discount", "FwdRate", "InterpolatedDiscount", "InterpolatedFwd", "InterpolatedZero", "ZeroRate"]
@@ -735,6 +739,13 @@
         "local_vol_time_extrapolation" : {
                 "$ref" : "#/definitions/quantra_enums_LocalVolTimeExtrapolation",
                 "description" : "Optional. For a strike-dependent surface simulated as Dupire local\nvol by a structured note: how the local vol is extended beyond the\nlast expiry (see the enum). Absent = FlatImpliedVol (the local vol of\nthe flat-implied-vol extension). `/calibrate-vol-surface` returns\nFlatLocalVol. No effect on a Constant or AtmMatrix2D vol, nor on any\nBlack vol read (vanilla options, diagnostics)."
+              },
+        "local_vol_strike_min" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Optional, a strike x expiry surface only (SmileCube3D): the strike\nrange a structured note holds the Dupire local vol to around each\nexpiry, one entry per `expiries` entry (both arrays or neither, each\n> 0, min < max, within the grid's strikes). At time t the local vol\nis read at the simulated level clamped to the range of the first\nexpiry at or after t (the last expiry's beyond it), instead of the\ngrid's first and last strike. Absent: the grid's edges at every\ntime. `/calibrate-vol-surface` fills them with the region it checked\n(see `LocalVolCheck`). No Black vol read is affected."
+              },
+        "local_vol_strike_max" : {
+                "type" : "array", "items" : {"type" : "number"}
               }
       },
       "additionalProperties" : false
@@ -803,7 +814,7 @@
               },
         "strike_min" : {
                 "type" : "number",
-                "description" : "Optional: the lowest and highest strike (absolute, same units as\n`forward`) of the quotes the slice was fitted to; `/calibrate-vol-surface`\nfills both. A raw SVI wing beyond the quotes is an extrapolation that\ncan carry butterfly arbitrage (Durrleman's g < 0, a negative Dupire\nlocal variance). When present, a structured note holds the local vol\nat the strike edge beyond them, as for a grid: the local vol strike\nrange is [min of every slice's strike_min, max of every slice's\nstrike_max] (a slice without one leaves that side open), and a\nsimulated level beyond it reads the local vol at the edge. No Black\nvol read is affected (vanilla options read the formula at every\nstrike). Absent: no edge. Each > 0 and strike_min < strike_max when\nboth are given (400 otherwise)."
+                "description" : "Optional: a strike range (absolute, same units as `forward`) around\nthe slice; `/calibrate-vol-surface` fills both with the region it\nchecked around the expiry (before 0.16.5: the strikes of the quotes\nthe slice was fitted to). A raw SVI wing beyond the quotes is an extrapolation that\ncan carry butterfly arbitrage (Durrleman's g < 0, a negative Dupire\nlocal variance). When present, a structured note holds the local vol\nat the strike edge beyond them, as for a grid: with the payload's\n`local_vol_strike_range` Global (default) the local vol strike\nrange is [min of every slice's strike_min, max of every slice's\nstrike_max] (a slice without one leaves that side open); with\nPerExpiry it is this slice's range for the times up to its expiry\n(after the previous slice's). A simulated level beyond it reads the\nlocal vol at the edge. No Black\nvol read is affected (vanilla options read the formula at every\nstrike). Absent: no edge. Each > 0 and strike_min < strike_max when\nboth are given (400 otherwise)."
               },
         "strike_max" : {
                 "type" : "number"
@@ -833,6 +844,10 @@
         "local_vol_time_extrapolation" : {
                 "$ref" : "#/definitions/quantra_enums_LocalVolTimeExtrapolation",
                 "description" : "Optional. How the Dupire local vol a structured note simulates is\nextended beyond the last slice (see the enum). Absent =\nFlatImpliedVol. `/calibrate-vol-surface` returns FlatLocalVol. No\neffect on any Black vol read (vanilla options, diagnostics)."
+              },
+        "local_vol_strike_range" : {
+                "$ref" : "#/definitions/quantra_enums_LocalVolStrikeRange",
+                "description" : "Optional. How the slices' strike_min / strike_max bound the local\nvol (see the enum). Absent = Global (one range for every time).\nPerExpiry requires strike_min and strike_max on every slice (400\notherwise). `/calibrate-vol-surface` returns PerExpiry with each\nslice's checked region. No Black vol read is affected."
               }
       },
       "required" : ["slices"],
@@ -1924,9 +1939,29 @@
                 "type" : "string",
                 "description" : "What was found and done (\"none\", \"refit with penalty: min g ... -> ...\")."
               },
+        "calendar_refit" : {
+                "type" : "boolean",
+                "description" : "`SviPerExpiry` only, every fitted expiry after the first: whether the\ncalendar penalty refit of the sequential fit acted on this slice."
+              },
+        "calendar_refit_max_vol_shift" : {
+                "type" : "number",
+                "description" : "Largest change in vol the calendar refit made over the slice's quoted\nstrikes (absent when it did not act)."
+              },
+        "calendar_min_margin" : {
+                "type" : "number",
+                "description" : "After the fit: the smallest excess of the slice's total variance over\nthe previous slice's plus the requested margin min_forward_vol^2\n(T_i - T_{i-1}) on the calendar grid (>= 0 = constraint met)."
+              },
+        "calendar_min_forward_vol" : {
+                "type" : "number",
+                "description" : "After the fit: the smallest forward vol between the previous slice and\nthis one on the calendar grid, sqrt((w_i - w_{i-1}) / (T_i - T_{i-1}))\n(negative when total variance decreases there)."
+              },
+        "calendar_fit_action" : {
+                "type" : "string",
+                "description" : "What the sequential fit found and did against the previous slice."
+              },
         "calendar_violations" : {
                 "type" : "integer", "minimum" : 0, "maximum" : 4294967295,
-                "description" : "Grid strikes at which total variance was below the previous grid\nexpiry's."
+                "description" : "Grid strikes at which total variance was below the previous grid\nexpiry's (before the clip)."
               },
         "calendar_max_clip_vol" : {
                 "type" : "number",
@@ -1941,6 +1976,47 @@
               }
       },
       "required" : ["expiry"],
+      "additionalProperties" : false
+    },
+    "quantra_LocalVolCheck" : {
+      "type" : "object",
+      "description" : "Dupire local vol of a returned surface, read exactly as the structured\nnote pricer reads it: QuantLib's LocalVolSurface on the surface as the\nparser builds it, on the sheet's forwards (risk-free curve on the implied\ndiscount factors, dividend curve F DF / S), held at the strike edges\n(the grid's first and last strike; for the SVI payload the widest quoted\nrange, min strike_min .. max strike_max) and flat beyond the last expiry\n(FlatLocalVol). The scan: times = every expiry +/- 2e-4 years (outside\nQuantLib's time stencil of 1e-4 on both sides of the node), the midpoints\nbetween expiries (and between 0 and the first) and the last expiry -\n1e-3; strikes = 201 log-spaced over the output strikes and every quoted\nstrike. A refused point is one where QuantLib throws (\"decreasing variance\n...\" or \"negative local vol^2 ...\").",
+      "properties" : {
+        "arbitrage_free" : {
+                "type" : "boolean",
+                "description" : "True iff every scan point evaluated (no refusal): the surface can be\nsimulated as local vol everywhere the scan reached."
+              },
+        "times" : {
+                "type" : "integer", "minimum" : 0, "maximum" : 4294967295
+              },
+        "strikes" : {
+                "type" : "integer", "minimum" : 0, "maximum" : 4294967295
+              },
+        "points" : {
+                "type" : "integer", "minimum" : 0, "maximum" : 4294967295
+              },
+        "refused" : {
+                "type" : "integer", "minimum" : 0, "maximum" : 4294967295
+              },
+        "first_refusal" : {
+                "type" : "string",
+                "description" : "QuantLib's message at the first refused point."
+              },
+        "min_local_variance" : {
+                "type" : "number",
+                "description" : "Smallest local variance (sigma_loc^2) over the points that evaluated,\nand its time (Act/365F years) and strike."
+              },
+        "min_local_variance_time" : {
+                "type" : "number"
+              },
+        "min_local_variance_strike" : {
+                "type" : "number"
+              },
+        "action" : {
+                "type" : "string",
+                "description" : "What was done when the check failed: \"none\", or for the SVI payload\nthe refit passes (the flagged slices refitted with a larger calendar\nmargin and butterfly weight, at most 3 passes)."
+              }
+      },
       "additionalProperties" : false
     },
     "quantra_VanillaRepricePoint" : {
@@ -2071,7 +2147,7 @@
               },
         "vol_surface_spec_svi" : {
                 "$ref" : "#/definitions/quantra_VolSurfaceSpec",
-                "description" : "`SviPerExpiry` only: the same surface as its fitted slices, an\n`SviVolSpec` payload (one `SviSlice` per fitted expiry with the\nforward used and the final a, b, sigma, rho, m; same base and id as\n`vol_surface_spec`, allow_extrapolation true), ready to paste in\nplace of the grid. The calendar clip of step 4 applies to the grid\nonly; the slices are reported as fitted (after the butterfly refit)."
+                "description" : "`SviPerExpiry` only: the same surface as its fitted slices, an\n`SviVolSpec` payload (one `SviSlice` per fitted expiry with the\nforward used and the final a, b, sigma, rho, m; same base and id as\n`vol_surface_spec`, allow_extrapolation true), ready to paste in\nplace of the grid. The slices are the sequential fit's (after the\ncalendar and butterfly refits), so they are ordered in time like the\ngrid; the grid's last-resort clip applies to the grid only."
               },
         "vol_surface_spec_svi_note" : {
                 "type" : "string",
@@ -2080,9 +2156,17 @@
         "vanilla_repricing" : {
                 "$ref" : "#/definitions/quantra_VanillaRepricing",
                 "description" : "Every used quote repriced on `vol_surface_spec` (the grid)."
+              },
+        "local_vol_check" : {
+                "$ref" : "#/definitions/quantra_LocalVolCheck",
+                "description" : "Local vol check of `vol_surface_spec`."
+              },
+        "local_vol_check_svi" : {
+                "$ref" : "#/definitions/quantra_LocalVolCheck",
+                "description" : "Local vol check of `vol_surface_spec_svi` (`SviPerExpiry` only)."
               }
       },
-      "required" : ["sheet_id", "underlying_id", "forwards_source", "filter", "forwards", "expiries", "strikes_as_moneyness", "grid_strikes", "grid_expiries", "vol_surface_spec", "vanilla_repricing"],
+      "required" : ["sheet_id", "underlying_id", "forwards_source", "filter", "forwards", "expiries", "strikes_as_moneyness", "grid_strikes", "grid_expiries", "vol_surface_spec", "vanilla_repricing", "local_vol_check"],
       "additionalProperties" : false
     }
   },

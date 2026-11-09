@@ -26,6 +26,110 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.16.5 (November 2026) — calendar-consistent SVI surfaces, local vol checked as the note reads it
+
+`v0.16.5` is additive on the wire: new optional request fields, new
+response fields, one new enum; no field changes meaning for a request that
+does not use them, and every 0.16.4 request is a valid 0.16.5 request.
+`/calibrate-vol-surface` returns different surfaces where the calendar
+binds (most of a sheet with daily or weekly expiries), and its SVI slices
+carry a different strike range (below): say so plainly, recalibrate rather
+than reuse a 0.16.4 surface for a note. Structured notes, equity options
+and every other endpoint price as before on the same inputs. QuantLib stays
+at 1.44.
+
+**What was wrong.** With `SviPerExpiry` every expiry was fitted on its own.
+On a Cboe SPX sheet of 47 expiries (daily, weekly, monthly) the fitted
+slices were not ordered in time — the 19-day slice 12 % below the 18-day
+one in total variance at the money, 30 of 46 adjacent pairs crossing
+somewhere between 55 % and 180 % of the spot — although the quotes
+themselves are ordered on every strike two expiries share. The grid's
+calendar clip lifted the later expiry to the earlier one's total variance
++ 1e-8 at the 41 grid strikes only (566 of 1,886 adjacent node pairs ended
+equal), the slices still crossed between nodes and in the SVI payload
+(not clipped at all), and a structured note on either returned spec was a
+400 ("decreasing variance at strike ... between time t and t+1e-4", or,
+next to a flattened node, "negative local vol^2 ... not smooth enough").
+
+**Calendar-consistent SVI fit.** The slices are fitted from the last
+expiry back, each held under the next one on 401 strikes over the region a
+simulation reaches around the expiry pair (5 standard deviations of the
+log-forward with the market's implied vols along the way, and the strikes
+both expiries quote). The condition is the one QuantLib's local vol needs
+between two expiries — total variance interpolated linearly in time at
+fixed strike, differentiated along the forward — at both ends of the
+interval: `w_i − w_{i−1} + ln(F_i / F_{i−1}) s ≥ min_forward_vol² (T_i −
+T_{i−1})` with `s = dw/d ln K` of either slice. A slice that breaks it is
+refitted with a calendar penalty together with the butterfly penalty, then
+lowered by any excess left, so the condition holds at every point. New
+request field `svi.min_forward_vol` (default `0.01`, `0` = no margin,
+finite and `≥ 0`). New report fields per expiry: `calendar_refit`,
+`calendar_refit_max_vol_shift`, `calendar_min_margin`,
+`calendar_min_forward_vol`, `calendar_fit_action`. The butterfly check now
+covers the regions too and also flags a wing slope `b (1 + |ρ|)` above
+Roger Lee's bound 2 (QuantLib's fit admits up to 4; such slices are
+refitted within the bound). The grid's calendar clip compares at the same
+forward moneyness, inside the region only, and stays a last resort: after
+the fit it does not fire on the SPX sheet. `enforce_calendar: false` keeps
+the independent fits.
+
+**Local vol checked on the continuous object.** New response blocks
+`local_vol_check` (the grid) and `local_vol_check_svi` (the SVI payload):
+each spec is rebuilt as the note pricer builds it and QuantLib's
+`LocalVolSurface` is evaluated at every expiry ± 2e-4, the midpoints and
+the last expiry − 1e-3, on 201 strikes per time over the region; reported:
+points, refusals (and the first message), the smallest local variance and
+where, `arbitrage_free` (no refusal). If the SVI payload fails, the slices
+involved are refitted with a larger margin or butterfly weight (at most 3
+passes, in `action`). On the SPX sheet both specs pass without a pass; the
+SVI fit reprices 2,573 of 10,176 quotes inside their bid/ask (independent
+fits: 3,955; 0.16.4's clipped grid: 3,669) with the largest price error
+19.4 points (0.16.4: 181); the loss is on the short-dated deep calls quoted
+at the minimum tick.
+
+**Per-expiry local vol strike ranges.** So that a note never reads the
+surface where nothing was checked, the returned specs carry the regions:
+`BlackVolSpec.local_vol_strike_min` / `local_vol_strike_max` (new, optional,
+one entry per expiry, `SmileCube3D` only) and, on `SviVolSpec`, the new enum
+field `local_vol_strike_range` (`LocalVolStrikeRange { Global, PerExpiry
+}`, absent = `Global`, the 0.16.4 reading) set to `PerExpiry` with each
+slice's `strike_min` / `strike_max` = its region (in 0.16.4: the strikes
+of its quotes, read as one range). At time `t` a note's local vol is read
+at the simulated level clamped to the range of the first expiry at or
+after `t`. Absent fields: the reading is unchanged.
+
+**Andreasen-Huge.** The returned grid's strikes are now the model's own
+finite-difference points within the output range and the regions (344 on
+the SPX sheet), so the cubic reading no longer re-interpolates 41 samples;
+`strikes_as_moneyness` echoes them. Its continuous check fails on the SPX
+sheet (867 of 28,542 points refused: the model itself misses the sheet by
+5.7 vol points on average with 47 expiries) and is reported as such: use
+`SviPerExpiry` for structured notes.
+
+**Local vol floor (opt-in).** New `MonteCarloSpec.local_vol_floor`
+(absent = today: a refused read is a 400). Present and `> 0` (only with a
+local-vol underlying, `400` otherwise): the local vol simulated is
+`max(Dupire, floor)` and a read QuantLib would refuse takes the floor. The
+Dupire formula is QuantLib's `localVolImpl` step by step, bit-identical to
+`LocalVolSurface` where no floor binds (gtest). The model echo reports per
+underlying `local_vol_floor`, `local_vol_reads`,
+`local_vol_floored_fraction` and `local_vol_refusals_floored`; the terms
+echo the floor. A floored fraction above about 1e-3 means the surface is
+not usable: recalibrate. The four refused SPX requests of the 0.16.4
+surfaces price with a 5 % floor at floored fractions of 1.0e-3 to 2.7e-2;
+the note on the 0.16.5 surfaces of the same sheet prices without a floor
+(991.92 ± 0.47 on the grid, 991.89 ± 0.47 on the SVI payload).
+
+**Not changed, documented.** The check uses the sheet's forwards; a note
+priced on another forward drift `Δμ` adds `Δμ · s` to the local vol's time
+derivative, so price on the dividend curve `/calibrate-implied-forwards`
+returns (or raise `min_forward_vol`). Example:
+`structured_note/synthetic_spx_1y_autocall_on_daily_expiry_svi.json` on
+the sheet `vol_surface/synthetic_spx_daily_expiries_sheet_svi.json`
+(new generator preset `spx_daily`: daily expiries with jittered
+at-the-money vols, 1 % noise and a minimum price): a 400 on the 0.16.4
+calibration, prices on the 0.16.5 one.
+
 ## Version 0.16.4 (November 2026) — local vol beyond the quoted surface, configurable time limits
 
 `v0.16.4` is additive: new optional fields and new runtime knobs, no

@@ -9,6 +9,16 @@ np = import_numpy()
 # Arbitrage handling of the `SviPerExpiry` method (ignored by
 # `AndreasenHuge`, which is arbitrage-free by construction and only
 # reports).
+#
+# The expiries are fitted one after the other in increasing time. From the
+# second on, the slice must lie above the slice before it on a fine
+# log-moneyness grid (401 points over the output strikes and every quoted
+# strike of the sheet, extended to k = +/- 5 sigma_ATM sqrt(T)), both at
+# the same strike (the surface interpolates linearly in total variance at
+# fixed strike) and at the same forward moneyness (Dupire's local vol
+# differentiates in time along the forward):
+#
+#     w_i(k) >= w_{i-1}(k) + min_forward_vol^2 (T_i - T_{i-1}).
 class SviFitOptions(object):
     __slots__ = ['_tab']
 
@@ -38,10 +48,17 @@ class SviFitOptions(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return True
 
-    # When total variance decreases from one grid expiry to the next at a
-    # grid strike, clip it to the previous expiry's total variance plus
-    # 1e-8; the report counts the clipped points per expiry. Off: report
-    # only.
+    # When the independently fitted slice violates the calendar constraint
+    # above, refit it by Levenberg-Marquardt with a penalty on the shortfall
+    # (together with the butterfly penalty when `enforce_butterfly`), then
+    # lift it by whatever shortfall remains, so the constraint holds on
+    # every grid point; the report says per expiry whether the refit acted,
+    # the largest vol change it made over the quoted strikes and the
+    # smallest margin after the fit. Then, as a last resort, total variance
+    # that still decreases from one grid expiry to the next at a grid
+    # strike is clipped to the previous expiry's plus 1e-8 (it should not
+    # fire after the fit; the report counts the clipped points). Off:
+    # report only (independent fits, no clip).
     # SviFitOptions
     def EnforceCalendar(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -49,8 +66,19 @@ class SviFitOptions(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return True
 
+    # Minimum forward volatility between two consecutive fitted expiries,
+    # the calendar margin of the constraint above (0.01 = 1 % forward vol).
+    # 0 = no margin (total variance non-decreasing only). Must be finite
+    # and >= 0.
+    # SviFitOptions
+    def MinForwardVol(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.01
+
 def SviFitOptionsStart(builder):
-    builder.StartObject(2)
+    builder.StartObject(3)
 
 def Start(builder):
     SviFitOptionsStart(builder)
@@ -67,6 +95,12 @@ def SviFitOptionsAddEnforceCalendar(builder, enforceCalendar):
 def AddEnforceCalendar(builder, enforceCalendar):
     SviFitOptionsAddEnforceCalendar(builder, enforceCalendar)
 
+def SviFitOptionsAddMinForwardVol(builder, minForwardVol):
+    builder.PrependFloat64Slot(2, minForwardVol, 0.01)
+
+def AddMinForwardVol(builder, minForwardVol):
+    SviFitOptionsAddMinForwardVol(builder, minForwardVol)
+
 def SviFitOptionsEnd(builder):
     return builder.EndObject()
 
@@ -80,6 +114,7 @@ class SviFitOptionsT(object):
     def __init__(self):
         self.enforceButterfly = True  # type: bool
         self.enforceCalendar = True  # type: bool
+        self.minForwardVol = 0.01  # type: float
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -104,11 +139,13 @@ class SviFitOptionsT(object):
             return
         self.enforceButterfly = sviFitOptions.EnforceButterfly()
         self.enforceCalendar = sviFitOptions.EnforceCalendar()
+        self.minForwardVol = sviFitOptions.MinForwardVol()
 
     # SviFitOptionsT
     def Pack(self, builder):
         SviFitOptionsStart(builder)
         SviFitOptionsAddEnforceButterfly(builder, self.enforceButterfly)
         SviFitOptionsAddEnforceCalendar(builder, self.enforceCalendar)
+        SviFitOptionsAddMinForwardVol(builder, self.minForwardVol)
         sviFitOptions = SviFitOptionsEnd(builder)
         return sviFitOptions

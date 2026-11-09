@@ -102,6 +102,7 @@ struct MonteCarloData {
     bool antithetic = true;
     bool brownianBridge = true;
     std::optional<unsigned int> stepsPerYear;
+    std::optional<double> localVolFloor;
 };
 
 struct StructuredNoteTrade {
@@ -225,6 +226,7 @@ struct NoteTermsEcho {
     bool antithetic = true;
     bool brownianBridge = true;
     std::optional<unsigned int> stepsPerYear;
+    std::optional<double> localVolFloor;
 };
 
 struct NoteResolvedEvent {
@@ -255,6 +257,10 @@ struct NoteModelUnderlying {
     quantra::enums::VolSurfaceShape volShape = quantra::enums::VolSurfaceShape_Constant;
     bool localVol = false;
     std::optional<double> quantoDrift;
+    std::optional<double> localVolFloor;
+    std::optional<unsigned long long> localVolReads;
+    std::optional<double> localVolFlooredFraction;
+    std::optional<unsigned long long> localVolRefusalsFloored;
 };
 
 struct NoteModelEcho {

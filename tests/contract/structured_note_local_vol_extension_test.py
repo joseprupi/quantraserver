@@ -131,17 +131,22 @@ def test_calibrate_reports_the_quoted_strike_range_and_the_wings(client, data_di
     assert request == gen.build_vol_surface_request(gen.SYNTHETIC_SPX_STEEP_WINGS,
                                                     "SviPerExpiry")
     out = _ok(client, request, "calibrate_vol_surface")
-    slices = out["vol_surface_spec_svi"]["payload"]["slices"]
+    payload = out["vol_surface_spec_svi"]["payload"]
+    slices = payload["slices"]
     spot = gen.SYNTHETIC_SPX_STEEP_WINGS["spot"]
-    sheet_strikes = sorted({q["strike"] for q in request["sheet"]["quotes"]})
     assert len(slices) == 8
+    # Since 0.16.5 each slice carries the region checked around its expiry
+    # (read per expiry): within the output range (50 % .. 150 %) and the
+    # quoted strikes, wider on the put side as the expiry lengthens.
+    assert payload["local_vol_strike_range"] == "PerExpiry"
     for sl in slices:
-        assert sheet_strikes[0] <= sl["strike_min"] < sl["strike_max"] <= sheet_strikes[-1]
-        assert sl["strike_min"] == pytest.approx(0.60 * spot)
-    # The raw wings beyond the output range (50 % .. 150 %) carry butterfly
+        assert 0.50 * spot - 1e-6 <= sl["strike_min"] < spot < sl["strike_max"] <= 1.50 * spot + 1e-6
+    assert slices[-1]["strike_min"] < slices[0]["strike_min"]
+    assert out["local_vol_check_svi"]["arbitrage_free"]
+    # The raw wings beyond the checked range (50 % .. 150 %) carry butterfly
     # arbitrage on the long slices: reported, never enforced.
     beyond = [e for e in out["expiries"]
-              if "beyond the output strike range (reported only" in e.get("butterfly_action", "")]
+              if "beyond the checked strike range (reported only" in e.get("butterfly_action", "")]
     assert len(beyond) >= 3, [e.get("butterfly_action") for e in out["expiries"]]
     for e in beyond:
         assert e["butterfly_min_g"] >= -1e-5  # the output range itself is clean
@@ -187,3 +192,117 @@ def test_one_slice_without_edges_leaves_that_side_open(client, data_dir):
     request = load_json(data_dir / SPX_2Y)
     _vols(request)[0]["payload"]["slices"][3].pop("strike_min")
     _400(client, request, "negative local vol^2")
+
+
+# --------------------------------------------------------------------------
+# Time, between expiries: the calendar-consistent SVI fit (0.16.5)
+# --------------------------------------------------------------------------
+
+DAILY_SHEET = "vol_surface/synthetic_spx_daily_expiries_sheet_svi.json"
+DAILY_NOTE = "structured_note/synthetic_spx_1y_autocall_on_daily_expiry_svi.json"
+
+
+def test_daily_sheet_equals_the_generator(data_dir):
+    assert load_json(data_dir / DAILY_SHEET) == gen.build_vol_surface_request(
+        gen.SYNTHETIC_SPX_DAILY, "SviPerExpiry")
+
+
+def test_daily_expiries_fitted_one_by_one_cross_and_the_note_is_400(client, data_dir):
+    """The reproduction: with enforce_calendar false the daily slices are the
+    independent fits (the 0.16.4 slices); they cross, the local vol check of
+    the payload refuses, and the note on them is a 400."""
+    request = load_json(data_dir / DAILY_SHEET)
+    request["svi"] = {"enforce_calendar": False}
+    out = _ok(client, request, "calibrate_vol_surface")
+    crossed = [e for e in out["expiries"][1:] if e["calendar_min_margin"] < 0.0]
+    assert len(crossed) >= 3
+    assert not out["local_vol_check_svi"]["arbitrage_free"]
+    assert "decreasing variance" in out["local_vol_check_svi"]["first_refusal"]
+    note = load_json(data_dir / DAILY_NOTE)
+    note["pricing"]["volatility"]["vol_surfaces"] = [out["vol_surface_spec_svi"]]
+    _400(client, note, "could not be evaluated along the simulated paths",
+         "decreasing variance", "SPX_SYN_VOL")
+
+
+def test_daily_expiries_calendar_consistent_and_the_note_prices(client, data_dir):
+    request = load_json(data_dir / DAILY_SHEET)
+    out = _ok(client, request, "calibrate_vol_surface")
+    for e in out["expiries"][1:]:
+        assert e["calendar_min_margin"] >= -1e-12, e["expiry"]
+        assert e["calendar_min_forward_vol"] >= 0.01 - 1e-9, e["expiry"]
+        assert e["calendar_violations"] == 0, e["calendar_action"]
+    assert any(e["calendar_refit"] for e in out["expiries"])
+    for key in ("local_vol_check", "local_vol_check_svi"):
+        check = out[key]
+        assert check["arbitrage_free"] and check["refused"] == 0, check
+        assert check["points"] == check["times"] * check["strikes"]
+    # The example note carries this very payload, as returned.
+    note = load_json(data_dir / DAILY_NOTE)
+    assert note["pricing"]["volatility"]["vol_surfaces"] == [out["vol_surface_spec_svi"]]
+    priced = _ok(client, note)["notes"][0]
+    assert priced["npv"] > 0.0
+    # The grid prices too.
+    grid_note = copy.deepcopy(note)
+    grid_note["pricing"]["volatility"]["vol_surfaces"] = [out["vol_surface_spec"]]
+    assert _ok(client, grid_note)["notes"][0]["npv"] > 0.0
+
+
+def test_local_vol_floor_prices_the_crossing_slices_and_counts(client, data_dir):
+    request = load_json(data_dir / DAILY_SHEET)
+    request["svi"] = {"enforce_calendar": False}
+    out = _ok(client, request, "calibrate_vol_surface")
+    note = load_json(data_dir / DAILY_NOTE)
+    note["pricing"]["volatility"]["vol_surfaces"] = [out["vol_surface_spec_svi"]]
+    note["notes"][0]["monte_carlo"]["local_vol_floor"] = 0.05
+    priced = _ok(client, note)["notes"][0]
+    assert priced["terms"]["local_vol_floor"] == 0.05
+    mu = priced["model"]["underlyings"][0]
+    assert mu["local_vol_floor"] == 0.05
+    assert mu["local_vol_reads"] > 0
+    assert mu["local_vol_refusals_floored"] > 0
+    assert 0.0 < mu["local_vol_floored_fraction"] < 1.0
+    # On the calendar-consistent payload the floor never meets a refusal.
+    clean = load_json(data_dir / DAILY_NOTE)
+    clean["notes"][0]["monte_carlo"]["local_vol_floor"] = 0.05
+    mu = _ok(client, clean)["notes"][0]["model"]["underlyings"][0]
+    assert mu["local_vol_refusals_floored"] == 0
+    # Without a floor no field appears.
+    plain = _ok(client, load_json(data_dir / DAILY_NOTE))["notes"][0]
+    assert "local_vol_floor" not in plain["model"]["underlyings"][0]
+
+
+@pytest.mark.parametrize("value,needle", [
+    (0.0, ".monte_carlo.local_vol_floor: must be finite and > 0"),
+    (-0.1, ".monte_carlo.local_vol_floor: must be finite and > 0"),
+])
+def test_local_vol_floor_errors(client, data_dir, value, needle):
+    note = load_json(data_dir / DAILY_NOTE)
+    note["notes"][0]["monte_carlo"]["local_vol_floor"] = value
+    _400(client, note, needle)
+
+
+def test_per_expiry_strike_range_errors(client, data_dir):
+    note = load_json(data_dir / DAILY_NOTE)
+    note["pricing"]["volatility"]["vol_surfaces"][0]["payload"]["slices"][1].pop("strike_min")
+    _400(client, note, "strike_min and strike_max are required with local_vol_strike_range "
+                       "PerExpiry")
+
+
+def test_grid_per_expiry_strike_range_errors(client, data_dir):
+    request = load_json(data_dir / DAILY_SHEET)
+    out = _ok(client, request, "calibrate_vol_surface")
+    note = load_json(data_dir / DAILY_NOTE)
+    spec = copy.deepcopy(out["vol_surface_spec"])
+    spec["payload"].pop("local_vol_strike_max")
+    note["pricing"]["volatility"]["vol_surfaces"] = [spec]
+    _400(client, note, "local_vol_strike_min and local_vol_strike_max must be given together")
+    spec = copy.deepcopy(out["vol_surface_spec"])
+    spec["payload"]["local_vol_strike_min"] = spec["payload"]["local_vol_strike_min"][:-1]
+    note["pricing"]["volatility"]["vol_surfaces"] = [spec]
+    _400(client, note, "need one entry per expiry")
+
+
+def test_local_vol_floor_without_a_local_vol_underlying_is_400(client, data_dir):
+    note = load_json(data_dir / "structured_note/synthetic_two_asset_worst_of_flat_vol_autocall.json")
+    note["notes"][0]["monte_carlo"]["local_vol_floor"] = 0.05
+    _400(client, note, ".monte_carlo.local_vol_floor: must be absent")

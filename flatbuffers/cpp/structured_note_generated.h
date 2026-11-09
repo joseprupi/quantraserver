@@ -819,6 +819,7 @@ struct MonteCarloSpecT : public ::flatbuffers::NativeTable {
   bool antithetic = true;
   bool brownian_bridge = true;
   ::flatbuffers::Optional<uint32_t> steps_per_year = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> local_vol_floor = ::flatbuffers::nullopt;
 };
 
 /// Monte Carlo settings. Every price carries its standard error, path
@@ -833,7 +834,8 @@ struct MonteCarloSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_SEQUENCE = 8,
     VT_ANTITHETIC = 10,
     VT_BROWNIAN_BRIDGE = 12,
-    VT_STEPS_PER_YEAR = 14
+    VT_STEPS_PER_YEAR = 14,
+    VT_LOCAL_VOL_FLOOR = 16
   };
   /// Number of simulated paths (antithetic pairs count as two paths).
   /// Presence-required and > 0; a power of two is recommended with Sobol.
@@ -870,6 +872,20 @@ struct MonteCarloSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   ::flatbuffers::Optional<uint32_t> steps_per_year() const {
     return GetOptional<uint32_t, uint32_t>(VT_STEPS_PER_YEAR);
   }
+  /// Optional safety net for a strike-dependent surface simulated as
+  /// Dupire local vol. Absent: QuantLib's LocalVolSurface as is; a read
+  /// it refuses (total variance decreasing in time, negative local
+  /// variance) is a 400 naming the surface. Present (> 0, finite; 400
+  /// otherwise, and 400 when no underlying is simulated as local vol):
+  /// the local vol simulated is max(Dupire, local_vol_floor), and a read
+  /// QuantLib would refuse takes the floor instead. Where no floor applies
+  /// the local vol is QuantLib's to the bit. The response's
+  /// `model.underlyings[]` reports the fraction of local vol reads that
+  /// were floored and the refusals floored. A floored fraction above about
+  /// 1e-3 means the surface is not usable for the note: recalibrate it.
+  ::flatbuffers::Optional<double> local_vol_floor() const {
+    return GetOptional<double, double>(VT_LOCAL_VOL_FLOOR);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint32_t>(verifier, VT_PATHS, 4) &&
@@ -878,6 +894,7 @@ struct MonteCarloSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<uint8_t>(verifier, VT_ANTITHETIC, 1) &&
            VerifyField<uint8_t>(verifier, VT_BROWNIAN_BRIDGE, 1) &&
            VerifyField<uint32_t>(verifier, VT_STEPS_PER_YEAR, 4) &&
+           VerifyField<double>(verifier, VT_LOCAL_VOL_FLOOR, 8) &&
            verifier.EndTable();
   }
   MonteCarloSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -907,6 +924,9 @@ struct MonteCarloSpecBuilder {
   void add_steps_per_year(uint32_t steps_per_year) {
     fbb_.AddElement<uint32_t>(MonteCarloSpec::VT_STEPS_PER_YEAR, steps_per_year);
   }
+  void add_local_vol_floor(double local_vol_floor) {
+    fbb_.AddElement<double>(MonteCarloSpec::VT_LOCAL_VOL_FLOOR, local_vol_floor);
+  }
   explicit MonteCarloSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -925,8 +945,10 @@ inline ::flatbuffers::Offset<MonteCarloSpec> CreateMonteCarloSpec(
     quantra::enums::RandomSequence sequence = quantra::enums::RandomSequence_Sobol,
     bool antithetic = true,
     bool brownian_bridge = true,
-    ::flatbuffers::Optional<uint32_t> steps_per_year = ::flatbuffers::nullopt) {
+    ::flatbuffers::Optional<uint32_t> steps_per_year = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> local_vol_floor = ::flatbuffers::nullopt) {
   MonteCarloSpecBuilder builder_(_fbb);
+  if(local_vol_floor) { builder_.add_local_vol_floor(*local_vol_floor); }
   builder_.add_seed(seed);
   if(steps_per_year) { builder_.add_steps_per_year(*steps_per_year); }
   if(paths) { builder_.add_paths(*paths); }
@@ -1505,6 +1527,7 @@ inline void MonteCarloSpec::UnPackTo(MonteCarloSpecT *_o, const ::flatbuffers::r
   { auto _e = antithetic(); _o->antithetic = _e; }
   { auto _e = brownian_bridge(); _o->brownian_bridge = _e; }
   { auto _e = steps_per_year(); _o->steps_per_year = _e; }
+  { auto _e = local_vol_floor(); _o->local_vol_floor = _e; }
 }
 
 inline ::flatbuffers::Offset<MonteCarloSpec> MonteCarloSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const MonteCarloSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -1521,6 +1544,7 @@ inline ::flatbuffers::Offset<MonteCarloSpec> CreateMonteCarloSpec(::flatbuffers:
   auto _antithetic = _o->antithetic;
   auto _brownian_bridge = _o->brownian_bridge;
   auto _steps_per_year = _o->steps_per_year;
+  auto _local_vol_floor = _o->local_vol_floor;
   return quantra::CreateMonteCarloSpec(
       _fbb,
       _paths,
@@ -1528,7 +1552,8 @@ inline ::flatbuffers::Offset<MonteCarloSpec> CreateMonteCarloSpec(::flatbuffers:
       _sequence,
       _antithetic,
       _brownian_bridge,
-      _steps_per_year);
+      _steps_per_year,
+      _local_vol_floor);
 }
 
 inline StructuredNoteT::StructuredNoteT(const StructuredNoteT &o)

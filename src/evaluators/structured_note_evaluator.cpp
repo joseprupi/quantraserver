@@ -160,6 +160,16 @@ struct ResolvedUnderlying {
     double rho = 0.0;
 };
 
+/// The strike range(s) the underlying's vol spec holds its local vol to.
+void applyStrikeRanges(const BlackVolEntry& e, mc::BasketAsset& asset) {
+    asset.localVolStrikeRange = e.localVolStrikeRange;
+    asset.localVolStrikeBands.clear();
+    for (const auto& b : e.localVolStrikeBands) {
+        asset.localVolStrikeBands.push_back(
+            {asset.vol->timeFromReference(b.expiry), b.minStrike, b.maxStrike});
+    }
+}
+
 /// The local vol time extension the underlying's vol spec asks for.
 mc::LocalVolTimeExtrapolation localVolTimeOf(const ResolvedUnderlying& u) {
     return u.volEntry != nullptr && u.volEntry->flatLocalVolBeyondLastExpiry
@@ -471,6 +481,7 @@ NoteTermsEcho echoTerms(
     e.antithetic = t.monteCarlo.antithetic;
     e.brownianBridge = t.monteCarlo.brownianBridge;
     e.stepsPerYear = t.monteCarlo.stepsPerYear;
+    e.localVolFloor = t.monteCarlo.localVolFloor;
     return e;
 }
 
@@ -775,6 +786,12 @@ NoteResultRow priceNote(
                          "constant or term (exact lognormal steps between observation dates) and "
                          "the capital barrier is European");
     }
+    if (allExact && trade.monteCarlo.localVolFloor) {
+        QUANTRA_INVALID_ARGUMENT(
+            trade.path +
+            ".monte_carlo.local_vol_floor: must be absent, no volatility is a strike x "
+            "expiry surface (no underlying is simulated as local vol)");
+    }
     std::optional<Size> steps;
     if (trade.monteCarlo.stepsPerYear) steps = static_cast<Size>(*trade.monteCarlo.stepsPerYear);
     const mc::SimulationGrid grid = mc::BuildSimulationGrid(asOf, mandatory, steps);
@@ -794,8 +811,8 @@ NoteResultRow priceNote(
                 trade.underlyings[k].underlyingId, und[k].spot, und[k].dividend, noteCurve,
                 und[k].vol));
         assets.back().localVolTime = localVolTimeOf(und[k]);
-        if (und[k].volEntry)
-            assets.back().localVolStrikeRange = und[k].volEntry->localVolStrikeRange;
+        if (und[k].volEntry) applyStrikeRanges(*und[k].volEntry, assets.back());
+        if (!und[k].exactStep) assets.back().localVolFloor = trade.monteCarlo.localVolFloor;
         localVols.attach(assets.back());
     }
     auto processes = mc::BasketModel::build(assets, correlation);
@@ -994,8 +1011,27 @@ NoteResultRow priceNote(
     }
     std::vector<double> baseTotals;
     if (greeks) baseTotals.assign(static_cast<std::size_t>(cfg.paths), 0.0);
+    // Floor counters of the priced simulation only (the local vols are
+    // shared with the later runs).
+    auto flooredLocalVol = [&](std::size_t k) -> std::shared_ptr<const mc::EdgeClampedLocalVol> {
+        if (!trade.monteCarlo.localVolFloor || assets[k].localVol.empty()) return nullptr;
+        return std::dynamic_pointer_cast<const mc::EdgeClampedLocalVol>(
+            assets[k].localVol.currentLink());
+    };
+    for (std::size_t k = 0; k < nU; ++k)
+        if (auto lv = flooredLocalVol(k)) lv->resetCounts();
     const mc::PathEngineResult sim =
         runPaths(processes, base, records.get(), greeks ? &baseTotals : nullptr);
+    for (std::size_t k = 0; k < nU; ++k) {
+        if (auto lv = flooredLocalVol(k)) {
+            auto& mu = row.model.underlyings[k];
+            mu.localVolFloor = trade.monteCarlo.localVolFloor;
+            mu.localVolReads = lv->reads();
+            mu.localVolFlooredFraction =
+                lv->reads() > 0 ? static_cast<double>(lv->floored()) / lv->reads() : 0.0;
+            mu.localVolRefusalsFloored = lv->refusals();
+        }
+    }
     clock.mark("simulation");
 
     const double N = trade.notional;
@@ -1465,8 +1501,8 @@ NoteResultRow priceNote(
                     mc::MakeBasketAsset(
                         trade.underlyings[k].underlyingId, spot, dividend, riskFree, vol));
                 bumped.back().localVolTime = localVolTimeOf(und[k]);
-                if (und[k].volEntry)
-                    bumped.back().localVolStrikeRange = und[k].volEntry->localVolStrikeRange;
+                if (und[k].volEntry) applyStrikeRanges(*und[k].volEntry, bumped.back());
+                if (!und[k].exactStep) bumped.back().localVolFloor = trade.monteCarlo.localVolFloor;
                 localVols.attach(bumped.back());
             }
             std::vector<double> totals(static_cast<std::size_t>(cfg.paths), 0.0);

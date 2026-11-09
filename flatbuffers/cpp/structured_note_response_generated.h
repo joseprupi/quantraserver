@@ -538,6 +538,7 @@ struct StructuredNoteTermsEchoT : public ::flatbuffers::NativeTable {
   bool antithetic = false;
   bool brownian_bridge = false;
   ::flatbuffers::Optional<uint32_t> steps_per_year = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> local_vol_floor = ::flatbuffers::nullopt;
   StructuredNoteTermsEchoT() = default;
   StructuredNoteTermsEchoT(const StructuredNoteTermsEchoT &o);
   StructuredNoteTermsEchoT(StructuredNoteTermsEchoT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -575,7 +576,8 @@ struct StructuredNoteTermsEcho FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::
     VT_SEQUENCE = 44,
     VT_ANTITHETIC = 46,
     VT_BROWNIAN_BRIDGE = 48,
-    VT_STEPS_PER_YEAR = 50
+    VT_STEPS_PER_YEAR = 50,
+    VT_LOCAL_VOL_FLOOR = 52
   };
   const ::flatbuffers::String *trade_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_TRADE_ID);
@@ -657,6 +659,10 @@ struct StructuredNoteTermsEcho FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::
   ::flatbuffers::Optional<uint32_t> steps_per_year() const {
     return GetOptional<uint32_t, uint32_t>(VT_STEPS_PER_YEAR);
   }
+  /// The request's `monte_carlo.local_vol_floor`; absent when none.
+  ::flatbuffers::Optional<double> local_vol_floor() const {
+    return GetOptional<double, double>(VT_LOCAL_VOL_FLOOR);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_TRADE_ID) &&
@@ -692,6 +698,7 @@ struct StructuredNoteTermsEcho FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::
            VerifyField<uint8_t>(verifier, VT_ANTITHETIC, 1) &&
            VerifyField<uint8_t>(verifier, VT_BROWNIAN_BRIDGE, 1) &&
            VerifyField<uint32_t>(verifier, VT_STEPS_PER_YEAR, 4) &&
+           VerifyField<double>(verifier, VT_LOCAL_VOL_FLOOR, 8) &&
            verifier.EndTable();
   }
   StructuredNoteTermsEchoT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -775,6 +782,9 @@ struct StructuredNoteTermsEchoBuilder {
   void add_steps_per_year(uint32_t steps_per_year) {
     fbb_.AddElement<uint32_t>(StructuredNoteTermsEcho::VT_STEPS_PER_YEAR, steps_per_year);
   }
+  void add_local_vol_floor(double local_vol_floor) {
+    fbb_.AddElement<double>(StructuredNoteTermsEcho::VT_LOCAL_VOL_FLOOR, local_vol_floor);
+  }
   explicit StructuredNoteTermsEchoBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -817,8 +827,10 @@ inline ::flatbuffers::Offset<StructuredNoteTermsEcho> CreateStructuredNoteTermsE
     quantra::enums::RandomSequence sequence = quantra::enums::RandomSequence_Sobol,
     bool antithetic = false,
     bool brownian_bridge = false,
-    ::flatbuffers::Optional<uint32_t> steps_per_year = ::flatbuffers::nullopt) {
+    ::flatbuffers::Optional<uint32_t> steps_per_year = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> local_vol_floor = ::flatbuffers::nullopt) {
   StructuredNoteTermsEchoBuilder builder_(_fbb);
+  if(local_vol_floor) { builder_.add_local_vol_floor(*local_vol_floor); }
   builder_.add_seed(seed);
   if(correlation_markup) { builder_.add_correlation_markup(*correlation_markup); }
   builder_.add_funding_spread_bp(funding_spread_bp);
@@ -871,7 +883,8 @@ inline ::flatbuffers::Offset<StructuredNoteTermsEcho> CreateStructuredNoteTermsE
     quantra::enums::RandomSequence sequence = quantra::enums::RandomSequence_Sobol,
     bool antithetic = false,
     bool brownian_bridge = false,
-    ::flatbuffers::Optional<uint32_t> steps_per_year = ::flatbuffers::nullopt) {
+    ::flatbuffers::Optional<uint32_t> steps_per_year = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> local_vol_floor = ::flatbuffers::nullopt) {
   auto trade_id__ = trade_id ? _fbb.CreateString(trade_id) : 0;
   auto currency__ = currency ? _fbb.CreateString(currency) : 0;
   auto underlyings__ = underlyings ? _fbb.CreateVector<::flatbuffers::Offset<quantra::StructuredNoteTermsUnderlying>>(*underlyings) : 0;
@@ -904,7 +917,8 @@ inline ::flatbuffers::Offset<StructuredNoteTermsEcho> CreateStructuredNoteTermsE
       sequence,
       antithetic,
       brownian_bridge,
-      steps_per_year);
+      steps_per_year,
+      local_vol_floor);
 }
 
 ::flatbuffers::Offset<StructuredNoteTermsEcho> CreateStructuredNoteTermsEcho(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteTermsEchoT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -1278,6 +1292,10 @@ struct StructuredNoteModelUnderlyingT : public ::flatbuffers::NativeTable {
   quantra::enums::VolSurfaceShape vol_shape = quantra::enums::VolSurfaceShape_Constant;
   bool local_vol = false;
   ::flatbuffers::Optional<double> quanto_drift = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> local_vol_floor = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<uint64_t> local_vol_reads = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> local_vol_floored_fraction = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<uint64_t> local_vol_refusals_floored = ::flatbuffers::nullopt;
 };
 
 /// The model used for one underlying.
@@ -1288,7 +1306,11 @@ struct StructuredNoteModelUnderlying FLATBUFFERS_FINAL_CLASS : private ::flatbuf
     VT_UNDERLYING_ID = 4,
     VT_VOL_SHAPE = 6,
     VT_LOCAL_VOL = 8,
-    VT_QUANTO_DRIFT = 10
+    VT_QUANTO_DRIFT = 10,
+    VT_LOCAL_VOL_FLOOR = 12,
+    VT_LOCAL_VOL_READS = 14,
+    VT_LOCAL_VOL_FLOORED_FRACTION = 16,
+    VT_LOCAL_VOL_REFUSALS_FLOORED = 18
   };
   const ::flatbuffers::String *underlying_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_UNDERLYING_ID);
@@ -1309,6 +1331,24 @@ struct StructuredNoteModelUnderlying FLATBUFFERS_FINAL_CLASS : private ::flatbuf
   ::flatbuffers::Optional<double> quanto_drift() const {
     return GetOptional<double, double>(VT_QUANTO_DRIFT);
   }
+  /// With `monte_carlo.local_vol_floor` and a local-vol underlying: the
+  /// floor, the local vol reads of the priced simulation (Greeks and
+  /// diagnostic runs excluded), the fraction of them that took the floor
+  /// (refusals included) and the reads QuantLib would have refused.
+  /// Above about 1e-3 the surface is not usable for the note:
+  /// recalibrate it. Absent without a floor.
+  ::flatbuffers::Optional<double> local_vol_floor() const {
+    return GetOptional<double, double>(VT_LOCAL_VOL_FLOOR);
+  }
+  ::flatbuffers::Optional<uint64_t> local_vol_reads() const {
+    return GetOptional<uint64_t, uint64_t>(VT_LOCAL_VOL_READS);
+  }
+  ::flatbuffers::Optional<double> local_vol_floored_fraction() const {
+    return GetOptional<double, double>(VT_LOCAL_VOL_FLOORED_FRACTION);
+  }
+  ::flatbuffers::Optional<uint64_t> local_vol_refusals_floored() const {
+    return GetOptional<uint64_t, uint64_t>(VT_LOCAL_VOL_REFUSALS_FLOORED);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_UNDERLYING_ID) &&
@@ -1316,6 +1356,10 @@ struct StructuredNoteModelUnderlying FLATBUFFERS_FINAL_CLASS : private ::flatbuf
            VerifyField<int8_t>(verifier, VT_VOL_SHAPE, 1) &&
            VerifyField<uint8_t>(verifier, VT_LOCAL_VOL, 1) &&
            VerifyField<double>(verifier, VT_QUANTO_DRIFT, 8) &&
+           VerifyField<double>(verifier, VT_LOCAL_VOL_FLOOR, 8) &&
+           VerifyField<uint64_t>(verifier, VT_LOCAL_VOL_READS, 8) &&
+           VerifyField<double>(verifier, VT_LOCAL_VOL_FLOORED_FRACTION, 8) &&
+           VerifyField<uint64_t>(verifier, VT_LOCAL_VOL_REFUSALS_FLOORED, 8) &&
            verifier.EndTable();
   }
   StructuredNoteModelUnderlyingT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -1339,6 +1383,18 @@ struct StructuredNoteModelUnderlyingBuilder {
   void add_quanto_drift(double quanto_drift) {
     fbb_.AddElement<double>(StructuredNoteModelUnderlying::VT_QUANTO_DRIFT, quanto_drift);
   }
+  void add_local_vol_floor(double local_vol_floor) {
+    fbb_.AddElement<double>(StructuredNoteModelUnderlying::VT_LOCAL_VOL_FLOOR, local_vol_floor);
+  }
+  void add_local_vol_reads(uint64_t local_vol_reads) {
+    fbb_.AddElement<uint64_t>(StructuredNoteModelUnderlying::VT_LOCAL_VOL_READS, local_vol_reads);
+  }
+  void add_local_vol_floored_fraction(double local_vol_floored_fraction) {
+    fbb_.AddElement<double>(StructuredNoteModelUnderlying::VT_LOCAL_VOL_FLOORED_FRACTION, local_vol_floored_fraction);
+  }
+  void add_local_vol_refusals_floored(uint64_t local_vol_refusals_floored) {
+    fbb_.AddElement<uint64_t>(StructuredNoteModelUnderlying::VT_LOCAL_VOL_REFUSALS_FLOORED, local_vol_refusals_floored);
+  }
   explicit StructuredNoteModelUnderlyingBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -1356,8 +1412,16 @@ inline ::flatbuffers::Offset<StructuredNoteModelUnderlying> CreateStructuredNote
     ::flatbuffers::Offset<::flatbuffers::String> underlying_id = 0,
     quantra::enums::VolSurfaceShape vol_shape = quantra::enums::VolSurfaceShape_Constant,
     bool local_vol = false,
-    ::flatbuffers::Optional<double> quanto_drift = ::flatbuffers::nullopt) {
+    ::flatbuffers::Optional<double> quanto_drift = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> local_vol_floor = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<uint64_t> local_vol_reads = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> local_vol_floored_fraction = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<uint64_t> local_vol_refusals_floored = ::flatbuffers::nullopt) {
   StructuredNoteModelUnderlyingBuilder builder_(_fbb);
+  if(local_vol_refusals_floored) { builder_.add_local_vol_refusals_floored(*local_vol_refusals_floored); }
+  if(local_vol_floored_fraction) { builder_.add_local_vol_floored_fraction(*local_vol_floored_fraction); }
+  if(local_vol_reads) { builder_.add_local_vol_reads(*local_vol_reads); }
+  if(local_vol_floor) { builder_.add_local_vol_floor(*local_vol_floor); }
   if(quanto_drift) { builder_.add_quanto_drift(*quanto_drift); }
   builder_.add_underlying_id(underlying_id);
   builder_.add_local_vol(local_vol);
@@ -1370,14 +1434,22 @@ inline ::flatbuffers::Offset<StructuredNoteModelUnderlying> CreateStructuredNote
     const char *underlying_id = nullptr,
     quantra::enums::VolSurfaceShape vol_shape = quantra::enums::VolSurfaceShape_Constant,
     bool local_vol = false,
-    ::flatbuffers::Optional<double> quanto_drift = ::flatbuffers::nullopt) {
+    ::flatbuffers::Optional<double> quanto_drift = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> local_vol_floor = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<uint64_t> local_vol_reads = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> local_vol_floored_fraction = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<uint64_t> local_vol_refusals_floored = ::flatbuffers::nullopt) {
   auto underlying_id__ = underlying_id ? _fbb.CreateString(underlying_id) : 0;
   return quantra::CreateStructuredNoteModelUnderlying(
       _fbb,
       underlying_id__,
       vol_shape,
       local_vol,
-      quanto_drift);
+      quanto_drift,
+      local_vol_floor,
+      local_vol_reads,
+      local_vol_floored_fraction,
+      local_vol_refusals_floored);
 }
 
 ::flatbuffers::Offset<StructuredNoteModelUnderlying> CreateStructuredNoteModelUnderlying(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteModelUnderlyingT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -5197,7 +5269,8 @@ inline StructuredNoteTermsEchoT::StructuredNoteTermsEchoT(const StructuredNoteTe
         sequence(o.sequence),
         antithetic(o.antithetic),
         brownian_bridge(o.brownian_bridge),
-        steps_per_year(o.steps_per_year) {
+        steps_per_year(o.steps_per_year),
+        local_vol_floor(o.local_vol_floor) {
   underlyings.reserve(o.underlyings.size());
   for (const auto &underlyings_ : o.underlyings) { underlyings.emplace_back((underlyings_) ? new quantra::StructuredNoteTermsUnderlyingT(*underlyings_) : nullptr); }
   events.reserve(o.events.size());
@@ -5229,6 +5302,7 @@ inline StructuredNoteTermsEchoT &StructuredNoteTermsEchoT::operator=(StructuredN
   std::swap(antithetic, o.antithetic);
   std::swap(brownian_bridge, o.brownian_bridge);
   std::swap(steps_per_year, o.steps_per_year);
+  std::swap(local_vol_floor, o.local_vol_floor);
   return *this;
 }
 
@@ -5265,6 +5339,7 @@ inline void StructuredNoteTermsEcho::UnPackTo(StructuredNoteTermsEchoT *_o, cons
   { auto _e = antithetic(); _o->antithetic = _e; }
   { auto _e = brownian_bridge(); _o->brownian_bridge = _e; }
   { auto _e = steps_per_year(); _o->steps_per_year = _e; }
+  { auto _e = local_vol_floor(); _o->local_vol_floor = _e; }
 }
 
 inline ::flatbuffers::Offset<StructuredNoteTermsEcho> StructuredNoteTermsEcho::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteTermsEchoT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -5299,6 +5374,7 @@ inline ::flatbuffers::Offset<StructuredNoteTermsEcho> CreateStructuredNoteTermsE
   auto _antithetic = _o->antithetic;
   auto _brownian_bridge = _o->brownian_bridge;
   auto _steps_per_year = _o->steps_per_year;
+  auto _local_vol_floor = _o->local_vol_floor;
   return quantra::CreateStructuredNoteTermsEcho(
       _fbb,
       _trade_id,
@@ -5324,7 +5400,8 @@ inline ::flatbuffers::Offset<StructuredNoteTermsEcho> CreateStructuredNoteTermsE
       _sequence,
       _antithetic,
       _brownian_bridge,
-      _steps_per_year);
+      _steps_per_year,
+      _local_vol_floor);
 }
 
 inline StructuredNoteResolvedEventT *StructuredNoteResolvedEvent::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
@@ -5459,6 +5536,10 @@ inline void StructuredNoteModelUnderlying::UnPackTo(StructuredNoteModelUnderlyin
   { auto _e = vol_shape(); _o->vol_shape = _e; }
   { auto _e = local_vol(); _o->local_vol = _e; }
   { auto _e = quanto_drift(); _o->quanto_drift = _e; }
+  { auto _e = local_vol_floor(); _o->local_vol_floor = _e; }
+  { auto _e = local_vol_reads(); _o->local_vol_reads = _e; }
+  { auto _e = local_vol_floored_fraction(); _o->local_vol_floored_fraction = _e; }
+  { auto _e = local_vol_refusals_floored(); _o->local_vol_refusals_floored = _e; }
 }
 
 inline ::flatbuffers::Offset<StructuredNoteModelUnderlying> StructuredNoteModelUnderlying::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const StructuredNoteModelUnderlyingT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -5473,12 +5554,20 @@ inline ::flatbuffers::Offset<StructuredNoteModelUnderlying> CreateStructuredNote
   auto _vol_shape = _o->vol_shape;
   auto _local_vol = _o->local_vol;
   auto _quanto_drift = _o->quanto_drift;
+  auto _local_vol_floor = _o->local_vol_floor;
+  auto _local_vol_reads = _o->local_vol_reads;
+  auto _local_vol_floored_fraction = _o->local_vol_floored_fraction;
+  auto _local_vol_refusals_floored = _o->local_vol_refusals_floored;
   return quantra::CreateStructuredNoteModelUnderlying(
       _fbb,
       _underlying_id,
       _vol_shape,
       _local_vol,
-      _quanto_drift);
+      _quanto_drift,
+      _local_vol_floor,
+      _local_vol_reads,
+      _local_vol_floored_fraction,
+      _local_vol_refusals_floored);
 }
 
 inline StructuredNoteModelEchoT::StructuredNoteModelEchoT(const StructuredNoteModelEchoT &o)

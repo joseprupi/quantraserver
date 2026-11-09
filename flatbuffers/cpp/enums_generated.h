@@ -246,6 +246,44 @@ inline const char *EnumNameLocalVolTimeExtrapolation(LocalVolTimeExtrapolation e
   return EnumNamesLocalVolTimeExtrapolation()[index];
 }
 
+/// Strike range a structured note holds the Dupire local vol of an
+/// SviVolSpec to (a simulated level beyond it reads the local vol at the
+/// edge).
+///   Global: [min of every slice's strike_min, max of every slice's
+///     strike_max], at every time.
+///   PerExpiry: at time t, [strike_min, strike_max] of the first slice
+///     whose expiry is at or after t (the last slice's beyond the last
+///     expiry); every slice must carry both.
+enum LocalVolStrikeRange : int8_t {
+  LocalVolStrikeRange_Global = 0,
+  LocalVolStrikeRange_PerExpiry = 1,
+  LocalVolStrikeRange_MIN = LocalVolStrikeRange_Global,
+  LocalVolStrikeRange_MAX = LocalVolStrikeRange_PerExpiry
+};
+
+inline const LocalVolStrikeRange (&EnumValuesLocalVolStrikeRange())[2] {
+  static const LocalVolStrikeRange values[] = {
+    LocalVolStrikeRange_Global,
+    LocalVolStrikeRange_PerExpiry
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesLocalVolStrikeRange() {
+  static const char * const names[3] = {
+    "Global",
+    "PerExpiry",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameLocalVolStrikeRange(LocalVolStrikeRange e) {
+  if (::flatbuffers::IsOutRange(e, LocalVolStrikeRange_Global, LocalVolStrikeRange_PerExpiry)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesLocalVolStrikeRange()[index];
+}
+
 /// Bootstrap trait for curve construction.
 enum BootstrapTrait : int8_t {
   BootstrapTrait_Discount = 0,

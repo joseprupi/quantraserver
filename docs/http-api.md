@@ -1191,7 +1191,7 @@ shared between notes):
 | `discounting_curve`, `funding_spread_bp` | The note-currency curve and a flat continuously compounded zero spread added on top for discounting (default 0). |
 | `correlation_id` | A `CorrelationMatrixSpec` whose labels are exactly the basket's ids. Required with two or more underlyings; must be absent with one (a 1 x 1 unit matrix is used). |
 | `correlation_markup` | Optional, finite, in `[-1, 1]`; must be absent with a single underlying. A uniform additive shift of every off-diagonal entry of the matrix before pricing (the desk's correlation mark-up or stress): `rho + correlation_markup` clipped to `[-1, 1]`; when the shifted matrix is not positive semi-definite it is repaired exactly as the Greeks' bump is (eigenvalue clipping, rescaled to unit diagonal) and `terms.correlation_markup_repaired` says so. The simulation, the correlation-limit checks and the Greeks' correlation bump all start from the marked-up matrix. `terms` echoes the mark-up; the `market` diagnostic shows the matrix as supplied (`correlation_base`), the mark-up and the matrix used (`correlation`). |
-| `monte_carlo` | `paths` (presence-required, even with `antithetic`), `seed` (default 42; `> 0` with Sobol), `sequence` (`Sobol` default, or `PseudoRandom`), `antithetic` (default true), `brownian_bridge` (default true; must be false with `PseudoRandom`), `steps_per_year` (required with a surface vol or a `DailyClose` barrier, must be absent otherwise). |
+| `monte_carlo` | `paths` (presence-required, even with `antithetic`), `seed` (default 42; `> 0` with Sobol), `sequence` (`Sobol` default, or `PseudoRandom`), `antithetic` (default true), `brownian_bridge` (default true; must be false with `PseudoRandom`), `steps_per_year` (required with a surface vol or a `DailyClose` barrier, must be absent otherwise), `local_vol_floor` (optional, `> 0`, only with a surface vol: the local vol simulated is `max(Dupire, floor)` and a read QuantLib would refuse takes the floor instead of a 400; see "Local vol floor"). |
 
 Top-level: `greeks` (see "Greeks") and `diagnostics` (`market`,
 `decomposition`, `checks`, `distribution`, `timing`, each false by default,
@@ -1457,11 +1457,17 @@ there is no adapter around the original object).
   extrapolation kink (where constant extrapolation would make the total
   variance concave and the local variance negative). An SVI payload is
   global in strike: no edge, the clamp is a no-op, unless its slices
-  carry `strike_min` / `strike_max` (what `/calibrate-vol-surface`
-  returns): the clamp then uses `[min strike_min, max strike_max]` over the
-  slices (a slice without one leaves that side open), because a raw SVI
-  wing beyond the quotes can carry butterfly arbitrage. The Black vol is
-  never clamped (vanilla options read the SVI formula at every strike).
+  carry `strike_min` / `strike_max`: the clamp then uses `[min strike_min,
+  max strike_max]` over the slices (a slice without one leaves that side
+  open), because a raw SVI wing beyond the quotes can carry butterfly
+  arbitrage; with `local_vol_strike_range: PerExpiry` (what
+  `/calibrate-vol-surface` returns since 0.16.5) the clamp at time `t` is
+  the `[strike_min, strike_max]` of the first slice whose expiry is at or
+  after `t` (the last slice's beyond). A grid may carry the same per
+  expiry (`local_vol_strike_min` / `local_vol_strike_max`, one entry per
+  expiry, inside its strikes; absent = the grid's edges at every time).
+  The Black vol is never clamped (vanilla options read the SVI formula at
+  every strike).
   Beyond the last expiry, `local_vol_time_extrapolation` on the vol spec
   decides: absent or `FlatImpliedVol`, the local vol of the flat implied
   vol extension, which on a skew is not arbitrage-free at long horizons
@@ -1472,7 +1478,19 @@ there is no adapter around the original object).
   the surface's day counter; the margin keeps QuantLib's
   `LocalVolSurface` time stencil, `t ± min(1e-4, t/2)`, inside the quoted
   expiries) at the simulated level. Before `T_last − 0.001` both are the
-  same, bit for bit. `/calibrate-vol-surface` returns `FlatLocalVol`. One local-vol object
+  same, bit for bit. `/calibrate-vol-surface` returns `FlatLocalVol`.
+  Local vol floor: with `monte_carlo.local_vol_floor` the local vol is
+  computed with QuantLib's `LocalVolSurface::localVolImpl` formula step by
+  step (same reads, same arithmetic: bit-identical where no floor binds),
+  the simulation uses `max(local vol, floor)`, and a read QuantLib would
+  refuse ("decreasing variance", "negative local vol^2") takes the floor.
+  `model.underlyings[]` reports `local_vol_floor`, `local_vol_reads` (the
+  priced simulation's), `local_vol_floored_fraction` and
+  `local_vol_refusals_floored`. A floored fraction above about 1e-3 means
+  the surface is not usable for the note: recalibrate it (the 0.16.4 SPX
+  surfaces that were refused price with a 5 % floor at floored fractions of
+  1e-3 to 3e-2; the 0.16.5 calibration of the same sheet prices without a
+  floor). One local-vol object
   per distinct (vol, spot, dividend, discount) market is shared by every
   process array of the request. A `Bilinear` grid is the documented
   limit: between two grid strikes its variance is linear, so the smile's
@@ -1538,8 +1556,9 @@ vols and a European barrier, or 0; `knocked_in` missing when required or
 present otherwise; odd `paths` with `antithetic`; Sobol `seed` 0;
 `brownian_bridge` with `PseudoRandom`; `upside.strike` / `participation`
 missing or `cap <= 0`; a surface whose local vol cannot be evaluated along
-the paths (names the vol ids and the remedy: the surface is not
-arbitrage-free where the paths went); `diagnostics.sample_paths`
+the paths without `local_vol_floor` (names the vol ids and the remedy: the
+surface is not arbitrage-free where the paths went); `local_vol_floor` not
+finite or `≤ 0`, or given when no underlying is simulated as local vol; `diagnostics.sample_paths`
 above 100, without `distribution`, or above `paths`;
 `diagnostics.vanilla_repricing` without `vanilla_repricing_sheets` or sheets
 (or a filter) without the flag, two sheets for one underlying, a sheet
@@ -1757,9 +1776,12 @@ chain quotes → forwards → surface → models. It returns a complete
 the same surface as its fitted SVI slices (`vol_surface_spec_svi`, an
 `SviVolSpec` payload, also ready to paste), the forwards it used, a
 per-expiry report and the repricing of every used quote on the returned
-grid. Two methods: Andreasen-Huge local-vol interpolation (default;
-arbitrage-free by construction) and one SVI slice per expiry with
-butterfly and calendar checks.
+grid, and a check of the Dupire local vol of each returned spec read the
+way a structured note reads it (`local_vol_check`). Two methods:
+Andreasen-Huge local-vol interpolation (default; arbitrage-free by
+construction in its own model) and one SVI slice per expiry, fitted from
+the last expiry back so that consecutive slices are ordered in time
+(calendar) as well as butterfly-free.
 
 ### Request
 
@@ -1774,7 +1796,7 @@ butterfly and calendar checks.
   "output_grid": {"strikes_as_moneyness": [0.5, 0.525, "...", 1.5],
                   "expiries": [{"n": 16, "unit": "Days"}, {"n": 51, "unit": "Days"}]},
   "vol_surface_id": "NDX_VOL",
-  "svi": {"enforce_butterfly": true, "enforce_calendar": true}
+  "svi": {"enforce_butterfly": true, "enforce_calendar": true, "min_forward_vol": 0.01}
 }
 ```
 
@@ -1783,10 +1805,11 @@ butterfly and calendar checks.
 | `sheet`, `discounting_curve`, `filter` | As for `/calibrate-implied-forwards`; same per-line rules, same reasons. `filter.moneyness_window` concerns the forward fit only: the vol fit uses every line that passes the per-line rules. European exercise only (`400` otherwise). |
 | `forwards` | Optional. The `expiries` array of an implied-forwards response pasted as is; only `expiry`, `usable`, `forward` and `implied_discount_factor` are read (non-usable entries skipped). Absent: the same fit is run here with `filter`, and `forwards_source` says `"fitted"` instead of `"request"`. A sheet expiry without a forward is reported unusable. |
 | `method` | `AndreasenHuge` (default) or `SviPerExpiry`. |
-| `output_grid.strikes_as_moneyness` | Strikes as multiples of the spot, > 0, strictly increasing, at least 2. Default `0.500, 0.525, …, 1.500` (41 points). The returned surface is keyed by absolute strike (`strike = moneyness x spot`); the spot used is echoed as `spot`. |
+| `output_grid.strikes_as_moneyness` | Strikes as multiples of the spot, > 0, strictly increasing, at least 2. Default `0.500, 0.525, …, 1.500` (41 points). The returned surface is keyed by absolute strike (`strike = moneyness x spot`); the spot used is echoed as `spot`. With `AndreasenHuge` only the first and the last value matter: the returned strikes are the model's own finite-difference points within that range and the expiries' regions (see the method). |
 | `output_grid.expiries` | Calendar-day periods from `as_of_date` (`{n, unit}`; months and years are added on a NullCalendar, unadjusted). Default: the fitted sheet expiries. `SviPerExpiry` requires each one to be a fitted sheet expiry (`400` otherwise: the slices are not interpolated in time); `AndreasenHuge` accepts any date up to the last fitted expiry. |
 | `vol_surface_id` | Id of the returned spec. |
 | `svi.enforce_butterfly`, `svi.enforce_calendar` | `SviPerExpiry` only, default true: fix what the checks find (below) or report only. |
+| `svi.min_forward_vol` | `SviPerExpiry` only, default `0.01` (1 % forward vol): the calendar margin between consecutive fitted expiries, `min_forward_vol² (T_i − T_{i−1})` in total variance. `0` = no margin. Finite and `≥ 0` (`400` otherwise). |
 
 ### Method
 
@@ -1821,7 +1844,14 @@ inverted only where the model's out-of-the-money price is at least
 of a vol point and inverts to arbitrary vols where the true price is ~0);
 the other points are filled flat from the nearest inverted strike of the
 same expiry and counted in `grid_points_filled`. On the flat 20 % synthetic
-sheet this keeps every grid vol within 0.1 vol point of 20 %.
+sheet this keeps every grid vol within 0.1 vol point of 20 %. The returned
+strike axis is the model's own: the points of QuantLib's
+`Concentrating1dMesher` that `AndreasenHugeVolatilityInterpl` builds (500
+points in `ln(K / S)` between 1/8 of the lowest and 8 times the highest
+quoted strike, concentrated at the spot) that lie within the output grid's
+range and every expiry's region (below), so that the cubic reading of the
+grid follows the model between its own nodes instead of re-interpolating
+41 samples (`strikes_as_moneyness` echoes them as multiples of the spot).
 `andreasen_huge_error` reports QuantLib's calibration error (min, max, mean
 in vol units over the calibration set).
 
@@ -1836,32 +1866,116 @@ w(k) = a + b (ρ (k − m) + sqrt((k − m)² + σ²)),   k = ln(K / F)
 ```
 
 Butterfly check: Durrleman's `g(k) = (1 − k w′/(2w))² − (w′²/4)(1/w + 1/4)
-+ w″/2` on 201 points of the output strike range; `min g < 0` is a
-violation (`butterfly_violation`, `butterfly_min_g`). With
-`enforce_butterfly` the five parameters are refitted from the fitted ones
-by Levenberg-Marquardt on the same weighted residuals plus a penalty
-`100 · max(0, −g(k_j))` per point; `butterfly_action` carries `min g`
-before and after (`"refit with penalty: min g -0.41 -> 0.0012"`). Grid vols
-are `sqrt(w(k) / T)`. The raw SVI wing beyond the output strike range is
-also scanned, out to the levels a simulation reaches (`k = ±5 σ_ATM √T`,
-`σ_ATM = sqrt(w(0) / T)`); a negative `g` there is REPORTED, never
-enforced and not counted in `butterfly_min_g` / `butterfly_violation`:
-`butterfly_action` gets `"; beyond the output strike range (reported only,
-up to k = +/-1.18): min g -0.042 at k -1.18"` appended. A slice is fitted to
-the quotes, and its wings beyond them are an extrapolation: on an
-SPX-like sheet quoted from 60 % to 115 % of the spot the slices are clean
-on 50 % .. 150 % and negative beyond. Each returned slice therefore
-carries `strike_min` / `strike_max`, the lowest and highest strike of its
-used quotes, and a structured note holds the local vol at that edge
-(see "Structured notes" > local vol).
++ w″/2` on 201 points covering the output strike range and the regions
+(below) of the two expiry pairs the slice belongs to; `min g < 0` is a
+violation (`butterfly_violation`, `butterfly_min_g`), and so is a wing
+slope `b (1 + |ρ|)` above 2 (Roger Lee's moment bound: beyond it `g` is
+negative far out; QuantLib's fit admits up to 4). With `enforce_butterfly`
+the five parameters are refitted from the fitted ones by
+Levenberg-Marquardt on the same weighted residuals plus a penalty
+`100 · max(0, −g(k_j))` per point, with the wing slope held within 2;
+`butterfly_action` carries `min g` before and after (`"refit with penalty:
+min g -0.41 -> 0.0012"`). Grid vols are `sqrt(w(k) / T)`. The raw SVI wing
+beyond the checked range is also scanned out to `k = ±5 σ_ATM √T`; a
+negative `g` there is REPORTED only (appended to `butterfly_action`).
 
-**Calendar check (both methods).** At every grid strike total variance
-`σ² T` must not decrease from one grid expiry to the next; a point where
-`w_i < w_{i−1} + 1e-8` is counted in `calendar_violations`. `SviPerExpiry`
-with `enforce_calendar` clips it to `w_{i−1} + 1e-8` (`calendar_action`,
-`calendar_max_clip_vol` = largest vol change); `AndreasenHuge` reports only
-(the surface is arbitrage-free by construction; a residual count is within
-the implied-vol inversion tolerance).
+**Calendar-consistent fit (`SviPerExpiry`).** Fitted one by one, daily or
+weekly expiries cross: on a sheet of 47 SPX expiries 30 of 46 adjacent
+fitted pairs crossed somewhere between 55 % and 180 % of the spot although
+the quotes themselves are ordered, because an SVI slice beyond its quotes
+is an extrapolation of five parameters and short slices fitted
+independently disagree there. The slices are therefore fitted from the LAST
+expiry back, each held under the slice after it:
+
+- the region of an expiry is where a simulation goes around it: from the
+  forward outwards on each side, the log-strike distance that 5 standard
+  deviations cover when the vol along the way is the market's implied vol
+  (so the steep put wing reaches further than the at-the-money vol would,
+  the call wing less far), together with the strikes quoted on both this
+  expiry and the one before, within the output grid's range and the widest
+  quoted range;
+- between expiries `T_{i−1}` and `T_i` the surface interpolates total
+  variance linearly in time at fixed strike, and a structured note's
+  Dupire local vol differentiates it in time along the forward
+  (QuantLib's `LocalVolSurface` moves the strike with the forward); with
+  `x = ln(F_i / F_{i−1})` and `s = dw / d ln K`, that time derivative is
+  non-negative over the whole interval iff, at every strike,
+  `w_i(K) − w_{i−1}(K) + x s_{i−1}(K) ≥ m` and
+  `w_i(K) − w_{i−1}(K) + x s_i(K) ≥ m`, `m = min_forward_vol² (T_i −
+  T_{i−1})`. Neither comparing at fixed strike nor at fixed forward
+  moneyness alone is enough with daily expiries (the skew times the
+  forward's move exceeds the margin);
+- both conditions are checked on 401 log-spaced strikes over the later
+  expiry's region (widened by the forward's move); when the independently
+  fitted slice (or its butterfly refit) breaks them, it is refitted with
+  the butterfly penalty and a calendar penalty on the excess together
+  (from its fit and from the next slice moved to its forward and lowered
+  by the margin, the better objective kept; the calendar weight rises
+  tenfold up to twice while the excess stays above a tenth of the margin),
+  then lowered by whatever excess remains (`a − d`) so that the
+  conditions hold at every point;
+- the report says per expiry whether the refit acted (`calendar_refit`),
+  the largest vol change it made over the slice's quoted strikes
+  (`calendar_refit_max_vol_shift`) and what was done
+  (`calendar_fit_action`); on every expiry after the first, after the fit,
+  the smallest margin left over the requirement (`calendar_min_margin`,
+  `≥ 0` when met) and the smallest forward vol between the two slices
+  (`calendar_min_forward_vol`);
+- the slices are the last expiry's first: a short slice yields to the next,
+  longer one, which is quoted over a wider range (fitted forward, a long
+  slice would be lifted above a short slice's extrapolated wing, and the
+  lift would carry over to every later expiry).
+
+`enforce_calendar: false` keeps the independent fits and reports only.
+Where the calendar binds the outputs differ from 0.16.4: on the 47-expiry
+SPX sheet the slices move by up to a few vol points on their least liquid
+quotes (short-dated deep out-of-the-money calls quoted at the minimum tick
+show an upturn no time-ordered surface can keep).
+
+**Calendar check of the grid (both methods).** At every grid node total
+variance is compared with the previous grid row's at the same forward
+moneyness (the row read as the surface reads it); a node inside the
+expiry's region where `w_i < w_{i−1} + 1e-8` is counted in
+`calendar_violations` and, for `SviPerExpiry` with `enforce_calendar`,
+clipped to `w_{i−1} + 1e-8` (`calendar_action`, `calendar_max_clip_vol`).
+After the calendar-consistent fit this last resort does not fire (it did
+not on the 47-expiry SPX sheet); `calendar_action` says so when it does.
+Nodes beyond the region (no simulation reaches them at that date) are
+reported in `calendar_action`, not clipped, so that each row keeps its
+smooth shape. `AndreasenHuge` reports only.
+
+**Local vol check (`local_vol_check`, `local_vol_check_svi`).** Each
+returned spec is rebuilt as the structured-note pricer builds it (the
+parser's objects, QuantLib's `LocalVolSurface` through the pricer's own
+edge clamp, `FlatLocalVol` beyond the last expiry) on the sheet's
+forwards (risk-free curve on the implied discount factors, dividend curve
+`F DF / S`), and its local vol is evaluated on a scan: times = every
+expiry ± 2e-4 years (outside QuantLib's time stencil on both sides of the
+node), the midpoints between expiries (and between 0 and the first) and
+the last expiry − 1e-3; strikes = 201 log-spaced over the region of the
+expiry bracketing each time. The block gives the scan's size, the points
+QuantLib refused (and the first message), the smallest local variance and
+where, and `arbitrage_free`: true iff no scan point was refused. The
+guarantee is thus verified on the continuous object a note simulates, not
+only at the grid nodes. When the SVI payload fails, the expiry pairs and
+slices of the refused points get a larger calendar margin (at least 1 %
+forward vol, x4 per pass) or butterfly weight (x10) and the slices are
+refitted from there down, at most three passes, listed in `action`.
+`arbitrage_free` is never set without the scan. Both specs carry the
+regions as per-expiry local-vol strike ranges (`local_vol_strike_min` /
+`local_vol_strike_max` on the grid — inside its second and second-to-last
+strike, where the natural spline's end condition forces zero curvature —
+and `local_vol_strike_range: PerExpiry` with each slice's `strike_min` /
+`strike_max` on the SVI payload): a path beyond them reads the local vol
+at the edge, so a note never reads where nothing was checked. The check
+uses the sheet's forwards: price the note on the discounting curve of the
+fit and the dividend curve of `/calibrate-implied-forwards` (a different
+forward drift `Δμ` adds `Δμ · s` to the time derivative; a larger
+`min_forward_vol` absorbs it). On the 47-expiry SPX sheet both specs pass
+(0 of 28 542 points refused) without a refit pass; `AndreasenHuge` does
+not (867 points refused: its own fit misses the sheet by 5.7 vol points on
+average and its wing fills are flat), so for structured notes use
+`SviPerExpiry`.
 
 **Fit error and repricing.** `rmse_vol` / `max_abs_error_vol` per expiry
 compare the calibrated object (the SVI slice, the Andreasen-Huge surface)
@@ -1896,6 +2010,7 @@ inside its bid/ask under both methods.
      "rmse_vol": 1.1e-16, "max_abs_error_vol": 2.2e-16,
      "svi": {"a": 0.000591, "b": 0.024078, "sigma": 0.034390, "rho": -0.7, "m": 0.033709},
      "butterfly_min_g": 0.61, "butterfly_violation": false, "butterfly_action": "none",
+     "calendar_refit": false, "calendar_fit_action": "none (under the next slice minus margin on the calendar grid)",
      "calendar_violations": 0, "calendar_action": "none", "grid_points_filled": 0}
   ],
   "strikes_as_moneyness": [0.5, 0.525, "...", 1.5],
@@ -1911,7 +2026,8 @@ inside its bid/ask under both methods.
       "strikes": [12000.0, 12600.0, "..."],
       "surface_vols": {"n_rows": 8, "n_cols": 41, "values": ["row-major by expiry then strike"]},
       "allow_extrapolation": true, "surface_interpolator": "CubicStrikeLinearTime",
-      "local_vol_time_extrapolation": "FlatLocalVol"
+      "local_vol_time_extrapolation": "FlatLocalVol",
+      "local_vol_strike_min": [20935.6, "..."], "local_vol_strike_max": [27551.1, "..."]
     }
   },
   "vol_surface_spec_svi": {
@@ -1923,7 +2039,7 @@ inside its bid/ask under both methods.
                   "a": 0.000591, "b": 0.024078, "sigma": 0.034390, "rho": -0.7, "m": 0.033709,
                   "strike_min": 19200.0, "strike_max": 28800.0}, "..."],
       "time_interpolation": "LinearTotalVariance", "allow_extrapolation": true,
-      "local_vol_time_extrapolation": "FlatLocalVol"
+      "local_vol_time_extrapolation": "FlatLocalVol", "local_vol_strike_range": "PerExpiry"
     }
   },
   "vanilla_repricing": {
@@ -1932,7 +2048,11 @@ inside its bid/ask under both methods.
                 "bid": 377.3, "ask": 381.1, "mid": 379.2, "market_vol": 0.2322,
                 "model_vol": 0.2322, "model_price": 379.2, "inside_bid_ask": true,
                 "price_error": -1.2e-10, "vol_error": -2.8e-17}]
-  }
+  },
+  "local_vol_check": {"arbitrage_free": true, "times": 25, "strikes": 201, "points": 5025,
+                      "refused": 0, "min_local_variance": 0.0287, "min_local_variance_time": 1.2,
+                      "min_local_variance_strike": 28650.0, "action": "none"},
+  "local_vol_check_svi": {"arbitrage_free": true, "...": "same fields"}
 }
 ```
 
@@ -1944,11 +2064,11 @@ surface's expiries are calendar-day periods on a NullCalendar so that the
 pricers' `calendar.advance(reference_date, period, Unadjusted)` lands on
 the grid dates exactly. `vol_surface_spec_svi` is present with
 `SviPerExpiry` only (one slice per fitted expiry: the forward the slice is
-written against, its final `a, b, sigma, rho, m`, after the butterfly
-refit, and `strike_min` / `strike_max`, the strike range of its used
-quotes; the grid's calendar clip is not applied to the slices, so two
-slices whose unquoted wings cross are a calendar arbitrage the slices keep
-— a note whose paths reach the crossing is a 400 "decreasing variance").
+written against, its final `a, b, sigma, rho, m` after the calendar and
+butterfly refits, and `strike_min` / `strike_max`, the expiry's region,
+read per expiry with `local_vol_strike_range: PerExpiry`; before 0.16.5
+the strike range of its used quotes, read as one range, and the slices
+were not calendar-ordered).
 Both specs set `local_vol_time_extrapolation: FlatLocalVol`, so a
 structured note maturing after the last quoted expiry can be priced on
 them as returned (see "Structured notes" > local vol); with

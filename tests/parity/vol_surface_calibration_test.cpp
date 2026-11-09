@@ -302,50 +302,79 @@ TEST(VolSurfaceCalibration, FlatTwentyPercentIsRecoveredByBothMethods) {
             EXPECT_EQ(e.calendarViolations, 0u) << e.expiryIso;
             EXPECT_FALSE(e.butterflyViolation);
         }
-        EXPECT_EQ(r.repricing.insideBidAsk, r.repricing.count);
+        // Andreasen-Huge on its own finite-difference strikes: the model's
+        // price noise puts at most one wing quote just outside its 1 %
+        // spread.
+        EXPECT_GE(r.repricing.insideBidAsk + (svi ? 0u : 1u), r.repricing.count)
+            << "method " << static_cast<int>(method);
     }
 }
 
 // (c) calendar arbitrage: a 30 % slice followed by a 10 % one has total
-// variance falling (0.09 * 0.044 > 0.01 * 0.14); SviPerExpiry reports it at
-// every grid strike and clips the second slice to the first's total
-// variance + 1e-8 (or reports only with enforce_calendar false).
-TEST(VolSurfaceCalibration, CalendarViolationIsReportedAndClipped) {
+// variance falling (0.09 * 0.044 > 0.01 * 0.14). SviPerExpiry fits from the
+// last expiry back: the first slice is refitted under the second (minus the
+// margin min_forward_vol^2 dT, QuantLib's local-vol time derivative along
+// the forward non-negative), nothing is left for the grid clip, and the
+// local vol of both returned surfaces evaluates everywhere on the scan.
+// With enforce_calendar false the independent fits are reported (no refit,
+// no clip) and the local vol check fails.
+TEST(VolSurfaceCalibration, CalendarViolationIsRefittedUnderTheNextExpiry) {
     Market mkt;
     auto twoLevels = [](double k, double, std::size_t i) { return i == 0 ? 0.30 : 0.10; };
     auto in = baseInputs(VolSurfaceFitMethod::SviPerExpiry);
     in.base.quotes = mkt.lines(twoLevels, kQuotedMoneyness, 0.01, 2);
     const auto r = VolSurfaceCalibrationEvaluator().evaluate(in, mkt.reg, mkt.ctx);
     ASSERT_EQ(r.expiries.size(), 2u);
-    EXPECT_EQ(r.expiries[0].calendarViolations, 0u);
-    EXPECT_EQ(r.expiries[1].calendarViolations, 41u);
-    EXPECT_NE(r.expiries[1].calendarAction.find("clipped"), std::string::npos);
+    const auto& e0 = r.expiries[0];
+    const auto& e1 = r.expiries[1];
+    EXPECT_TRUE(e0.calendarRefit);
+    EXPECT_NE(
+        e0.calendarFitAction.find("refit with calendar penalty under 2026-11-20"),
+        std::string::npos)
+        << e0.calendarFitAction;
+    EXPECT_GT(e0.calendarRefitMaxVolShift.value_or(-1.0), 0.1);
+    EXPECT_FALSE(e1.calendarRefit);
+    ASSERT_TRUE(e1.calendarMinMargin.has_value());
+    EXPECT_GE(*e1.calendarMinMargin, 0.0);
+    EXPECT_GE(e1.calendarMinForwardVol.value_or(-1.0), in.minForwardVol);
+    EXPECT_EQ(e1.calendarViolations, 0u) << e1.calendarAction;
+    // The second slice is the market's 10 %; the first sits under it.
     const double T0 = mkt.t(mkt.expiries[0]), T1 = mkt.t(mkt.expiries[1]);
-    const double w0 = 0.30 * 0.30 * T0;
     for (std::size_t j = 0; j < r.gridStrikes.size(); ++j) {
-        EXPECT_NEAR(gridVol(r, 0, j), 0.30, 1e-6);
-        EXPECT_NEAR(gridVol(r, 1, j), std::sqrt((w0 + 1e-8) / T1), 1e-6);
-        EXPECT_GE(
-            gridVol(r, 1, j) * gridVol(r, 1, j) * T1, gridVol(r, 0, j) * gridVol(r, 0, j) * T0);
+        if (r.gridStrikes[j] < 0.70 * kSpot || r.gridStrikes[j] > 1.30 * kSpot) continue;
+        EXPECT_NEAR(gridVol(r, 1, j), 0.10, 1e-4);
+        EXPECT_LT(gridVol(r, 0, j) * gridVol(r, 0, j) * T0, 0.01 * T1);
     }
-    EXPECT_NEAR(*r.expiries[1].calendarMaxClipVol, std::sqrt((w0 + 1e-8) / T1) - 0.10, 1e-6);
+    EXPECT_TRUE(r.localVolCheck.arbitrageFree) << r.localVolCheck.firstRefusal;
+    ASSERT_TRUE(r.localVolCheckSvi.has_value());
+    EXPECT_TRUE(r.localVolCheckSvi->arbitrageFree) << r.localVolCheckSvi->firstRefusal;
+    EXPECT_EQ(r.localVolCheckSvi->refused, 0u);
+    // The returned slices carry the checked region as their strike range.
+    EXPECT_LT(e0.strikeMin.value_or(1.0), e0.strikeMax.value_or(0.0));
+    ASSERT_EQ(r.gridLocalVolStrikeMin.size(), 2u);
 
     in.enforceCalendar = false;
     const auto r2 = VolSurfaceCalibrationEvaluator().evaluate(in, mkt.reg, mkt.ctx);
-    EXPECT_EQ(r2.expiries[1].calendarViolations, 41u);
+    EXPECT_FALSE(r2.expiries[0].calendarRefit);
+    EXPECT_NE(r2.expiries[0].calendarFitAction.find("reported only"), std::string::npos);
+    EXPECT_GT(r2.expiries[1].calendarViolations, 0u);
     EXPECT_NE(r2.expiries[1].calendarAction.find("reported only"), std::string::npos);
+    EXPECT_LT(r2.expiries[1].calendarMinMargin.value_or(1.0), 0.0);
+    EXPECT_NEAR(gridVol(r2, 0, 20), 0.30, 1e-6);
     EXPECT_NEAR(gridVol(r2, 1, 20), 0.10, 1e-6);
+    ASSERT_TRUE(r2.localVolCheckSvi.has_value());
+    EXPECT_FALSE(r2.localVolCheckSvi->arbitrageFree);
+    EXPECT_GT(r2.localVolCheckSvi->refused, 0u);
+    EXPECT_NE(r2.localVolCheckSvi->firstRefusal.find("decreasing variance"), std::string::npos)
+        << r2.localVolCheckSvi->firstRefusal;
 
     // Andreasen-Huge is arbitrage-free by construction: the second slice
     // cannot be fitted to a lower total variance, so the quotes there
-    // reprice outside their bid/ask and the report says so (no clip).
+    // reprice outside their bid/ask (no refit, no clip).
     auto inAh = baseInputs(VolSurfaceFitMethod::AndreasenHuge);
     inAh.base.quotes = in.base.quotes;
     const auto r3 = VolSurfaceCalibrationEvaluator().evaluate(inAh, mkt.reg, mkt.ctx);
     EXPECT_LT(r3.repricing.insideBidAsk, r3.repricing.count);
-    // Total variance never falls by more than the implied-vol inversion
-    // tolerance (1e-5 in variance = 0.1 vol point at 16 days), and the
-    // report says "reported only" where it does.
     for (std::size_t j = 0; j < r3.gridStrikes.size(); ++j) {
         EXPECT_GE(
             gridVol(r3, 1, j) * gridVol(r3, 1, j) * T1,
@@ -353,6 +382,77 @@ TEST(VolSurfaceCalibration, CalendarViolationIsReportedAndClipped) {
     }
     if (r3.expiries[1].calendarViolations > 0) {
         EXPECT_NE(r3.expiries[1].calendarAction.find("reported only"), std::string::npos);
+    }
+}
+
+// Daily expiries fitted one by one cross: an SSVI sheet with every third
+// expiry quoted 6 % low (an inverted pair in total variance at the money)
+// comes back with every pair ordered by at least the margin, both returned
+// surfaces' local vol evaluable on the whole scan, and the fit still within
+// the spread where the quotes are ordered.
+TEST(VolSurfaceCalibration, SequentialFitOrdersDisorderedExpiriesWithTheMargin) {
+    Market mkt;
+    mkt.expiries.clear();
+    mkt.atmVols.clear();
+    for (int d = 7; d <= 7 + 3 * 11; d += 3) {
+        mkt.expiries.push_back(mkt.asOf + d);
+        mkt.atmVols.push_back(0.18);
+    }
+    const auto base = mkt.ssvi(-0.6);
+    auto disordered = [&](double k, double T, std::size_t i) {
+        return base(k, T, i) * (i % 3 == 2 ? 0.94 : 1.0);
+    };
+    auto in = baseInputs(VolSurfaceFitMethod::SviPerExpiry);
+    in.base.quotes = mkt.lines(disordered, grid(0.85, 1.10, 0.0125), 0.01, mkt.expiries.size());
+    in.minForwardVol = 0.02;
+
+    auto off = in;
+    off.enforceCalendar = false;
+    const auto r0 = VolSurfaceCalibrationEvaluator().evaluate(off, mkt.reg, mkt.ctx);
+    unsigned crossed = 0;
+    for (std::size_t i = 1; i < r0.expiries.size(); ++i)
+        if (r0.expiries[i].calendarMinMargin.value_or(1.0) < 0.0) ++crossed;
+    EXPECT_GE(crossed, 3u);
+    ASSERT_TRUE(r0.localVolCheckSvi.has_value());
+    EXPECT_FALSE(r0.localVolCheckSvi->arbitrageFree);
+
+    const auto r = VolSurfaceCalibrationEvaluator().evaluate(in, mkt.reg, mkt.ctx);
+    unsigned refits = 0;
+    for (std::size_t i = 0; i < r.expiries.size(); ++i) {
+        const auto& e = r.expiries[i];
+        ASSERT_TRUE(e.usable) << e.droppedReason;
+        if (e.calendarRefit) ++refits;
+        if (i == 0) continue;
+        ASSERT_TRUE(e.calendarMinMargin.has_value());
+        EXPECT_GE(*e.calendarMinMargin, -1e-12) << e.expiryIso;
+        EXPECT_GE(e.calendarMinForwardVol.value_or(-1.0), 0.02 - 1e-9) << e.expiryIso;
+        EXPECT_EQ(e.calendarViolations, 0u) << e.expiryIso << ": " << e.calendarAction;
+    }
+    EXPECT_GE(refits, 3u);
+    EXPECT_TRUE(r.localVolCheck.arbitrageFree) << r.localVolCheck.firstRefusal;
+    ASSERT_TRUE(r.localVolCheckSvi.has_value());
+    EXPECT_TRUE(r.localVolCheckSvi->arbitrageFree) << r.localVolCheckSvi->firstRefusal;
+    EXPECT_EQ(r.localVolCheckSvi->action, "none");
+}
+
+// The local vol check scans what it says: every expiry +/- 2e-4, the
+// midpoints and T_last - 1e-3, 201 strikes per time; on the SSVI truth
+// nothing is refused and the smallest local variance is positive.
+TEST(VolSurfaceCalibration, LocalVolCheckScansTheReturnedSurfaces) {
+    Market mkt;
+    auto in = baseInputs(VolSurfaceFitMethod::SviPerExpiry);
+    in.base.quotes = mkt.lines(mkt.ssvi(), kQuotedMoneyness);
+    const auto r = VolSurfaceCalibrationEvaluator().evaluate(in, mkt.reg, mkt.ctx);
+    const unsigned n = static_cast<unsigned>(mkt.expiries.size());
+    for (const auto* c : {&r.localVolCheck, &*r.localVolCheckSvi}) {
+        EXPECT_EQ(c->times, 3 * n + 1);
+        EXPECT_EQ(c->strikes, 201u);
+        EXPECT_EQ(c->points, c->times * c->strikes);
+        EXPECT_EQ(c->refused, 0u);
+        EXPECT_TRUE(c->arbitrageFree);
+        ASSERT_TRUE(c->minLocalVariance.has_value());
+        EXPECT_GT(*c->minLocalVariance, 0.0);
+        EXPECT_EQ(c->action, "none");
     }
 }
 
@@ -439,8 +539,16 @@ TEST(VolSurfaceCalibration, PastedForwardsAndCustomGrid) {
     in.method = VolSurfaceFitMethod::AndreasenHuge;
     const auto rAh = VolSurfaceCalibrationEvaluator().evaluate(in, mkt.reg, mkt.ctx);
     ASSERT_EQ(rAh.gridExpiryIso, (std::vector<std::string>{"2027-01-08"}));
-    EXPECT_GT(gridVol(rAh, 0, 2), 0.15);
-    EXPECT_LT(gridVol(rAh, 0, 2), 0.30);
+    // Andreasen-Huge returns its own finite-difference strikes inside the
+    // output range (and the expiries' regions): read the one nearest the spot.
+    std::size_t atm = 0;
+    for (std::size_t j = 0; j < rAh.gridStrikes.size(); ++j)
+        if (std::fabs(rAh.gridStrikes[j] - kSpot) < std::fabs(rAh.gridStrikes[atm] - kSpot))
+            atm = j;
+    EXPECT_GT(rAh.gridStrikes.size(), 5u);
+    EXPECT_NEAR(rAh.gridStrikes[atm], kSpot, 0.01 * kSpot);
+    EXPECT_GT(gridVol(rAh, 0, atm), 0.15);
+    EXPECT_LT(gridVol(rAh, 0, atm), 0.30);
     // Beyond the last fitted expiry: 400.
     in.gridExpiries = {QuantLib::Period(2, QuantLib::Years)};
     EXPECT_THROW(

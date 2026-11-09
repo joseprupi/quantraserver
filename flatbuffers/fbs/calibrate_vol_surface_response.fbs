@@ -60,8 +60,24 @@ table VolSurfaceExpiryReport {
     butterfly_violation:bool;
     /// What was found and done ("none", "refit with penalty: min g ... -> ...").
     butterfly_action:string;
+    /// `SviPerExpiry` only, every fitted expiry after the first: whether the
+    /// calendar penalty refit of the sequential fit acted on this slice.
+    calendar_refit:bool;
+    /// Largest change in vol the calendar refit made over the slice's quoted
+    /// strikes (absent when it did not act).
+    calendar_refit_max_vol_shift:double = null;
+    /// After the fit: the smallest excess of the slice's total variance over
+    /// the previous slice's plus the requested margin min_forward_vol^2
+    /// (T_i - T_{i-1}) on the calendar grid (>= 0 = constraint met).
+    calendar_min_margin:double = null;
+    /// After the fit: the smallest forward vol between the previous slice and
+    /// this one on the calendar grid, sqrt((w_i - w_{i-1}) / (T_i - T_{i-1}))
+    /// (negative when total variance decreases there).
+    calendar_min_forward_vol:double = null;
+    /// What the sequential fit found and did against the previous slice.
+    calendar_fit_action:string;
     /// Grid strikes at which total variance was below the previous grid
-    /// expiry's.
+    /// expiry's (before the clip).
     calendar_violations:uint;
     /// Largest change in vol applied by the calendar clip (vol units).
     calendar_max_clip_vol:double = null;
@@ -71,6 +87,39 @@ table VolSurfaceExpiryReport {
     /// the vol by more than a tenth of a point) or its inversion failed,
     /// filled flat from the nearest inverted strike of the expiry.
     grid_points_filled:uint;
+}
+
+/// Dupire local vol of a returned surface, read exactly as the structured
+/// note pricer reads it: QuantLib's LocalVolSurface on the surface as the
+/// parser builds it, on the sheet's forwards (risk-free curve on the implied
+/// discount factors, dividend curve F DF / S), held at the strike edges
+/// (the grid's first and last strike; for the SVI payload the widest quoted
+/// range, min strike_min .. max strike_max) and flat beyond the last expiry
+/// (FlatLocalVol). The scan: times = every expiry +/- 2e-4 years (outside
+/// QuantLib's time stencil of 1e-4 on both sides of the node), the midpoints
+/// between expiries (and between 0 and the first) and the last expiry -
+/// 1e-3; strikes = 201 log-spaced over the output strikes and every quoted
+/// strike. A refused point is one where QuantLib throws ("decreasing variance
+/// ..." or "negative local vol^2 ...").
+table LocalVolCheck {
+    /// True iff every scan point evaluated (no refusal): the surface can be
+    /// simulated as local vol everywhere the scan reached.
+    arbitrage_free:bool;
+    times:uint;
+    strikes:uint;
+    points:uint;
+    refused:uint;
+    /// QuantLib's message at the first refused point.
+    first_refusal:string;
+    /// Smallest local variance (sigma_loc^2) over the points that evaluated,
+    /// and its time (Act/365F years) and strike.
+    min_local_variance:double = null;
+    min_local_variance_time:double = null;
+    min_local_variance_strike:double = null;
+    /// What was done when the check failed: "none", or for the SVI payload
+    /// the refit passes (the flagged slices refitted with a larger calendar
+    /// margin and butterfly weight, at most 3 passes).
+    action:string;
 }
 
 /// One used quote repriced on the returned surface.
@@ -142,14 +191,19 @@ table CalibrateVolSurfaceResponse {
     /// `SviVolSpec` payload (one `SviSlice` per fitted expiry with the
     /// forward used and the final a, b, sigma, rho, m; same base and id as
     /// `vol_surface_spec`, allow_extrapolation true), ready to paste in
-    /// place of the grid. The calendar clip of step 4 applies to the grid
-    /// only; the slices are reported as fitted (after the butterfly refit).
+    /// place of the grid. The slices are the sequential fit's (after the
+    /// calendar and butterfly refits), so they are ordered in time like the
+    /// grid; the grid's last-resort clip applies to the grid only.
     vol_surface_spec_svi:VolSurfaceSpec;
     /// Present iff `vol_surface_spec_svi` is absent: why (the
     /// Andreasen-Huge method has no closed-form slice parameters).
     vol_surface_spec_svi_note:string;
     /// Every used quote repriced on `vol_surface_spec` (the grid).
     vanilla_repricing:VanillaRepricing (required);
+    /// Local vol check of `vol_surface_spec`.
+    local_vol_check:LocalVolCheck (required);
+    /// Local vol check of `vol_surface_spec_svi` (`SviPerExpiry` only).
+    local_vol_check_svi:LocalVolCheck;
 }
 
 root_type CalibrateVolSurfaceResponse;

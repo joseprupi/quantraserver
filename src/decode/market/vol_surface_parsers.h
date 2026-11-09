@@ -145,6 +145,16 @@ struct BlackVolEntry {
     /// clamped to. Empty when no slice carries either; never read by a Black
     /// vol (the SVI formula is global in strike).
     std::optional<std::pair<double, double>> localVolStrikeRange;
+    /// Per-expiry local vol strike ranges (BlackVolSpec
+    /// local_vol_strike_min / _max, or an SviVolSpec with
+    /// local_vol_strike_range PerExpiry): (expiry, min, max) per expiry;
+    /// empty otherwise. When present they replace localVolStrikeRange for a
+    /// structured note's local vol. Never read by a Black vol.
+    struct StrikeBand {
+        QuantLib::Date expiry;
+        double minStrike = 0.0, maxStrike = 0.0;
+    };
+    std::vector<StrikeBand> localVolStrikeBands;
 };
 
 /**

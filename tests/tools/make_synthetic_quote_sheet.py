@@ -207,6 +207,39 @@ SYNTHETIC_SPX_STEEP_WINGS.update({
                "moneyness_window": 0.45},
 })
 
+# Daily expiries: an SSVI-like SPX sheet with eight consecutive daily
+# expiries, weeklies and monthlies, whose at-the-money vols jitter by a
+# few percent from one expiry to the next (as fitted daily slices do) and
+# whose mids carry 1 % noise and a minimum price of 0.05 index points (the
+# deep out-of-the-money wings quote at the tick). Fitted one by one, the
+# daily slices cross: on the 0.16.4 calibration the structured note priced on
+# the returned surface was a 400 ("decreasing variance ..."); the
+# calendar-consistent fit returns surfaces it prices on.
+SYNTHETIC_SPX_DAILY = copy.deepcopy(SYNTHETIC_SVI_NDX_LIKE)
+SYNTHETIC_SPX_DAILY.update({
+    "underlying_id": "SPX_SYN",
+    "spot": 7663.0,
+    "sheet_id": "SPX_SYN_DAILY_2026-09-30",
+    "dividend_curve_id": "SPX_SYN_DIV_IMPLIED",
+    "vol_surface_id": "SPX_SYN_VOL",
+    "expiries": [("2026-10-07", 0.012), ("2026-10-08", 0.012), ("2026-10-09", 0.012),
+                 ("2026-10-12", 0.012), ("2026-10-13", 0.012), ("2026-10-14", 0.012),
+                 ("2026-10-15", 0.012), ("2026-10-16", 0.012), ("2026-10-23", 0.012),
+                 ("2026-10-30", 0.012), ("2026-11-20", 0.012), ("2026-12-18", 0.012),
+                 ("2027-03-19", 0.012), ("2027-06-18", 0.012), ("2027-12-17", 0.012)],
+    "smile": {
+        "type": "ssvi", "rho": -0.70, "eta": 1.0, "gamma": 0.5,
+        "atm_vols": [0.150, 0.162, 0.141, 0.158, 0.146, 0.163, 0.149, 0.160, 0.155, 0.162,
+                     0.166, 0.170, 0.175, 0.180, 0.185],
+    },
+    "strike_grid": {"lo": 0.70, "hi": 1.20, "step": 0.0125},
+    "noise": 0.01,
+    "seed": 7,
+    "price_tick": 0.05,
+    "filter": {"max_relative_spread": 0.25, "min_quotes_per_expiry": 4,
+               "moneyness_window": 0.25},
+})
+
 PRESETS = {
     "ndx_like": SYNTHETIC_NDX_LIKE,
     "svi": SYNTHETIC_SVI_NDX_LIKE,
@@ -215,6 +248,7 @@ PRESETS = {
     "svi_scotia_rty": SYNTHETIC_SVI_SCOTIA_RTY,
     "flat": SYNTHETIC_FLAT_20,
     "spx_steep_wings": SYNTHETIC_SPX_STEEP_WINGS,
+    "spx_daily": SYNTHETIC_SPX_DAILY,
 }
 
 
@@ -342,6 +376,9 @@ def quote_lines(preset: dict) -> list:
             if noise > 0.0:
                 call *= 1.0 + rng.uniform(-noise, noise)
                 put *= 1.0 + rng.uniform(-noise, noise)
+            tick = float(preset.get("price_tick", 0.0))
+            if tick > 0.0:
+                call, put = max(call, tick), max(put, tick)
             liq = round(preset["liquidity_scale"] * math.exp(-preset["liquidity_decay"] * abs(k)))
             lines.append({
                 "expiry": expiry,

@@ -91,6 +91,20 @@
  * Before that time the value is LocalVolSurface's own, bit for bit. The
  * Black vol itself (vanilla pricing, diagnostics) is unchanged.
  *
+ * Per-expiry strike bands. `BasketAsset::localVolStrikeBands` (from a
+ * BlackVolSpec's local_vol_strike_min / _max or an SviVolSpec with
+ * local_vol_strike_range PerExpiry) replace the single strike range: at
+ * time t the level is clamped to the band of the first expiry at or after
+ * t (the last band beyond the last expiry), with the same margin.
+ *
+ * Local vol floor. With `BasketAsset::localVolFloor` the local vol is
+ * computed in EdgeClampedLocalVol::dupire with QuantLib's
+ * LocalVolSurface::localVolImpl formula, step by step (the same reads,
+ * the same arithmetic in the same order: bit-identical where the floor
+ * does not bind), the simulation reads max(Dupire, floor), and a read
+ * QuantLib would refuse returns the floor; reads, floored reads and
+ * refusals are counted for the response.
+ *
  * Sharing. A request builds several process arrays from the same market
  * (the price, the correlation limits of `checks`, the repricing run, the
  * bumped runs whose inputs did not move), each deriving its own local vol
@@ -135,6 +149,13 @@ enum class LocalVolTimeExtrapolation {
     FlatLocalVol
 };
 
+/// A strike range the local vol is held to up to an expiry time.
+struct LocalVolStrikeBand {
+    QuantLib::Time time = 0.0;
+    QuantLib::Real minStrike = 0.0;
+    QuantLib::Real maxStrike = 0.0;
+};
+
 /// One simulated asset. All handles must be linked.
 struct BasketAsset {
     /// Caller's label (underlying id); must be unique within a basket. Used
@@ -165,6 +186,18 @@ struct BasketAsset {
     /// is clamped to (the quoted strikes of an SVI payload). Empty = the
     /// vol's minStrike() / maxStrike(). LocalVolCache applies it.
     std::optional<std::pair<QuantLib::Real, QuantLib::Real>> localVolStrikeRange;
+    /// Optional: per-expiry strike ranges (expiry time, min strike, max
+    /// strike; times strictly increasing). When given they replace
+    /// `localVolStrikeRange`: at time t the level is clamped to the range of
+    /// the first band whose time is >= t (the last band's beyond it).
+    /// LocalVolCache applies it.
+    std::vector<LocalVolStrikeBand> localVolStrikeBands;
+    /// Optional local vol floor (> 0): the local vol simulated is
+    /// max(Dupire, floor), and a read where QuantLib's LocalVolSurface would
+    /// refuse (decreasing variance, negative local variance) is the floor
+    /// instead of an error (EdgeClampedLocalVol, counted). Empty = QuantLib's
+    /// LocalVolSurface as is (refusals propagate). LocalVolCache applies it.
+    std::optional<QuantLib::Real> localVolFloor;
 };
 
 /**
@@ -207,10 +240,40 @@ public:
         QuantLib::Real maxStrike,
         QuantLib::Time maxTime = QuantLib::Null<QuantLib::Time>());
 
-    /// The level the inner local vol is read at for a simulated level `s`.
-    QuantLib::Real clampedLevel(QuantLib::Real s) const;
+    /// Per-expiry strike bands (see BasketAsset::localVolStrikeBands), each
+    /// with the same margin; at least one band, times strictly increasing.
+    EdgeClampedLocalVol(
+        std::shared_ptr<QuantLib::LocalVolTermStructure> inner,
+        const std::vector<LocalVolStrikeBand>& bands,
+        QuantLib::Time maxTime = QuantLib::Null<QuantLib::Time>());
+
+    /// The level the inner local vol is read at for a simulated level `s`
+    /// (at time `t` when the clamp has per-expiry bands).
+    QuantLib::Real clampedLevel(QuantLib::Real s, QuantLib::Time t = 0.0) const;
     /// The time the inner local vol is read at for a simulation time `t`.
     QuantLib::Time clampedTime(QuantLib::Time t) const;
+
+    /// Floor mode: the local vol is computed here with QuantLib's
+    /// LocalVolSurface::localVolImpl formula, step by step (dupire()), on
+    /// these handles, and max(Dupire, floor) is returned; where QuantLib
+    /// would throw the floor is returned. Without flooring the value equals
+    /// LocalVolSurface's bit for bit (tests/parity/mc_core_test.cpp).
+    void setFloor(
+        QuantLib::Real floor,
+        QuantLib::Handle<QuantLib::BlackVolTermStructure> black,
+        QuantLib::Handle<QuantLib::YieldTermStructure> riskFree,
+        QuantLib::Handle<QuantLib::YieldTermStructure> dividend,
+        QuantLib::Handle<QuantLib::Quote> spot);
+    /// QuantLib's Dupire local vol at (t, level), NaN where QuantLib would
+    /// throw (floor mode only).
+    QuantLib::Real dupire(QuantLib::Time t, QuantLib::Real underlyingLevel) const;
+    /// Floor mode counters since the last reset: reads, reads floored
+    /// (refusals included) and refusals floored. Not thread-safe (one
+    /// request, one simulation thread).
+    std::size_t reads() const { return reads_; }
+    std::size_t floored() const { return floored_; }
+    std::size_t refusals() const { return refusals_; }
+    void resetCounts() const { reads_ = floored_ = refusals_ = 0; }
 
     const QuantLib::Date& referenceDate() const override { return inner_->referenceDate(); }
     QuantLib::DayCounter dayCounter() const override { return inner_->dayCounter(); }
@@ -224,8 +287,15 @@ protected:
 private:
     std::shared_ptr<QuantLib::LocalVolTermStructure> inner_;
     QuantLib::Real lower_, upper_;
+    /// Per-expiry bands, margins applied (empty: lower_ / upper_).
+    std::vector<LocalVolStrikeBand> bands_;
     /// Latest time read (QL_MAX_REAL: no time clamp).
     QuantLib::Time tMax_;
+    std::optional<QuantLib::Real> floor_;
+    QuantLib::Handle<QuantLib::BlackVolTermStructure> black_;
+    QuantLib::Handle<QuantLib::YieldTermStructure> riskFree_, dividend_;
+    QuantLib::Handle<QuantLib::Quote> spot_;
+    mutable std::size_t reads_ = 0, floored_ = 0, refusals_ = 0;
 };
 
 /**
@@ -250,6 +320,8 @@ private:
         const void*,
         int,
         QuantLib::Real,
+        QuantLib::Real,
+        std::vector<QuantLib::Real>,
         QuantLib::Real>;
     std::map<Key, QuantLib::Handle<QuantLib::LocalVolTermStructure>> cache_;
 };

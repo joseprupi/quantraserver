@@ -96,6 +96,8 @@ table StructuredNoteTermsEcho {
     brownian_bridge:bool;
     /// Absent when the grid is the observation dates only.
     steps_per_year:uint = null;
+    /// The request's `monte_carlo.local_vol_floor`; absent when none.
+    local_vol_floor:double = null;
 }
 
 /// One past event evaluated on the supplied historical levels.
@@ -162,6 +164,16 @@ table StructuredNoteModelUnderlying {
     /// (annualised, in rate units, at the first observation); absent for a
     /// same-currency underlying.
     quanto_drift:double = null;
+    /// With `monte_carlo.local_vol_floor` and a local-vol underlying: the
+    /// floor, the local vol reads of the priced simulation (Greeks and
+    /// diagnostic runs excluded), the fraction of them that took the floor
+    /// (refusals included) and the reads QuantLib would have refused.
+    /// Above about 1e-3 the surface is not usable for the note:
+    /// recalibrate it. Absent without a floor.
+    local_vol_floor:double = null;
+    local_vol_reads:ulong = null;
+    local_vol_floored_fraction:double = null;
+    local_vol_refusals_floored:ulong = null;
 }
 
 /// The simulation set-up as used. Always present.

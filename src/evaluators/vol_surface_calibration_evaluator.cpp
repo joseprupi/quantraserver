@@ -1,5 +1,6 @@
 #include "vol_surface_calibration_evaluator.h"
 
+#include "basket_model.h"
 #include "date_convert.h"
 #include "error.h"
 #include "smile_slice_vol_surface.h"
@@ -14,6 +15,7 @@
 #include <ql/math/optimization/endcriteria.hpp>
 #include <ql/math/optimization/levenbergmarquardt.hpp>
 #include <ql/math/optimization/problem.hpp>
+#include <ql/methods/finitedifferences/meshers/concentrating1dmesher.hpp>
 #include <ql/pricingengines/blackformula.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/volatility/equityfx/andreasenhugevolatilityadapter.hpp>
@@ -24,6 +26,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <limits>
 #include <map>
 #include <memory>
@@ -42,10 +45,29 @@ constexpr double kCalendarFloor = 1e-8; // total variance
 constexpr double kButterflyPenalty = 100.0;
 constexpr unsigned kButterflyPoints = 201;
 constexpr unsigned kMinQuotesSvi = 5;
+// Sequential SVI fit: calendar constraint points per slice, penalty weight
+// (vol units, raised x10 per round), rounds, and the slack added to the
+// target so the grid clip's floor (kCalendarFloor) is met as well.
+constexpr unsigned kCalendarPoints = 401;
+constexpr double kCalendarPenalty = 100.0;
+constexpr unsigned kCalendarRounds = 3;
+constexpr double kCalendarSlack = 2.0 * kCalendarFloor;
+// Local vol check: strikes per scan time, offset of the scan times from the
+// expiries, refit passes of the SVI payload, the margin multiplier per pass
+// and the forward vol a raised margin starts from.
+constexpr unsigned kCheckStrikes = 201;
+constexpr double kCheckTimeOffset = 2.0e-4;
+constexpr unsigned kLocalVolCheckRefits = 3;
+constexpr double kMarginRaise = 4.0;
+constexpr double kRaisedForwardVol = 0.01;
+// Half-width of an expiry's region in at-the-money standard deviations.
+constexpr double kReachStdDevs = 5.0;
+constexpr double kNoBound = std::numeric_limits<double>::infinity();
 // Andreasen-Huge grid inversion: the one-step finite-difference price carries
 // noise of ~1e-7 of the spot; below this fraction of the spot that noise
 // moves the implied vol by more than a tenth of a vol point.
 constexpr double kGridInversionResolution = 1e-4;
+constexpr unsigned kAndreasenHugeGridPoints = 500;
 
 using UsedQuote = OutOfTheMoneyQuote;
 
@@ -56,6 +78,11 @@ struct ExpiryWork {
     double df = 0.0;
     std::vector<UsedQuote> used; // sorted by strike
     std::optional<SviParams> svi;
+    /// Strike region the surface is held to around this expiry (calendar
+    /// constraint of the SVI fit, local vol check): the strikes quoted on
+    /// both this expiry and the one before, extended to F e^(+/- 5 sigma
+    /// sqrt(T)), sigma the larger at-the-money market vol of the two.
+    double regionLo = 0.0, regionHi = 0.0;
 };
 
 std::string fmt(double v) {
@@ -87,12 +114,18 @@ std::vector<double> defaultMoneyness() {
 constexpr double kEps1 = 1e-6;
 constexpr double kEps2 = 0.999999;
 
+// Roger Lee's moment bound on the wings of total variance: slope
+// b (1 + |rho|) <= 2 (beyond it Durrleman's g is negative far out, a
+// butterfly arbitrage). QuantLib's SviInterpolation admits up to 4; the
+// refits below keep the slices within Lee's bound.
+constexpr double kLeeSlope = 2.0;
+
 SviParams sviDirect(const QuantLib::Array& x) {
     SviParams p;
     p.sigma = x[2] * x[2] + kEps1;
     p.rho = std::sin(x[3]) * kEps2;
     p.m = x[4];
-    p.b = (std::atan(x[1]) + M_PI / 2.0) / M_PI * kEps2 * 4.0 / (1.0 + std::fabs(p.rho));
+    p.b = (std::atan(x[1]) + M_PI / 2.0) / M_PI * kEps2 * kLeeSlope / (1.0 + std::fabs(p.rho));
     p.a = kEps1 + x[0] * x[0] - p.b * p.sigma * std::sqrt(1.0 - p.rho * p.rho);
     return p;
 }
@@ -103,12 +136,39 @@ QuantLib::Array sviInverse(const SviParams& p) {
     x[3] = std::asin(std::max(-1.0, std::min(1.0, p.rho / kEps2)));
     x[4] = p.m;
     x[1] = std::tan(
-        std::max(1e-12, std::min(1.0 - 1e-12, p.b / 4.0 * (1.0 + std::fabs(p.rho)) / kEps2)) *
+        std::max(1e-12, std::min(1.0 - 1e-12, p.b / kLeeSlope * (1.0 + std::fabs(p.rho)) / kEps2)) *
             M_PI -
         M_PI / 2.0);
     x[0] = std::sqrt(std::max(0.0, p.a - kEps1 + p.b * p.sigma * std::sqrt(1.0 - p.rho * p.rho)));
     return x;
 }
+
+/// A calendar constraint point of a slice: log-moneyness k (about the
+/// slice's own forward) and the total variance the slice must reach there.
+struct CalendarPoint {
+    double k = 0.0;
+    double lowerBound = 0.0;
+    double upperBound = std::numeric_limits<double>::infinity();
+    /// The bounded quantity is w(k) + slopeCoef dw/dk(k).
+    double slopeCoef = 0.0;
+};
+
+/// dw/dk of a raw SVI slice.
+double sviSlope(const SviParams& p, double k) {
+    const double d = k - p.m;
+    return p.b * (p.rho + d / std::sqrt(d * d + p.sigma * p.sigma));
+}
+
+double boundedValue(const SviParams& p, const CalendarPoint& c) {
+    const double w = sviTotalVariance(p, c.k);
+    return c.slopeCoef == 0.0 ? w : w + c.slopeCoef * sviSlope(p, c.k);
+}
+
+/// The calendar bounds of one slice against its neighbour.
+struct CalendarBounds {
+    std::vector<CalendarPoint> points; // bounds incl. margin + slack
+    double margin = 0.0, requiredMargin = 0.0, dT = 0.0;
+};
 
 class SviPenalizedCost : public QuantLib::CostFunction {
 public:
@@ -117,19 +177,35 @@ public:
         std::vector<double> vols,
         std::vector<double> sqrtWeights,
         double T,
-        std::vector<double> penaltyKs)
+        std::vector<double> penaltyKs,
+        double butterflyWeight = kButterflyPenalty,
+        std::vector<CalendarPoint> calendar = {},
+        double calendarWeight = 0.0)
         : ks_(std::move(ks)), vols_(std::move(vols)), sqrtWeights_(std::move(sqrtWeights)), T_(T),
-          penaltyKs_(std::move(penaltyKs)) {}
+          penaltyKs_(std::move(penaltyKs)), butterflyWeight_(butterflyWeight),
+          calendar_(std::move(calendar)), calendarWeight_(calendarWeight) {}
 
     QuantLib::Array values(const QuantLib::Array& x) const override {
         const SviParams p = sviDirect(x);
-        QuantLib::Array r(ks_.size() + penaltyKs_.size());
+        QuantLib::Array r(ks_.size() + penaltyKs_.size() + calendar_.size());
         for (std::size_t i = 0; i < ks_.size(); ++i) {
             const double w = std::max(0.0, sviTotalVariance(p, ks_[i]));
             r[i] = sqrtWeights_[i] * (std::sqrt(w / T_) - vols_[i]);
         }
         for (std::size_t j = 0; j < penaltyKs_.size(); ++j) {
-            r[ks_.size() + j] = kButterflyPenalty * std::max(0.0, -sviDurrlemanG(p, penaltyKs_[j]));
+            r[ks_.size() + j] = butterflyWeight_ * std::max(0.0, -sviDurrlemanG(p, penaltyKs_[j]));
+        }
+        // Calendar: the vol shortfall below the lower bound (vol units, so
+        // the penalty weighs like the fit residuals whatever the expiry).
+        const std::size_t base = ks_.size() + penaltyKs_.size();
+        for (std::size_t j = 0; j < calendar_.size(); ++j) {
+            const double w = boundedValue(p, calendar_[j]);
+            const double lb = calendar_[j].lowerBound, ub = calendar_[j].upperBound;
+            r[base + j] = w < lb   ? calendarWeight_ * (std::sqrt(std::max(0.0, lb) / T_) -
+                                                        std::sqrt(std::max(0.0, w) / T_))
+                          : w > ub ? calendarWeight_ * (std::sqrt(std::max(0.0, w) / T_) -
+                                                        std::sqrt(std::max(0.0, ub) / T_))
+                                   : 0.0;
         }
         return r;
     }
@@ -138,6 +214,9 @@ private:
     std::vector<double> ks_, vols_, sqrtWeights_;
     double T_;
     std::vector<double> penaltyKs_;
+    double butterflyWeight_;
+    std::vector<CalendarPoint> calendar_;
+    double calendarWeight_;
 };
 
 std::vector<double> butterflyGrid(double kLo, double kHi) {
@@ -148,11 +227,184 @@ std::vector<double> butterflyGrid(double kLo, double kHi) {
     return ks;
 }
 
+double sviWingSlope(const SviParams& p) {
+    return p.b * (1.0 + std::fabs(p.rho));
+}
+
 double minDurrleman(const SviParams& p, const std::vector<double>& ks) {
     double g = std::numeric_limits<double>::infinity();
     for (double k : ks)
         g = std::min(g, sviDurrlemanG(p, k));
     return g;
+}
+
+/// Per-slice settings the local vol check of the SVI payload raises when
+/// the payload fails it: the calendar margin multiplier of the pair (this
+/// expiry, the one before) and the slice's butterfly weight.
+struct SviTuning {
+    double marginScale = 1.0;
+    double butterflyWeight = kButterflyPenalty;
+};
+
+/// The strikes of the expiry pair (j - 1, j): a log-spaced grid over the
+/// region of expiry j, widened on both sides by the move of the forward
+/// between the two expiries and QuantLib's strike stencil, so that the
+/// calendar constraint covers every strike either slice is read at.
+std::vector<double> pairStrikes(const std::vector<ExpiryWork>& work, std::size_t j) {
+    const auto& w = work[j];
+    const double widen = std::fabs(std::log(w.forward / work[j - 1].forward)) +
+                         2.0 * mc::EdgeClampedLocalVol::kEdgeMargin;
+    const double lo = std::log(w.regionLo) - widen, hi = std::log(w.regionHi) + widen;
+    std::vector<double> strikes(kCalendarPoints);
+    for (unsigned n = 0; n < kCalendarPoints; ++n)
+        strikes[n] = std::exp(
+            lo + (hi - lo) * static_cast<double>(n) / static_cast<double>(kCalendarPoints - 1));
+    return strikes;
+}
+
+/**
+ * The calendar constraint of the expiry pair (j - 1, j) as bounds on one of
+ * its two slices (`fitted`, j - 1 or j), the other taken as final.
+ *
+ * Between the two expiries the surface interpolates total variance linearly
+ * in time at fixed strike, and QuantLib's LocalVolSurface differentiates it
+ * in time along the forward, K_t = K F_t / F_{t0}. With the forward moving
+ * by x = ln(F_j / F_{j-1}) over the interval, that derivative times the
+ * interval length is, at every strike K,
+ *
+ *     w_j(K) - w_{j-1}(K) + x [(1 - l) s_{j-1}(K) + l s_j(K)],  0 <= l <= 1,
+ *
+ * s = dw / d ln K; linear in l, so it is non-negative over the interval iff
+ * it is at l = 0 and at l = 1. Both are required to be at least the margin
+ * (sigma_min^2 (T_j - T_{j-1}) plus the slack), at every strike of
+ * pairStrikes. Each is a bound on w + c dw/dk of the fitted slice.
+ */
+std::vector<CalendarPoint> pairBounds(
+    const std::vector<ExpiryWork>& work, std::size_t j, std::size_t fitted, double margin) {
+    const auto& later = work[j];
+    const auto& earlier = work[j - 1];
+    const double x = std::log(later.forward / earlier.forward);
+    std::vector<CalendarPoint> pts;
+    for (double K : pairStrikes(work, j)) {
+        const double kE = std::log(K / earlier.forward), kL = std::log(K / later.forward);
+        if (fitted == j - 1) {
+            // w_E(K) - x s_E(K) <= w_L(K) - margin;  w_E(K) <= w_L(K) + x s_L(K) - margin.
+            const SviParams& pL = *later.svi;
+            const double wL = sviTotalVariance(pL, kL);
+            pts.push_back(CalendarPoint{kE, -kNoBound, wL - margin, -x});
+            pts.push_back(CalendarPoint{kE, -kNoBound, wL + x * sviSlope(pL, kL) - margin, 0.0});
+        } else {
+            // w_L(K) >= w_E(K) - x s_E(K) + margin;  w_L(K) + x s_L(K) >= w_E(K) + margin.
+            const SviParams& pE = *earlier.svi;
+            const double wE = sviTotalVariance(pE, kE);
+            pts.push_back(CalendarPoint{kL, wE - x * sviSlope(pE, kE) + margin, kNoBound, 0.0});
+            pts.push_back(CalendarPoint{kL, wE + margin, kNoBound, x});
+        }
+    }
+    return pts;
+}
+
+/// Smallest value over pairStrikes of the two quantities of pairBounds
+/// (total variance units, before the margin), on the final slices.
+double pairMinExcess(const std::vector<ExpiryWork>& work, std::size_t j) {
+    const auto& later = work[j];
+    const auto& earlier = work[j - 1];
+    const double x = std::log(later.forward / earlier.forward);
+    double m = std::numeric_limits<double>::infinity();
+    for (double K : pairStrikes(work, j)) {
+        const double kE = std::log(K / earlier.forward), kL = std::log(K / later.forward);
+        const double dw = sviTotalVariance(*later.svi, kL) - sviTotalVariance(*earlier.svi, kE);
+        m = std::min({m, dw + x * sviSlope(*earlier.svi, kE), dw + x * sviSlope(*later.svi, kL)});
+    }
+    return m;
+}
+
+bool calendarOnly(const std::vector<std::pair<double, bool>>& refused) {
+    return std::all_of(refused.begin(), refused.end(), [](const auto& r) { return r.second; });
+}
+
+/// Scan times of the local vol check: every expiry +/- 2e-4 (outside
+/// QuantLib's time stencil, dt <= 1e-4, on both sides of the node), the
+/// midpoints between expiries (and between 0 and the first), and the last
+/// expiry - 1e-3 (where the FlatLocalVol extension reads).
+std::vector<double> localVolCheckTimes(const std::vector<double>& expiryTimes) {
+    std::vector<double> t;
+    double prev = 0.0;
+    for (double T : expiryTimes) {
+        t.push_back(0.5 * (prev + T));
+        if (T - kCheckTimeOffset > 0.0) t.push_back(T - kCheckTimeOffset);
+        t.push_back(T + kCheckTimeOffset);
+        prev = T;
+    }
+    if (expiryTimes.back() > 2.0 * mc::EdgeClampedLocalVol::kTimeMargin)
+        t.push_back(expiryTimes.back() - mc::EdgeClampedLocalVol::kTimeMargin);
+    std::sort(t.begin(), t.end());
+    t.erase(std::unique(t.begin(), t.end()), t.end());
+    return t;
+}
+
+/**
+ * The local vol a structured note derives from `surface`, built through the
+ * pricer's own code path (BasketAsset + LocalVolCache: QuantLib's
+ * LocalVolSurface held at the per-expiry strike `bands` the returned spec
+ * carries, and FlatLocalVol beyond the last expiry), evaluated on the scan times x `kCheckStrikes` log-spaced strikes
+ * over the region of the expiry bracketing each time (`regions[i]` for the
+ * first `regionTimes[i]` >= t, the last one beyond). `refusedTimes`
+ * (optional) receives the time of every refused point with whether
+ * QuantLib's message was a calendar one.
+ */
+LocalVolCheckData checkLocalVol(
+    const std::shared_ptr<QuantLib::BlackVolTermStructure>& surface,
+    const std::vector<mc::LocalVolStrikeBand>& bands,
+    const Handle<QuantLib::Quote>& spot,
+    const Handle<QuantLib::YieldTermStructure>& riskFree,
+    const Handle<QuantLib::YieldTermStructure>& dividend,
+    const std::vector<double>& expiryTimes,
+    const std::vector<double>& regionTimes,
+    const std::vector<std::pair<double, double>>& regions,
+    std::vector<std::pair<double, bool>>* refusedTimes = nullptr) {
+    LocalVolCheckData c;
+    mc::BasketAsset asset = mc::MakeBasketAsset(
+        "check", spot, dividend, riskFree, Handle<QuantLib::BlackVolTermStructure>(surface));
+    asset.localVolTime = mc::LocalVolTimeExtrapolation::FlatLocalVol;
+    asset.localVolStrikeBands = bands;
+    mc::LocalVolCache cache;
+    cache.attach(asset);
+    const auto& lv = asset.localVol;
+    const std::vector<double> times = localVolCheckTimes(expiryTimes);
+    c.times = static_cast<unsigned>(times.size());
+    c.strikes = kCheckStrikes;
+    for (double t : times) {
+        const std::size_t r = std::min<std::size_t>(
+            regions.size() - 1,
+            static_cast<std::size_t>(
+                std::lower_bound(regionTimes.begin(), regionTimes.end(), t) - regionTimes.begin()));
+        const double kMin = regions[r].first, kMax = regions[r].second;
+        for (unsigned j = 0; j < kCheckStrikes; ++j) {
+            const double K =
+                kMin *
+                std::exp(std::log(kMax / kMin) * static_cast<double>(j) / (kCheckStrikes - 1));
+            ++c.points;
+            try {
+                const double v = lv->localVol(t, K, true);
+                if (!std::isfinite(v)) QUANTRA_ERROR("non-finite local vol");
+                const double var = v * v;
+                if (!c.minLocalVariance || var < *c.minLocalVariance) {
+                    c.minLocalVariance = var;
+                    c.minLocalVarianceTime = t;
+                    c.minLocalVarianceStrike = K;
+                }
+            } catch (const std::exception& ex) {
+                const std::string what = ex.what();
+                if (c.refused++ == 0) c.firstRefusal = trimMessage(what);
+                if (refusedTimes)
+                    refusedTimes->emplace_back(
+                        t, what.find("decreasing variance") != std::string::npos);
+            }
+        }
+    }
+    c.arbitrageFree = c.refused == 0 && c.minLocalVariance.has_value();
+    return c;
 }
 
 } // namespace
@@ -381,20 +633,100 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
         out.gridExpiryIso.push_back(DateToIso(d));
         out.gridExpiryDays.push_back(static_cast<int>(d - asOf));
     }
-    const std::size_t nExp = gridDates.size(), nStr = out.gridStrikes.size();
+    const std::size_t nExp = gridDates.size();
+    std::size_t nStr = out.gridStrikes.size();
     out.gridVols.assign(nExp * nStr, std::numeric_limits<double>::quiet_NaN());
+
+    // The sheet's market: a risk-free curve on the implied discount factors
+    // (log-linear) and a dividend curve with DF_q(T) = F DF / S, so the
+    // forwards and the discounting are the sheet's (the Andreasen-Huge model
+    // and the local vol check read them).
+    std::vector<Date> curveDates{asOf};
+    std::vector<QuantLib::DiscountFactor> rDfs{1.0}, qDfs{1.0};
+    for (const auto& w : work) {
+        curveDates.push_back(w.expiry);
+        rDfs.push_back(w.df);
+        qDfs.push_back(w.forward * w.df / spot);
+    }
+    Handle<QuantLib::YieldTermStructure> rTS(
+        std::make_shared<QuantLib::DiscountCurve>(curveDates, rDfs, dc));
+    Handle<QuantLib::YieldTermStructure> qTS(
+        std::make_shared<QuantLib::DiscountCurve>(curveDates, qDfs, dc));
+    Handle<QuantLib::Quote> spotH(std::make_shared<QuantLib::SimpleQuote>(spot));
+    // The region each expiry is held to: where a simulation goes around
+    // that expiry. From the forward outwards on each side, the log-strike
+    // distance covered by kReachStdDevs standard deviations when the vol
+    // along the way is the market's implied vol (trapezoid of 1 / sigma
+    // over the quoted strikes, the edge vol beyond them): the put wing's
+    // higher vols carry a simulation further than the at-the-money vol
+    // would, the call wing's lower vols less far. The strikes quoted on both
+    // this expiry and the one before are always in.
+    {
+        double clampLo = out.gridStrikes.front(), clampHi = out.gridStrikes.back();
+        for (const auto& w : work) {
+            clampLo = std::min(clampLo, w.used.front().strike);
+            clampHi = std::max(clampHi, w.used.back().strike);
+        }
+        // Log-moneyness reached on one side (direction +1 calls, -1 puts).
+        auto reachOf = [&](const ExpiryWork& w, int direction) {
+            std::vector<std::pair<double, double>> kv; // |k| beyond the forward, vol
+            for (const auto& u : w.used) {
+                const double k = std::log(u.strike / w.forward) * direction;
+                kv.emplace_back(k, u.vol);
+            }
+            std::sort(kv.begin(), kv.end());
+            // Start at the quote nearest the forward.
+            const auto start =
+                std::min_element(kv.begin(), kv.end(), [](const auto& a, const auto& b) {
+                    return std::fabs(a.first) < std::fabs(b.first);
+                });
+            double budget = kReachStdDevs * std::sqrt(w.time);
+            double k = 0.0, vol = start->second;
+            for (auto it = start; it != kv.end(); ++it) {
+                if (it->first <= k) continue;
+                const double step = it->first - k;
+                const double cost = step * 0.5 * (1.0 / vol + 1.0 / it->second);
+                if (cost >= budget) return k + budget / (0.5 * (1.0 / vol + 1.0 / it->second));
+                budget -= cost;
+                k = it->first;
+                vol = it->second;
+            }
+            return k + budget * vol;
+        };
+        for (std::size_t i = 0; i < work.size(); ++i) {
+            auto& w = work[i];
+            const std::size_t j = i == 0 ? 0 : i - 1;
+            w.regionLo = w.forward * std::exp(-std::max(reachOf(w, -1), reachOf(work[j], -1)));
+            w.regionHi = w.forward * std::exp(std::max(reachOf(w, +1), reachOf(work[j], +1)));
+            const double qLo = std::max(w.used.front().strike, work[j].used.front().strike);
+            const double qHi = std::min(w.used.back().strike, work[j].used.back().strike);
+            if (qLo < qHi) {
+                w.regionLo = std::min(w.regionLo, qLo);
+                w.regionHi = std::max(w.regionHi, qHi);
+            }
+            // Never beyond the strikes a note's local vol is held at (the
+            // grid's edges, the SVI payload's widest quoted range).
+            w.regionLo = std::max(w.regionLo, clampLo);
+            w.regionHi = std::min(w.regionHi, clampHi);
+        }
+    }
+    std::vector<double> workTimes;
+    std::vector<std::pair<double, double>> workRegions;
+    for (const auto& w : work) {
+        workTimes.push_back(w.time);
+        workRegions.emplace_back(w.regionLo, w.regionHi);
+    }
+    std::vector<std::optional<SviParams>> sviFits;
+
+    std::vector<SviTuning> sviTuning(work.size());
+    std::function<void(std::size_t)> fitSlicesDownFrom;
 
     // ------------------------------------------------------------------
     // 3a. Andreasen-Huge.
     // ------------------------------------------------------------------
     if (in.method == VolSurfaceFitMethod::AndreasenHuge) {
-        std::vector<Date> curveDates{asOf};
-        std::vector<QuantLib::DiscountFactor> rDfs{1.0}, qDfs{1.0};
         QuantLib::AndreasenHugeVolatilityInterpl::CalibrationSet set;
         for (const auto& w : work) {
-            curveDates.push_back(w.expiry);
-            rDfs.push_back(w.df);
-            qDfs.push_back(w.forward * w.df / spot);
             auto exercise = std::make_shared<QuantLib::EuropeanExercise>(w.expiry);
             for (const auto& u : w.used) {
                 auto payoff = std::make_shared<QuantLib::PlainVanillaPayoff>(
@@ -404,17 +736,12 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
                     std::make_shared<QuantLib::SimpleQuote>(u.vol));
             }
         }
-        Handle<QuantLib::YieldTermStructure> rTS(
-            std::make_shared<QuantLib::DiscountCurve>(curveDates, rDfs, dc));
-        Handle<QuantLib::YieldTermStructure> qTS(
-            std::make_shared<QuantLib::DiscountCurve>(curveDates, qDfs, dc));
-        Handle<QuantLib::Quote> spotH(std::make_shared<QuantLib::SimpleQuote>(spot));
         std::shared_ptr<QuantLib::AndreasenHugeVolatilityInterpl> ah;
         std::shared_ptr<QuantLib::AndreasenHugeVolatilityAdapter> adapter;
         try {
             ah = std::make_shared<QuantLib::AndreasenHugeVolatilityInterpl>(
                 set, spotH, rTS, qTS, QuantLib::AndreasenHugeVolatilityInterpl::CubicSpline,
-                QuantLib::AndreasenHugeVolatilityInterpl::CallPut, 500);
+                QuantLib::AndreasenHugeVolatilityInterpl::CallPut, kAndreasenHugeGridPoints);
             adapter = std::make_shared<QuantLib::AndreasenHugeVolatilityAdapter>(ah);
             const auto err = ah->calibrationError();
             AndreasenHugeErrorData ed;
@@ -444,6 +771,36 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
             if (n > 0) {
                 e.rmseVol = std::sqrt(ss / n);
                 e.maxAbsErrorVol = mx;
+            }
+        }
+        // The strike axis: the model's own finite-difference grid points
+        // (the Concentrating1dMesher AndreasenHugeVolatilityInterpl builds:
+        // 500 points in ln(K / S) between its min and max strike,
+        // concentrated at the spot) inside the output grid's range and every
+        // expiry's region, so that the cubic reading of the returned grid
+        // follows the model between its own nodes instead of re-interpolating
+        // a coarse sample.
+        {
+            double lo = out.gridStrikes.front(), hi = out.gridStrikes.back();
+            for (const auto& w : work) {
+                lo = std::min(lo, w.regionLo);
+                hi = std::max(hi, w.regionHi);
+            }
+            const QuantLib::Concentrating1dMesher mesher(
+                std::log(ah->minStrike() / spot), std::log(ah->maxStrike() / spot),
+                kAndreasenHugeGridPoints, std::pair<Real, Real>(0.0, 0.025));
+            std::vector<double> strikes;
+            for (double x : mesher.locations()) {
+                const double K = spot * std::exp(x);
+                if (K >= lo * (1.0 - 1e-12) && K <= hi * (1.0 + 1e-12)) strikes.push_back(K);
+            }
+            if (strikes.size() >= 2) {
+                out.gridStrikes = strikes;
+                out.moneyness.clear();
+                for (double K : strikes)
+                    out.moneyness.push_back(K / spot);
+                nStr = strikes.size();
+                out.gridVols.assign(nExp * nStr, std::numeric_limits<double>::quiet_NaN());
             }
         }
         // Sample the grid. A point is inverted only where the model's
@@ -496,118 +853,397 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
     }
 
     // ------------------------------------------------------------------
-    // 3b. SVI per expiry.
+    // 3b. SVI per expiry, fitted from the last expiry backwards, each slice
+    //     held under the slice after it (calendar constraint).
     // ------------------------------------------------------------------
-    if (in.method == VolSurfaceFitMethod::SviPerExpiry) {
-        const auto endCriteria =
-            std::make_shared<QuantLib::EndCriteria>(500, 100, 1e-12, 1e-10, 1e-10);
-        for (auto& w : work) {
-            auto& e = reportOf(w.expiry);
-            std::vector<double> strikes, vols;
-            for (const auto& u : w.used) {
-                strikes.push_back(u.strike);
-                vols.push_back(u.vol);
-            }
-            SviParams p;
-            try {
-                const auto lm = std::make_shared<QuantLib::LevenbergMarquardt>(1e-10, 1e-10, 1e-10);
-                QuantLib::SviInterpolation interp(
-                    strikes.begin(), strikes.end(), vols.begin(), w.time, w.forward,
-                    QuantLib::Null<Real>(), QuantLib::Null<Real>(), QuantLib::Null<Real>(),
-                    QuantLib::Null<Real>(), QuantLib::Null<Real>(), false, false, false, false,
-                    false, true, endCriteria, lm);
-                interp.update();
-                p.a = interp.a();
-                p.b = interp.b();
-                p.sigma = interp.sigma();
-                p.rho = interp.rho();
-                p.m = interp.m();
-            } catch (const std::exception& ex) {
-                QUANTRA_INVALID_ARGUMENT(
-                    "SVI fit failed at expiry " + e.expiryIso + ": " + trimMessage(ex.what()));
-            }
-            // Butterfly check on the output strike range.
-            const double kLo = std::log(out.gridStrikes.front() / w.forward);
-            const double kHi = std::log(out.gridStrikes.back() / w.forward);
-            const std::vector<double> ks = butterflyGrid(kLo, kHi);
-            double minG = minDurrleman(p, ks);
-            if (minG < 0.0) {
-                e.butterflyViolation = true;
-                if (in.enforceButterfly) {
-                    std::vector<double> kq, sw;
-                    double wsum = 0.0;
-                    for (const auto& u : w.used) {
-                        kq.push_back(std::log(u.strike / w.forward));
-                        const double vega = QuantLib::blackFormulaStdDevDerivative(
-                            u.strike, w.forward, u.vol * std::sqrt(w.time), 1.0);
-                        sw.push_back(vega);
-                        wsum += vega;
-                    }
-                    for (auto& x : sw)
-                        x = std::sqrt(x / wsum);
-                    SviPenalizedCost cost(kq, vols, sw, w.time, ks);
-                    QuantLib::NoConstraint none;
-                    QuantLib::Problem problem(cost, none, sviInverse(p));
-                    QuantLib::LevenbergMarquardt lm(1e-10, 1e-10, 1e-10);
-                    lm.minimize(problem, QuantLib::EndCriteria(2000, 200, 1e-12, 1e-10, 1e-10));
-                    const SviParams refit = sviDirect(problem.currentValue());
-                    const double minGAfter = minDurrleman(refit, ks);
-                    e.butterflyAction = "refit with penalty: min g " + fmt(minG) + " -> " +
-                                        fmt(minGAfter) +
-                                        (minGAfter < 0.0 ? " (still negative)" : "");
-                    p = refit;
-                    minG = minGAfter;
-                } else {
-                    e.butterflyAction =
-                        "reported only (enforce_butterfly false): min g " + fmt(minG);
-                }
-            } else {
-                e.butterflyAction = "none";
-            }
-            // Report only: the raw SVI wing beyond the output strike range,
-            // out to the levels a simulation reaches (k = +/- 5 sigma_ATM
-            // sqrt(T)). A structured note holds the local vol at the quoted
-            // strike edge (strike_min / strike_max on the slice), so a
-            // violation there does not reach a price; it is reported.
-            {
-                const double atmVol = std::sqrt(std::max(0.0, sviTotalVariance(p, 0.0)) / w.time);
-                const double reach = 5.0 * atmVol * std::sqrt(w.time);
-                double outMinG = std::numeric_limits<double>::infinity(), outK = 0.0;
-                auto scanOutside = [&](double a, double b) {
-                    if (!(a < b)) return;
-                    for (double k : butterflyGrid(a, b)) {
-                        const double g = sviDurrlemanG(p, k);
-                        if (g < outMinG) {
-                            outMinG = g;
-                            outK = k;
-                        }
-                    }
-                };
-                scanOutside(-reach, kLo);
-                scanOutside(kHi, reach);
-                if (outMinG < 0.0) {
-                    e.butterflyAction +=
-                        "; beyond the output strike range (reported only, up to k = +/-" +
-                        fmt(reach) + "): min g " + fmt(outMinG) + " at k " + fmt(outK);
-                }
-            }
-            e.butterflyMinG = minG;
-            e.strikeMin = w.used.front().strike;
-            e.strikeMax = w.used.back().strike;
-            e.svi = p;
-            w.svi = p;
-            // Fit error against the market vols.
-            double ss = 0.0, mx = 0.0;
-            for (const auto& u : w.used) {
-                const double v = std::sqrt(
-                    std::max(0.0, sviTotalVariance(p, std::log(u.strike / w.forward))) / w.time);
-                const double d = v - u.vol;
-                ss += d * d;
-                mx = std::max(mx, std::fabs(d));
-            }
-            e.rmseVol = std::sqrt(ss / w.used.size());
-            e.maxAbsErrorVol = mx;
+    const auto endCriteria = std::make_shared<QuantLib::EndCriteria>(500, 100, 1e-12, 1e-10, 1e-10);
+    // (The helpers below live at function scope: step 3c refits with them.)
+    sviFits.assign(work.size(), std::nullopt);
+
+    // QuantLib's SviInterpolation on the expiry's quotes (cached: a refit
+    // starts from it again).
+    auto independentFit = [&](std::size_t i) {
+        if (sviFits[i]) return *sviFits[i];
+        const auto& w = work[i];
+        std::vector<double> strikes, vols;
+        for (const auto& u : w.used) {
+            strikes.push_back(u.strike);
+            vols.push_back(u.vol);
         }
+        SviParams p;
+        try {
+            const auto lm = std::make_shared<QuantLib::LevenbergMarquardt>(1e-10, 1e-10, 1e-10);
+            QuantLib::SviInterpolation interp(
+                strikes.begin(), strikes.end(), vols.begin(), w.time, w.forward,
+                QuantLib::Null<Real>(), QuantLib::Null<Real>(), QuantLib::Null<Real>(),
+                QuantLib::Null<Real>(), QuantLib::Null<Real>(), false, false, false, false, false,
+                true, endCriteria, lm);
+            interp.update();
+            p.a = interp.a();
+            p.b = interp.b();
+            p.sigma = interp.sigma();
+            p.rho = interp.rho();
+            p.m = interp.m();
+        } catch (const std::exception& ex) {
+            QUANTRA_INVALID_ARGUMENT(
+                "SVI fit failed at expiry " + DateToIso(w.expiry) + ": " + trimMessage(ex.what()));
+        }
+        sviFits[i] = p;
+        return p;
+    };
+    // Butterfly grid: the output strike range and the regions of the two
+    // expiry pairs the slice belongs to (where the note pricer reads it).
+    auto butterflyKs = [&](std::size_t i) {
+        const auto& w = work[i];
+        double lo = std::min(w.regionLo, out.gridStrikes.front());
+        double hi = std::max(w.regionHi, out.gridStrikes.back());
+        if (i + 1 < work.size()) {
+            lo = std::min(lo, work[i + 1].regionLo);
+            hi = std::max(hi, work[i + 1].regionHi);
+        }
+        return butterflyGrid(std::log(lo / w.forward), std::log(hi / w.forward));
+    };
+    // Upper bounds of slice i under the final slice i + 1: at every
+    // strike of a grid over the pair's region (the later expiry's),
+    // total variance at most the next slice's at the same strike AND at
+    // the same forward moneyness (QuantLib's local vol differentiates in
+    // time along the forward), minus the margin sigma_min^2 (T_{i+1} -
+    // T_i).
+    auto calendarBounds = [&](std::size_t i) {
+        CalendarBounds cb;
+        if (i + 1 >= work.size()) return cb;
+        const auto& w = work[i];
+        const ExpiryWork& next = work[i + 1];
+        cb.dT = next.time - w.time;
+        cb.requiredMargin = in.minForwardVol * in.minForwardVol * cb.dT;
+        const double scale = sviTuning[i + 1].marginScale;
+        const double sigmaMin =
+            scale > 1.0 ? std::max(in.minForwardVol, kRaisedForwardVol) : in.minForwardVol;
+        cb.margin = sigmaMin * sigmaMin * cb.dT * scale;
+        cb.points = pairBounds(work, i + 1, i, cb.margin + kCalendarSlack);
+        return cb;
+    };
+    auto excess = [](const SviParams& q, const std::vector<CalendarPoint>& pts) {
+        double s = -std::numeric_limits<double>::infinity();
+        for (const auto& c : pts)
+            s = std::max(s, boundedValue(q, c) - c.upperBound);
+        return s;
+    };
+    auto residualWeights = [&](std::size_t i, std::vector<double>& kq, std::vector<double>& vols,
+                               std::vector<double>& sw) {
+        const auto& w = work[i];
+        double wsum = 0.0;
+        for (const auto& u : w.used) {
+            kq.push_back(std::log(u.strike / w.forward));
+            vols.push_back(u.vol);
+            const double vega = QuantLib::blackFormulaStdDevDerivative(
+                u.strike, w.forward, u.vol * std::sqrt(w.time), 1.0);
+            sw.push_back(vega);
+            wsum += vega;
+        }
+        for (auto& x : sw)
+            x = std::sqrt(x / wsum);
+    };
+    auto fitRmse = [&](std::size_t i, const SviParams& q, double* maxAbs = nullptr) {
+        const auto& w = work[i];
+        double ss = 0.0, mx = 0.0;
+        for (const auto& u : w.used) {
+            const double v = std::sqrt(
+                std::max(0.0, sviTotalVariance(q, std::log(u.strike / w.forward))) / w.time);
+            ss += (v - u.vol) * (v - u.vol);
+            mx = std::max(mx, std::fabs(v - u.vol));
+        }
+        if (maxAbs) *maxAbs = mx;
+        return std::sqrt(ss / w.used.size());
+    };
+    auto maxVolChange = [&](std::size_t i, const SviParams& a, const SviParams& b) {
+        const auto& w = work[i];
+        double mx = 0.0;
+        for (const auto& u : w.used) {
+            const double k = std::log(u.strike / w.forward);
+            mx = std::max(
+                mx, std::fabs(
+                        std::sqrt(std::max(0.0, sviTotalVariance(a, k)) / w.time) -
+                        std::sqrt(std::max(0.0, sviTotalVariance(b, k)) / w.time)));
+        }
+        return mx;
+    };
+    // Levenberg-Marquardt on the vega-weighted vol residuals, plus the
+    // butterfly penalty on `bfKs` and the calendar penalty on `bounds`,
+    // from each start, the best objective kept; the calendar weight rises
+    // (x10 per round) until the remaining excess is a fraction of the
+    // margin.
+    auto penalizedRefit = [&](std::size_t i, const std::vector<SviParams>& starts,
+                              const std::vector<double>& bfKs,
+                              const std::vector<CalendarPoint>& bounds, double margin) {
+        std::vector<double> kq, vols, sw;
+        residualWeights(i, kq, vols, sw);
+        double calW = kCalendarPenalty;
+        SviParams best = starts.front();
+        for (unsigned round = 0; round < kCalendarRounds; ++round) {
+            double bestObj = std::numeric_limits<double>::infinity();
+            for (const SviParams& start : starts) {
+                SviPenalizedCost cost(
+                    kq, vols, sw, work[i].time, bfKs, sviTuning[i].butterflyWeight, bounds, calW);
+                QuantLib::NoConstraint none;
+                QuantLib::Problem problem(cost, none, sviInverse(start));
+                QuantLib::LevenbergMarquardt lm(1e-10, 1e-10, 1e-10);
+                lm.minimize(problem, QuantLib::EndCriteria(2000, 200, 1e-12, 1e-10, 1e-10));
+                const QuantLib::Array r = cost.values(problem.currentValue());
+                const double obj = QuantLib::DotProduct(r, r);
+                if (obj < bestObj) {
+                    bestObj = obj;
+                    best = sviDirect(problem.currentValue());
+                }
+            }
+            if (bounds.empty() || excess(best, bounds) <= 0.1 * margin + kCalendarSlack) break;
+            calW *= 10.0;
+        }
+        return best;
+    };
+
+    // Fit (or refit) slice i under the final slice i + 1.
+    auto fitSlice = [&](std::size_t i) {
+        auto& w = work[i];
+        auto& e = reportOf(w.expiry);
+        const SviParams p0 = independentFit(i);
+        e.butterflyViolation = false;
+        e.calendarRefit = false;
+        e.calendarRefitMaxVolShift.reset();
+        e.calendarFitAction.clear();
+        const std::vector<double> ks = butterflyKs(i);
+        const double minG0 = minDurrleman(p0, ks);
+        const bool steepWing = sviWingSlope(p0) > kLeeSlope;
+        e.butterflyViolation = minG0 < 0.0 || steepWing;
+        const bool needBf = e.butterflyViolation && in.enforceButterfly;
+        const std::string slopeNote =
+            steepWing
+                ? " (wing slope b (1 + |rho|) " + fmt(sviWingSlope(p0)) + " above Lee's bound 2)"
+                : "";
+        const CalendarBounds cb = calendarBounds(i);
+        const double excess0 = cb.points.empty() ? -1.0 : excess(p0, cb.points);
+        bool needCal = in.enforceCalendar && excess0 > 0.0;
+        SviParams warm;
+        if (i + 1 < work.size()) {
+            // The next slice moved to this forward and lowered by the
+            // margin: a start that meets the bounds.
+            warm = *work[i + 1].svi;
+            warm.m += std::log(work[i + 1].forward / w.forward);
+            warm.a -= cb.margin + kCalendarSlack;
+        }
+        SviParams p = p0;
+        std::optional<SviParams> butterflyRefit;
+        if (needBf) {
+            butterflyRefit = penalizedRefit(i, {p0}, ks, {}, 0.0);
+            p = *butterflyRefit;
+            // The butterfly refit alone moved the slice above the next
+            // one: refit with both penalties instead.
+            if (in.enforceCalendar && !cb.points.empty() &&
+                excess(*butterflyRefit, cb.points) > 0.0)
+                needCal = true;
+        }
+        double drop = 0.0;
+        if (needCal) {
+            // One refit with the butterfly and the calendar penalties
+            // together, from the independent fit, the next slice moved
+            // here and the butterfly refit; then the slice is lowered
+            // (a - d) by whatever excess remains, so the constraint holds
+            // on every point.
+            const std::vector<SviParams> starts{butterflyRefit ? *butterflyRefit : p0, warm};
+            p = penalizedRefit(
+                i, starts, in.enforceButterfly ? ks : std::vector<double>{}, cb.points, cb.margin);
+            drop = std::max(0.0, excess(p, cb.points));
+            p.a -= drop;
+        }
+        const double minG = minDurrleman(p, ks);
+        if (needCal) {
+            const double shiftMax = maxVolChange(i, p, p0);
+            e.calendarRefit = true;
+            e.calendarRefitMaxVolShift = shiftMax;
+            std::ostringstream os;
+            os << "refit with calendar penalty under " << DateToIso(work[i + 1].expiry)
+               << ": total variance above the next slice's minus margin by up to "
+               << fmt(std::max(excess0, butterflyRefit ? excess(*butterflyRefit, cb.points) : 0.0) -
+                      kCalendarSlack)
+               << (excess0 > 0.0 ? "" : " (after the butterfly refit)") << ", max vol shift "
+               << fmt(shiftMax);
+            if (drop > 0.0) os << ", then lowered by " << fmt(drop) << " in total variance";
+            if (sviTuning[i + 1].marginScale > 1.0) {
+                os << "; margin raised to " << fmt(cb.margin)
+                   << " by the local vol check of the SVI payload";
+            }
+            e.calendarFitAction = os.str();
+        } else if (i + 1 == work.size()) {
+            e.calendarFitAction = "last fitted expiry: fitted first, no calendar constraint";
+        } else {
+            e.calendarFitAction =
+                excess0 > 0.0 ? "reported only (enforce_calendar false): total variance above the "
+                                "next slice's minus margin by up to " +
+                                    fmt(excess0 - kCalendarSlack)
+                              : "none (under the next slice minus margin on the calendar grid)";
+        }
+        if (needCal) {
+            if (e.butterflyViolation) {
+                e.butterflyAction =
+                    in.enforceButterfly
+                        ? "refit with penalty (together with the calendar constraint): min "
+                          "g " +
+                              fmt(minG0) + slopeNote + " -> " + fmt(minG) +
+                              (minG < 0.0 ? " (still negative)" : "")
+                        : "reported only (enforce_butterfly false): min g " + fmt(minG0) +
+                              slopeNote + " -> " + fmt(minG) + " after the calendar refit";
+            } else {
+                e.butterflyAction =
+                    minG < 0.0 ? "none before the calendar refit; min g after it " + fmt(minG)
+                               : "none";
+            }
+        } else if (butterflyRefit) {
+            e.butterflyAction = "refit with penalty: min g " + fmt(minG0) + slopeNote + " -> " +
+                                fmt(minG) + (minG < 0.0 ? " (still negative)" : "");
+        } else if (e.butterflyViolation) {
+            e.butterflyAction =
+                "reported only (enforce_butterfly false): min g " + fmt(minG0) + slopeNote;
+        } else {
+            e.butterflyAction = "none";
+        }
+        // Report only: the raw SVI wing beyond the butterfly grid, out to
+        // k = +/- 5 sigma_ATM sqrt(T). The note pricer holds the local
+        // vol at the quoted strike edge, so a violation there does not
+        // reach a price; it is reported.
+        {
+            const double kLo = ks.front(), kHi = ks.back();
+            const double atmVol = std::sqrt(std::max(0.0, sviTotalVariance(p, 0.0)) / w.time);
+            const double reach = 5.0 * atmVol * std::sqrt(w.time);
+            double outMinG = std::numeric_limits<double>::infinity(), outK = 0.0;
+            auto scanOutside = [&](double a, double b) {
+                if (!(a < b)) return;
+                for (double k : butterflyGrid(a, b)) {
+                    const double g = sviDurrlemanG(p, k);
+                    if (g < outMinG) {
+                        outMinG = g;
+                        outK = k;
+                    }
+                }
+            };
+            scanOutside(-reach, kLo);
+            scanOutside(kHi, reach);
+            if (outMinG < 0.0) {
+                e.butterflyAction +=
+                    "; beyond the checked strike range (reported only, up to k = +/-" + fmt(reach) +
+                    "): min g " + fmt(outMinG) + " at k " + fmt(outK);
+            }
+        }
+        w.svi = p;
+        e.svi = p;
+        e.strikeMin = w.regionLo;
+        e.strikeMax = w.regionHi;
+        e.butterflyMinG = minG;
+        double mx = 0.0;
+        e.rmseVol = fitRmse(i, p, &mx);
+        e.maxAbsErrorVol = mx;
+    };
+    // Refit the slices from `last` down to the first.
+    fitSlicesDownFrom = [&](std::size_t last) {
+        for (std::size_t n = last + 1; n-- > 0;)
+            fitSlice(n);
+    };
+    if (in.method == VolSurfaceFitMethod::SviPerExpiry) fitSlicesDownFrom(work.size() - 1);
+    // The calendar margins of the final slices, every expiry after the first
+    // against the one before (report).
+    auto reportCalendarMargins = [&]() {
+        for (std::size_t i = 1; i < work.size(); ++i) {
+            const auto& w = work[i];
+            const auto& prev = work[i - 1];
+            auto& e = reportOf(w.expiry);
+            const double dT = w.time - prev.time;
+            const double minExcess = pairMinExcess(work, i);
+            e.calendarMinMargin = minExcess - in.minForwardVol * in.minForwardVol * dT;
+            e.calendarMinForwardVol =
+                minExcess >= 0.0 ? std::sqrt(minExcess / dT) : -std::sqrt(-minExcess / dT);
+        }
+    };
+    if (in.method == VolSurfaceFitMethod::SviPerExpiry) reportCalendarMargins();
+
+    // ------------------------------------------------------------------
+    // 3c. SviPerExpiry: the SVI payload's local vol, read as the note
+    //     pricer reads it; a failing slice gets a larger calendar margin and
+    //     butterfly weight and the slices from it on are refitted (bounded).
+    // ------------------------------------------------------------------
+    auto sviSurface = [&]() {
+        std::vector<Date> dates;
+        std::vector<SviSliceParams> params;
+        for (const auto& w : work) {
+            dates.push_back(w.expiry);
+            SviSliceParams sp;
+            sp.forward = w.forward;
+            sp.a = w.svi->a;
+            sp.b = w.svi->b;
+            sp.sigma = w.svi->sigma;
+            sp.rho = w.svi->rho;
+            sp.m = w.svi->m;
+            params.push_back(sp);
+        }
+        auto s =
+            makeSviSurface(asOf, QuantLib::NullCalendar(), QuantLib::Unadjusted, dc, dates, params);
+        s->enableExtrapolation();
+        return s;
+    };
+    if (in.method == VolSurfaceFitMethod::SviPerExpiry) {
+        // The payload's per-expiry strike ranges: each expiry's region.
+        std::vector<mc::LocalVolStrikeBand> sviBands;
+        for (const auto& w : work)
+            sviBands.push_back({w.time, w.regionLo, w.regionHi});
+        std::string action;
+        LocalVolCheckData check;
+        for (unsigned iter = 0;; ++iter) {
+            std::vector<std::pair<double, bool>> refusedAt;
+            check = checkLocalVol(
+                sviSurface(), sviBands, spotH, rTS, qTS, workTimes, workTimes, workRegions,
+                &refusedAt);
+            if (check.arbitrageFree || iter == kLocalVolCheckRefits) break;
+            // The expiry pair whose interval holds each refused time (a
+            // time on a node's far side belongs to the next interval): a
+            // calendar refusal raises the pair's margin (the earlier slice
+            // is refitted under the later one); a negative local variance
+            // raises the butterfly weight of both slices.
+            std::set<std::size_t> pairs, slices;
+            for (const auto& [t, calendarKind] : refusedAt) {
+                std::size_t j = static_cast<std::size_t>(
+                    std::lower_bound(workTimes.begin(), workTimes.end(), t) - workTimes.begin());
+                if (j >= work.size()) j = work.size() - 1;
+                if (calendarKind && j > 0) {
+                    pairs.insert(j);
+                    slices.insert(j - 1);
+                } else {
+                    slices.insert(j);
+                    if (j > 0) slices.insert(j - 1);
+                }
+            }
+            for (std::size_t j : pairs)
+                sviTuning[j].marginScale *= kMarginRaise;
+            if (!calendarOnly(refusedAt)) {
+                for (std::size_t i : slices)
+                    sviTuning[i].butterflyWeight *= 10.0;
+            }
+            const std::size_t from = *slices.rbegin();
+            std::ostringstream os;
+            os << (action.empty() ? "" : "; ") << "pass " << (iter + 1) << ": " << check.refused
+               << " of " << check.points << " points refused (" << check.firstRefusal
+               << "), refitted from " << DateToIso(work[from].expiry) << " down with a larger "
+               << (pairs.empty()
+                       ? ""
+                       : "calendar margin on " + std::to_string(pairs.size()) + " expiry pair(s)")
+               << (pairs.empty() || calendarOnly(refusedAt) ? "" : " and a larger ")
+               << (calendarOnly(refusedAt)
+                       ? ""
+                       : "butterfly weight on " + std::to_string(slices.size()) + " slice(s)");
+            action += os.str();
+            fitSlicesDownFrom(from);
+            reportCalendarMargins();
+        }
+        check.action = action.empty() ? "none" : action;
+        out.localVolCheckSvi = check;
+
         for (std::size_t i = 0; i < nExp; ++i) {
             const auto wIt = std::find_if(work.begin(), work.end(), [&](const ExpiryWork& w) {
                 return w.expiry == gridDates[i];
@@ -629,23 +1265,50 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
         std::vector<double> T(nExp);
         for (std::size_t i = 0; i < nExp; ++i)
             T[i] = dc.yearFraction(asOf, gridDates[i]);
-        std::vector<unsigned> viol(nExp, 0);
+        // At each grid node, total variance against the previous grid row's
+        // at the same forward moneyness (the strike K F_{i-1} / F_i, read
+        // on that row as the surface reads it: natural cubic spline of total
+        // variance in ln K, constant beyond the edge strikes), which is what
+        // Dupire's time derivative follows.
+        std::vector<unsigned> viol(nExp, 0), beyond(nExp, 0);
         std::vector<double> maxClip(nExp, 0.0);
-        for (std::size_t j = 0; j < nStr; ++j) {
-            double prev = -1.0;
-            for (std::size_t i = 0; i < nExp; ++i) {
+        std::vector<double> fwd(nExp);
+        for (std::size_t i = 0; i < nExp; ++i)
+            fwd[i] = spot * qTS->discount(T[i]) / rTS->discount(T[i]);
+        for (std::size_t i = 1; i < nExp; ++i) {
+            std::vector<double> prevRow(nStr);
+            for (std::size_t j = 0; j < nStr; ++j) {
+                const double v = out.gridVols[(i - 1) * nStr + j];
+                prevRow[j] = v * v * T[i - 1];
+            }
+            const CubicVarianceSlice prevSlice(out.gridStrikes, prevRow);
+            // The region of the fitted expiry on this grid date (beyond it a
+            // node is an extrapolation no simulation reaches at this date:
+            // reported, not clipped, so the row keeps its smooth shape).
+            double lo = 0.0, hi = QL_MAX_REAL;
+            for (const auto& w : work) {
+                if (w.expiry != gridDates[i]) continue;
+                lo = w.regionLo;
+                hi = w.regionHi;
+            }
+            for (std::size_t j = 0; j < nStr; ++j) {
                 double& v = out.gridVols[i * nStr + j];
-                double tv = v * v * T[i];
-                if (i > 0 && tv < prev + kCalendarFloor) {
+                const double tv = v * v * T[i];
+                const double prev =
+                    prevSlice.totalVariance(out.gridStrikes[j] * fwd[i - 1] / fwd[i]);
+                const double K = out.gridStrikes[j];
+                if (tv < prev + kCalendarFloor) {
+                    if (K < lo || K > hi) {
+                        ++beyond[i];
+                        continue;
+                    }
                     ++viol[i];
                     if (clip) {
                         const double nv = std::sqrt((prev + kCalendarFloor) / T[i]);
                         maxClip[i] = std::max(maxClip[i], std::fabs(nv - v));
                         v = nv;
-                        tv = prev + kCalendarFloor;
                     }
                 }
-                prev = tv;
             }
         }
         for (std::size_t i = 0; i < nExp; ++i) {
@@ -656,15 +1319,28 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
                     e.calendarAction = "none";
                 } else if (clip) {
                     e.calendarMaxClipVol = maxClip[i];
+                    // Last resort: the sequential fit orders the slices on
+                    // a grid finer than this one, so the clip fires only on
+                    // a grid expiry list that skips fitted expiries less
+                    // than the floor apart or after a fit that could not
+                    // meet its constraint (calendar_fit_action says which).
                     e.calendarAction =
                         "clipped to the previous expiry's total variance + 1e-8 at " +
-                        std::to_string(viol[i]) + " grid strike(s)";
+                        std::to_string(viol[i]) +
+                        " grid strike(s), after the calendar-consistent fit (see "
+                        "calendar_fit_action)";
                 } else {
                     e.calendarAction =
                         in.method == VolSurfaceFitMethod::AndreasenHuge
                             ? "reported only (Andreasen-Huge: within the implied-vol inversion "
                               "tolerance)"
                             : "reported only (enforce_calendar false)";
+                }
+                if (beyond[i] > 0) {
+                    e.calendarAction +=
+                        "; below the previous row at " + std::to_string(beyond[i]) +
+                        " grid strike(s) beyond the expiry's region (the quoted strikes and "
+                        "+/- 5 at-the-money standard deviations): reported only, not clipped";
                 }
             }
         }
@@ -718,6 +1394,37 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
                 rp.quotes.push_back(r);
             }
         }
+        // ------------------------------------------------------------------
+        // 6. The returned grid's local vol, read as the note pricer reads it.
+        // ------------------------------------------------------------------
+        std::vector<double> gridTimes;
+        for (const Date& d : gridDates)
+            gridTimes.push_back(dc.yearFraction(asOf, d));
+        // The grid's per-expiry strike ranges: the region of the fitted
+        // expiry at or after the grid date, inside the second and the
+        // second-to-last grid strike (the natural spline's end intervals,
+        // where its curvature is forced to zero, are left out).
+        const double inLo = out.gridStrikes[std::min<std::size_t>(1, nStr - 1)];
+        const double inHi = out.gridStrikes[nStr >= 2 ? nStr - 2 : 0];
+        std::vector<mc::LocalVolStrikeBand> gridBands;
+        for (std::size_t i = 0; i < nExp; ++i) {
+            const std::size_t r = std::min<std::size_t>(
+                work.size() - 1,
+                static_cast<std::size_t>(
+                    std::lower_bound(workTimes.begin(), workTimes.end(), gridTimes[i] - 1e-12) -
+                    workTimes.begin()));
+            double lo = std::max(work[r].regionLo, inLo), hi = std::min(work[r].regionHi, inHi);
+            if (!(lo < hi)) {
+                lo = out.gridStrikes.front();
+                hi = out.gridStrikes.back();
+            }
+            gridBands.push_back({gridTimes[i], lo, hi});
+            out.gridLocalVolStrikeMin.push_back(lo);
+            out.gridLocalVolStrikeMax.push_back(hi);
+        }
+        out.localVolCheck =
+            checkLocalVol(surface, gridBands, spotH, rTS, qTS, gridTimes, workTimes, workRegions);
+        out.localVolCheck.action = "none";
     }
     return out;
 }

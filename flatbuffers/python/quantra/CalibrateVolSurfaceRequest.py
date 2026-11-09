@@ -134,7 +134,8 @@ class CalibrateVolSurfaceRequest(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # SVI arbitrage handling; defaults (both on) apply when absent.
+    # SVI arbitrage handling; defaults (both on, min_forward_vol 0.01)
+    # apply when absent.
     # CalibrateVolSurfaceRequest
     def Svi(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
