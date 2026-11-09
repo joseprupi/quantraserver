@@ -117,8 +117,12 @@ sequential SVI fit now orders each slice under the next at fixed
 moneyness, `w_{i+1}(k) ≥ w_i(k) + min_forward_vol² (T_{i+1} − T_i)` on the
 pair's grid (401 points over the later expiry's region, widened by the
 forward's move), which replaces the two fixed-strike conditions along the
-forward; its warm start is the next slice lowered by the margin (no longer
-moved to this forward). The grid clip compares at the same forward
+forward; the penalized refit starts from the next slice lowered by the
+margin both at the same moneyness and moved to this forward (the former
+start), the best objective kept: with the single start the cascade of
+refits on the real SPX sheet (47 expiries) reached worse local minima
+(25 % → 7 % of the quotes inside their bid/ask), with both it is back
+within a point of 0.16.9. The grid clip compares at the same forward
 moneyness as before (now against the returned `expiry_forwards`). The
 grid's per-expiry local-vol strike ranges are pulled in by the forward's
 move over the interval each expiry closes (`[K₂ e^x, K_{n−1} e^−x]` at

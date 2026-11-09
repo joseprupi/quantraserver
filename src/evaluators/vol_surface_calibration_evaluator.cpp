@@ -942,11 +942,17 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
         double drop = 0.0;
         if (needCal) {
             // One refit with the butterfly and the calendar penalties
-            // together, from the independent fit, the next slice moved
-            // here and the butterfly refit; then the slice is lowered
+            // together, from the independent fit (or the butterfly refit)
+            // and the next slice lowered by the margin at the same
+            // moneyness and at the same strike; then the slice is lowered
             // (a - d) by whatever excess remains, so the constraint holds
-            // on every point.
-            const std::vector<SviParams> starts{butterflyRefit ? *butterflyRefit : p0, warm};
+            // on every point. (The same-strike start is the one used before
+            // 0.16.10; on real index sheets it often reaches the better
+            // local minimum.)
+            SviParams warmSameStrike = warm;
+            warmSameStrike.m += std::log(work[i + 1].forward / w.forward);
+            const std::vector<SviParams> starts{
+                butterflyRefit ? *butterflyRefit : p0, warm, warmSameStrike};
             p = penalizedRefit(
                 i, starts, in.enforceButterfly ? ks : std::vector<double>{}, cb.points, cb.margin);
             drop = std::max(0.0, excess(p, cb.points));

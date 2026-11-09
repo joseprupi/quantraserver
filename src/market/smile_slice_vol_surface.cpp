@@ -4,7 +4,11 @@
 #include <ql/utilities/null.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
+#include <cstdint>
+#include <functional>
+#include <unordered_map>
 #include <utility>
 
 namespace quantra {
@@ -122,9 +126,11 @@ ProcessShapedSurfaceForward::ProcessShapedSurfaceForward(
         !dividend_.empty() && !riskFree_.empty(),
         "process-shaped forward: dividend and risk-free curves are required");
     times_.push_back(0.0);
+    gNodes_.push_back(0.0);
     for (Time t : expiryTimes) {
         QL_REQUIRE(t > times_.back(), "process-shaped forward: expiry times must increase");
         times_.push_back(t);
+        gNodes_.push_back(g(t));
     }
 }
 
@@ -140,8 +146,8 @@ double ProcessShapedSurfaceForward::forward(Time t) const {
         std::upper_bound(times_.begin(), times_.end(), t) - times_.begin());
     if (j > 0 && times_[j - 1] == t) return F; // at a node g - ĝ is 0
     j = j == 0 ? 0 : std::min(j - 1, n - 2);
-    const double g0 = j == 0 ? 0.0 : g(times_[j]);
-    const double g1 = g(times_[j + 1]);
+    const double g0 = gNodes_[j];
+    const double g1 = gNodes_[j + 1];
     const double gHat = g0 + (g1 - g0) * (t - times_[j]) / (times_[j + 1] - times_[j]);
     return F * std::exp(g(t) - gHat);
 }
@@ -163,6 +169,8 @@ SmileSliceVolSurface::SmileSliceVolSurface(
     : QuantLib::BlackVarianceTermStructure(referenceDate, calendar, bdc, dayCounter),
       expiries_(std::move(expiries)), slices_(std::move(slices)), minStrike_(minStrike),
       maxStrike_(maxStrike), forward_(std::move(forward)) {
+    static std::atomic<std::uint64_t> nextId{1};
+    id_ = nextId.fetch_add(1);
     QL_REQUIRE(!expiries_.empty(), "smile slice surface needs at least one expiry");
     QL_REQUIRE(
         expiries_.size() == slices_.size(), "smile slice surface: expiries and slices differ");
@@ -202,11 +210,50 @@ std::shared_ptr<SmileSliceVolSurface> SmileSliceVolSurface::withSurfaceForward(
     return s;
 }
 
+namespace {
+
+struct ForwardKey {
+    std::uint64_t owner;
+    double t;
+    bool operator==(const ForwardKey& o) const { return owner == o.owner && t == o.t; }
+};
+
+struct ForwardKeyHash {
+    std::size_t operator()(const ForwardKey& k) const {
+        return std::hash<std::uint64_t>()(k.owner) * 31u ^ std::hash<double>()(k.t);
+    }
+};
+
+} // namespace
+
+double SmileSliceVolSurface::cachedForward(Time t) const {
+    thread_local std::unordered_map<ForwardKey, double, ForwardKeyHash> cache;
+    thread_local ForwardKey lastKey{0, 0.0};
+    thread_local double lastF = 0.0;
+    const ForwardKey key{id_, t};
+    if (key == lastKey) return lastF;
+    const auto it = cache.find(key);
+    double F;
+    if (it != cache.end()) {
+        F = it->second;
+    } else {
+        if (cache.size() > 200000) cache.clear();
+        F = forward_->forward(t);
+        cache.emplace(key, F);
+    }
+    lastKey = key;
+    lastF = F;
+    return F;
+}
+
 Real SmileSliceVolSurface::blackVarianceImpl(Time t, Real strike) const {
     if (forward_) {
         // Fixed forward moneyness: slice i read at K (F_i / F(t)), the
-        // ratio first so that at t = T_i the strike is K exactly.
-        const double F = forward_->forward(t);
+        // ratio first so that at t = T_i the strike is K exactly. F(t) is
+        // memoised per thread and surface: a simulation reads the same few
+        // times (its steps and QuantLib's stencil around them) on every
+        // path.
+        const double F = cachedForward(t);
         const auto w = [&](std::size_t i) {
             return slices_[i]->totalVariance(strike * (sliceForwards_[i] / F));
         };

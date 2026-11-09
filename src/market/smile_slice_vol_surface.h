@@ -79,6 +79,7 @@
 #include <ql/time/date.hpp>
 #include <ql/time/daycounter.hpp>
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -184,7 +185,9 @@ private:
  * F_read drifts like the process forward up to a constant per interval,
  * (ln(F_proc(T_{i+1}) / F_proc(T_i)) − ln(F_{i+1} / F_i)) / (T_{i+1} − T_i),
  * zero when the process reproduces the surface's expiry forwards. The
- * spot cancels; the curves are read at every call (two expiries and t).
+ * spot cancels; g at the expiries is read once, when the object is built
+ * (a bumped curve is a new curve object, hence a new reading), g(t) at
+ * every call.
  */
 class ProcessShapedSurfaceForward : public SurfaceForward {
 public:
@@ -199,6 +202,7 @@ private:
     double g(QuantLib::Time t) const;
     std::shared_ptr<const SurfaceForward> base_;
     std::vector<QuantLib::Time> times_; // 0 and the expiry times
+    std::vector<double> gNodes_;        // g at times_ (0 at 0)
     QuantLib::Handle<QuantLib::YieldTermStructure> dividend_, riskFree_;
 };
 
@@ -238,12 +242,14 @@ protected:
     QuantLib::Real blackVarianceImpl(QuantLib::Time t, QuantLib::Real strike) const override;
 
 private:
+    double cachedForward(QuantLib::Time t) const;
     std::vector<QuantLib::Date> expiries_;
     std::vector<QuantLib::Time> times_;
     std::vector<std::shared_ptr<const SmileSlice>> slices_;
     QuantLib::Real minStrike_, maxStrike_;
     std::shared_ptr<const SurfaceForward> forward_;
     std::vector<double> sliceForwards_; // F(T_i), forward-moneyness reading only
+    std::uint64_t id_ = 0;              // unique per object (F(t) cache key)
 };
 
 /// Every Black vol of `inner` plus `shift` (vol units). Throws

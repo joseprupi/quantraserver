@@ -1893,7 +1893,8 @@ expiry back, each held under the slice after it:
   the independently fitted slice (or its butterfly refit) breaks it, it
   is refitted with the butterfly penalty and a calendar penalty on the
   excess together (from its fit and from the next slice lowered by the
-  margin, the better objective kept; the calendar weight rises tenfold up
+  margin, read at the same moneyness and moved to the same strikes, the
+  best objective kept; the calendar weight rises tenfold up
   to twice while the excess stays above a tenth of the margin), then
   lowered by whatever excess remains (`a − d`) so that the condition holds
   at every point;
