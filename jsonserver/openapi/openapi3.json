@@ -2120,13 +2120,15 @@
         "enum": [
           "Bilinear",
           "Bicubic",
-          "CubicStrikeLinearTime"
+          "CubicStrikeLinearTime",
+          "CubicStrikeLinearTimeForwardMoneyness"
         ]
       },
       "quantra_enums_SviTimeInterpolation": {
         "type": "string",
         "enum": [
-          "LinearTotalVariance"
+          "LinearTotalVariance",
+          "LinearTotalVarianceForwardMoneyness"
         ]
       },
       "quantra_enums_LocalVolTimeExtrapolation": {
@@ -4527,6 +4529,13 @@
             "items": {
               "type": "number"
             }
+          },
+          "expiry_forwards": {
+            "type": "array",
+            "description": "Optional, `surface_interpolator: CubicStrikeLinearTimeForwardMoneyness`\nonly (400 otherwise): the forward of each expiry (one per `expiries`\nentry, each finite and > 0), the F_i the rows are read against. The\nsurface forward F(t) is ln-linear in time through `spot` at the\nreference date (when given) and these, the last slope continued\nbeyond the last expiry (without `spot` the first slope is continued\nback). Absent: F(t) = spot D_q(t) / D_r(t) from the spec's `spot` /\n`spot_quote_id` and its discount and dividend inputs (all required\nthen; with expiry_forwards the discount and dividend inputs must be\nabsent). `/calibrate-vol-surface` fills them with the calibration\nforwards at the grid expiries, and `spot`.",
+            "items": {
+              "type": "number"
+            }
           }
         },
         "additionalProperties": false
@@ -4629,6 +4638,10 @@
           },
           "local_vol_strike_range": {
             "$ref": "#/components/schemas/quantra_enums_LocalVolStrikeRange"
+          },
+          "spot": {
+            "type": "number",
+            "description": "Optional, `time_interpolation: LinearTotalVarianceForwardMoneyness`\nonly (400 otherwise): the spot the slices' forwards were read\nagainst, > 0; the surface forward F(t) at the reference date (see\nthe enum). `/calibrate-vol-surface` fills it."
           }
         },
         "required": [

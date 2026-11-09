@@ -268,55 +268,48 @@ std::vector<double> pairStrikes(const std::vector<ExpiryWork>& work, std::size_t
  * its two slices (`fitted`, j - 1 or j), the other taken as final.
  *
  * Between the two expiries the surface interpolates total variance linearly
- * in time at fixed strike, and QuantLib's LocalVolSurface differentiates it
- * in time along the forward, K_t = K F_t / F_{t0}. With the forward moving
- * by x = ln(F_j / F_{j-1}) over the interval, that derivative times the
- * interval length is, at every strike K,
- *
- *     w_j(K) - w_{j-1}(K) + x [(1 - l) s_{j-1}(K) + l s_j(K)],  0 <= l <= 1,
- *
- * s = dw / d ln K; linear in l, so it is non-negative over the interval iff
- * it is at l = 0 and at l = 1. Both are required to be at least the margin
- * (sigma_min^2 (T_j - T_{j-1}) plus the slack), at every strike of
- * pairStrikes. Each is a bound on w + c dw/dk of the fitted slice.
+ * in time at fixed forward moneyness k = ln(K / F(t)) (SviTimeInterpolation
+ * LinearTotalVarianceForwardMoneyness), and QuantLib's LocalVolSurface
+ * differentiates it in time along the forward, where k is fixed: that
+ * derivative times the interval length is w_j(k) - w_{j-1}(k) at every
+ * time of the interval. It is required to be at least the margin
+ * (sigma_min^2 (T_j - T_{j-1}) plus the slack) at every k of the pair's
+ * grid (pairStrikes against the later forward; the grid is widened by the
+ * forward's move, so it covers the moneyness of every strike of the region
+ * at every time of the interval).
  */
+std::vector<double> pairMoneyness(const std::vector<ExpiryWork>& work, std::size_t j) {
+    std::vector<double> ks;
+    for (double K : pairStrikes(work, j))
+        ks.push_back(std::log(K / work[j].forward));
+    return ks;
+}
+
 std::vector<CalendarPoint> pairBounds(
     const std::vector<ExpiryWork>& work, std::size_t j, std::size_t fitted, double margin) {
     const auto& later = work[j];
     const auto& earlier = work[j - 1];
-    const double x = std::log(later.forward / earlier.forward);
     std::vector<CalendarPoint> pts;
-    for (double K : pairStrikes(work, j)) {
-        const double kE = std::log(K / earlier.forward), kL = std::log(K / later.forward);
+    for (double k : pairMoneyness(work, j)) {
         if (fitted == j - 1) {
-            // w_E(K) - x s_E(K) <= w_L(K) - margin;  w_E(K) <= w_L(K) + x s_L(K) - margin.
-            const SviParams& pL = *later.svi;
-            const double wL = sviTotalVariance(pL, kL);
-            pts.push_back(CalendarPoint{kE, -kNoBound, wL - margin, -x});
-            pts.push_back(CalendarPoint{kE, -kNoBound, wL + x * sviSlope(pL, kL) - margin, 0.0});
+            // w_E(k) <= w_L(k) - margin.
+            pts.push_back(
+                CalendarPoint{k, -kNoBound, sviTotalVariance(*later.svi, k) - margin, 0.0});
         } else {
-            // w_L(K) >= w_E(K) - x s_E(K) + margin;  w_L(K) + x s_L(K) >= w_E(K) + margin.
-            const SviParams& pE = *earlier.svi;
-            const double wE = sviTotalVariance(pE, kE);
-            pts.push_back(CalendarPoint{kL, wE - x * sviSlope(pE, kE) + margin, kNoBound, 0.0});
-            pts.push_back(CalendarPoint{kL, wE + margin, kNoBound, x});
+            // w_L(k) >= w_E(k) + margin.
+            pts.push_back(
+                CalendarPoint{k, sviTotalVariance(*earlier.svi, k) + margin, kNoBound, 0.0});
         }
     }
     return pts;
 }
 
-/// Smallest value over pairStrikes of the two quantities of pairBounds
-/// (total variance units, before the margin), on the final slices.
+/// Smallest w_j(k) - w_{j-1}(k) over the pair's grid (total variance
+/// units, before the margin), on the final slices.
 double pairMinExcess(const std::vector<ExpiryWork>& work, std::size_t j) {
-    const auto& later = work[j];
-    const auto& earlier = work[j - 1];
-    const double x = std::log(later.forward / earlier.forward);
     double m = std::numeric_limits<double>::infinity();
-    for (double K : pairStrikes(work, j)) {
-        const double kE = std::log(K / earlier.forward), kL = std::log(K / later.forward);
-        const double dw = sviTotalVariance(*later.svi, kL) - sviTotalVariance(*earlier.svi, kE);
-        m = std::min({m, dw + x * sviSlope(*earlier.svi, kE), dw + x * sviSlope(*later.svi, kL)});
-    }
+    for (double k : pairMoneyness(work, j))
+        m = std::min(m, sviTotalVariance(*work[j].svi, k) - sviTotalVariance(*work[j - 1].svi, k));
     return m;
 }
 
@@ -576,6 +569,18 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
         qTS = sc.dividend;
     }
     Handle<QuantLib::Quote> spotH(std::make_shared<QuantLib::SimpleQuote>(spot));
+    // The forward of each grid expiry (the returned grid's expiry_forwards):
+    // the fitted forward on a sheet expiry, spot D_q / D_r between them.
+    for (const Date& d : gridDates) {
+        const auto wIt = std::find_if(
+            work.begin(), work.end(), [&](const ExpiryWork& w) { return w.expiry == d; });
+        if (wIt != work.end()) {
+            out.gridExpiryForwards.push_back(wIt->forward);
+        } else {
+            const double T = dc.yearFraction(asOf, d);
+            out.gridExpiryForwards.push_back(spot * qTS->discount(T) / rTS->discount(T));
+        }
+    }
     std::vector<std::pair<double, double>> openRegions;
     // The region each expiry is held to: where a simulation goes around
     // that expiry. From the forward outwards on each side, the log-strike
@@ -797,11 +802,11 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
         return butterflyGrid(std::log(lo / w.forward), std::log(hi / w.forward));
     };
     // Upper bounds of slice i under the final slice i + 1: at every
-    // strike of a grid over the pair's region (the later expiry's),
-    // total variance at most the next slice's at the same strike AND at
-    // the same forward moneyness (QuantLib's local vol differentiates in
-    // time along the forward), minus the margin sigma_min^2 (T_{i+1} -
-    // T_i).
+    // forward moneyness of a grid over the pair's region (the later
+    // expiry's), total variance at most the next slice's at the same
+    // moneyness (the surface interpolates there and QuantLib's local vol
+    // differentiates in time along the forward), minus the margin
+    // sigma_min^2 (T_{i+1} - T_i).
     auto calendarBounds = [&](std::size_t i) {
         CalendarBounds cb;
         if (i + 1 >= work.size()) return cb;
@@ -918,10 +923,9 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
         bool needCal = in.enforceCalendar && excess0 > 0.0;
         SviParams warm;
         if (i + 1 < work.size()) {
-            // The next slice moved to this forward and lowered by the
-            // margin: a start that meets the bounds.
+            // The next slice at the same moneyness lowered by the margin:
+            // a start that meets the bounds.
             warm = *work[i + 1].svi;
-            warm.m += std::log(work[i + 1].forward / w.forward);
             warm.a -= cb.margin + kCalendarSlack;
         }
         SviParams p = p0;
@@ -1076,8 +1080,11 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
             sp.m = w.svi->m;
             params.push_back(sp);
         }
-        auto s =
-            makeSviSurface(asOf, QuantLib::NullCalendar(), QuantLib::Unadjusted, dc, dates, params);
+        // As the returned payload reads it: fixed forward moneyness
+        // against the slices' forwards and the spot.
+        auto s = makeSviSurface(
+            asOf, QuantLib::NullCalendar(), QuantLib::Unadjusted, dc, dates, params,
+            SviTimeReading::FixedForwardMoneyness, spot);
         s->enableExtrapolation();
         return s;
     };
@@ -1284,9 +1291,7 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
         // Dupire's time derivative follows.
         std::vector<unsigned> viol(nExp, 0), beyond(nExp, 0);
         std::vector<double> maxClip(nExp, 0.0);
-        std::vector<double> fwd(nExp);
-        for (std::size_t i = 0; i < nExp; ++i)
-            fwd[i] = spot * qTS->discount(T[i]) / rTS->discount(T[i]);
+        const std::vector<double>& fwd = out.gridExpiryForwards;
         for (std::size_t i = 1; i < nExp; ++i) {
             std::vector<double> prevRow(nStr);
             for (std::size_t j = 0; j < nStr; ++j) {
@@ -1368,7 +1373,8 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
 
     // ------------------------------------------------------------------
     // 5. The fit of the used quotes on the returned surface, read as the pricers
-    //    read it (CubicStrikeLinearTime, the output spec's interpolator).
+    //    read it (CubicStrikeLinearTimeForwardMoneyness, the output spec's
+    //    interpolator, on its expiry_forwards and spot).
     // ------------------------------------------------------------------
     {
         if (nStr < 2) {
@@ -1380,9 +1386,12 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
         for (std::size_t i = 0; i < nExp; ++i)
             for (std::size_t j = 0; j < nStr; ++j)
                 rows[i][j] = out.gridVols[i * nStr + j];
+        std::vector<double> gridT;
+        for (const Date& d : gridDates)
+            gridT.push_back(dc.yearFraction(asOf, d));
         auto surface = makeCubicStrikeLinearTimeSurface(
             asOf, QuantLib::NullCalendar(), QuantLib::Unadjusted, dc, gridDates, out.gridStrikes,
-            rows);
+            rows, std::make_shared<NodeSurfaceForward>(gridT, out.gridExpiryForwards, spot));
         surface->enableExtrapolation();
         {
             std::vector<ValidationExpiry> ve;

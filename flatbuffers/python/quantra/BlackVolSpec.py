@@ -255,7 +255,9 @@ class BlackVolSpec(object):
         return False
 
     # Interpolation of a strike x expiry surface (see the enum): Bilinear
-    # unless asked; `/calibrate-vol-surface` returns CubicStrikeLinearTime.
+    # unless asked; `/calibrate-vol-surface` returns
+    # CubicStrikeLinearTimeForwardMoneyness (CubicStrikeLinearTime before
+    # 0.16.10).
     # BlackVolSpec
     def SurfaceInterpolator(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(40))
@@ -359,8 +361,46 @@ class BlackVolSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(50))
         return o == 0
 
+    # Optional, `surface_interpolator: CubicStrikeLinearTimeForwardMoneyness`
+    # only (400 otherwise): the forward of each expiry (one per `expiries`
+    # entry, each finite and > 0), the F_i the rows are read against. The
+    # surface forward F(t) is ln-linear in time through `spot` at the
+    # reference date (when given) and these, the last slope continued
+    # beyond the last expiry (without `spot` the first slope is continued
+    # back). Absent: F(t) = spot D_q(t) / D_r(t) from the spec's `spot` /
+    # `spot_quote_id` and its discount and dividend inputs (all required
+    # then; with expiry_forwards the discount and dividend inputs must be
+    # absent). `/calibrate-vol-surface` fills them with the calibration
+    # forwards at the grid expiries, and `spot`.
+    # BlackVolSpec
+    def ExpiryForwards(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(52))
+        if o != 0:
+            a = self._tab.Vector(o)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
+        return 0
+
+    # BlackVolSpec
+    def ExpiryForwardsAsNumpy(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(52))
+        if o != 0:
+            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
+        return 0
+
+    # BlackVolSpec
+    def ExpiryForwardsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(52))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # BlackVolSpec
+    def ExpiryForwardsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(52))
+        return o == 0
+
 def BlackVolSpecStart(builder):
-    builder.StartObject(24)
+    builder.StartObject(25)
 
 def Start(builder):
     BlackVolSpecStart(builder)
@@ -545,6 +585,18 @@ def BlackVolSpecStartLocalVolStrikeMaxVector(builder, numElems):
 def StartLocalVolStrikeMaxVector(builder, numElems):
     return BlackVolSpecStartLocalVolStrikeMaxVector(builder, numElems)
 
+def BlackVolSpecAddExpiryForwards(builder, expiryForwards):
+    builder.PrependUOffsetTRelativeSlot(24, flatbuffers.number_types.UOffsetTFlags.py_type(expiryForwards), 0)
+
+def AddExpiryForwards(builder, expiryForwards):
+    BlackVolSpecAddExpiryForwards(builder, expiryForwards)
+
+def BlackVolSpecStartExpiryForwardsVector(builder, numElems):
+    return builder.StartVector(8, numElems, 8)
+
+def StartExpiryForwardsVector(builder, numElems):
+    return BlackVolSpecStartExpiryForwardsVector(builder, numElems)
+
 def BlackVolSpecEnd(builder):
     return builder.EndObject()
 
@@ -584,6 +636,7 @@ class BlackVolSpecT(object):
         self.localVolTimeExtrapolation = None  # type: Optional[int]
         self.localVolStrikeMin = None  # type: List[float]
         self.localVolStrikeMax = None  # type: List[float]
+        self.expiryForwards = None  # type: List[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -668,6 +721,13 @@ class BlackVolSpecT(object):
                     self.localVolStrikeMax.append(blackVolSpec.LocalVolStrikeMax(i))
             else:
                 self.localVolStrikeMax = blackVolSpec.LocalVolStrikeMaxAsNumpy()
+        if not blackVolSpec.ExpiryForwardsIsNone():
+            if np is None:
+                self.expiryForwards = []
+                for i in range(blackVolSpec.ExpiryForwardsLength()):
+                    self.expiryForwards.append(blackVolSpec.ExpiryForwards(i))
+            else:
+                self.expiryForwards = blackVolSpec.ExpiryForwardsAsNumpy()
 
     # BlackVolSpecT
     def Pack(self, builder):
@@ -733,6 +793,14 @@ class BlackVolSpecT(object):
                 for i in reversed(range(len(self.localVolStrikeMax))):
                     builder.PrependFloat64(self.localVolStrikeMax[i])
                 localVolStrikeMax = builder.EndVector()
+        if self.expiryForwards is not None:
+            if np is not None and type(self.expiryForwards) is np.ndarray:
+                expiryForwards = builder.CreateNumpyVector(self.expiryForwards)
+            else:
+                BlackVolSpecStartExpiryForwardsVector(builder, len(self.expiryForwards))
+                for i in reversed(range(len(self.expiryForwards))):
+                    builder.PrependFloat64(self.expiryForwards[i])
+                expiryForwards = builder.EndVector()
         BlackVolSpecStart(builder)
         if self.base is not None:
             BlackVolSpecAddBase(builder, base)
@@ -771,5 +839,7 @@ class BlackVolSpecT(object):
             BlackVolSpecAddLocalVolStrikeMin(builder, localVolStrikeMin)
         if self.localVolStrikeMax is not None:
             BlackVolSpecAddLocalVolStrikeMax(builder, localVolStrikeMax)
+        if self.expiryForwards is not None:
+            BlackVolSpecAddExpiryForwards(builder, expiryForwards)
         blackVolSpec = BlackVolSpecEnd(builder)
         return blackVolSpec

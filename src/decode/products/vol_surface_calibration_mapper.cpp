@@ -236,6 +236,7 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
     auto valuesOff = b.CreateVector(r.gridVols);
     auto lvMinOff = b.CreateVector(r.gridLocalVolStrikeMin);
     auto lvMaxOff = b.CreateVector(r.gridLocalVolStrikeMax);
+    auto gridFwdOff = b.CreateVector(r.gridExpiryForwards);
     quantra::QuoteMatrix2DBuilder mb(b);
     mb.add_n_rows(static_cast<int32_t>(r.gridExpiryDays.size()));
     mb.add_n_cols(static_cast<int32_t>(r.gridStrikes.size()));
@@ -255,7 +256,10 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
     vb.add_strikes(strikesOff);
     vb.add_surface_vols(matrixOff);
     vb.add_allow_extrapolation(true);
-    vb.add_surface_interpolator(quantra::enums::SurfaceInterpolator2D_CubicStrikeLinearTime);
+    vb.add_surface_interpolator(
+        quantra::enums::SurfaceInterpolator2D_CubicStrikeLinearTimeForwardMoneyness);
+    vb.add_spot(r.spot);
+    vb.add_expiry_forwards(gridFwdOff);
     vb.add_local_vol_time_extrapolation(quantra::enums::LocalVolTimeExtrapolation_FlatLocalVol);
     vb.add_local_vol_strike_min(lvMinOff);
     vb.add_local_vol_strike_max(lvMaxOff);
@@ -299,7 +303,9 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
         quantra::SviVolSpecBuilder svb(b);
         svb.add_base(sviBaseOff);
         svb.add_slices(slicesOff);
-        svb.add_time_interpolation(quantra::enums::SviTimeInterpolation_LinearTotalVariance);
+        svb.add_time_interpolation(
+            quantra::enums::SviTimeInterpolation_LinearTotalVarianceForwardMoneyness);
+        svb.add_spot(r.spot);
         svb.add_allow_extrapolation(true);
         svb.add_local_vol_time_extrapolation(
             quantra::enums::LocalVolTimeExtrapolation_FlatLocalVol);

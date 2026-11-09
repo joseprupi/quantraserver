@@ -700,8 +700,12 @@ BlackVolEntry gridEntry(const VolSurfaceCalibrationResult& r, const Date& asOf) 
     for (std::size_t i = 0; i < dates.size(); ++i)
         for (std::size_t j = 0; j < nStr; ++j)
             rows[i][j] = r.gridVols[i * nStr + j];
+    std::vector<double> times;
+    for (const Date& d : dates)
+        times.push_back(dc.yearFraction(asOf, d));
     auto s = makeCubicStrikeLinearTimeSurface(
-        asOf, QuantLib::NullCalendar(), QuantLib::Unadjusted, dc, dates, r.gridStrikes, rows);
+        asOf, QuantLib::NullCalendar(), QuantLib::Unadjusted, dc, dates, r.gridStrikes, rows,
+        std::make_shared<NodeSurfaceForward>(times, r.gridExpiryForwards, r.spot));
     s->enableExtrapolation();
     BlackVolEntry e;
     e.handle = Handle<QuantLib::BlackVolTermStructure>(s);
@@ -747,7 +751,9 @@ BlackVolEntry sliceEntry(const VolSurfaceCalibrationResult& r, const Date& asOf,
         s = makeSsviSurface(
             asOf, QuantLib::NullCalendar(), QuantLib::Unadjusted, dc, dates, ss, fwds, r.spot);
     } else {
-        s = makeSviSurface(asOf, QuantLib::NullCalendar(), QuantLib::Unadjusted, dc, dates, svi);
+        s = makeSviSurface(
+            asOf, QuantLib::NullCalendar(), QuantLib::Unadjusted, dc, dates, svi,
+            SviTimeReading::FixedForwardMoneyness, r.spot);
     }
     s->enableExtrapolation();
     e.handle = Handle<QuantLib::BlackVolTermStructure>(s);

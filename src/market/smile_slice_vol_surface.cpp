@@ -53,6 +53,65 @@ double SviSmileSlice::totalVariance(double strike) const {
 }
 
 // ---------------------------------------------------------------------------
+// Surface forwards
+// ---------------------------------------------------------------------------
+
+NodeSurfaceForward::NodeSurfaceForward(
+    const std::vector<Time>& times,
+    const std::vector<double>& forwards,
+    std::optional<double> spot) {
+    QL_REQUIRE(!times.empty(), "surface forward needs at least one node");
+    QL_REQUIRE(times.size() == forwards.size(), "surface forward: times and forwards differ");
+    if (spot) {
+        QL_REQUIRE(
+            std::isfinite(*spot) && *spot > 0.0, "surface forward: spot must be finite and > 0");
+        times_.push_back(0.0);
+        forwards_.push_back(*spot);
+        logForwards_.push_back(std::log(*spot));
+    }
+    for (std::size_t i = 0; i < times.size(); ++i) {
+        QL_REQUIRE(
+            std::isfinite(forwards[i]) && forwards[i] > 0.0,
+            "surface forward: forward " << i << " must be finite and > 0");
+        QL_REQUIRE(times[i] > 0.0, "surface forward: node times must be positive");
+        QL_REQUIRE(
+            times_.empty() || times[i] > times_.back(),
+            "surface forward: node times must be strictly increasing");
+        times_.push_back(times[i]);
+        forwards_.push_back(forwards[i]);
+        logForwards_.push_back(std::log(forwards[i]));
+    }
+}
+
+double NodeSurfaceForward::forward(Time t) const {
+    const std::size_t n = times_.size();
+    if (n == 1) return forwards_.front();
+    // The segment holding t; the first / last one continued beyond the ends.
+    std::size_t j = static_cast<std::size_t>(
+        std::upper_bound(times_.begin(), times_.end(), t) - times_.begin());
+    if (j > 0 && times_[j - 1] == t) return forwards_[j - 1];
+    j = j == 0 ? 0 : std::min(j - 1, n - 2);
+    const double l = logForwards_[j] + (logForwards_[j + 1] - logForwards_[j]) * (t - times_[j]) /
+                                           (times_[j + 1] - times_[j]);
+    return std::exp(l);
+}
+
+CurveSurfaceForward::CurveSurfaceForward(
+    double spot,
+    QuantLib::Handle<QuantLib::YieldTermStructure> dividend,
+    QuantLib::Handle<QuantLib::YieldTermStructure> riskFree)
+    : spot_(spot), dividend_(std::move(dividend)), riskFree_(std::move(riskFree)) {
+    QL_REQUIRE(std::isfinite(spot_) && spot_ > 0.0, "surface forward: spot must be finite and > 0");
+    QL_REQUIRE(
+        !dividend_.empty() && !riskFree_.empty(),
+        "surface forward: dividend and risk-free curves are required");
+}
+
+double CurveSurfaceForward::forward(Time t) const {
+    return spot_ * dividend_->discount(t, true) / riskFree_->discount(t, true);
+}
+
+// ---------------------------------------------------------------------------
 // Surface
 // ---------------------------------------------------------------------------
 
@@ -64,10 +123,11 @@ SmileSliceVolSurface::SmileSliceVolSurface(
     std::vector<QuantLib::Date> expiries,
     std::vector<std::shared_ptr<const SmileSlice>> slices,
     Real minStrike,
-    Real maxStrike)
+    Real maxStrike,
+    std::shared_ptr<const SurfaceForward> forward)
     : QuantLib::BlackVarianceTermStructure(referenceDate, calendar, bdc, dayCounter),
       expiries_(std::move(expiries)), slices_(std::move(slices)), minStrike_(minStrike),
-      maxStrike_(maxStrike) {
+      maxStrike_(maxStrike), forward_(std::move(forward)) {
     QL_REQUIRE(!expiries_.empty(), "smile slice surface needs at least one expiry");
     QL_REQUIRE(
         expiries_.size() == slices_.size(), "smile slice surface: expiries and slices differ");
@@ -83,9 +143,35 @@ SmileSliceVolSurface::SmileSliceVolSurface(
             "smile slice surface: expiries must be strictly increasing");
         times_.push_back(timeFromReference(expiries_[i]));
     }
+    if (forward_) {
+        for (Time T : times_) {
+            const double F = forward_->forward(T);
+            QL_REQUIRE(
+                std::isfinite(F) && F > 0.0,
+                "smile slice surface: the surface forward at " << T << " is not positive");
+            sliceForwards_.push_back(F);
+        }
+    }
 }
 
 Real SmileSliceVolSurface::blackVarianceImpl(Time t, Real strike) const {
+    if (forward_) {
+        // Fixed forward moneyness: slice i read at K (F_i / F(t)), the
+        // ratio first so that at t = T_i the strike is K exactly.
+        const double F = forward_->forward(t);
+        const auto w = [&](std::size_t i) {
+            return slices_[i]->totalVariance(strike * (sliceForwards_[i] / F));
+        };
+        if (t <= times_.front()) return w(0) * t / times_.front();
+        if (t >= times_.back()) return w(times_.size() - 1) * t / times_.back();
+        const std::size_t i =
+            static_cast<std::size_t>(
+                std::upper_bound(times_.begin(), times_.end(), t) - times_.begin()) -
+            1;
+        const double w0 = w(i);
+        const double w1 = w(i + 1);
+        return w0 + (w1 - w0) * (t - times_[i]) / (times_[i + 1] - times_[i]);
+    }
     if (t <= times_.front()) {
         return slices_.front()->totalVariance(strike) * t / times_.front();
     }
@@ -129,7 +215,8 @@ std::shared_ptr<SmileSliceVolSurface> makeCubicStrikeLinearTimeSurface(
     const QuantLib::DayCounter& dayCounter,
     const std::vector<QuantLib::Date>& expiries,
     const std::vector<double>& strikes,
-    const std::vector<std::vector<double>>& blackVolsByExpiry) {
+    const std::vector<std::vector<double>>& blackVolsByExpiry,
+    std::shared_ptr<const SurfaceForward> forward) {
     QL_REQUIRE(strikes.size() >= 2, "CubicStrikeLinearTime needs at least 2 strikes");
     QL_REQUIRE(
         blackVolsByExpiry.size() == expiries.size(),
@@ -149,7 +236,7 @@ std::shared_ptr<SmileSliceVolSurface> makeCubicStrikeLinearTimeSurface(
     }
     return std::make_shared<SmileSliceVolSurface>(
         referenceDate, calendar, bdc, dayCounter, expiries, std::move(slices), strikes.front(),
-        strikes.back());
+        strikes.back(), std::move(forward));
 }
 
 std::shared_ptr<SmileSliceVolSurface> makeSviSurface(
@@ -158,7 +245,9 @@ std::shared_ptr<SmileSliceVolSurface> makeSviSurface(
     QuantLib::BusinessDayConvention bdc,
     const QuantLib::DayCounter& dayCounter,
     const std::vector<QuantLib::Date>& expiries,
-    const std::vector<SviSliceParams>& params) {
+    const std::vector<SviSliceParams>& params,
+    SviTimeReading reading,
+    std::optional<double> spot) {
     QL_REQUIRE(params.size() == expiries.size(), "SVI surface: one slice per expiry is required");
     std::vector<std::shared_ptr<const SmileSlice>> slices;
     slices.reserve(params.size());
@@ -172,8 +261,19 @@ std::shared_ptr<SmileSliceVolSurface> makeSviSurface(
             "SVI slice: a + b sigma sqrt(1 - rho^2) must be >= 0 (negative minimum variance)");
         slices.push_back(std::make_shared<SviSmileSlice>(p));
     }
+    std::shared_ptr<const SurfaceForward> forward;
+    if (reading == SviTimeReading::FixedForwardMoneyness) {
+        std::vector<Time> times;
+        std::vector<double> forwards;
+        for (std::size_t i = 0; i < params.size(); ++i) {
+            times.push_back(dayCounter.yearFraction(referenceDate, expiries[i]));
+            forwards.push_back(params[i].forward);
+        }
+        forward = std::make_shared<NodeSurfaceForward>(times, forwards, spot);
+    }
     return std::make_shared<SmileSliceVolSurface>(
-        referenceDate, calendar, bdc, dayCounter, expiries, std::move(slices), 0.0, QL_MAX_REAL);
+        referenceDate, calendar, bdc, dayCounter, expiries, std::move(slices), 0.0, QL_MAX_REAL,
+        std::move(forward));
 }
 
 } // namespace quantra

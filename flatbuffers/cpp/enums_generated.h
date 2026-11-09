@@ -137,70 +137,99 @@ inline const char *EnumNameInterpolator(Interpolator e) {
 ///     distorted; costly per evaluation).
 ///   CubicStrikeLinearTime: per expiry a natural cubic spline of total
 ///     variance in log-strike (C2, so the local vol is continuous), linear
-///     in total variance between expiries at fixed strike (calendar-safe),
-///     constant beyond the first and last strike, flat implied vol beyond
-///     the last expiry. The default of the surfaces `/calibrate-vol-surface`
-///     returns; a supplied grid keeps Bilinear unless it says otherwise.
+///     in total variance between expiries at fixed strike, constant beyond
+///     the first and last strike, flat implied vol beyond the last expiry.
+///     What `/calibrate-vol-surface` returned before 0.16.10.
+///   CubicStrikeLinearTimeForwardMoneyness (since 0.16.10): the same rows,
+///     linear in total variance between expiries at fixed forward moneyness
+///     k = ln(K / F(t)): w(t, K) = (1 - l) w_i(F_i e^k) + l w_{i+1}(F_{i+1} e^k),
+///     l = (t - T_i) / (T_{i+1} - T_i), F_i = F(T_i) (and w_1(F_1 e^k) t / T_1
+///     before the first expiry, w_n(F_n e^k) t / T_n after the last). This
+///     is the reading a Dupire local vol needs: QuantLib differentiates the
+///     variance in time along the forward, where k is fixed. F(t) comes from
+///     the spec's `expiry_forwards` (ln F linear in time through `spot` when
+///     given and the forwards, the last slope continued beyond) or, without
+///     them, from its spot, dividend and discount inputs (spot D_q / D_r).
+///     What `/calibrate-vol-surface` returns.
+///   A supplied grid keeps Bilinear unless it says otherwise.
 enum SurfaceInterpolator2D : int8_t {
   SurfaceInterpolator2D_Bilinear = 0,
   SurfaceInterpolator2D_Bicubic = 1,
   SurfaceInterpolator2D_CubicStrikeLinearTime = 2,
+  SurfaceInterpolator2D_CubicStrikeLinearTimeForwardMoneyness = 3,
   SurfaceInterpolator2D_MIN = SurfaceInterpolator2D_Bilinear,
-  SurfaceInterpolator2D_MAX = SurfaceInterpolator2D_CubicStrikeLinearTime
+  SurfaceInterpolator2D_MAX = SurfaceInterpolator2D_CubicStrikeLinearTimeForwardMoneyness
 };
 
-inline const SurfaceInterpolator2D (&EnumValuesSurfaceInterpolator2D())[3] {
+inline const SurfaceInterpolator2D (&EnumValuesSurfaceInterpolator2D())[4] {
   static const SurfaceInterpolator2D values[] = {
     SurfaceInterpolator2D_Bilinear,
     SurfaceInterpolator2D_Bicubic,
-    SurfaceInterpolator2D_CubicStrikeLinearTime
+    SurfaceInterpolator2D_CubicStrikeLinearTime,
+    SurfaceInterpolator2D_CubicStrikeLinearTimeForwardMoneyness
   };
   return values;
 }
 
 inline const char * const *EnumNamesSurfaceInterpolator2D() {
-  static const char * const names[4] = {
+  static const char * const names[5] = {
     "Bilinear",
     "Bicubic",
     "CubicStrikeLinearTime",
+    "CubicStrikeLinearTimeForwardMoneyness",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameSurfaceInterpolator2D(SurfaceInterpolator2D e) {
-  if (::flatbuffers::IsOutRange(e, SurfaceInterpolator2D_Bilinear, SurfaceInterpolator2D_CubicStrikeLinearTime)) return "";
+  if (::flatbuffers::IsOutRange(e, SurfaceInterpolator2D_Bilinear, SurfaceInterpolator2D_CubicStrikeLinearTimeForwardMoneyness)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesSurfaceInterpolator2D()[index];
 }
 
-/// How an `SviVolSpec` interpolates between its slices at a fixed strike.
-///   LinearTotalVariance: w(t, K) linear in t between the bracketing
-///     slices' total variances at K; before the first slice w(T1, K) t / T1
-///     and after the last w(Tn, K) t / Tn (flat implied vol on both ends).
+/// How an `SviVolSpec` interpolates between its slices.
+///   LinearTotalVariance: at a fixed strike, w(t, K) linear in t between the
+///     bracketing slices' total variances at K; before the first slice
+///     w(T1, K) t / T1 and after the last w(Tn, K) t / Tn (flat implied vol
+///     on both ends). The default (absent).
+///   LinearTotalVarianceForwardMoneyness (since 0.16.10): at a fixed forward
+///     moneyness k = ln(K / F(t)): w(t, K) = (1 - l) w_i(k) + l w_{i+1}(k),
+///     l = (t - T_i) / (T_{i+1} - T_i), each slice read at its own k (SVI
+///     slices are written in k about their `forward`); w_1(k) t / T1 before
+///     the first slice, w_n(k) t / Tn after the last. F(t): ln F linear in
+///     time through the payload's `spot` at the reference date (when given)
+///     and the slices' forwards, the last slope continued beyond the last
+///     slice; without `spot` the first slope is continued back (one slice:
+///     F constant). Slices ordered at fixed k then give a non-negative
+///     Dupire time derivative along every forward line with that drift.
+///     What `/calibrate-vol-surface` returns.
 enum SviTimeInterpolation : int8_t {
   SviTimeInterpolation_LinearTotalVariance = 0,
+  SviTimeInterpolation_LinearTotalVarianceForwardMoneyness = 1,
   SviTimeInterpolation_MIN = SviTimeInterpolation_LinearTotalVariance,
-  SviTimeInterpolation_MAX = SviTimeInterpolation_LinearTotalVariance
+  SviTimeInterpolation_MAX = SviTimeInterpolation_LinearTotalVarianceForwardMoneyness
 };
 
-inline const SviTimeInterpolation (&EnumValuesSviTimeInterpolation())[1] {
+inline const SviTimeInterpolation (&EnumValuesSviTimeInterpolation())[2] {
   static const SviTimeInterpolation values[] = {
-    SviTimeInterpolation_LinearTotalVariance
+    SviTimeInterpolation_LinearTotalVariance,
+    SviTimeInterpolation_LinearTotalVarianceForwardMoneyness
   };
   return values;
 }
 
 inline const char * const *EnumNamesSviTimeInterpolation() {
-  static const char * const names[2] = {
+  static const char * const names[3] = {
     "LinearTotalVariance",
+    "LinearTotalVarianceForwardMoneyness",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameSviTimeInterpolation(SviTimeInterpolation e) {
-  if (::flatbuffers::IsOutRange(e, SviTimeInterpolation_LinearTotalVariance, SviTimeInterpolation_LinearTotalVariance)) return "";
+  if (::flatbuffers::IsOutRange(e, SviTimeInterpolation_LinearTotalVariance, SviTimeInterpolation_LinearTotalVarianceForwardMoneyness)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesSviTimeInterpolation()[index];
 }

@@ -1950,6 +1950,7 @@ struct BlackVolSpecT : public ::flatbuffers::NativeTable {
   ::flatbuffers::Optional<quantra::enums::LocalVolTimeExtrapolation> local_vol_time_extrapolation = ::flatbuffers::nullopt;
   std::vector<double> local_vol_strike_min{};
   std::vector<double> local_vol_strike_max{};
+  std::vector<double> expiry_forwards{};
   BlackVolSpecT() = default;
   BlackVolSpecT(const BlackVolSpecT &o);
   BlackVolSpecT(BlackVolSpecT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -1984,7 +1985,8 @@ struct BlackVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_STRIKE_INTERPOLATOR = 44,
     VT_LOCAL_VOL_TIME_EXTRAPOLATION = 46,
     VT_LOCAL_VOL_STRIKE_MIN = 48,
-    VT_LOCAL_VOL_STRIKE_MAX = 50
+    VT_LOCAL_VOL_STRIKE_MAX = 50,
+    VT_EXPIRY_FORWARDS = 52
   };
   const quantra::BlackVolBaseSpec *base() const {
     return GetPointer<const quantra::BlackVolBaseSpec *>(VT_BASE);
@@ -2059,7 +2061,9 @@ struct BlackVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     return GetField<uint8_t>(VT_ALLOW_EXTRAPOLATION, 0) != 0;
   }
   /// Interpolation of a strike x expiry surface (see the enum): Bilinear
-  /// unless asked; `/calibrate-vol-surface` returns CubicStrikeLinearTime.
+  /// unless asked; `/calibrate-vol-surface` returns
+  /// CubicStrikeLinearTimeForwardMoneyness (CubicStrikeLinearTime before
+  /// 0.16.10).
   quantra::enums::SurfaceInterpolator2D surface_interpolator() const {
     return static_cast<quantra::enums::SurfaceInterpolator2D>(GetField<int8_t>(VT_SURFACE_INTERPOLATOR, 0));
   }
@@ -2098,6 +2102,20 @@ struct BlackVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   }
   const ::flatbuffers::Vector<double> *local_vol_strike_max() const {
     return GetPointer<const ::flatbuffers::Vector<double> *>(VT_LOCAL_VOL_STRIKE_MAX);
+  }
+  /// Optional, `surface_interpolator: CubicStrikeLinearTimeForwardMoneyness`
+  /// only (400 otherwise): the forward of each expiry (one per `expiries`
+  /// entry, each finite and > 0), the F_i the rows are read against. The
+  /// surface forward F(t) is ln-linear in time through `spot` at the
+  /// reference date (when given) and these, the last slope continued
+  /// beyond the last expiry (without `spot` the first slope is continued
+  /// back). Absent: F(t) = spot D_q(t) / D_r(t) from the spec's `spot` /
+  /// `spot_quote_id` and its discount and dividend inputs (all required
+  /// then; with expiry_forwards the discount and dividend inputs must be
+  /// absent). `/calibrate-vol-surface` fills them with the calibration
+  /// forwards at the grid expiries, and `spot`.
+  const ::flatbuffers::Vector<double> *expiry_forwards() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_EXPIRY_FORWARDS);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -2140,6 +2158,8 @@ struct BlackVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyVector(local_vol_strike_min()) &&
            VerifyOffset(verifier, VT_LOCAL_VOL_STRIKE_MAX) &&
            verifier.VerifyVector(local_vol_strike_max()) &&
+           VerifyOffset(verifier, VT_EXPIRY_FORWARDS) &&
+           verifier.VerifyVector(expiry_forwards()) &&
            verifier.EndTable();
   }
   BlackVolSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -2223,6 +2243,9 @@ struct BlackVolSpecBuilder {
   void add_local_vol_strike_max(::flatbuffers::Offset<::flatbuffers::Vector<double>> local_vol_strike_max) {
     fbb_.AddOffset(BlackVolSpec::VT_LOCAL_VOL_STRIKE_MAX, local_vol_strike_max);
   }
+  void add_expiry_forwards(::flatbuffers::Offset<::flatbuffers::Vector<double>> expiry_forwards) {
+    fbb_.AddOffset(BlackVolSpec::VT_EXPIRY_FORWARDS, expiry_forwards);
+  }
   explicit BlackVolSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -2259,11 +2282,13 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpec(
     quantra::enums::Interpolator strike_interpolator = quantra::enums::Interpolator_Linear,
     ::flatbuffers::Optional<quantra::enums::LocalVolTimeExtrapolation> local_vol_time_extrapolation = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::Vector<double>> local_vol_strike_min = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<double>> local_vol_strike_max = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> local_vol_strike_max = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> expiry_forwards = 0) {
   BlackVolSpecBuilder builder_(_fbb);
   builder_.add_flat_dividend_rate(flat_dividend_rate);
   builder_.add_flat_discount_rate(flat_discount_rate);
   builder_.add_spot(spot);
+  builder_.add_expiry_forwards(expiry_forwards);
   builder_.add_local_vol_strike_max(local_vol_strike_max);
   builder_.add_local_vol_strike_min(local_vol_strike_min);
   builder_.add_dividend_curve_id(dividend_curve_id);
@@ -2313,7 +2338,8 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpecDirect(
     quantra::enums::Interpolator strike_interpolator = quantra::enums::Interpolator_Linear,
     ::flatbuffers::Optional<quantra::enums::LocalVolTimeExtrapolation> local_vol_time_extrapolation = ::flatbuffers::nullopt,
     const std::vector<double> *local_vol_strike_min = nullptr,
-    const std::vector<double> *local_vol_strike_max = nullptr) {
+    const std::vector<double> *local_vol_strike_max = nullptr,
+    const std::vector<double> *expiry_forwards = nullptr) {
   auto expiries__ = expiries ? _fbb.CreateVector<::flatbuffers::Offset<quantra::Period>>(*expiries) : 0;
   auto strikes__ = strikes ? _fbb.CreateVector<double>(*strikes) : 0;
   auto price_expiries__ = price_expiries ? _fbb.CreateVector<::flatbuffers::Offset<::flatbuffers::String>>(*price_expiries) : 0;
@@ -2323,6 +2349,7 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpecDirect(
   auto dividend_curve_id__ = dividend_curve_id ? _fbb.CreateString(dividend_curve_id) : 0;
   auto local_vol_strike_min__ = local_vol_strike_min ? _fbb.CreateVector<double>(*local_vol_strike_min) : 0;
   auto local_vol_strike_max__ = local_vol_strike_max ? _fbb.CreateVector<double>(*local_vol_strike_max) : 0;
+  auto expiry_forwards__ = expiry_forwards ? _fbb.CreateVector<double>(*expiry_forwards) : 0;
   return quantra::CreateBlackVolSpec(
       _fbb,
       base,
@@ -2348,7 +2375,8 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpecDirect(
       strike_interpolator,
       local_vol_time_extrapolation,
       local_vol_strike_min__,
-      local_vol_strike_max__);
+      local_vol_strike_max__,
+      expiry_forwards__);
 }
 
 ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpec(::flatbuffers::FlatBufferBuilder &_fbb, const BlackVolSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -2688,6 +2716,7 @@ struct SviVolSpecT : public ::flatbuffers::NativeTable {
   bool allow_extrapolation = false;
   ::flatbuffers::Optional<quantra::enums::LocalVolTimeExtrapolation> local_vol_time_extrapolation = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::LocalVolStrikeRange> local_vol_strike_range = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> spot = ::flatbuffers::nullopt;
   SviVolSpecT() = default;
   SviVolSpecT(const SviVolSpecT &o);
   SviVolSpecT(SviVolSpecT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -2715,7 +2744,8 @@ struct SviVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_TIME_INTERPOLATION = 8,
     VT_ALLOW_EXTRAPOLATION = 10,
     VT_LOCAL_VOL_TIME_EXTRAPOLATION = 12,
-    VT_LOCAL_VOL_STRIKE_RANGE = 14
+    VT_LOCAL_VOL_STRIKE_RANGE = 14,
+    VT_SPOT = 16
   };
   const quantra::BlackVolBaseSpec *base() const {
     return GetPointer<const quantra::BlackVolBaseSpec *>(VT_BASE);
@@ -2724,6 +2754,8 @@ struct SviVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SviSlice>> *slices() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SviSlice>> *>(VT_SLICES);
   }
+  /// Absent: LinearTotalVariance (fixed strike). `/calibrate-vol-surface`
+  /// returns LinearTotalVarianceForwardMoneyness (since 0.16.10).
   quantra::enums::SviTimeInterpolation time_interpolation() const {
     return static_cast<quantra::enums::SviTimeInterpolation>(GetField<int8_t>(VT_TIME_INTERPOLATION, 0));
   }
@@ -2747,6 +2779,13 @@ struct SviVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   ::flatbuffers::Optional<quantra::enums::LocalVolStrikeRange> local_vol_strike_range() const {
     return GetOptional<int8_t, quantra::enums::LocalVolStrikeRange>(VT_LOCAL_VOL_STRIKE_RANGE);
   }
+  /// Optional, `time_interpolation: LinearTotalVarianceForwardMoneyness`
+  /// only (400 otherwise): the spot the slices' forwards were read
+  /// against, > 0; the surface forward F(t) at the reference date (see
+  /// the enum). `/calibrate-vol-surface` fills it.
+  ::flatbuffers::Optional<double> spot() const {
+    return GetOptional<double, double>(VT_SPOT);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_BASE) &&
@@ -2758,6 +2797,7 @@ struct SviVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<uint8_t>(verifier, VT_ALLOW_EXTRAPOLATION, 1) &&
            VerifyField<int8_t>(verifier, VT_LOCAL_VOL_TIME_EXTRAPOLATION, 1) &&
            VerifyField<int8_t>(verifier, VT_LOCAL_VOL_STRIKE_RANGE, 1) &&
+           VerifyField<double>(verifier, VT_SPOT, 8) &&
            verifier.EndTable();
   }
   SviVolSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -2787,6 +2827,9 @@ struct SviVolSpecBuilder {
   void add_local_vol_strike_range(quantra::enums::LocalVolStrikeRange local_vol_strike_range) {
     fbb_.AddElement<int8_t>(SviVolSpec::VT_LOCAL_VOL_STRIKE_RANGE, static_cast<int8_t>(local_vol_strike_range));
   }
+  void add_spot(double spot) {
+    fbb_.AddElement<double>(SviVolSpec::VT_SPOT, spot);
+  }
   explicit SviVolSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -2806,8 +2849,10 @@ inline ::flatbuffers::Offset<SviVolSpec> CreateSviVolSpec(
     quantra::enums::SviTimeInterpolation time_interpolation = quantra::enums::SviTimeInterpolation_LinearTotalVariance,
     bool allow_extrapolation = false,
     ::flatbuffers::Optional<quantra::enums::LocalVolTimeExtrapolation> local_vol_time_extrapolation = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<quantra::enums::LocalVolStrikeRange> local_vol_strike_range = ::flatbuffers::nullopt) {
+    ::flatbuffers::Optional<quantra::enums::LocalVolStrikeRange> local_vol_strike_range = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> spot = ::flatbuffers::nullopt) {
   SviVolSpecBuilder builder_(_fbb);
+  if(spot) { builder_.add_spot(*spot); }
   builder_.add_slices(slices);
   builder_.add_base(base);
   if(local_vol_strike_range) { builder_.add_local_vol_strike_range(*local_vol_strike_range); }
@@ -2824,7 +2869,8 @@ inline ::flatbuffers::Offset<SviVolSpec> CreateSviVolSpecDirect(
     quantra::enums::SviTimeInterpolation time_interpolation = quantra::enums::SviTimeInterpolation_LinearTotalVariance,
     bool allow_extrapolation = false,
     ::flatbuffers::Optional<quantra::enums::LocalVolTimeExtrapolation> local_vol_time_extrapolation = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<quantra::enums::LocalVolStrikeRange> local_vol_strike_range = ::flatbuffers::nullopt) {
+    ::flatbuffers::Optional<quantra::enums::LocalVolStrikeRange> local_vol_strike_range = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> spot = ::flatbuffers::nullopt) {
   auto slices__ = slices ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SviSlice>>(*slices) : 0;
   return quantra::CreateSviVolSpec(
       _fbb,
@@ -2833,7 +2879,8 @@ inline ::flatbuffers::Offset<SviVolSpec> CreateSviVolSpecDirect(
       time_interpolation,
       allow_extrapolation,
       local_vol_time_extrapolation,
-      local_vol_strike_range);
+      local_vol_strike_range,
+      spot);
 }
 
 ::flatbuffers::Offset<SviVolSpec> CreateSviVolSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SviVolSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -3884,7 +3931,8 @@ inline BlackVolSpecT::BlackVolSpecT(const BlackVolSpecT &o)
         strike_interpolator(o.strike_interpolator),
         local_vol_time_extrapolation(o.local_vol_time_extrapolation),
         local_vol_strike_min(o.local_vol_strike_min),
-        local_vol_strike_max(o.local_vol_strike_max) {
+        local_vol_strike_max(o.local_vol_strike_max),
+        expiry_forwards(o.expiry_forwards) {
   expiries.reserve(o.expiries.size());
   for (const auto &expiries_ : o.expiries) { expiries.emplace_back((expiries_) ? new quantra::PeriodT(*expiries_) : nullptr); }
 }
@@ -3914,6 +3962,7 @@ inline BlackVolSpecT &BlackVolSpecT::operator=(BlackVolSpecT o) FLATBUFFERS_NOEX
   std::swap(local_vol_time_extrapolation, o.local_vol_time_extrapolation);
   std::swap(local_vol_strike_min, o.local_vol_strike_min);
   std::swap(local_vol_strike_max, o.local_vol_strike_max);
+  std::swap(expiry_forwards, o.expiry_forwards);
   return *this;
 }
 
@@ -3950,6 +3999,7 @@ inline void BlackVolSpec::UnPackTo(BlackVolSpecT *_o, const ::flatbuffers::resol
   { auto _e = local_vol_time_extrapolation(); _o->local_vol_time_extrapolation = _e; }
   { auto _e = local_vol_strike_min(); if (_e) { _o->local_vol_strike_min.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->local_vol_strike_min[_i] = _e->Get(_i); } } else { _o->local_vol_strike_min.resize(0); } }
   { auto _e = local_vol_strike_max(); if (_e) { _o->local_vol_strike_max.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->local_vol_strike_max[_i] = _e->Get(_i); } } else { _o->local_vol_strike_max.resize(0); } }
+  { auto _e = expiry_forwards(); if (_e) { _o->expiry_forwards.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->expiry_forwards[_i] = _e->Get(_i); } } else { _o->expiry_forwards.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<BlackVolSpec> BlackVolSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const BlackVolSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -3984,6 +4034,7 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpec(::flatbuffers::Fla
   auto _local_vol_time_extrapolation = _o->local_vol_time_extrapolation;
   auto _local_vol_strike_min = _o->local_vol_strike_min.size() ? _fbb.CreateVector(_o->local_vol_strike_min) : 0;
   auto _local_vol_strike_max = _o->local_vol_strike_max.size() ? _fbb.CreateVector(_o->local_vol_strike_max) : 0;
+  auto _expiry_forwards = _o->expiry_forwards.size() ? _fbb.CreateVector(_o->expiry_forwards) : 0;
   return quantra::CreateBlackVolSpec(
       _fbb,
       _base,
@@ -4009,7 +4060,8 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpec(::flatbuffers::Fla
       _strike_interpolator,
       _local_vol_time_extrapolation,
       _local_vol_strike_min,
-      _local_vol_strike_max);
+      _local_vol_strike_max,
+      _expiry_forwards);
 }
 
 inline YoYOptionletVolSpecT::YoYOptionletVolSpecT(const YoYOptionletVolSpecT &o)
@@ -4127,7 +4179,8 @@ inline SviVolSpecT::SviVolSpecT(const SviVolSpecT &o)
         time_interpolation(o.time_interpolation),
         allow_extrapolation(o.allow_extrapolation),
         local_vol_time_extrapolation(o.local_vol_time_extrapolation),
-        local_vol_strike_range(o.local_vol_strike_range) {
+        local_vol_strike_range(o.local_vol_strike_range),
+        spot(o.spot) {
   slices.reserve(o.slices.size());
   for (const auto &slices_ : o.slices) { slices.emplace_back((slices_) ? new quantra::SviSliceT(*slices_) : nullptr); }
 }
@@ -4139,6 +4192,7 @@ inline SviVolSpecT &SviVolSpecT::operator=(SviVolSpecT o) FLATBUFFERS_NOEXCEPT {
   std::swap(allow_extrapolation, o.allow_extrapolation);
   std::swap(local_vol_time_extrapolation, o.local_vol_time_extrapolation);
   std::swap(local_vol_strike_range, o.local_vol_strike_range);
+  std::swap(spot, o.spot);
   return *this;
 }
 
@@ -4157,6 +4211,7 @@ inline void SviVolSpec::UnPackTo(SviVolSpecT *_o, const ::flatbuffers::resolver_
   { auto _e = allow_extrapolation(); _o->allow_extrapolation = _e; }
   { auto _e = local_vol_time_extrapolation(); _o->local_vol_time_extrapolation = _e; }
   { auto _e = local_vol_strike_range(); _o->local_vol_strike_range = _e; }
+  { auto _e = spot(); _o->spot = _e; }
 }
 
 inline ::flatbuffers::Offset<SviVolSpec> SviVolSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SviVolSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -4173,6 +4228,7 @@ inline ::flatbuffers::Offset<SviVolSpec> CreateSviVolSpec(::flatbuffers::FlatBuf
   auto _allow_extrapolation = _o->allow_extrapolation;
   auto _local_vol_time_extrapolation = _o->local_vol_time_extrapolation;
   auto _local_vol_strike_range = _o->local_vol_strike_range;
+  auto _spot = _o->spot;
   return quantra::CreateSviVolSpec(
       _fbb,
       _base,
@@ -4180,7 +4236,8 @@ inline ::flatbuffers::Offset<SviVolSpec> CreateSviVolSpec(::flatbuffers::FlatBuf
       _time_interpolation,
       _allow_extrapolation,
       _local_vol_time_extrapolation,
-      _local_vol_strike_range);
+      _local_vol_strike_range,
+      _spot);
 }
 
 inline SsviSliceT *SsviSlice::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {

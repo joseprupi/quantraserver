@@ -116,9 +116,11 @@
  * 5. Output. The surface is a BlackVolSpec SmileCube3D on a
  *    NullCalendar / Unadjusted / Actual365Fixed base with the grid expiries
  *    as calendar-day periods from the as-of date (so the dates are exact),
- *    read with surface_interpolator CubicStrikeLinearTime (per expiry a
- *    natural cubic spline of total variance in log-strike, linear in total
- *    variance between expiries; src/market/smile_slice_vol_surface.h),
+ *    read with surface_interpolator CubicStrikeLinearTimeForwardMoneyness
+ *    (per expiry a natural cubic spline of total variance in log-strike,
+ *    linear in total variance between expiries at fixed forward moneyness
+ *    against the grid's expiry_forwards and the spot;
+ *    src/market/smile_slice_vol_surface.h),
  *    extrapolation allowed, with per-expiry local-vol strike ranges (the
  *    regions inside the second and second-to-last grid strike). Every used
  *    quote is priced on that very object with fitQuotes (the fit test of
@@ -253,6 +255,10 @@ struct VolSurfaceCalibrationResult {
     /// Per grid expiry: the strike range a note holds the grid's local vol
     /// to (BlackVolSpec local_vol_strike_min / _max).
     std::vector<double> gridLocalVolStrikeMin, gridLocalVolStrikeMax;
+    /// Per grid expiry: the forward the grid row is read against
+    /// (BlackVolSpec expiry_forwards): the fitted forward on a sheet
+    /// expiry, spot D_q / D_r on the sheet's curves otherwise.
+    std::vector<double> gridExpiryForwards;
     std::string volSurfaceId;
     /// The fit test of /validate-vol-surface (fitQuotes) on the returned grid
     /// with the sheet's forwards, default bands. Not on the wire: the
