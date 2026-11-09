@@ -648,6 +648,16 @@ def test_forward_moneyness_reading(client, data_dir):
         pricing["volatility"] = {"vol_surfaces": [spec]}
         return _sample(client, pricing, spec["id"], ds, strikes)
 
+    # The per-expiry local-vol ranges sit inside the second and
+    # second-to-last grid strike pulled in by the forward's move over the
+    # interval each expiry closes (both rows are read inside them).
+    payload = grid["payload"]
+    fwds = [payload["spot"]] + payload["expiry_forwards"]
+    for i, (lo, hi) in enumerate(zip(payload["local_vol_strike_min"],
+                                     payload["local_vol_strike_max"])):
+        move = math.exp(abs(math.log(fwds[i + 1] / fwds[i])))
+        assert lo >= payload["strikes"][1] * move * (1.0 - 1e-12), i
+        assert hi <= payload["strikes"][-2] / move * (1.0 + 1e-12), i
     fixed_grid = copy.deepcopy(grid)
     fixed_grid["payload"]["surface_interpolator"] = "CubicStrikeLinearTime"
     fixed_grid["payload"].pop("expiry_forwards")

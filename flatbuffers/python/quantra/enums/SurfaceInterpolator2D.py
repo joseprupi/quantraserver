@@ -26,6 +26,8 @@
 #     the spec's `expiry_forwards` (ln F linear in time through `spot` when
 #     given and the forwards, the last slope continued beyond) or, without
 #     them, from its spot, dividend and discount inputs (spot D_q / D_r).
+#     A structured note's local vol reads it against F(t) reshaped between
+#     expiries like the note's own forward (equal to F_i at every expiry).
 #     What `/calibrate-vol-surface` returns.
 #   A supplied grid keeps Bilinear unless it says otherwise.
 class SurfaceInterpolator2D(object):

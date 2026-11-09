@@ -16,8 +16,10 @@
 #     and the slices' forwards, the last slope continued beyond the last
 #     slice; without `spot` the first slope is continued back (one slice:
 #     F constant). Slices ordered at fixed k then give a non-negative
-#     Dupire time derivative along every forward line with that drift.
-#     What `/calibrate-vol-surface` returns.
+#     Dupire time derivative along every forward line with that drift; a
+#     structured note's local vol reads it against F(t) reshaped between
+#     expiries like the note's own forward (equal to the slice forwards at
+#     the expiries). What `/calibrate-vol-surface` returns.
 class SviTimeInterpolation(object):
     LinearTotalVariance = 0
     LinearTotalVarianceForwardMoneyness = 1

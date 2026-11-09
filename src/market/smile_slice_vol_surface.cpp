@@ -111,6 +111,41 @@ double CurveSurfaceForward::forward(Time t) const {
     return spot_ * dividend_->discount(t, true) / riskFree_->discount(t, true);
 }
 
+ProcessShapedSurfaceForward::ProcessShapedSurfaceForward(
+    std::shared_ptr<const SurfaceForward> base,
+    std::vector<Time> expiryTimes,
+    QuantLib::Handle<QuantLib::YieldTermStructure> dividend,
+    QuantLib::Handle<QuantLib::YieldTermStructure> riskFree)
+    : base_(std::move(base)), dividend_(std::move(dividend)), riskFree_(std::move(riskFree)) {
+    QL_REQUIRE(base_, "process-shaped forward: no surface forward");
+    QL_REQUIRE(
+        !dividend_.empty() && !riskFree_.empty(),
+        "process-shaped forward: dividend and risk-free curves are required");
+    times_.push_back(0.0);
+    for (Time t : expiryTimes) {
+        QL_REQUIRE(t > times_.back(), "process-shaped forward: expiry times must increase");
+        times_.push_back(t);
+    }
+}
+
+double ProcessShapedSurfaceForward::g(Time t) const {
+    return std::log(dividend_->discount(t, true) / riskFree_->discount(t, true));
+}
+
+double ProcessShapedSurfaceForward::forward(Time t) const {
+    const double F = base_->forward(t);
+    const std::size_t n = times_.size();
+    if (n < 2) return F;
+    std::size_t j = static_cast<std::size_t>(
+        std::upper_bound(times_.begin(), times_.end(), t) - times_.begin());
+    if (j > 0 && times_[j - 1] == t) return F; // at a node g - ĝ is 0
+    j = j == 0 ? 0 : std::min(j - 1, n - 2);
+    const double g0 = j == 0 ? 0.0 : g(times_[j]);
+    const double g1 = g(times_[j + 1]);
+    const double gHat = g0 + (g1 - g0) * (t - times_[j]) / (times_[j + 1] - times_[j]);
+    return F * std::exp(g(t) - gHat);
+}
+
 // ---------------------------------------------------------------------------
 // Surface
 // ---------------------------------------------------------------------------
@@ -152,6 +187,19 @@ SmileSliceVolSurface::SmileSliceVolSurface(
             sliceForwards_.push_back(F);
         }
     }
+}
+
+std::shared_ptr<SmileSliceVolSurface> SmileSliceVolSurface::withSurfaceForward(
+    std::shared_ptr<const SurfaceForward> forward) const {
+    auto s = std::make_shared<SmileSliceVolSurface>(
+        referenceDate(), calendar(), businessDayConvention(), dayCounter(), expiries_, slices_,
+        minStrike_, maxStrike_, std::move(forward));
+    if (allowsExtrapolation()) {
+        s->enableExtrapolation();
+    } else {
+        s->disableExtrapolation();
+    }
+    return s;
 }
 
 Real SmileSliceVolSurface::blackVarianceImpl(Time t, Real strike) const {
@@ -274,6 +322,43 @@ std::shared_ptr<SmileSliceVolSurface> makeSviSurface(
     return std::make_shared<SmileSliceVolSurface>(
         referenceDate, calendar, bdc, dayCounter, expiries, std::move(slices), 0.0, QL_MAX_REAL,
         std::move(forward));
+}
+
+// ---------------------------------------------------------------------------
+// The surface a note's local vol reads
+// ---------------------------------------------------------------------------
+
+namespace {
+
+std::shared_ptr<SmileSliceVolSurface> processShaped(
+    const SmileSliceVolSurface& s,
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& dividend,
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& riskFree) {
+    return s.withSurfaceForward(
+        std::make_shared<ProcessShapedSurfaceForward>(
+            s.surfaceForward(), s.times(), dividend, riskFree));
+}
+
+} // namespace
+
+std::shared_ptr<QuantLib::BlackVolTermStructure> localVolReadingSurface(
+    const std::shared_ptr<QuantLib::BlackVolTermStructure>& vol,
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& dividend,
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& riskFree) {
+    if (const auto* s = dynamic_cast<const SmileSliceVolSurface*>(vol.get())) {
+        if (s->surfaceForward()) return processShaped(*s, dividend, riskFree);
+        return vol;
+    }
+    if (const auto* sh = dynamic_cast<const ShiftedBlackVolSurface*>(vol.get())) {
+        const auto* s = dynamic_cast<const SmileSliceVolSurface*>(sh->inner().get());
+        if (s && s->surfaceForward()) {
+            auto out = std::make_shared<ShiftedBlackVolSurface>(
+                processShaped(*s, dividend, riskFree), sh->shift());
+            if (vol->allowsExtrapolation()) out->enableExtrapolation();
+            return out;
+        }
+    }
+    return vol;
 }
 
 } // namespace quantra

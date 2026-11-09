@@ -1417,7 +1417,8 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
         // The grid's per-expiry strike ranges: the region of the fitted
         // expiry at or after the grid date, inside the second and the
         // second-to-last grid strike (the natural spline's end intervals,
-        // where its curvature is forced to zero, are left out).
+        // where its curvature is forced to zero, are left out) pulled in by
+        // the forward's move over the interval the expiry closes.
         const double inLo = out.gridStrikes[std::min<std::size_t>(1, nStr - 1)];
         const double inHi = out.gridStrikes[nStr >= 2 ? nStr - 2 : 0];
         std::vector<mc::LocalVolStrikeBand> gridBands;
@@ -1427,7 +1428,15 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
                 static_cast<std::size_t>(
                     std::lower_bound(workTimes.begin(), workTimes.end(), gridTimes[i] - 1e-12) -
                     workTimes.begin()));
-            double lo = std::max(work[r].regionLo, inLo), hi = std::min(work[r].regionHi, inHi);
+            // Read at fixed forward moneyness, the two rows of the interval
+            // this expiry closes are evaluated at K F_j / F(t), up to the
+            // forward's move over the interval away from K: the range is
+            // pulled in by that move so that both rows are read inside the
+            // second and second-to-last grid strike at every time of it.
+            const double fPrev = i == 0 ? spot : out.gridExpiryForwards[i - 1];
+            const double move = std::exp(std::fabs(std::log(out.gridExpiryForwards[i] / fPrev)));
+            double lo = std::max(work[r].regionLo, inLo * move);
+            double hi = std::min(work[r].regionHi, inHi / move);
             if (!(lo < hi)) {
                 lo = out.gridStrikes.front();
                 hi = out.gridStrikes.back();

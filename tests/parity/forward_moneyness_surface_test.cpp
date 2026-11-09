@@ -13,11 +13,13 @@
 // refused, also when the process forward drifts slightly differently (a
 // note's own dividend curve).
 
+#include "basket_model.h"
 #include "smile_slice_vol_surface.h"
 
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/volatility/equityfx/localvolsurface.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
+#include <ql/termstructures/yield/zerocurve.hpp>
 #include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
 
@@ -222,6 +224,67 @@ TEST(ForwardMoneynessSurface, GridOnCurvesMatchesGridOnNodeForwards) {
     // The grid of an ordered surface: no refusal either.
     EXPECT_EQ(dupireScan(node, m.spot, m.mu, 0.0, m).refused, 0u);
     EXPECT_EQ(dupireScan(node, m.spot, m.mu, 0.005, m).refused, 0u);
+}
+
+TEST(ForwardMoneynessSurface, NoteLocalVolFollowsTheProcessForwardBetweenExpiries) {
+    // Slices ordered at fixed moneyness by a thin margin (1 % forward vol),
+    // read by a process whose forward meets the slices' forwards at the
+    // expiries but bends between them (a dividend curve linear in zero
+    // rate with a node inside the interval): against the surface's own
+    // ln-linear forward the Dupire numerator picks up the skew times the
+    // drift difference and turns negative in the put wing; against the
+    // process-shaped forward (the note's reading) it is the slices'
+    // difference again, and the slices are read exactly at the expiries.
+    DriftMarket m;
+    m.delta = 1e-4 * (m.t2() - m.t1());
+    m.p2 = m.p1;
+    m.p2.forward = m.fwd(m.t2());
+    m.p2.a += m.delta;
+    const auto fm = m.surface(SviTimeReading::FixedForwardMoneyness);
+    const Date mid = m.asOf + 365;
+    auto zc = std::make_shared<QuantLib::ZeroCurve>(
+        std::vector<Date>{m.asOf, m.d1, mid, m.d2}, std::vector<Real>{0.0, 0.0, 0.03, 0.0}, m.dc);
+    zc->enableExtrapolation();
+    const Handle<QuantLib::YieldTermStructure> q(zc), r = m.flat(m.mu);
+    // The process forward meets the slices' forwards at the expiries.
+    EXPECT_NEAR(m.spot * q->discount(m.t1()) / r->discount(m.t1()), m.p1.forward, 1e-9);
+    EXPECT_NEAR(m.spot * q->discount(m.t2()) / r->discount(m.t2()), m.p2.forward, 1e-9);
+
+    auto scan = [&](const std::shared_ptr<QuantLib::BlackVolTermStructure>& vol) {
+        QuantLib::LocalVolSurface lv(
+            Handle<QuantLib::BlackVolTermStructure>(vol), r, q,
+            Handle<QuantLib::Quote>(std::make_shared<QuantLib::SimpleQuote>(m.spot)));
+        unsigned refused = 0;
+        for (int i = 51; i <= 149; ++i)
+            for (int j = 0; j <= 60; ++j) {
+                try {
+                    lv.localVol(0.01 * i, 60.0 * std::pow(2.0, j / 60.0), true);
+                } catch (const std::exception&) {
+                    ++refused;
+                }
+            }
+        return refused;
+    };
+    EXPECT_GT(scan(fm), 0u) << "the surface's own forward is expected to refuse here";
+    const auto reading = localVolReadingSurface(fm, q, r);
+    ASSERT_NE(reading.get(), fm.get());
+    EXPECT_EQ(scan(reading), 0u);
+    for (Real K : {70.0, 100.0, 130.0}) {
+        EXPECT_EQ(reading->blackVariance(m.t1(), K, true), fm->blackVariance(m.t1(), K, true));
+        EXPECT_EQ(reading->blackVariance(m.t2(), K, true), fm->blackVariance(m.t2(), K, true));
+    }
+    // The note's local vol (edge clamp, cache) reads the same way; a
+    // fixed-strike surface is left as it is.
+    mc::BasketAsset asset = mc::MakeBasketAsset(
+        "X", Handle<QuantLib::Quote>(std::make_shared<QuantLib::SimpleQuote>(m.spot)), q, r,
+        Handle<QuantLib::BlackVolTermStructure>(fm));
+    mc::LocalVolCache cache;
+    cache.attach(asset);
+    for (int i = 51; i <= 149; ++i)
+        for (Real K : {65.0, 80.0, 110.0})
+            EXPECT_NO_THROW(asset.localVol->localVol(0.01 * i, K, true)) << i << " " << K;
+    const auto fs = m.surface(SviTimeReading::FixedStrike);
+    EXPECT_EQ(localVolReadingSurface(fs, q, r).get(), fs.get());
 }
 
 }} // namespace quantra::testing

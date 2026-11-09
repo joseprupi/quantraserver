@@ -122,7 +122,8 @@
  *    against the grid's expiry_forwards and the spot;
  *    src/market/smile_slice_vol_surface.h),
  *    extrapolation allowed, with per-expiry local-vol strike ranges (the
- *    regions inside the second and second-to-last grid strike). Every used
+ *    regions inside the second and second-to-last grid strike, pulled in by
+ *    the forward's move over the interval each expiry closes). Every used
  *    quote is priced on that very object with fitQuotes (the fit test of
  *    /validate-vol-surface; kept on the result, not on the wire: the
  *    response carries one arbitrage_free flag per payload and the

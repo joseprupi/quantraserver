@@ -77,15 +77,20 @@ def _close(a, b, rel=1e-10, abs_=1e-12):
     return abs(a - b) <= max(abs_, rel * max(abs(a), abs(b)))
 
 
-def _fixed_strike(spec):
+def _fixed_strike(spec, former=None):
     """`spec` as /calibrate-vol-surface returned it before 0.16.10: the same
-    rows / slices read at fixed strike (no surface forward)."""
+    rows / slices read at fixed strike (no surface forward); a grid gets the
+    former local-vol strike ranges back from the fixture (since 0.16.10
+    they are pulled in by the forward's move over each interval)."""
     spec = copy.deepcopy(spec)
     payload = spec["payload"]
     if payload.get("surface_interpolator") == "CubicStrikeLinearTimeForwardMoneyness":
         payload["surface_interpolator"] = "CubicStrikeLinearTime"
         payload.pop("expiry_forwards")
         payload.pop("spot")
+        if former is not None:
+            lo, hi = former["grid_local_vol_strike_ranges"]
+            payload["local_vol_strike_min"], payload["local_vol_strike_max"] = lo, hi
     if payload.get("time_interpolation") == "LinearTotalVarianceForwardMoneyness":
         payload["time_interpolation"] = "LinearTotalVariance"
         payload.pop("spot")
@@ -141,7 +146,7 @@ def test_reproduces_the_former_calibrate_checks(client, case):
                "ssvi": "vol_surface_spec_ssvi"}[p]
         # Since 0.16.10 the payloads are read at fixed forward moneyness;
         # the rows and slices themselves are the former ones.
-        assert _sha(_fixed_strike(out[key])) == former["spec_sha256"][p], \
+        assert _sha(_fixed_strike(out[key], former)) == former["spec_sha256"][p], \
             f"{p}: not the 0.16.6 surface"
     # One flag per payload on the calibrate response, the former block's.
     assert out["arbitrage_free"] == former["local_vol_check"]["arbitrage_free"]
@@ -175,7 +180,7 @@ def test_reproduces_the_former_calibrate_checks(client, case):
         assert check["arbitrage_free"] is False and former["local_vol_check"]["arbitrage_free"] is False
         assert check["refused"] > 0 and former["local_vol_check"]["refused"] > 0
         fixed = validate(client, req, {**out, "vol_surface_spec": _fixed_strike(
-            out["vol_surface_spec"])}, "grid", checks={"fit": False, "arbitrage": True})
+            out["vol_surface_spec"], former)}, "grid", checks={"fit": False, "arbitrage": True})
         assert fixed["arbitrage"]["local_vol_check"]["first_refusal"] == \
             former["local_vol_check"]["first_refusal"]
     else:
@@ -235,10 +240,11 @@ def test_simulation_reproduces_the_former_note_repricing(client, data_dir, case)
         # the former numbers on the same stream; read at fixed forward
         # moneyness (since 0.16.10) the local vol between the expiries
         # differs and the prices land within the noise.
-        assert _sha(_fixed_strike(spec)) == former["spec_sha256"]
+        assert _sha(_fixed_strike(spec, former if case == 0 else None)) == \
+            former["spec_sha256"]
         exact = case == 0
         if exact:
-            spec = _fixed_strike(spec)
+            spec = _fixed_strike(spec, former)
             pricing["volatility"] = {"vol_surfaces": [spec]}
     req = {"pricing": pricing, "volatility_id": spec["id"], "underlying_id": "NDX_SYN",
            "discounting_curve": vs_req["discounting_curve"], "quotes": vs_req["sheet"],
