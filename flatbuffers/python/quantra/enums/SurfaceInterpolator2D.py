@@ -13,11 +13,25 @@
 #     distorted; costly per evaluation).
 #   CubicStrikeLinearTime: per expiry a natural cubic spline of total
 #     variance in log-strike (C2, so the local vol is continuous), linear
-#     in total variance between expiries at fixed strike (calendar-safe),
-#     constant beyond the first and last strike, flat implied vol beyond
-#     the last expiry. The default of the surfaces `/calibrate-vol-surface`
-#     returns; a supplied grid keeps Bilinear unless it says otherwise.
+#     in total variance between expiries at fixed strike, constant beyond
+#     the first and last strike, flat implied vol beyond the last expiry.
+#     What `/calibrate-vol-surface` returned before 0.16.10.
+#   CubicStrikeLinearTimeForwardMoneyness (since 0.16.10): the same rows,
+#     linear in total variance between expiries at fixed forward moneyness
+#     k = ln(K / F(t)): w(t, K) = (1 - l) w_i(F_i e^k) + l w_{i+1}(F_{i+1} e^k),
+#     l = (t - T_i) / (T_{i+1} - T_i), F_i = F(T_i) (and w_1(F_1 e^k) t / T_1
+#     before the first expiry, w_n(F_n e^k) t / T_n after the last). This
+#     is the reading a Dupire local vol needs: QuantLib differentiates the
+#     variance in time along the forward, where k is fixed. F(t) comes from
+#     the spec's `expiry_forwards` (ln F linear in time through `spot` when
+#     given and the forwards, the last slope continued beyond) or, without
+#     them, from its spot, dividend and discount inputs (spot D_q / D_r).
+#     A structured note's local vol reads it against F(t) reshaped between
+#     expiries like the note's own forward (equal to F_i at every expiry).
+#     What `/calibrate-vol-surface` returns.
+#   A supplied grid keeps Bilinear unless it says otherwise.
 class SurfaceInterpolator2D(object):
     Bilinear = 0
     Bicubic = 1
     CubicStrikeLinearTime = 2
+    CubicStrikeLinearTimeForwardMoneyness = 3

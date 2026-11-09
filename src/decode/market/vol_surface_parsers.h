@@ -106,7 +106,12 @@ struct SwaptionVolEntry {
 };
 
 /// Reading of a strike x expiry Black vol grid (enums::SurfaceInterpolator2D).
-enum class BlackSurfaceInterpolation { Bilinear, Bicubic, CubicStrikeLinearTime };
+enum class BlackSurfaceInterpolation {
+    Bilinear,
+    Bicubic,
+    CubicStrikeLinearTime,
+    CubicStrikeLinearTimeForwardMoneyness
+};
 
 struct BlackVolEntry {
     QuantLib::Handle<QuantLib::BlackVolTermStructure> handle;
@@ -135,6 +140,9 @@ struct BlackVolEntry {
     std::vector<QuantLib::Real> strikes;
     QuantLib::Matrix surfaceVols;
     BlackSurfaceInterpolation surfaceInterpolation = BlackSurfaceInterpolation::Bilinear;
+    /// The surface forward of a CubicStrikeLinearTimeForwardMoneyness grid
+    /// (null otherwise), kept for the shifted rebuild.
+    std::shared_ptr<const SurfaceForward> surfaceForward;
     bool allowExtrapolation = false;
     /// `local_vol_time_extrapolation` of the spec: true for FlatLocalVol
     /// (a structured note holds the local vol flat beyond the last expiry);

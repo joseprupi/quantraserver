@@ -1,6 +1,7 @@
 #include "basket_model.h"
 
 #include "error.h"
+#include "smile_slice_vol_surface.h"
 #include "ssvi_vol_surface.h"
 
 #include <ql/interestrate.hpp>
@@ -299,13 +300,19 @@ void LocalVolCache::attach(BasketAsset& asset) {
         // same way. Its last expiry is the last slice (the surface itself has no maxDate).
         std::shared_ptr<QuantLib::LocalVolTermStructure> inner;
         QuantLib::Time lastTime;
+        // A forward-moneyness smile surface is differentiated against the
+        // process forward's shape between its expiries (the slices stay
+        // where they were written; src/market/smile_slice_vol_surface.h,
+        // localVolReadingSurface); any other surface as is.
+        const QuantLib::Handle<QuantLib::BlackVolTermStructure> readVol(
+            localVolReadingSurface(asset.vol.currentLink(), asset.dividend, asset.riskFree));
         if (const auto ssviVol = std::dynamic_pointer_cast<SsviBlackVol>(asset.vol.currentLink())) {
             inner =
                 std::make_shared<SsviLocalVol>(ssviVol, asset.spot, asset.dividend, asset.riskFree);
             lastTime = ssviVol->lastSliceTime();
         } else {
             inner = std::make_shared<QuantLib::LocalVolSurface>(
-                asset.vol, asset.riskFree, asset.dividend, asset.spot);
+                readVol, asset.riskFree, asset.dividend, asset.spot);
             lastTime = asset.vol->maxTime();
         }
         const QuantLib::Time maxTime = asset.localVolTime == LocalVolTimeExtrapolation::FlatLocalVol
@@ -317,7 +324,7 @@ void LocalVolCache::attach(BasketAsset& asset) {
                 : std::make_shared<EdgeClampedLocalVol>(inner, asset.localVolStrikeBands, maxTime);
         if (asset.localVolFloor) {
             clamped->setFloor(
-                *asset.localVolFloor, asset.vol, asset.riskFree, asset.dividend, asset.spot);
+                *asset.localVolFloor, readVol, asset.riskFree, asset.dividend, asset.spot);
         }
         it = cache_.emplace(key, QuantLib::Handle<QuantLib::LocalVolTermStructure>(clamped)).first;
     }

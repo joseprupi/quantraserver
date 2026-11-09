@@ -53,7 +53,7 @@ info:
     \n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond\
     \ \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/bonds/fixed_rate_bond_request.json\n\
     ```\n"
-  version: 0.16.9
+  version: 0.16.10
   contact:
     name: Quantra API Support
     url: https://github.com/joseprupi/quantraserver
@@ -1507,10 +1507,12 @@ components:
       - Bilinear
       - Bicubic
       - CubicStrikeLinearTime
+      - CubicStrikeLinearTimeForwardMoneyness
     quantra_enums_SviTimeInterpolation:
       type: string
       enum:
       - LinearTotalVariance
+      - LinearTotalVarianceForwardMoneyness
     quantra_enums_LocalVolTimeExtrapolation:
       type: string
       enum:
@@ -3830,6 +3832,31 @@ components:
           type: array
           items:
             type: number
+        expiry_forwards:
+          type: array
+          description: 'Optional, `surface_interpolator: CubicStrikeLinearTimeForwardMoneyness`
+
+            only (400 otherwise): the forward of each expiry (one per `expiries`
+
+            entry, each finite and > 0), the F_i the rows are read against. The
+
+            surface forward F(t) is ln-linear in time through `spot` at the
+
+            reference date (when given) and these, the last slope continued
+
+            beyond the last expiry (without `spot` the first slope is continued
+
+            back). Absent: F(t) = spot D_q(t) / D_r(t) from the spec''s `spot` /
+
+            `spot_quote_id` and its discount and dividend inputs (all required
+
+            then; with expiry_forwards the discount and dividend inputs must be
+
+            absent). `/calibrate-vol-surface` fills them with the calibration
+
+            forwards at the grid expiries, and `spot`.'
+          items:
+            type: number
       additionalProperties: false
     quantra_YoYOptionletVolSpec:
       type: object
@@ -3998,6 +4025,15 @@ components:
           $ref: '#/components/schemas/quantra_enums_LocalVolTimeExtrapolation'
         local_vol_strike_range:
           $ref: '#/components/schemas/quantra_enums_LocalVolStrikeRange'
+        spot:
+          type: number
+          description: 'Optional, `time_interpolation: LinearTotalVarianceForwardMoneyness`
+
+            only (400 otherwise): the spot the slices'' forwards were read
+
+            against, > 0; the surface forward F(t) at the reference date (see
+
+            the enum). `/calibrate-vol-surface` fills it.'
       required:
       - slices
       additionalProperties: false

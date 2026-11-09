@@ -127,7 +127,11 @@ def test_response_shape_and_spec(client, data_dir):
                     "business_day_convention": "Unadjusted", "day_counter": "Actual365Fixed",
                     "shape": "SmileCube3D"}
     assert spec["payload"]["allow_extrapolation"] is True
-    assert spec["payload"]["surface_interpolator"] == "CubicStrikeLinearTime"
+    assert spec["payload"]["surface_interpolator"] == "CubicStrikeLinearTimeForwardMoneyness"
+    # The forward each grid row is read against: the fitted forward of the
+    # sheet expiry, and the spot at the reference date.
+    assert spec["payload"]["spot"] == 24000.0
+    assert spec["payload"]["expiry_forwards"] == [f["forward"] for f in out["forwards"]]
     assert spec["payload"]["expiries"] == [{"n": 16, "unit": "Days"}, {"n": 51, "unit": "Days"},
                                            {"n": 79, "unit": "Days"}, {"n": 107, "unit": "Days"},
                                            {"n": 170, "unit": "Days"}, {"n": 261, "unit": "Days"},
@@ -166,7 +170,8 @@ def test_response_shape_and_spec(client, data_dir):
                                       "business_day_convention": "Unadjusted",
                                       "day_counter": "Actual365Fixed"}
     assert svi["payload"]["allow_extrapolation"] is True
-    assert svi["payload"]["time_interpolation"] == "LinearTotalVariance"
+    assert svi["payload"]["time_interpolation"] == "LinearTotalVarianceForwardMoneyness"
+    assert svi["payload"]["spot"] == 24000.0
     slices = svi["payload"]["slices"]
     assert [sl["expiry"] for sl in slices] == out["grid_expiries"]
     for sl, e, f in zip(slices, out["expiries"], out["forwards"]):
@@ -178,7 +183,8 @@ def test_andreasen_huge_has_no_svi_spec(client, data_dir):
     out = _ok(client, load_json(data_dir / AH_EXAMPLE))
     assert "vol_surface_spec_svi" not in out
     assert "not available for the AndreasenHuge method" in out["vol_surface_spec_svi_note"]
-    assert out["vol_surface_spec"]["payload"]["surface_interpolator"] == "CubicStrikeLinearTime"
+    assert out["vol_surface_spec"]["payload"]["surface_interpolator"] == \
+        "CubicStrikeLinearTimeForwardMoneyness"
 
 
 def _sample(client, pricing, vol_id, days, strikes):
@@ -226,6 +232,9 @@ def test_cubic_grid_reproduces_its_nodes_and_the_smile_between_them(client, data
     assert worst_cubic < 5e-4, worst_cubic
     bilinear = copy.deepcopy(spec)
     bilinear["payload"]["surface_interpolator"] = "Bilinear"
+    # The surface forward belongs to the forward-moneyness reading only.
+    bilinear["payload"].pop("expiry_forwards")
+    bilinear["payload"].pop("spot")
     pricing["volatility"] = {"vol_surfaces": [bilinear]}
     between_bilinear = _sample(client, pricing, spec["id"], days, mids)
     worst_bilinear = max(abs(v - _truth_vol(preset, e, k))
@@ -496,6 +505,8 @@ def test_pasted_surface_prices_a_structured_note(client, data_dir):
     request = load_json(data_dir / NOTE_EXAMPLE)
     for vs in request["pricing"]["volatility"]["vol_surfaces"]:
         assert vs["payload"]["base"]["shape"] == "SmileCube3D"
+        # The 0.15.0 grids without per-expiry local-vol ranges: kept at
+        # fixed strike (see examples/data/structured_note/README.md).
         assert vs["payload"]["surface_interpolator"] == "CubicStrikeLinearTime"
     assert request["notes"][0]["monte_carlo"]["steps_per_year"] == 252
     request["notes"][0]["monte_carlo"]["paths"] = 512
@@ -586,7 +597,7 @@ def test_svi_payload_rejected_requests(client, data_dir):
     p["volatility"]["vol_surfaces"] = [grid]
     r = _post(client, {"pricing": p, "options": [{**option, "volatility": grid["id"]}]},
               "equity_option")
-    assert r.status_code == 400 and "CubicStrikeLinearTime needs at least 2 strikes" in r.text
+    assert r.status_code == 400 and "ForwardMoneyness needs at least 2 strikes" in r.text
 
 
 def test_rejected_requests(client, data_dir):
@@ -617,3 +628,93 @@ def test_rejected_requests(client, data_dir):
     no_id = {k: v for k, v in base.items() if k != "vol_surface_id"}
     r = _post(client, no_id)
     assert r.status_code == 400 and "vol_surface_id" in r.text
+
+
+def test_forward_moneyness_reading(client, data_dir):
+    """Since 0.16.10 the returned grid and SVI payloads are read between
+    expiries at fixed forward moneyness. At an expiry both readings are the
+    row / slice itself; between expiries they differ (the forward moves);
+    the grid's forward may come from its spot and curves instead of
+    expiry_forwards (same rows at the expiries); the 400s name the fields."""
+    request = load_json(data_dir / SVI_EXAMPLE)
+    out = _ok(client, request)
+    grid, svi = out["vol_surface_spec"], out["vol_surface_spec_svi"]
+    days = [p["n"] for p in grid["payload"]["expiries"]]
+    strikes = grid["payload"]["strikes"][4:-4:6]
+    mid_days = [(a + b) // 2 for a, b in zip(days[:-1], days[1:])]
+
+    def sample(spec, ds):
+        pricing = copy.deepcopy(request["pricing"])
+        pricing["volatility"] = {"vol_surfaces": [spec]}
+        return _sample(client, pricing, spec["id"], ds, strikes)
+
+    # The per-expiry local-vol ranges sit inside the second and
+    # second-to-last grid strike pulled in by the forward's move over the
+    # interval each expiry closes (both rows are read inside them).
+    payload = grid["payload"]
+    fwds = [payload["spot"]] + payload["expiry_forwards"]
+    for i, (lo, hi) in enumerate(zip(payload["local_vol_strike_min"],
+                                     payload["local_vol_strike_max"])):
+        move = math.exp(abs(math.log(fwds[i + 1] / fwds[i])))
+        assert lo >= payload["strikes"][1] * move * (1.0 - 1e-12), i
+        assert hi <= payload["strikes"][-2] / move * (1.0 + 1e-12), i
+    fixed_grid = copy.deepcopy(grid)
+    fixed_grid["payload"]["surface_interpolator"] = "CubicStrikeLinearTime"
+    fixed_grid["payload"].pop("expiry_forwards")
+    fixed_grid["payload"].pop("spot")
+    fixed_svi = copy.deepcopy(svi)
+    fixed_svi["payload"]["time_interpolation"] = "LinearTotalVariance"
+    fixed_svi["payload"].pop("spot")
+    for new, old in ((grid, fixed_grid), (svi, fixed_svi)):
+        at = sample(new, days)
+        assert max(abs(v - sample(old, days)[key]) for key, v in at.items()) < 1e-12
+        between_new, between_old = sample(new, mid_days), sample(old, mid_days)
+        moved = max(abs(v - between_old[key]) for key, v in between_new.items())
+        assert 1e-6 < moved < 5e-3, moved
+
+    # The grid's forward from its spot and curves (spot D_q / D_r): the
+    # rows at the expiries unchanged, between them within a few basis
+    # points of the expiry_forwards reading.
+    curves = copy.deepcopy(grid)
+    curves["payload"].pop("expiry_forwards")
+    curves["payload"]["discount_curve_id"] = request["discounting_curve"]
+    und = request["pricing"]["equity"]["equity_underlyings"][0]
+    curves["payload"]["dividend_curve_id"] = und["dividend_yield_curve_id"]
+    at = sample(curves, days)
+    assert max(abs(v - sample(grid, days)[key]) for key, v in at.items()) < 1e-12
+    assert sample(curves, mid_days)
+
+    pricing = copy.deepcopy(request["pricing"])
+    pricing["volatility"] = {"models": [{"id": "bs", "payload_type": "EquityVanillaModelSpec",
+                                         "payload": {"model_type": "BlackScholesAnalytic"}}]}
+    option = {"option": {"trade_id": "o", "underlying_id": "NDX_SYN", "quantity": 1.0,
+                         "settlement": "Physical", "payoff_type": "EquityPlainVanillaPayoff",
+                         "payoff": {"option_type": "Call", "strike": 24000.0},
+                         "exercise_type": "EquityEuropeanExercise",
+                         "exercise": {"expiry_date": "2027-02-19"}},
+              "discounting_curve": request["discounting_curve"], "volatility": grid["id"],
+              "model": "bs"}
+
+    def attempt(base, mutate, needle):
+        spec = copy.deepcopy(base)
+        mutate(spec["payload"])
+        p = copy.deepcopy(pricing)
+        p["volatility"]["vol_surfaces"] = [spec]
+        r = _post(client, {"pricing": p, "options": [option]}, "equity_option")
+        assert r.status_code == 400, (needle, r.status_code, r.text[:300])
+        assert needle in r.text, (needle, r.text[:400])
+
+    attempt(grid, lambda p: p.__setitem__("surface_interpolator", "CubicStrikeLinearTime"),
+            "expiry_forwards applies to a SmileCube3D surface with surface_interpolator "
+            "CubicStrikeLinearTimeForwardMoneyness only")
+    attempt(grid, lambda p: p.pop("expiry_forwards"), "needs the surface forward")
+    attempt(grid, lambda p: p.update(expiry_forwards=p["expiry_forwards"][:-1]),
+            "expiry_forwards needs one entry per expiry")
+    attempt(grid, lambda p: p["expiry_forwards"].__setitem__(2, 0.0),
+            "expiry_forwards[2] must be finite and > 0")
+    attempt(grid, lambda p: p.update(dividend_curve_id=und["dividend_yield_curve_id"]),
+            "two sources of the surface forward")
+    attempt(grid, lambda p: p.update(spot=-1.0), "BlackVolSpec.spot must be finite and > 0")
+    attempt(svi, lambda p: p.update(time_interpolation="LinearTotalVariance"),
+            "SviVolSpec.spot applies to time_interpolation LinearTotalVarianceForwardMoneyness")
+    attempt(svi, lambda p: p.update(spot=0.0), "SviVolSpec.spot must be finite and > 0")

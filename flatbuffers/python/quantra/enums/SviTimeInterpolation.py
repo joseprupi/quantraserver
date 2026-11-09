@@ -2,9 +2,24 @@
 
 # namespace: enums
 
-# How an `SviVolSpec` interpolates between its slices at a fixed strike.
-#   LinearTotalVariance: w(t, K) linear in t between the bracketing
-#     slices' total variances at K; before the first slice w(T1, K) t / T1
-#     and after the last w(Tn, K) t / Tn (flat implied vol on both ends).
+# How an `SviVolSpec` interpolates between its slices.
+#   LinearTotalVariance: at a fixed strike, w(t, K) linear in t between the
+#     bracketing slices' total variances at K; before the first slice
+#     w(T1, K) t / T1 and after the last w(Tn, K) t / Tn (flat implied vol
+#     on both ends). The default (absent).
+#   LinearTotalVarianceForwardMoneyness (since 0.16.10): at a fixed forward
+#     moneyness k = ln(K / F(t)): w(t, K) = (1 - l) w_i(k) + l w_{i+1}(k),
+#     l = (t - T_i) / (T_{i+1} - T_i), each slice read at its own k (SVI
+#     slices are written in k about their `forward`); w_1(k) t / T1 before
+#     the first slice, w_n(k) t / Tn after the last. F(t): ln F linear in
+#     time through the payload's `spot` at the reference date (when given)
+#     and the slices' forwards, the last slope continued beyond the last
+#     slice; without `spot` the first slope is continued back (one slice:
+#     F constant). Slices ordered at fixed k then give a non-negative
+#     Dupire time derivative along every forward line with that drift; a
+#     structured note's local vol reads it against F(t) reshaped between
+#     expiries like the note's own forward (equal to the slice forwards at
+#     the expiries). What `/calibrate-vol-surface` returns.
 class SviTimeInterpolation(object):
     LinearTotalVariance = 0
+    LinearTotalVarianceForwardMoneyness = 1

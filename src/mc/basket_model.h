@@ -52,6 +52,12 @@
  * tests/parity/mc_core_test.cpp). A basket with a local-vol asset has no
  * table: its log-Euler step depends on the simulated level.
  *
+ * A smile surface read at fixed forward moneyness (since 0.16.10) is handed
+ * to LocalVolSurface as localVolReadingSurface makes it
+ * (src/market/smile_slice_vol_surface.h): its forward reshaped between
+ * expiries like the process forward, equal to the surface's at every
+ * expiry, so the stencil's time derivative stays at fixed moneyness.
+ *
  * Local vol of a strike x expiry surface. GeneralizedBlackScholesProcess
  * derives its Dupire local vol lazily (LocalVolSurface(blackVol, riskFree,
  * dividend, spot) on first use, one per process instance) and evaluates it

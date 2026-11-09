@@ -888,6 +888,13 @@ SurfaceInterpolationMode resolveBlackSurfaceInterpolation(
 
     // Backward compatibility: legacy 1D pair explicitly selects 2D mode.
     if (expiryInterp == quantra::enums::Interpolator_LogCubic) {
+        if (payload->surface_interpolator() ==
+            quantra::enums::SurfaceInterpolator2D_CubicStrikeLinearTimeForwardMoneyness) {
+            QUANTRA_INVALID_ARGUMENT(
+                "BlackVolSpec legacy LogCubic interpolators select Bicubic and conflict with "
+                "surface_interpolator CubicStrikeLinearTimeForwardMoneyness for vol id: " +
+                id);
+        }
         return SurfaceInterpolationMode::Bicubic;
     }
     switch (payload->surface_interpolator()) {
@@ -897,6 +904,8 @@ SurfaceInterpolationMode resolveBlackSurfaceInterpolation(
             return SurfaceInterpolationMode::Bicubic;
         case quantra::enums::SurfaceInterpolator2D_CubicStrikeLinearTime:
             return SurfaceInterpolationMode::CubicStrikeLinearTime;
+        case quantra::enums::SurfaceInterpolator2D_CubicStrikeLinearTimeForwardMoneyness:
+            return SurfaceInterpolationMode::CubicStrikeLinearTimeForwardMoneyness;
         default: QUANTRA_INVALID_ARGUMENT("Unsupported surface_interpolator for vol id: " + id);
     }
     return SurfaceInterpolationMode::Bilinear;
@@ -918,18 +927,26 @@ std::shared_ptr<QuantLib::BlackVolTermStructure> buildGridSurface(
     const std::vector<QuantLib::Real>& strikes,
     const QuantLib::Matrix& blackVols,
     const QuantLib::DayCounter& dc,
-    const std::string& id) {
-    if (mode == SurfaceInterpolationMode::CubicStrikeLinearTime) {
+    const std::string& id,
+    const std::shared_ptr<const SurfaceForward>& forward = nullptr) {
+    if (mode == SurfaceInterpolationMode::CubicStrikeLinearTime ||
+        mode == SurfaceInterpolationMode::CubicStrikeLinearTimeForwardMoneyness) {
+        const bool fm = mode == SurfaceInterpolationMode::CubicStrikeLinearTimeForwardMoneyness;
         if (strikes.size() < 2) {
             QUANTRA_INVALID_ARGUMENT(
-                "surface_interpolator CubicStrikeLinearTime needs at least 2 strikes for vol id: " +
-                id);
+                std::string("surface_interpolator ") +
+                (fm ? "CubicStrikeLinearTimeForwardMoneyness" : "CubicStrikeLinearTime") +
+                " needs at least 2 strikes for vol id: " + id);
+        }
+        if (fm && !forward) {
+            QUANTRA_ERROR("internal: no surface forward for vol id: " + id);
         }
         std::vector<std::vector<double>> rows(dates.size(), std::vector<double>(strikes.size()));
         for (std::size_t i = 0; i < dates.size(); ++i)
             for (std::size_t j = 0; j < strikes.size(); ++j)
                 rows[i][j] = blackVols[j][i];
-        return makeCubicStrikeLinearTimeSurface(ref, cal, bdc, dc, dates, strikes, rows);
+        return makeCubicStrikeLinearTimeSurface(
+            ref, cal, bdc, dc, dates, strikes, rows, fm ? forward : nullptr);
     }
     auto surface = std::make_shared<QuantLib::BlackVarianceSurface>(
         ref, cal, dates, strikes, blackVols, dc,
@@ -941,6 +958,95 @@ std::shared_ptr<QuantLib::BlackVolTermStructure> buildGridSurface(
         surface->setInterpolation<QuantLib::Bilinear>();
     }
     return surface;
+}
+
+using CurveMap = std::
+    map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>>;
+
+/// The surface forward of a CubicStrikeLinearTimeForwardMoneyness grid
+/// (see BlackVolSpec.expiry_forwards): the node forwards (with `spot` at
+/// t = 0 when given) or spot D_q / D_r on the spec's inputs.
+std::shared_ptr<const SurfaceForward> buildGridSurfaceForward(
+    const quantra::BlackVolSpec* payload,
+    const QuantLib::Date& ref,
+    const QuantLib::DayCounter& dc,
+    const std::vector<QuantLib::Date>& dates,
+    const QuoteRegistry* quotes,
+    const CurveMap* curves,
+    const std::string& id) {
+    std::optional<double> spot;
+    if (hasNonEmptyString(payload->spot_quote_id())) {
+        if (!quotes) {
+            QUANTRA_ERROR("spot_quote_id requires QuoteRegistry for vol id: " + id);
+        }
+        spot = quotes->getHandle(payload->spot_quote_id()->str())->value();
+    } else if (payload->spot() != 0.0) {
+        spot = payload->spot();
+    }
+    if (spot && !(std::isfinite(*spot) && *spot > 0.0)) {
+        QUANTRA_INVALID_ARGUMENT("BlackVolSpec.spot must be finite and > 0 for vol id: " + id);
+    }
+    const bool hasDiscount =
+        hasNonEmptyString(payload->discount_curve_id()) || payload->use_flat_discount_rate();
+    const bool hasDividend =
+        hasNonEmptyString(payload->dividend_curve_id()) || payload->use_flat_dividend_rate();
+    const auto* fwds = payload->expiry_forwards();
+    if (fwds != nullptr) {
+        if (hasDiscount || hasDividend) {
+            QUANTRA_INVALID_ARGUMENT(
+                "BlackVolSpec.expiry_forwards and the discount / dividend inputs are two sources "
+                "of the surface forward: give one for vol id: " +
+                id);
+        }
+        if (fwds->size() != dates.size()) {
+            QUANTRA_INVALID_ARGUMENT(
+                "BlackVolSpec.expiry_forwards needs one entry per expiry for vol id: " + id);
+        }
+        std::vector<double> times, values;
+        for (flatbuffers::uoffset_t i = 0; i < fwds->size(); ++i) {
+            const double f = fwds->Get(i);
+            if (!(std::isfinite(f) && f > 0.0)) {
+                QUANTRA_INVALID_ARGUMENT(
+                    "BlackVolSpec.expiry_forwards[" + std::to_string(i) +
+                    "] must be finite and > 0 for vol id: " + id);
+            }
+            times.push_back(dc.yearFraction(ref, dates[i]));
+            values.push_back(f);
+        }
+        return std::make_shared<NodeSurfaceForward>(times, values, spot);
+    }
+    if (!spot || !hasDiscount || !hasDividend) {
+        QUANTRA_INVALID_ARGUMENT(
+            "surface_interpolator CubicStrikeLinearTimeForwardMoneyness needs the surface "
+            "forward: expiry_forwards, or spot (spot or spot_quote_id) with discount "
+            "(discount_curve_id or use_flat_discount_rate) and dividend (dividend_curve_id or "
+            "use_flat_dividend_rate) inputs for vol id: " +
+            id);
+    }
+    // A curve id, else the flat rate (use_flat_*_rate, checked above).
+    auto curveOf = [&](const flatbuffers::String* cid, double flatRate,
+                       const char* what) -> QuantLib::Handle<QuantLib::YieldTermStructure> {
+        if (hasNonEmptyString(cid)) {
+            if (!curves) {
+                QUANTRA_ERROR(
+                    std::string(what) +
+                    "_curve_id requires PricingRegistry curves for vol id: " + id);
+            }
+            auto it = curves->find(cid->str());
+            if (it == curves->end()) {
+                QUANTRA_NOT_FOUND(
+                    std::string(what) + " curve " + cid->str() + " not found for vol id: " + id);
+            }
+            return QuantLib::Handle<QuantLib::YieldTermStructure>(it->second->currentLink());
+        }
+        return QuantLib::Handle<QuantLib::YieldTermStructure>(
+            std::make_shared<QuantLib::FlatForward>(ref, flatRate, dc));
+    };
+    const auto discount =
+        curveOf(payload->discount_curve_id(), payload->flat_discount_rate(), "discount");
+    const auto dividend =
+        curveOf(payload->dividend_curve_id(), payload->flat_dividend_rate(), "dividend");
+    return std::make_shared<CurveSurfaceForward>(*spot, dividend, discount);
 }
 
 QuantLib::Option::Type toQlEquityOptionType(
@@ -1628,6 +1734,19 @@ BlackVolEntry parseBlackVol(
         hasNonEmptyString(payload->discount_curve_id()) || payload->use_flat_discount_rate();
     const bool hasDividend =
         hasNonEmptyString(payload->dividend_curve_id()) || payload->use_flat_dividend_rate();
+    // The forward-moneyness reading of a grid takes its forward from
+    // expiry_forwards or from the spot / discount / dividend inputs.
+    const bool forwardMoneyness =
+        payload->surface_interpolator() ==
+        quantra::enums::SurfaceInterpolator2D_CubicStrikeLinearTimeForwardMoneyness;
+    if (payload->expiry_forwards() != nullptr &&
+        (!forwardMoneyness || shape != quantra::enums::VolSurfaceShape_SmileCube3D)) {
+        QUANTRA_INVALID_ARGUMENT(
+            "BlackVolSpec.expiry_forwards applies to a SmileCube3D surface with "
+            "surface_interpolator CubicStrikeLinearTimeForwardMoneyness only (a "
+            "SurfaceFromPrices surface reads its forward off its spot and curves) for vol id: " +
+            id);
+    }
 
     switch (shape) {
         case quantra::enums::VolSurfaceShape_Constant:
@@ -1657,10 +1776,12 @@ BlackVolEntry parseBlackVol(
                     "BlackVolSpec shape=SmileCube3D requires expiries, strikes, and surface_vols for vol id: " +
                     id);
             }
-            if (hasTermVols || hasPriceExpiries || hasPriceStrikes || hasSurfacePrices || hasSpot ||
-                hasDiscount || hasDividend) {
+            if (hasTermVols || hasPriceExpiries || hasPriceStrikes || hasSurfacePrices ||
+                (!forwardMoneyness && (hasSpot || hasDiscount || hasDividend))) {
                 QUANTRA_INVALID_ARGUMENT(
-                    "BlackVolSpec shape=SmileCube3D forbids term and price-surface fields for vol id: " +
+                    "BlackVolSpec shape=SmileCube3D forbids term and price-surface fields (and "
+                    "spot / discount / dividend inputs unless surface_interpolator is "
+                    "CubicStrikeLinearTimeForwardMoneyness) for vol id: " +
                     id);
             }
             break;
@@ -1791,12 +1912,20 @@ BlackVolEntry parseBlackVol(
                     }
                 }
 
+                std::shared_ptr<const SurfaceForward> surfaceForward;
+                if (surfaceInterp ==
+                    SurfaceInterpolationMode::CubicStrikeLinearTimeForwardMoneyness) {
+                    surfaceForward =
+                        buildGridSurfaceForward(payload, ref, dc, dates, quotes, curves, id);
+                }
                 auto qlVol = buildGridSurface(
-                    surfaceInterp, ref, cal, bdc, dates, strikes, blackVolMatrix, dc, id);
+                    surfaceInterp, ref, cal, bdc, dates, strikes, blackVolMatrix, dc, id,
+                    surfaceForward);
                 retained.pillarDates = dates;
                 retained.strikes = strikes;
                 retained.surfaceVols = blackVolMatrix;
                 retained.surfaceInterpolation = surfaceInterp;
+                retained.surfaceForward = surfaceForward;
                 return {
                     QuantLib::Handle<QuantLib::BlackVolTermStructure>(qlVol),
                     std::numeric_limits<double>::quiet_NaN()};
@@ -1988,12 +2117,22 @@ BlackVolEntry parseBlackVol(
                     }
                 }
 
+                // The forward-moneyness reading measures k against the
+                // inversion's own forward, spot D_q / D_r.
+                std::shared_ptr<const SurfaceForward> surfaceForward;
+                if (surfaceInterp ==
+                    SurfaceInterpolationMode::CubicStrikeLinearTimeForwardMoneyness) {
+                    surfaceForward =
+                        std::make_shared<CurveSurfaceForward>(spot->value(), dividend, discount);
+                }
                 auto qlVol = buildGridSurface(
-                    surfaceInterp, ref, cal, bdc, dates, strikes, blackVolMatrix, dc, id);
+                    surfaceInterp, ref, cal, bdc, dates, strikes, blackVolMatrix, dc, id,
+                    surfaceForward);
                 retained.pillarDates = dates;
                 retained.strikes = strikes;
                 retained.surfaceVols = blackVolMatrix;
                 retained.surfaceInterpolation = surfaceInterp;
+                retained.surfaceForward = surfaceForward;
                 return {
                     QuantLib::Handle<QuantLib::BlackVolTermStructure>(qlVol),
                     std::numeric_limits<double>::quiet_NaN()};
@@ -2118,7 +2257,7 @@ QuantLib::Handle<QuantLib::BlackVolTermStructure> shiftedBlackVol(
             ts = buildGridSurface(
                 entry.surfaceInterpolation, entry.referenceDate, entry.calendar,
                 entry.businessDayConvention, entry.pillarDates, entry.strikes, m, entry.dayCounter,
-                "(shifted)");
+                "(shifted)", entry.surfaceForward);
             break;
         }
         case quantra::enums::VolSurfaceShape_SviSlices: {
@@ -2165,8 +2304,28 @@ BlackVolEntry parseSviVol(const quantra::VolSurfaceSpec* spec) {
             "SviVolSpec.base.constant_vol / quote_id are not part of an SVI payload for vol id: " +
             id);
     }
-    if (payload->time_interpolation() != quantra::enums::SviTimeInterpolation_LinearTotalVariance) {
-        QUANTRA_INVALID_ARGUMENT("SviVolSpec.time_interpolation is not known for vol id: " + id);
+    SviTimeReading reading = SviTimeReading::FixedStrike;
+    switch (payload->time_interpolation()) {
+        case quantra::enums::SviTimeInterpolation_LinearTotalVariance: break;
+        case quantra::enums::SviTimeInterpolation_LinearTotalVarianceForwardMoneyness:
+            reading = SviTimeReading::FixedForwardMoneyness;
+            break;
+        default:
+            QUANTRA_INVALID_ARGUMENT(
+                "SviVolSpec.time_interpolation is not known for vol id: " + id);
+    }
+    std::optional<double> sviSpot;
+    if (payload->spot().has_value()) {
+        if (reading != SviTimeReading::FixedForwardMoneyness) {
+            QUANTRA_INVALID_ARGUMENT(
+                "SviVolSpec.spot applies to time_interpolation "
+                "LinearTotalVarianceForwardMoneyness only for vol id: " +
+                id);
+        }
+        if (!(std::isfinite(*payload->spot()) && *payload->spot() > 0.0)) {
+            QUANTRA_INVALID_ARGUMENT("SviVolSpec.spot must be finite and > 0 for vol id: " + id);
+        }
+        sviSpot = *payload->spot();
     }
     if (!payload->slices() || payload->slices()->size() == 0) {
         QUANTRA_INVALID_ARGUMENT(
@@ -2251,7 +2410,7 @@ BlackVolEntry parseSviVol(const quantra::VolSurfaceSpec* spec) {
 
     BlackVolEntry entry;
     entry.handle = QuantLib::Handle<QuantLib::BlackVolTermStructure>(
-        makeSviSurface(ref, cal, bdc, dc, dates, params));
+        makeSviSurface(ref, cal, bdc, dc, dates, params, reading, sviSpot));
     if (payload->local_vol_strike_range().value_or(quantra::enums::LocalVolStrikeRange_Global) ==
         quantra::enums::LocalVolStrikeRange_PerExpiry) {
         for (flatbuffers::uoffset_t i = 0; i < payload->slices()->size(); ++i) {

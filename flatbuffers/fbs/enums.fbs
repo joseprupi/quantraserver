@@ -39,22 +39,51 @@ enum Interpolator : byte {
 ///     distorted; costly per evaluation).
 ///   CubicStrikeLinearTime: per expiry a natural cubic spline of total
 ///     variance in log-strike (C2, so the local vol is continuous), linear
-///     in total variance between expiries at fixed strike (calendar-safe),
-///     constant beyond the first and last strike, flat implied vol beyond
-///     the last expiry. The default of the surfaces `/calibrate-vol-surface`
-///     returns; a supplied grid keeps Bilinear unless it says otherwise.
+///     in total variance between expiries at fixed strike, constant beyond
+///     the first and last strike, flat implied vol beyond the last expiry.
+///     What `/calibrate-vol-surface` returned before 0.16.10.
+///   CubicStrikeLinearTimeForwardMoneyness (since 0.16.10): the same rows,
+///     linear in total variance between expiries at fixed forward moneyness
+///     k = ln(K / F(t)): w(t, K) = (1 - l) w_i(F_i e^k) + l w_{i+1}(F_{i+1} e^k),
+///     l = (t - T_i) / (T_{i+1} - T_i), F_i = F(T_i) (and w_1(F_1 e^k) t / T_1
+///     before the first expiry, w_n(F_n e^k) t / T_n after the last). This
+///     is the reading a Dupire local vol needs: QuantLib differentiates the
+///     variance in time along the forward, where k is fixed. F(t) comes from
+///     the spec's `expiry_forwards` (ln F linear in time through `spot` when
+///     given and the forwards, the last slope continued beyond) or, without
+///     them, from its spot, dividend and discount inputs (spot D_q / D_r).
+///     A structured note's local vol reads it against F(t) reshaped between
+///     expiries like the note's own forward (equal to F_i at every expiry).
+///     What `/calibrate-vol-surface` returns.
+///   A supplied grid keeps Bilinear unless it says otherwise.
 enum SurfaceInterpolator2D : byte {
     Bilinear = 0,
     Bicubic = 1,
-    CubicStrikeLinearTime = 2
+    CubicStrikeLinearTime = 2,
+    CubicStrikeLinearTimeForwardMoneyness = 3
 }
 
-/// How an `SviVolSpec` interpolates between its slices at a fixed strike.
-///   LinearTotalVariance: w(t, K) linear in t between the bracketing
-///     slices' total variances at K; before the first slice w(T1, K) t / T1
-///     and after the last w(Tn, K) t / Tn (flat implied vol on both ends).
+/// How an `SviVolSpec` interpolates between its slices.
+///   LinearTotalVariance: at a fixed strike, w(t, K) linear in t between the
+///     bracketing slices' total variances at K; before the first slice
+///     w(T1, K) t / T1 and after the last w(Tn, K) t / Tn (flat implied vol
+///     on both ends). The default (absent).
+///   LinearTotalVarianceForwardMoneyness (since 0.16.10): at a fixed forward
+///     moneyness k = ln(K / F(t)): w(t, K) = (1 - l) w_i(k) + l w_{i+1}(k),
+///     l = (t - T_i) / (T_{i+1} - T_i), each slice read at its own k (SVI
+///     slices are written in k about their `forward`); w_1(k) t / T1 before
+///     the first slice, w_n(k) t / Tn after the last. F(t): ln F linear in
+///     time through the payload's `spot` at the reference date (when given)
+///     and the slices' forwards, the last slope continued beyond the last
+///     slice; without `spot` the first slope is continued back (one slice:
+///     F constant). Slices ordered at fixed k then give a non-negative
+///     Dupire time derivative along every forward line with that drift; a
+///     structured note's local vol reads it against F(t) reshaped between
+///     expiries like the note's own forward (equal to the slice forwards at
+///     the expiries). What `/calibrate-vol-surface` returns.
 enum SviTimeInterpolation : byte {
-    LinearTotalVariance = 0
+    LinearTotalVariance = 0,
+    LinearTotalVarianceForwardMoneyness = 1
 }
 
 /// How the Dupire local vol that a structured note simulates on a

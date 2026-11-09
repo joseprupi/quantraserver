@@ -11,11 +11,11 @@
     },
     "quantra_enums_SurfaceInterpolator2D" : {
       "type" : "string",
-      "enum": ["Bilinear", "Bicubic", "CubicStrikeLinearTime"]
+      "enum": ["Bilinear", "Bicubic", "CubicStrikeLinearTime", "CubicStrikeLinearTimeForwardMoneyness"]
     },
     "quantra_enums_SviTimeInterpolation" : {
       "type" : "string",
-      "enum": ["LinearTotalVariance"]
+      "enum": ["LinearTotalVariance", "LinearTotalVarianceForwardMoneyness"]
     },
     "quantra_enums_LocalVolTimeExtrapolation" : {
       "type" : "string",

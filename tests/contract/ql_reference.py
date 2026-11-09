@@ -5029,21 +5029,95 @@ def _sn_find(items, key, value, what):
     return hit
 
 
+class _NodeForward:
+    """Twin of the engine's NodeSurfaceForward: ln F linear in t through
+    (0, ln spot) when a spot is given and (T_i, ln F_i), the end segments
+    continued beyond the nodes (one node and no spot: constant), F_i exactly
+    at T_i. Same expression order as the engine."""
+
+    def __init__(self, times, forwards, spot=None):
+        self.times, self.fwds = [], []
+        if spot is not None:
+            self.times.append(0.0)
+            self.fwds.append(float(spot))
+        self.times += [float(t) for t in times]
+        self.fwds += [float(f) for f in forwards]
+        self.logs = [math.log(f) for f in self.fwds]
+
+    def __call__(self, t):
+        n = len(self.times)
+        if n == 1:
+            return self.fwds[0]
+        j = bisect.bisect_right(self.times, t)
+        if j > 0 and self.times[j - 1] == t:
+            return self.fwds[j - 1]
+        j = 0 if j == 0 else min(j - 1, n - 2)
+        lg = self.logs
+        return math.exp(lg[j] + (lg[j + 1] - lg[j]) * (t - self.times[j])
+                        / (self.times[j + 1] - self.times[j]))
+
+
+class _ProcessShapedForward:
+    """Twin of the engine's ProcessShapedSurfaceForward: the surface forward
+    times exp(g(t) - ĝ(t)), g = ln(D_q / D_r) on the process curves, ĝ its
+    ln-linear interpolation through (0, 0) and the expiries (the last
+    segment continued); F_i exactly at the expiries."""
+
+    def __init__(self, base, times, dividend, risk_free):
+        self.base, self.times = base, [0.0] + list(times)
+        self.q, self.r = dividend, risk_free
+
+    def g(self, t):
+        return math.log(self.q.discount(t, True) / self.r.discount(t, True))
+
+    def __call__(self, t):
+        F = self.base(t)
+        n = len(self.times)
+        if n < 2:
+            return F
+        j = bisect.bisect_right(self.times, t)
+        if j > 0 and self.times[j - 1] == t:
+            return F
+        j = 0 if j == 0 else min(j - 1, n - 2)
+        g0 = 0.0 if j == 0 else self.g(self.times[j])
+        g1 = self.g(self.times[j + 1])
+        g_hat = g0 + (g1 - g0) * (t - self.times[j]) / (self.times[j + 1] - self.times[j])
+        return F * math.exp(self.g(t) - g_hat)
+
+
+def _local_vol_reading_surface(vol, dividend, risk_free):
+    """Twin of localVolReadingSurface: a forward-moneyness slice surface (or
+    a shift of one) re-read against the process-shaped forward for the
+    note's local vol; anything else as is."""
+    if isinstance(vol, _SliceSurface) and vol.forward is not None:
+        return _SliceSurface(vol.ref, vol.dc, vol.dates, vol.slices, vol._min, vol._max,
+                             _ProcessShapedForward(vol.forward, vol.times, dividend, risk_free))
+    if isinstance(vol, _ShiftedSurface) and isinstance(vol.inner, _SliceSurface) \
+            and vol.inner.forward is not None:
+        return _ShiftedSurface(_local_vol_reading_surface(vol.inner, dividend, risk_free),
+                               vol.shift)
+    return vol
+
+
 class _SliceSurface:
     """Python twin of the engine's SmileSliceVolSurface
     (src/market/smile_slice_vol_surface.h): one total-variance smile per
     expiry (`slices`: callables strike -> w), linear in total variance between
-    the bracketing expiries at fixed strike, w(T1, K) t / T1 before the first
-    and w(Tn, K) t / Tn after the last. Same expressions in the same order,
-    so the values are the engine's bit for bit. Offers what the reference
-    reads from a QuantLib Black vol handle (blackVol / blackVariance /
-    minStrike / maxStrike); the extrapolation flags are no-ops here (every
-    reference read extrapolates, as the engine's simulation does)."""
+    the bracketing expiries, w(T1, .) t / T1 before the first and
+    w(Tn, .) t / Tn after the last; at fixed strike without `forward`, at
+    fixed forward moneyness with it (slice i read at K (F_i / F(t)), F_i =
+    F(T_i)). Same expressions in the same order, so the values are the
+    engine's bit for bit. Offers what the reference reads from a QuantLib
+    Black vol handle (blackVol / blackVariance / minStrike / maxStrike); the
+    extrapolation flags are no-ops here (every reference read extrapolates,
+    as the engine's simulation does)."""
 
-    def __init__(self, ref, dc, dates, slices, min_strike, max_strike):
+    def __init__(self, ref, dc, dates, slices, min_strike, max_strike, forward=None):
         self.ref, self.dc, self.dates, self.slices = ref, dc, list(dates), list(slices)
         self.times = [dc.yearFraction(ref, d) for d in self.dates]
         self._min, self._max = min_strike, max_strike
+        self.forward = forward
+        self.slice_fwds = [forward(t) for t in self.times] if forward is not None else None
 
     def referenceDate(self):
         return self.ref
@@ -5073,13 +5147,22 @@ class _SliceSurface:
         if not isinstance(t, float):
             t = self.dc.yearFraction(self.ref, t)
         times = self.times
+        if self.forward is not None:
+            F = self.forward(t)
+            sf = self.slice_fwds
+
+            def w(i):
+                return self.slices[i](strike * (sf[i] / F))
+        else:
+            def w(i):
+                return self.slices[i](strike)
         if t <= times[0]:
-            return self.slices[0](strike) * t / times[0]
+            return w(0) * t / times[0]
         if t >= times[-1]:
-            return self.slices[-1](strike) * t / times[-1]
+            return w(len(times) - 1) * t / times[-1]
         i = bisect.bisect_right(times, t) - 1
-        w0 = self.slices[i](strike)
-        w1 = self.slices[i + 1](strike)
+        w0 = w(i)
+        w1 = w(i + 1)
         return w0 + (w1 - w0) * (t - times[i]) / (times[i + 1] - times[i])
 
     def blackVol(self, t, strike, extrapolate=False):
@@ -5509,8 +5592,14 @@ def _sn_black_vol(pricing: dict, vol_id: str, shift: float = 0.0):
         ref = parse_date(base["reference_date"])
         dc = get_day_counter(base["day_counter"])
         dates = [parse_date(sl["expiry"]) for sl in payload["slices"]]
+        forward = None
+        if payload.get("time_interpolation",
+                       "LinearTotalVariance") == "LinearTotalVarianceForwardMoneyness":
+            forward = _NodeForward([dc.yearFraction(ref, d) for d in dates],
+                                   [float(sl["forward"]) for sl in payload["slices"]],
+                                   payload.get("spot"))
         ts = _SliceSurface(ref, dc, dates, [_svi_slice(sl) for sl in payload["slices"]],
-                           0.0, sys.float_info.max)
+                           0.0, sys.float_info.max, forward)
         if shift != 0.0:
             ts = _ShiftedSurface(ts, shift)
         return ts, "SviSlices", False
@@ -5545,10 +5634,23 @@ def _sn_black_vol(pricing: dict, vol_id: str, shift: float = 0.0):
                              f"expected {n_exp} x {n_str}")
         legacy_cubic = (payload.get("expiry_interpolator", "Linear") == "LogCubic")
         interp = payload.get("surface_interpolator", "Bilinear")
-        if interp == "CubicStrikeLinearTime" and not legacy_cubic:
+        if interp in ("CubicStrikeLinearTime", "CubicStrikeLinearTimeForwardMoneyness") \
+                and not legacy_cubic:
             # The engine's SmileSliceVolSurface: per expiry the nodes'
             # (shifted vol)^2 T in ln K through a natural cubic spline,
-            # constant outside; linear in total variance between expiries.
+            # constant outside; linear in total variance between expiries
+            # (at fixed forward moneyness against expiry_forwards and spot
+            # for the ForwardMoneyness reading).
+            forward = None
+            if interp == "CubicStrikeLinearTimeForwardMoneyness":
+                if payload.get("expiry_forwards") is None:
+                    raise NotImplementedError(
+                        f"vol {vol_id}: the forward-moneyness grid on curves (no "
+                        "expiry_forwards) is not reference-supported")
+                spot = payload.get("spot")
+                forward = _NodeForward([dc.yearFraction(ref, d) for d in dates],
+                                       [float(f) for f in payload["expiry_forwards"]],
+                                       float(spot) if spot else None)
             slices = []
             for i, d in enumerate(dates):
                 t = dc.yearFraction(ref, d)
@@ -5557,8 +5659,8 @@ def _sn_black_vol(pricing: dict, vol_id: str, shift: float = 0.0):
                     v = float(values[i * n_str + j]) + shift
                     ws.append(v * v * t)
                 slices.append(_cubic_variance_slice(strikes, ws))
-            return (_SliceSurface(ref, dc, dates, slices, strikes[0], strikes[-1]), shape,
-                    False)
+            return (_SliceSurface(ref, dc, dates, slices, strikes[0], strikes[-1], forward),
+                    shape, False)
         # Wire order is row-major by expiry then strike; QuantLib wants a
         # (strikes x expiries) matrix.
         matrix = ql.Matrix(n_str, n_exp)
@@ -5871,7 +5973,8 @@ def structured_note_ql(request: dict, index: int = 0, _vanilla_options=None) -> 
             # An eSSVI payload has the closed-form local vol (_PySsviLocalVol).
             a["lv"] = (_PySsviLocalVol(vol, risk_free, dividend, spot_handle, lv_floor)
                        if isinstance(vol, _SsviSurface)
-                       else _PyLocalVol(vol, risk_free, dividend, spot_handle, lv_floor)
+                       else _PyLocalVol(_local_vol_reading_surface(vol, dividend, risk_free),
+                                        risk_free, dividend, spot_handle, lv_floor)
                        if python_surface or lv_floor is not None
                        else ql.LocalVolSurface(vol, risk_free, dividend, spot_handle))
             a["risk_free"] = risk_free
@@ -6962,10 +7065,11 @@ def _vs_regions(work, strikes):
 
 
 def _vs_pair_excess(work, j, margin):
-    """Largest violation of the engine's calendar bounds of the pair
-    (j - 1, j) on the independent slices (pairBounds: w_L - w_E + x s_E and
-    w_L - w_E + x s_L at least the margin, 401 log-spaced strikes over the
-    later expiry's region widened by the forward move and 2e-3)."""
+    """Largest violation of the engine's calendar bound of the pair
+    (j - 1, j) on the independent slices (pairBounds, since 0.16.10 at fixed
+    forward moneyness: w_L(k) - w_E(k) at least the margin, k = ln(K / F_L)
+    on 401 log-spaced strikes over the later expiry's region widened by the
+    forward move and 2e-3)."""
     later, earlier = work[j], work[j - 1]
     x = math.log(later["fwd"] / earlier["fwd"])
     widen = abs(x) + 2.0e-3
@@ -6973,10 +7077,9 @@ def _vs_pair_excess(work, j, margin):
     worst = -math.inf
     for n in range(401):
         K = math.exp(lo + (hi - lo) * n / 400)
-        k_e, k_l = math.log(K / earlier["fwd"]), math.log(K / later["fwd"])
-        dw = _svi_total_variance(later["svi"], k_l) - _svi_total_variance(earlier["svi"], k_e)
-        worst = max(worst, margin - (dw + x * _svi_slope(earlier["svi"], k_e)),
-                    margin - (dw + x * _svi_slope(later["svi"], k_l)))
+        k = math.log(K / later["fwd"])
+        dw = _svi_total_variance(later["svi"], k) - _svi_total_variance(earlier["svi"], k)
+        worst = max(worst, margin - dw)
     return worst
 
 
@@ -7215,7 +7318,12 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
     # At the same forward moneyness, inside the expiry's region only (the
     # engine's step 4).
     times = [dc.yearFraction(eval_date, d) for d in grid_dates]
-    fwd_t = [spot * q_ts.discount(t) / r_ts.discount(t) for t in times]
+    # The grid's expiry_forwards: the fitted forward on a sheet expiry, the
+    # sheet curves' forward between them.
+    fwd_t = []
+    for d, t in zip(grid_dates, times):
+        w = next((w for w in work if w["date"] == d), None)
+        fwd_t.append(w["fwd"] if w is not None else spot * q_ts.discount(t) / r_ts.discount(t))
     for i in range(1, n_exp):
         prev_slice = _cubic_variance_slice(
             strikes, [vols[i - 1][j] ** 2 * times[i - 1] for j in range(n_str)])
@@ -7250,13 +7358,18 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
     work_times = [w["t"] for w in work]
     in_lo, in_hi = strikes[min(1, n_str - 1)], strikes[n_str - 2 if n_str >= 2 else 0]
     lv_min, lv_max = [], []
-    for t in times:
+    for i, t in enumerate(times):
         r = min(len(work) - 1, bisect.bisect_left(work_times, t - 1e-12))
-        lo, hi = max(work[r]["region"][0], in_lo), min(work[r]["region"][1], in_hi)
+        # Pulled in by the forward's move over the interval (since 0.16.10).
+        move = math.exp(abs(math.log(fwd_t[i] / (spot if i == 0 else fwd_t[i - 1]))))
+        lo = max(work[r]["region"][0], in_lo * move)
+        hi = min(work[r]["region"][1], in_hi / move)
         if not lo < hi:
             lo, hi = strikes[0], strikes[-1]
         lv_min.append(lo)
         lv_max.append(hi)
+    fields["vol_surface_spec.payload.expiry_forwards"] = fwd_t
+    fields["vol_surface_spec.payload.spot"] = spot
     fields["vol_surface_spec.payload.local_vol_strike_min"] = lv_min
     fields["vol_surface_spec.payload.local_vol_strike_max"] = lv_max
     fields["vol_surface_spec.payload.surface_vols.values"] = \

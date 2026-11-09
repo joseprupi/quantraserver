@@ -26,6 +26,150 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.16.10 (November 2026) — time interpolation at fixed forward moneyness
+
+`v0.16.10` changes how the surfaces `/calibrate-vol-surface` returns are
+read between two expiries: linearly in total variance at fixed forward
+moneyness instead of at fixed strike. Two enum values and two optional
+fields are added; nothing is removed, and a request that does not set the
+new values reads exactly as before. QuantLib stays at 1.44.
+
+**What was wrong.** The strike x expiry grid read
+`CubicStrikeLinearTime` and the `SviVolSpec` slices interpolated total
+variance linearly in time at a fixed strike. QuantLib's `LocalVolSurface`
+differentiates the variance in time along the forward (its stencil reads
+the strike `K F(t + dt) / F(t)`), so between two expiries the Dupire
+numerator mixed the slices' difference at the same strike with the skew
+times the forward's move. Slices ordered at fixed moneyness could still show
+a decreasing variance along that line on a curved smile (second order in
+the forward's move), and whether they did depended on whose forward read
+the surface: on a real small-cap index sheet the SVI payload passed the
+scan on the calibration forwards and was refused by a note reading it with
+its own dividend curve (deep in the put wing, 1.15 years). The fit
+compensated with two conditions per strike, which the curvature could still
+defeat between the two ends of the interval.
+
+**The new reading.** With `k = ln(K / F(t))`,
+
+```
+w(t, K) = (1 − λ) w_i(F_i e^k) + λ w_{i+1}(F_{i+1} e^k),   λ = (t − T_i) / (T_{i+1} − T_i)
+```
+
+with `F_i = F(T_i)`; before the first expiry `w_1(F_1 e^k) t / T_1`, after
+the last `w_n(F_n e^k) t / T_n` (flat implied vol, as before). At an expiry
+the row or slice is read unchanged. Along a forward line with the surface's
+own drift `k` is fixed and the Dupire time derivative is
+`(w_{i+1}(k) − w_i(k)) / (T_{i+1} − T_i)` at every strike. Strike
+extrapolation is unchanged (constant beyond a grid row's edge strikes; an
+SVI slice is global). The eSSVI payload already interpolated its parameters
+at fixed moneyness and is unchanged; the Andreasen-Huge grid is returned
+with the new reading like every grid.
+
+* `SurfaceInterpolator2D` gains `CubicStrikeLinearTimeForwardMoneyness`
+  (the cubic rows of `CubicStrikeLinearTime`, read as above).
+* `SviTimeInterpolation` gains `LinearTotalVarianceForwardMoneyness`.
+
+**The note's local vol.** A structured note (and the arbitrage scan of
+`/validate-vol-surface` and `/calibrate-vol-surface`, which read through
+the same code) differentiates a forward-moneyness surface against the
+surface forward reshaped between expiries like the process forward:
+`ln F_read(t) = ln F(t) + g(t) − ĝ(t)`, `g = ln(D_q / D_r)` on the note's
+dividend and risk-free curves and `ĝ` its ln-linear interpolation through
+the reference date and the expiries. At every expiry `F_read = F_i`, so the
+slices are read exactly where they were written (and the spot cancels);
+between expiries the moneyness the stencil follows is then fixed whenever
+the note's forwards meet the surface's expiry forwards, whatever shape the
+note's curves give its forward in between. Without it the same real payload
+was still refused on the note's curves: its slices are ordered with the
+default margin of 1 % forward vol (`10⁻⁴` total variance per year) where
+the put wing is steep, and the bend of a dividend curve linear in zero
+rate between two expiries (a few basis points of drift) times that slope
+was enough to cross it. Black vol reads (vanilla options, the fit test) never go through
+this; a surface read at fixed strike is untouched.
+
+**The forward.** `F(t)` is ln-linear in time through the spot at the
+reference date and the expiry forwards, the last slope continued beyond
+the last expiry (a flat forward rate), the convention of the eSSVI
+payload's reference forward; without a spot the first slope is continued
+back to the reference date (one expiry and no spot: a constant forward).
+
+* `BlackVolSpec.expiry_forwards` (optional, one per expiry, each > 0)
+  carries the grid's forwards, with `spot` as the node at the reference
+  date. Without them the grid's forward is `spot D_q(t) / D_r(t)` from its
+  `spot` / `spot_quote_id` and its discount and dividend inputs
+  (`discount_curve_id` or `use_flat_discount_rate`, `dividend_curve_id` or
+  `use_flat_dividend_rate`), which a `SmileCube3D` grid may now carry with
+  the new interpolator only. A `SurfaceFromPrices` grid reads its forward
+  off the spot and curves it already has. `400` naming the fields when
+  neither source is given, when both are, on a wrong length or a
+  non-positive value, or with `expiry_forwards` on another interpolator.
+* `SviVolSpec.spot` (optional, > 0) is the node at the reference date; the
+  slices' own `forward` fields are the expiry forwards. `400` with
+  `time_interpolation` `LinearTotalVariance`.
+
+**What `/calibrate-vol-surface` returns.** The grid `vol_surface_spec` with
+`surface_interpolator: CubicStrikeLinearTimeForwardMoneyness`, `spot` and
+`expiry_forwards` (the fitted forward of each sheet expiry; on a grid date
+that is not a sheet expiry, the forward of the sheet's curves at that
+date), and `vol_surface_spec_svi` with `time_interpolation:
+LinearTotalVarianceForwardMoneyness` and `spot`, both set explicitly. The
+sequential SVI fit now orders each slice under the next at fixed
+moneyness, `w_{i+1}(k) ≥ w_i(k) + min_forward_vol² (T_{i+1} − T_i)` on the
+pair's grid (401 points over the later expiry's region, widened by the
+forward's move), which replaces the two fixed-strike conditions along the
+forward; the penalized refit starts from the next slice lowered by the
+margin both at the same moneyness and moved to this forward (the former
+start), the best objective kept: with the single start the cascade of
+refits on a real index sheet with many expiries reached clearly worse local
+minima; with both the fit is back to the former quality. The grid clip compares at the same forward
+moneyness as before (now against the returned `expiry_forwards`). The
+grid's per-expiry local-vol strike ranges are pulled in by the forward's
+move over the interval each expiry closes (`[K₂ e^x, K_{n−1} e^−x]` at
+most, `x = |ln(F_i / F_{i−1})|`, `F_0` the spot): read at fixed moneyness
+a row is evaluated at `K F_i / F(t)`, and without it a path near the edge
+of a long interval read the later row beyond the grid's last strike (a
+constant-extrapolation kink, a negative local variance on a real index
+sheet). The fit,
+local-vol checks and `arbitrage_free` flags are computed on the surfaces as
+returned. Report fields keep their meaning (`calendar_*` margins are now
+measured at fixed moneyness, which is what `/validate-vol-surface`'s
+`svi_slices[].calendar_min_forward_vol` always measured).
+
+**Catalog rows that moved.** Two structured-note rows whose examples carry
+calibrated SVI payloads, regenerated or switched to the new reading:
+`structured_note_scotia_autocallable_trigger_ndx_rty_synthetic_svi` NPV
+951.571 → 953.362 (standard error 6.6; the same slices, read at fixed
+moneyness between expiries) and
+`structured_note_synthetic_spx_1y_autocall_daily_expiry_svi` 983.761 →
+983.761 (slices refitted under the fixed-moneyness condition; standard
+error 1.729 → 1.728, the cash flows move in the fifth digit).
+`volval_scotia_ndx_grid` and the validation examples carry the
+regenerated payloads; their fit fields are unchanged (the quotes sit on
+the expiries, where both readings are the rows). The four calibration rows
+(`/calibrate-vol-surface`, every method) now also compare the grid's `spot`
+and `expiry_forwards`, and their grid ranges are the pulled-in ones; their
+slices and vols are unchanged. The eSSVI note rows, the Andreasen-Huge,
+bilinear and every other row are unchanged. The Scotia synthetic-grid note
+example (`..._with_synthetic_surface.json`) keeps `CubicStrikeLinearTime`:
+its grids predate the per-expiry local-vol strike ranges, and read at fixed
+moneyness a row is read beyond its edge strike next to the grid's edge
+(where the forward ratio exceeds the 0.001 clamp margin) and the local
+variance turns negative there; grids from `/calibrate-vol-surface` carry
+ranges inside the second and second-to-last grid strike. The 0.16.4
+examples that reproduce wing behaviour
+(`synthetic_spx_2y_autocall_on_svi_quoted_strike_edges.json`,
+`synthetic_ndx_rty_5y_autocall_on_svi_flat_local_vol.json`) keep their
+fixed-strike payloads.
+
+**What may change for an existing request.** Nothing unless it sets the
+new values: a saved grid or SVI payload from an earlier
+`/calibrate-vol-surface` reads at fixed strike as before. Recalibrate, or
+set the new value with the forwards, to read it at fixed moneyness; between
+expiries the Black vols move by the forward's drift over the interval
+(fractions of a vol point on index surfaces), at the expiries nothing
+moves. Recalibrated SVI slices can differ where the fixed-moneyness
+condition binds differently from the two former conditions.
+
 ## Version 0.16.9 (November 2026) — the arbitrage scan covers what the simulation reads
 
 `v0.16.9` closes a gap between the arbitrage scan of

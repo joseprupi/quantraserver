@@ -6,16 +6,35 @@
  *
  * A `SmileSliceVolSurface` is a QuantLib BlackVolTermStructure (through
  * BlackVarianceTermStructure, so blackVol is sqrt(variance / t)) whose total
- * variance at (t, K) is interpolated LINEARLY IN TIME at fixed strike between
- * the slices bracketing t:
+ * variance at (t, K) is interpolated LINEARLY IN TIME between the slices
+ * bracketing t, in one of two readings:
  *
- *     w(t, K) = w_i(K) + (w_{i+1}(K) - w_i(K)) (t - T_i) / (T_{i+1} - T_i),
+ *   * at fixed strike (no surface forward; the reading before 0.16.10 and
+ *     still the default of a request that does not ask for the other):
  *
- * with w(t, K) = w_1(K) t / T_1 before the first slice and w_n(K) t / T_n
- * after the last (a flat implied vol on both ends; the same rule QuantLib's
+ *         w(t, K) = w_i(K) + (w_{i+1}(K) - w_i(K)) (t - T_i) / (T_{i+1} - T_i);
+ *
+ *   * at fixed forward moneyness k = ln(K / F(t)) (a `SurfaceForward` F
+ *     given; since 0.16.10): each slice is read at the strike with the same
+ *     moneyness against its own forward F_i = F(T_i),
+ *
+ *         K_i = K (F_i / F(t)),
+ *         w(t, K) = w_i(K_i) + (w_{i+1}(K_{i+1}) - w_i(K_i)) (t - T_i) / (T_{i+1} - T_i).
+ *
+ *     QuantLib's LocalVolSurface differentiates the variance in time along
+ *     the forward (its stencil reads K F(t + dt) / F(t)); along a forward
+ *     line with the surface's own drift k is constant, so the time
+ *     derivative is (w_{i+1}(k) - w_i(k)) / (T_{i+1} - T_i) whatever the
+ *     strike: slices ordered at fixed moneyness give a non-negative Dupire
+ *     numerator everywhere between them. At fixed strike the same slices
+ *     can show a decreasing variance along that line.
+ *
+ * Before the first slice w(t, K) = w_1(K_1) t / T_1 and after the last
+ * w_n(K_n) t / T_n (a flat implied vol on both ends; the same rule QuantLib's
  * BlackVarianceSurface applies through its zero-variance column at t = 0 and
- * beyond its last expiry). T_i is the day counter's year fraction from the
- * reference date to the slice's expiry. Each slice is one of
+ * beyond its last expiry; K_i = K at fixed strike). T_i is the day counter's
+ * year fraction from the reference date to the slice's expiry. Each slice is
+ * one of
  *
  *   * `CubicVarianceSlice`: the grid row of a `BlackVolSpec` surface read
  *     with `surface_interpolator: CubicStrikeLinearTime` — a natural cubic
@@ -52,13 +71,17 @@
  * QuantLib only: no FlatBuffers here.
  */
 
+#include <ql/handle.hpp>
 #include <ql/math/interpolations/cubicinterpolation.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/time/calendar.hpp>
 #include <ql/time/date.hpp>
 #include <ql/time/daycounter.hpp>
 
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace quantra {
@@ -105,12 +128,91 @@ private:
     SviSliceParams p_;
 };
 
+/// The forward a surface measures its moneyness against, F(t) at time t
+/// (year fraction from the surface's reference date).
+class SurfaceForward {
+public:
+    virtual ~SurfaceForward() = default;
+    virtual double forward(QuantLib::Time t) const = 0;
+};
+
+/**
+ * Forwards given at nodes (the convention of the eSSVI payload's reference
+ * forward): ln F linear in t through (0, ln spot) when a spot is given and
+ * (T_i, ln F_i), the last segment's slope continued beyond the last node (a
+ * flat forward rate); without a spot the first segment's slope is continued
+ * back before the first node (one node and no spot: F constant). F(T_i) is
+ * F_i exactly. Throws QuantLib::Error on a non-positive or non-finite value
+ * or times not strictly increasing and positive.
+ */
+class NodeSurfaceForward : public SurfaceForward {
+public:
+    NodeSurfaceForward(
+        const std::vector<QuantLib::Time>& times,
+        const std::vector<double>& forwards,
+        std::optional<double> spot);
+    double forward(QuantLib::Time t) const override;
+
+private:
+    std::vector<double> times_, logForwards_, forwards_;
+};
+
+/// spot D_q(t) / D_r(t) on a dividend and a risk-free curve (the curves are
+/// read at every call; the spot is a snapshot, as the eSSVI surface's).
+class CurveSurfaceForward : public SurfaceForward {
+public:
+    CurveSurfaceForward(
+        double spot,
+        QuantLib::Handle<QuantLib::YieldTermStructure> dividend,
+        QuantLib::Handle<QuantLib::YieldTermStructure> riskFree);
+    double forward(QuantLib::Time t) const override;
+
+private:
+    double spot_;
+    QuantLib::Handle<QuantLib::YieldTermStructure> dividend_, riskFree_;
+};
+
+/**
+ * The forward a structured note's local vol reads a forward-moneyness
+ * surface against: the surface's own forward with the process forward's
+ * shape between the surface's expiries,
+ *
+ *     ln F_read(t) = ln F_surface(t) + g(t) − ĝ(t),   g(t) = ln(D_q(t) / D_r(t)),
+ *
+ * ĝ the ln-linear interpolation of g through (0, 0) and (T_i, g(T_i)) (the
+ * last segment continued beyond). F_read(T_i) = F_surface(T_i) exactly
+ * (the slices are read where they were written), and between two expiries
+ * F_read drifts like the process forward up to a constant per interval,
+ * (ln(F_proc(T_{i+1}) / F_proc(T_i)) − ln(F_{i+1} / F_i)) / (T_{i+1} − T_i),
+ * zero when the process reproduces the surface's expiry forwards. The
+ * spot cancels; g at the expiries is read once, when the object is built
+ * (a bumped curve is a new curve object, hence a new reading), g(t) at
+ * every call.
+ */
+class ProcessShapedSurfaceForward : public SurfaceForward {
+public:
+    ProcessShapedSurfaceForward(
+        std::shared_ptr<const SurfaceForward> base,
+        std::vector<QuantLib::Time> expiryTimes,
+        QuantLib::Handle<QuantLib::YieldTermStructure> dividend,
+        QuantLib::Handle<QuantLib::YieldTermStructure> riskFree);
+    double forward(QuantLib::Time t) const override;
+
+private:
+    double g(QuantLib::Time t) const;
+    std::shared_ptr<const SurfaceForward> base_;
+    std::vector<QuantLib::Time> times_; // 0 and the expiry times
+    std::vector<double> gNodes_;        // g at times_ (0 at 0)
+    QuantLib::Handle<QuantLib::YieldTermStructure> dividend_, riskFree_;
+};
+
 class SmileSliceVolSurface : public QuantLib::BlackVarianceTermStructure {
 public:
     /// `expiries` strictly increasing and after `referenceDate`, one slice
     /// each (at least one). `minStrike` / `maxStrike` are what direct readers
     /// without extrapolation are limited to (the grid's edges for cubic
-    /// slices, 0 / QL_MAX_REAL for SVI).
+    /// slices, 0 / QL_MAX_REAL for SVI). `forward` null: the fixed-strike
+    /// reading; given: the fixed-forward-moneyness reading against it.
     SmileSliceVolSurface(
         const QuantLib::Date& referenceDate,
         const QuantLib::Calendar& calendar,
@@ -119,7 +221,8 @@ public:
         std::vector<QuantLib::Date> expiries,
         std::vector<std::shared_ptr<const SmileSlice>> slices,
         QuantLib::Real minStrike,
-        QuantLib::Real maxStrike);
+        QuantLib::Real maxStrike,
+        std::shared_ptr<const SurfaceForward> forward = nullptr);
 
     QuantLib::Date maxDate() const override { return expiries_.back(); }
     QuantLib::Real minStrike() const override { return minStrike_; }
@@ -127,15 +230,26 @@ public:
     const std::vector<QuantLib::Date>& expiries() const { return expiries_; }
     const std::vector<QuantLib::Time>& times() const { return times_; }
     const std::vector<std::shared_ptr<const SmileSlice>>& slices() const { return slices_; }
+    /// The surface forward of the fixed-forward-moneyness reading (null at
+    /// fixed strike).
+    const std::shared_ptr<const SurfaceForward>& surfaceForward() const { return forward_; }
+    /// The same slices read against another surface forward (null: at fixed
+    /// strike); the extrapolation flag is kept.
+    std::shared_ptr<SmileSliceVolSurface> withSurfaceForward(
+        std::shared_ptr<const SurfaceForward> forward) const;
 
 protected:
     QuantLib::Real blackVarianceImpl(QuantLib::Time t, QuantLib::Real strike) const override;
 
 private:
+    double cachedForward(QuantLib::Time t) const;
     std::vector<QuantLib::Date> expiries_;
     std::vector<QuantLib::Time> times_;
     std::vector<std::shared_ptr<const SmileSlice>> slices_;
     QuantLib::Real minStrike_, maxStrike_;
+    std::shared_ptr<const SurfaceForward> forward_;
+    std::vector<double> sliceForwards_; // F(T_i), forward-moneyness reading only
+    std::uint64_t id_ = 0;              // unique per object (F(t) cache key)
 };
 
 /// Every Black vol of `inner` plus `shift` (vol units). Throws
@@ -147,6 +261,8 @@ public:
 
     const QuantLib::Date& referenceDate() const override { return inner_->referenceDate(); }
     QuantLib::Date maxDate() const override { return inner_->maxDate(); }
+    const std::shared_ptr<const QuantLib::BlackVolTermStructure>& inner() const { return inner_; }
+    double shift() const { return shift_; }
     QuantLib::Real minStrike() const override { return inner_->minStrike(); }
     QuantLib::Real maxStrike() const override { return inner_->maxStrike(); }
 
@@ -159,10 +275,11 @@ private:
 };
 
 /**
- * The `CubicStrikeLinearTime` reading of a strike x expiry Black vol grid:
- * `blackVols` is (strikes x expiries) as QuantLib's BlackVarianceSurface
- * takes it. Throws QuantLib::Error on fewer than 2 strikes, unsorted axes
- * or a non-positive vol.
+ * The `CubicStrikeLinearTime` reading of a strike x expiry Black vol grid
+ * (`forward` null) or the `CubicStrikeLinearTimeForwardMoneyness` one
+ * (`forward` given): `blackVolsByExpiry` is one row per expiry. Throws
+ * QuantLib::Error on fewer than 2 strikes, unsorted axes or a non-positive
+ * vol.
  */
 std::shared_ptr<SmileSliceVolSurface> makeCubicStrikeLinearTimeSurface(
     const QuantLib::Date& referenceDate,
@@ -171,9 +288,15 @@ std::shared_ptr<SmileSliceVolSurface> makeCubicStrikeLinearTimeSurface(
     const QuantLib::DayCounter& dayCounter,
     const std::vector<QuantLib::Date>& expiries,
     const std::vector<double>& strikes,
-    const std::vector<std::vector<double>>& blackVolsByExpiry);
+    const std::vector<std::vector<double>>& blackVolsByExpiry,
+    std::shared_ptr<const SurfaceForward> forward = nullptr);
 
-/// An SVI surface: one `SviSmileSlice` per expiry (same order). Throws
+/// Time reading of an SVI surface (enums::SviTimeInterpolation).
+enum class SviTimeReading { FixedStrike, FixedForwardMoneyness };
+
+/// An SVI surface: one `SviSmileSlice` per expiry (same order). With
+/// FixedForwardMoneyness the surface forward is the NodeSurfaceForward
+/// through the slices' forwards (and `spot` at t = 0 when given). Throws
 /// QuantLib::Error on an inadmissible slice.
 std::shared_ptr<SmileSliceVolSurface> makeSviSurface(
     const QuantLib::Date& referenceDate,
@@ -181,7 +304,23 @@ std::shared_ptr<SmileSliceVolSurface> makeSviSurface(
     QuantLib::BusinessDayConvention bdc,
     const QuantLib::DayCounter& dayCounter,
     const std::vector<QuantLib::Date>& expiries,
-    const std::vector<SviSliceParams>& slices);
+    const std::vector<SviSliceParams>& slices,
+    SviTimeReading reading = SviTimeReading::FixedStrike,
+    std::optional<double> spot = std::nullopt);
+
+/**
+ * The Black surface a structured note's Dupire local vol differentiates
+ * (src/mc/basket_model.h): a forward-moneyness SmileSliceVolSurface (or a
+ * ShiftedBlackVolSurface over one) re-read against
+ * ProcessShapedSurfaceForward on the process's dividend and risk-free
+ * curves, so that the time derivative QuantLib takes along the process
+ * forward stays at fixed moneyness between expiries; any other surface is
+ * returned as is. Black vol reads (vanilla options) never go through it.
+ */
+std::shared_ptr<QuantLib::BlackVolTermStructure> localVolReadingSurface(
+    const std::shared_ptr<QuantLib::BlackVolTermStructure>& vol,
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& dividend,
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& riskFree);
 
 } // namespace quantra
 
