@@ -14,7 +14,7 @@ file still carries today's output.
 | File | Surface | Checks | Result |
 |---|---|---|---|
 | `scotia_ndx_grid.json` | The grid (`BlackVolSpec`, `CubicStrikeLinearTime`) of method `SviPerExpiry` | fit, arbitrage | fit pass: 189 of 189 quotes inside the bid/ask; arbitrage pass: 6825 of 6825 scan points |
-| `scotia_ndx_svi.json` | The `SviVolSpec` payload of the same calibration | fit, arbitrage, simulation (2048 Sobol paths, 252 steps per year) | fit and arbitrage pass; simulation warn: 179 of 189 quotes within 3.5 standard errors of their bid/ask (the misses are the 16-day expiry and the deep wings, where 2048 paths are at the sampling limit) |
+| `scotia_ndx_svi.json` | The `SviVolSpec` payload of the same calibration | fit, arbitrage, simulation (2048 Sobol paths, 252 steps per year) | fit and arbitrage pass; simulation warn: 178 of 189 quotes within 3.5 standard errors of their bid/ask (the misses are calls more than 15 % out of the money on expiries under four months, where 2048 paths are at the sampling limit) |
 | `scotia_ndx_ssvi.json` | The `SsviVolSpec` payload of method `Ssvi` | fit, arbitrage | fit pass, arbitrage pass (the slices' closed-form conditions and scan clean; the payload carries no strike range, so the local vol is read unclamped and `clamp_edges` is empty) |
 | `scotia_ndx_vendor_constant_vol.json` | A flat 20 % `BlackVolSpec` (`Constant`), as a vendor feed might supply | fit, arbitrage, simulation (exact steps), custom maturity buckets | fit fail: 0 of 189 inside, RMS vol error 11 vol points (the smile is not flat); arbitrage pass (a constant local vol); simulation fail |
 
