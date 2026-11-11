@@ -12,6 +12,9 @@ This directory is the canonical home for project documentation.
   forwards, swap legs, cross-currency swaps, structured notes with their
   Greeks and diagnostic blocks, implied forwards and dividends from option
   quotes, the volatility surface from option quotes)
+- `vol-surfaces.md`: the three volatility-surface methods (SVI per expiry,
+  eSSVI, Andreasen-Huge): what each fits and assumes, what is QuantLib and
+  what is this engine, known limits, how a surface is read and checked
 - `../examples/structured_note_workflow/README.md`: how a structured note is
   priced at three levels of market data (flat vols, calibrated surfaces from
   option quotes, pasted surfaces), with a runnable script
