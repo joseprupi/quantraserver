@@ -2106,21 +2106,21 @@ TEST(NonFiniteScan, FirstOffenderWinsAndRootScalar) {
 
 // QUANTRA_GATEWAY_DEADLINE_MS parsing: a positive whole integer is used as
 // given; anything else (unset, empty, zero, negative, trailing junk, overflow)
-// keeps the 10 s default.
+// keeps the 30 s default.
 TEST(GatewayDeadline, ParsesPositiveIntegerAndRejectsTheRest) {
     bool valid = true;
-    EXPECT_EQ(quantra::ParseGatewayDeadlineMs(nullptr, &valid), 10000);
+    EXPECT_EQ(quantra::ParseGatewayDeadlineMs(nullptr, &valid), 30000);
     EXPECT_FALSE(valid);
-    EXPECT_EQ(quantra::ParseGatewayDeadlineMs("", &valid), 10000);
+    EXPECT_EQ(quantra::ParseGatewayDeadlineMs("", &valid), 30000);
     EXPECT_FALSE(valid);
     EXPECT_EQ(quantra::ParseGatewayDeadlineMs("60000", &valid), 60000);
     EXPECT_TRUE(valid);
     EXPECT_EQ(quantra::ParseGatewayDeadlineMs("1"), 1);
     for (const char* bad : {"0", "-5", "abc", "30s", "12.5", "99999999999999999999999"}) {
-        EXPECT_EQ(quantra::ParseGatewayDeadlineMs(bad, &valid), 10000) << bad;
+        EXPECT_EQ(quantra::ParseGatewayDeadlineMs(bad, &valid), 30000) << bad;
         EXPECT_FALSE(valid) << bad;
     }
-    EXPECT_EQ(quantra::kDefaultGatewayDeadlineMs, 10000);
+    EXPECT_EQ(quantra::kDefaultGatewayDeadlineMs, 30000);
 }
 
 // The value the client actually applies is the environment's, read once.

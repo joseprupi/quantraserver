@@ -223,10 +223,10 @@ not have the problem, see "Volatility surface from option quotes".
 When the desk already has the market, paste it; nothing is calibrated.
 
 - Vols: a `BlackVolSpec` `SmileCube3D` grid (`expiries` as periods,
-  `strikes`, `surface_vols` row-major, `surface_interpolator:
-  CubicStrikeLinearTime` — `Bilinear` loses the smile's curvature between
-  nodes and reprices 2 to 3 vol points high, see `docs/versioning.md`
-  § 0.15.0) or an `SviVolSpec` (per expiry `forward, a, b, sigma, rho, m`,
+  `strikes`, `surface_vols` row-major; read `CubicStrikeLinearTime` when
+  `surface_interpolator` is absent — `Bilinear`, on request, loses the
+  smile's curvature between nodes and reprices 2 to 3 vol points high, see
+  `docs/versioning.md` § 0.15.0) or an `SviVolSpec` (per expiry `forward, a, b, sigma, rho, m`,
   the raw SVI total variance in log-moneyness against that forward). The
   two committed Scotia files are the shapes. `monte_carlo.steps_per_year`
   is required with either.

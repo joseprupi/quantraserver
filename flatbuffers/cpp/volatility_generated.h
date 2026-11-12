@@ -1944,7 +1944,7 @@ struct BlackVolSpecT : public ::flatbuffers::NativeTable {
   bool use_flat_dividend_rate = false;
   double flat_dividend_rate = 0.0;
   bool allow_extrapolation = false;
-  quantra::enums::SurfaceInterpolator2D surface_interpolator = quantra::enums::SurfaceInterpolator2D_Bilinear;
+  quantra::enums::SurfaceInterpolator2D surface_interpolator = quantra::enums::SurfaceInterpolator2D_CubicStrikeLinearTime;
   quantra::enums::Interpolator expiry_interpolator = quantra::enums::Interpolator_Linear;
   quantra::enums::Interpolator strike_interpolator = quantra::enums::Interpolator_Linear;
   ::flatbuffers::Optional<quantra::enums::LocalVolTimeExtrapolation> local_vol_time_extrapolation = ::flatbuffers::nullopt;
@@ -2060,28 +2060,30 @@ struct BlackVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   bool allow_extrapolation() const {
     return GetField<uint8_t>(VT_ALLOW_EXTRAPOLATION, 0) != 0;
   }
-  /// Interpolation of a strike x expiry surface (see the enum): Bilinear
-  /// unless asked; `/calibrate-vol-surface` returns
-  /// CubicStrikeLinearTimeForwardMoneyness (CubicStrikeLinearTime before
-  /// 0.16.10).
+  /// Interpolation of a strike x expiry surface (see the enum). Absent:
+  /// CubicStrikeLinearTime. Bilinear only when asked for (its Dupire local
+  /// vol has no smile curvature inside a cell). `/calibrate-vol-surface`
+  /// returns CubicStrikeLinearTimeForwardMoneyness.
   quantra::enums::SurfaceInterpolator2D surface_interpolator() const {
-    return static_cast<quantra::enums::SurfaceInterpolator2D>(GetField<int8_t>(VT_SURFACE_INTERPOLATOR, 0));
+    return static_cast<quantra::enums::SurfaceInterpolator2D>(GetField<int8_t>(VT_SURFACE_INTERPOLATOR, 2));
   }
-  /// Deprecated for BlackVolSpec surfaces; retained for backward compatibility.
-  /// Mapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic.
+  /// Deprecated for BlackVolSpec surfaces. (LogCubic,LogCubic) selects
+  /// Bicubic; (Linear,Linear), the default, leaves the choice to
+  /// surface_interpolator.
   quantra::enums::Interpolator expiry_interpolator() const {
     return static_cast<quantra::enums::Interpolator>(GetField<int8_t>(VT_EXPIRY_INTERPOLATOR, 2));
   }
-  /// Deprecated for BlackVolSpec surfaces; retained for backward compatibility.
-  /// Mapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic.
+  /// Deprecated for BlackVolSpec surfaces. (LogCubic,LogCubic) selects
+  /// Bicubic; (Linear,Linear), the default, leaves the choice to
+  /// surface_interpolator.
   quantra::enums::Interpolator strike_interpolator() const {
     return static_cast<quantra::enums::Interpolator>(GetField<int8_t>(VT_STRIKE_INTERPOLATOR, 2));
   }
   /// Optional. For a strike-dependent surface simulated as Dupire local
   /// vol by a structured note: how the local vol is extended beyond the
-  /// last expiry (see the enum). Absent = FlatImpliedVol (the local vol of
-  /// the flat-implied-vol extension). `/calibrate-vol-surface` returns
-  /// FlatLocalVol. No effect on a Constant or AtmMatrix2D vol, nor on any
+  /// last expiry (see the enum). Absent: FlatLocalVol (the local vol held
+  /// at its value just before the last expiry). FlatImpliedVol only when
+  /// asked for. No effect on a Constant or AtmMatrix2D vol, nor on any
   /// Black vol read (vanilla options, diagnostics).
   ::flatbuffers::Optional<quantra::enums::LocalVolTimeExtrapolation> local_vol_time_extrapolation() const {
     return GetOptional<int8_t, quantra::enums::LocalVolTimeExtrapolation>(VT_LOCAL_VOL_TIME_EXTRAPOLATION);
@@ -2226,7 +2228,7 @@ struct BlackVolSpecBuilder {
     fbb_.AddElement<uint8_t>(BlackVolSpec::VT_ALLOW_EXTRAPOLATION, static_cast<uint8_t>(allow_extrapolation), 0);
   }
   void add_surface_interpolator(quantra::enums::SurfaceInterpolator2D surface_interpolator) {
-    fbb_.AddElement<int8_t>(BlackVolSpec::VT_SURFACE_INTERPOLATOR, static_cast<int8_t>(surface_interpolator), 0);
+    fbb_.AddElement<int8_t>(BlackVolSpec::VT_SURFACE_INTERPOLATOR, static_cast<int8_t>(surface_interpolator), 2);
   }
   void add_expiry_interpolator(quantra::enums::Interpolator expiry_interpolator) {
     fbb_.AddElement<int8_t>(BlackVolSpec::VT_EXPIRY_INTERPOLATOR, static_cast<int8_t>(expiry_interpolator), 2);
@@ -2277,7 +2279,7 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpec(
     bool use_flat_dividend_rate = false,
     double flat_dividend_rate = 0.0,
     bool allow_extrapolation = false,
-    quantra::enums::SurfaceInterpolator2D surface_interpolator = quantra::enums::SurfaceInterpolator2D_Bilinear,
+    quantra::enums::SurfaceInterpolator2D surface_interpolator = quantra::enums::SurfaceInterpolator2D_CubicStrikeLinearTime,
     quantra::enums::Interpolator expiry_interpolator = quantra::enums::Interpolator_Linear,
     quantra::enums::Interpolator strike_interpolator = quantra::enums::Interpolator_Linear,
     ::flatbuffers::Optional<quantra::enums::LocalVolTimeExtrapolation> local_vol_time_extrapolation = ::flatbuffers::nullopt,
@@ -2333,7 +2335,7 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpecDirect(
     bool use_flat_dividend_rate = false,
     double flat_dividend_rate = 0.0,
     bool allow_extrapolation = false,
-    quantra::enums::SurfaceInterpolator2D surface_interpolator = quantra::enums::SurfaceInterpolator2D_Bilinear,
+    quantra::enums::SurfaceInterpolator2D surface_interpolator = quantra::enums::SurfaceInterpolator2D_CubicStrikeLinearTime,
     quantra::enums::Interpolator expiry_interpolator = quantra::enums::Interpolator_Linear,
     quantra::enums::Interpolator strike_interpolator = quantra::enums::Interpolator_Linear,
     ::flatbuffers::Optional<quantra::enums::LocalVolTimeExtrapolation> local_vol_time_extrapolation = ::flatbuffers::nullopt,
@@ -2765,9 +2767,9 @@ struct SviVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     return GetField<uint8_t>(VT_ALLOW_EXTRAPOLATION, 0) != 0;
   }
   /// Optional. How the Dupire local vol a structured note simulates is
-  /// extended beyond the last slice (see the enum). Absent =
-  /// FlatImpliedVol. `/calibrate-vol-surface` returns FlatLocalVol. No
-  /// effect on any Black vol read (vanilla options, diagnostics).
+  /// extended beyond the last slice (see the enum). Absent: FlatLocalVol.
+  /// FlatImpliedVol only when asked for. No effect on any Black vol read
+  /// (vanilla options, diagnostics).
   ::flatbuffers::Optional<quantra::enums::LocalVolTimeExtrapolation> local_vol_time_extrapolation() const {
     return GetOptional<int8_t, quantra::enums::LocalVolTimeExtrapolation>(VT_LOCAL_VOL_TIME_EXTRAPOLATION);
   }

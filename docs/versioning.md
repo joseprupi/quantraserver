@@ -26,7 +26,7 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
-## Version 0.16.11 (November 2026) — one quote weighting option for the three surface methods
+## Version 0.16.11 (November 2026) — one quote weighting option, safe defaults for supplied grids, digitals and barriers refused on a smile, 30 s gateway deadline
 
 `v0.16.11` is described change by change; each change has its own part
 below. QuantLib stays at 1.44.
@@ -140,9 +140,10 @@ Limits of the second stage, on the two sheets the model cannot match:
   value's own weights (differences up to 9 %).
 * On the daily-expiry sheet the error at the quotes is unchanged to three
   digits for the three values.
-* The calibration takes about 1.5 times as long. With the default gateway
-  deadline of 10 s (`QUANTRA_GATEWAY_DEADLINE_MS`), the request on the
-  steep-wing sheet is at the limit on the test machine (9.3 to 10.2 s).
+* The calibration takes about 1.5 times as long: 9.3 to 10.2 s on the
+  steep-wing sheet on the test machine, at the 10 s gateway deadline of
+  0.16.10. The default deadline is now 30 s (see "Gateway deadline"
+  below).
 
 **What changes for an existing request.**
 
@@ -165,9 +166,9 @@ Limits of the second stage, on the two sheets the model cannot match:
   is `false` on the four sheets in both versions (points refused by the
   scan: 753 to 783 of 6,825 on the steep-wing sheet, 1,067 to 1,097 of
   12,581 on the daily-expiry sheet, unchanged on the two others).
-* A deployment that calibrates Andreasen-Huge surfaces on sheets of this
-  kind close to its time limits needs a higher gateway deadline
-  (`QUANTRA_GATEWAY_DEADLINE_MS`, see `docs/configuration.md`).
+* The default gateway deadline is now 30 s (`QUANTRA_GATEWAY_DEADLINE_MS`,
+  see "Gateway deadline" below), so these requests fit with the default
+  settings.
 * The response has one more field, `weighting`.
 * Code generated from the schema: `SsviQuoteWeighting` is now `QuoteWeighting`.
 
@@ -181,6 +182,123 @@ two Andreasen-Huge rows are compared with QuantLib's class, which is the
 first stage, within 2e-4 in vol; the row of 0.16.10 was compared at 1e-6
 (the engine's grid vols moved by at most 7.3e-5 on that sheet; the
 reference values did not move). No other row moved.
+
+### Digital payoffs and barriers on a strike-dependent vol: refused
+
+**What it was.** `/price-equity-option` priced cash-or-nothing and
+asset-or-nothing payoffs with QuantLib's `AnalyticEuropeanEngine`
+(`AnalyticDigitalAmericanEngine` for American exercise) and barriers with
+`AnalyticBarrierEngine`. These engines read one Black vol, at the strike.
+On a vol that depends on strike (a `SmileCube3D` or `SurfaceFromPrices`
+grid, an `SviVolSpec`, an `SsviVolSpec`) a digital priced that way misses
+the skew term, and a barrier is priced as a flat-vol barrier, not under
+the surface.
+
+**What it is now.** A digital payoff or a barrier that references a
+strike-dependent vol is a `400` (`INVALID_ARGUMENT`) naming the trade, the
+vol id, its shape and the payoff or product, and asking for a Constant or
+an `AtmMatrix2D` (term) vol. Every exercise style is covered. Plain vanilla
+payoffs price on every vol as before. Digitals and barriers on Constant and
+term vols are unchanged, bit for bit.
+
+**What changes for a caller.** A request that priced a digital or a
+barrier on a grid, SVI or eSSVI vol gets a `400`. To keep pricing it with
+one vol, send that vol as a Constant (or term) `BlackVolSpec`. No example
+or catalog row priced such a combination.
+
+**Measured** on the eSSVI example market
+(`examples/data/equity/eqopt_eur_call_on_ssvi_slices.json`, spot 6,000,
+expiry 2027-07-21), on 0.16.10: a cash-or-nothing call at strike 6,100
+paying 1 priced 0.4627; the call spread `(C(6093.9) − C(6106.1)) / 12.2`,
+which is the digital under the smile, is 0.6032. The single-vol price was
+23 % low.
+
+### Defaults of a strike x expiry grid or SVI slices you supply
+
+**What it was.** A `BlackVolSpec` grid without `surface_interpolator` was
+read `Bilinear`: its Dupire local vol has no smile curvature inside a grid
+cell, and a structured note simulated on it reprices vanillas 2 to 3 vol
+points high at a year. A `BlackVolSpec` grid or an `SviVolSpec` without
+`local_vol_time_extrapolation` read `FlatImpliedVol` beyond the last
+expiry: the local vol of a flat implied vol, which on a skew turns negative
+at long horizons (the note was then a `400`).
+
+**What it is now.** Absent `surface_interpolator` reads
+`CubicStrikeLinearTime`. Absent `local_vol_time_extrapolation` reads
+`FlatLocalVol` on a `BlackVolSpec` and an `SviVolSpec`. Explicit values
+keep their meaning: a request that sends `Bilinear` or `FlatImpliedVol`
+gets them. An `SsviVolSpec` without the field keeps the model's own
+continuation (`FlatImpliedVol` stays a `400` there). The legacy pair
+`expiry_interpolator` / `strike_interpolator` still selects `Bicubic` with
+`LogCubic`; with `Linear` (the default) `surface_interpolator` decides.
+The surfaces `/calibrate-vol-surface` returns set both fields and do not
+change.
+
+**What changes for a caller.** A supplied grid without
+`surface_interpolator` reads different vols between the nodes (the nodes
+themselves are unchanged): vanilla equity options, `/sample-vol-surfaces`,
+`/validate-vol-surface` and structured notes on such a grid move. A note
+simulated past the last expiry of a grid or SVI slices without
+`local_vol_time_extrapolation` moves; one that was a `400` there now
+prices. A note that ends before the last expiry is unchanged. Send
+`surface_interpolator: Bilinear` or `local_vol_time_extrapolation:
+FlatImpliedVol` to keep the old reading.
+
+**Measured.** The two Scotia examples on synthetic surfaces run to
+2028-10-05, beyond their last expiry 2027-12-17, and carry no
+`local_vol_time_extrapolation` (2048 Sobol paths):
+
+| Example | 0.16.10 | 0.16.11 |
+|---|---|---|
+| `…_with_synthetic_surface.json` (grid) | 951.908 ± 6.188 | 952.302 ± 6.044 |
+| `…_with_synthetic_svi.json` (SVI slices) | 953.362 ± 6.567 | 952.592 ± 6.120 |
+
+With `FlatImpliedVol` set explicitly both give the 0.16.10 values bit for
+bit. No example or catalog row sends a grid without `surface_interpolator`.
+
+### eSSVI: the smallest feasible raise of an anchor
+
+**What it was.** When no `(rho, psi)` was feasible for a slice of method
+`Ssvi` (the at-the-money quotes cross the previous expiry), the anchor's
+total variance was raised by a doubling step until a slice was feasible.
+The last step could overshoot the needed raise by up to its own size.
+
+**What it is now.** After the doubling, the interval between the last
+infeasible and the first feasible value is bisected, keeping the feasible
+end, until it is below 0.1 % of the raise (at most 60 halvings). The raise
+is the smallest feasible one within that tolerance. Slices that are not
+clamped do not change.
+
+**What changes for a caller.** A calibration with `ssvi_anchor_clamped`
+on some expiry returns a lower anchor variance there (closer to the
+quotes), and the later slices can move slightly through the calendar
+constraints.
+
+**Measured.** On the daily-expiry synthetic sheet with method `Ssvi`,
+three expiries are clamped. Anchor total variance, 0.16.10 to 0.16.11:
+2026-10-09 0.000587249 to 0.000580153, 2026-10-13 0.000837946 to
+0.000829533, 2026-10-15 0.001069212 to 0.001061393. The other slices move
+by at most 5e-9 in `rho` and `psi`. The eSSVI note on those slices
+(`synthetic_spx_1y_autocall_on_daily_expiry_ssvi.json`, regenerated from
+the new output) moves from 983.122 to 982.989 (standard error 1.75). In
+the unit case of the tests the raise goes from 0.00262 (doubling) to
+0.00144.
+
+### Gateway deadline: 30 s by default
+
+**What it was.** The JSON gateway set a 10 s deadline on every call to the
+engine (`QUANTRA_GATEWAY_DEADLINE_MS`), below Envoy's default route
+timeout of 30 s. An Andreasen-Huge calibration on the steep-wing example
+sheet takes 9 to 10 s.
+
+**What it is now.** The default is 30,000 ms, equal to the default
+`QUANTRA_ROUTE_TIMEOUT_MS`. Envoy's cap on a caller's `grpc-timeout`
+(`max(60 s, route timeout)`) and the engine budget of the container
+(`QUANTRA_REQUEST_BUDGET_MS=35000`) are unchanged and stay above it.
+
+**What changes for a caller.** A request that took between 10 and 30 s
+answered `504` and now completes. A deployment that set
+`QUANTRA_GATEWAY_DEADLINE_MS` keeps its value.
 
 ## Version 0.16.10 (November 2026) — time interpolation at fixed forward moneyness
 

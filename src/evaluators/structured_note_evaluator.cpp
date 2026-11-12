@@ -973,8 +973,9 @@ NoteResultRow priceNote(
                 "variance from the strike curvature, or total variance decreasing in time): "
                 "recalibrate it (/calibrate-vol-surface returns arbitrage-free surfaces) or "
                 "smooth the quoted vols; beyond the surface's last expiry, set "
-                "local_vol_time_extrapolation: FlatLocalVol on it (the flat implied vol of the "
-                "default extension is not arbitrage-free on a skew at long horizons)");
+                "local_vol_time_extrapolation: FlatLocalVol on it, or leave it absent (the "
+                "flat implied vol of FlatImpliedVol is not arbitrage-free on a skew at long "
+                "horizons)");
         }
         return mc::PathEngineResult{};
     };

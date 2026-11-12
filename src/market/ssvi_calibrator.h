@@ -53,8 +53,11 @@
  *      4e-4, too coarse to recover the parameters to 1e-6).
  *      If no rho is feasible (calendar arbitrage in the data at the money) theta* is raised to
  *      theta_prev (1 + 1e-6) + 1e-12 and, while still infeasible, raised further by a doubling
- *      step (from 1e-6 theta_prev; at most 80 steps), and anchorClamped is set; if still
- *      infeasible the call fails naming the expiry.
+ *      step (from 1e-6 theta_prev; at most 80 steps); the bracket between the last infeasible
+ *      and the first feasible value is then bisected (keeping the feasible end, at most 60
+ *      halvings) until it is below kAnchorRaiseTolerance of the raise, so the raise is the
+ *      smallest feasible one within that tolerance. anchorClamped is set; if still infeasible
+ *      the call fails naming the expiry.
  *   5. checkArbitrage must be empty (else QUANTRA_ERROR) and a numeric scan runs on the slice
  *      times, their midpoints, 0.5 T_1 and 1.5 T_N for k in [-1.5, 1.0] (201 points).
  */
@@ -162,6 +165,14 @@ struct CalibrationResult {
     std::vector<Violation> violations; // empty on success
     ScanResult scan;
 };
+
+// Relative tolerance of a raised anchor variance (step 4): the returned raise exceeds the
+// smallest feasible one by at most this fraction of the raise.
+constexpr double kAnchorRaiseTolerance = 1e-3;
+
+// Whether step 4 starts with a feasible (rho, psi) for the anchor (k*, W) after the slice `prev`:
+// some rho of the 41-point grid on [-0.999, 0.999], or rho_prev, has a non-empty psi interval.
+bool anchorFeasible(double kStar, double W, const SsviSliceParams& prev);
 
 // theta(psi) = W - rho k psi - c psi^2, c = (1 - rho^2) k^2 / (4 W): the slice variance for which
 // the slice (theta, rho, psi) has total variance W at log-moneyness k (see step 4 above).

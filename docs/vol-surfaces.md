@@ -143,8 +143,9 @@ limits.
   The difference is largest in short-dated wings.
 - When the quotes themselves cross at the money (a short expiry quoted above
   the next one in total variance), no feasible slice exists. The anchor is
-  raised to the smallest feasible value, `ssvi_anchor_clamped` is set, and
-  that slice misses its at-the-money quotes by the size of the crossing.
+  raised to the smallest feasible value (within 0.1 % of the raise),
+  `ssvi_anchor_clamped` is set, and that slice misses its at-the-money
+  quotes by the size of the crossing.
 - Each slice is constrained by the one before it, so an error in an early
   slice limits the later ones.
 
@@ -214,7 +215,7 @@ calibration, 500 grid points, Levenberg-Marquardt).
 
 | Use | What is read |
 |---|---|
-| Equity option | The Black vol at the option's expiry and strike. |
+| Equity option | The Black vol at the option's expiry and strike. Digital payoffs and barriers read only that one vol, so they are refused (`400`) on a surface that depends on strike: grid, SVI or eSSVI slices. |
 | Structured note, grid or SVI slices | Dupire local vol from QuantLib's `LocalVolSurface`, which differentiates the implied surface numerically in strike and time. |
 | Structured note, eSSVI slices | Local vol from the closed-form derivatives of the eSSVI formula. |
 
@@ -226,10 +227,17 @@ calibration, 500 grid points, Levenberg-Marquardt).
   how many reads were floored.
 - Beyond the per-expiry strike range of a grid or of SVI slices, the local
   vol is held at its value on the edge.
-- Beyond the last expiry, grids and SVI slices from
-  `/calibrate-vol-surface` hold the local vol of the last expiry
-  (`local_vol_time_extrapolation: FlatLocalVol`). eSSVI slices continue the
-  last forward variance with `rho` and `psi` held.
+- Beyond the last expiry, grids and SVI slices hold the local vol of the
+  last expiry (`local_vol_time_extrapolation: FlatLocalVol`, what
+  `/calibrate-vol-surface` returns and what an absent field reads).
+  `FlatImpliedVol` continues the implied vol flat instead, only when asked
+  for. eSSVI slices continue the last forward variance with `rho` and `psi`
+  held.
+- A grid supplied without `surface_interpolator` is read
+  `CubicStrikeLinearTime`: a cubic spline of total variance in log-strike
+  per expiry, linear in time at fixed strike. `Bilinear` is read only when
+  asked for; its Dupire local vol has no smile curvature between two grid
+  strikes.
 - Price on the discounting curve the quotes were fitted against and on the
   dividend curve `/calibrate-implied-forwards` returned. With other forwards
   the strikes sit at a different moneyness than in the market.

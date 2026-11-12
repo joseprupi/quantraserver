@@ -92,9 +92,9 @@ class SviVolSpec(object):
         return False
 
     # Optional. How the Dupire local vol a structured note simulates is
-    # extended beyond the last slice (see the enum). Absent =
-    # FlatImpliedVol. `/calibrate-vol-surface` returns FlatLocalVol. No
-    # effect on any Black vol read (vanilla options, diagnostics).
+    # extended beyond the last slice (see the enum). Absent: FlatLocalVol.
+    # FlatImpliedVol only when asked for. No effect on any Black vol read
+    # (vanilla options, diagnostics).
     # SviVolSpec
     def LocalVolTimeExtrapolation(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))

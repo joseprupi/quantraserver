@@ -726,19 +726,19 @@
               },
         "surface_interpolator" : {
                 "$ref" : "#/definitions/quantra_enums_SurfaceInterpolator2D",
-                "description" : "Interpolation of a strike x expiry surface (see the enum): Bilinear\nunless asked; `/calibrate-vol-surface` returns\nCubicStrikeLinearTimeForwardMoneyness (CubicStrikeLinearTime before\n0.16.10)."
+                "description" : "Interpolation of a strike x expiry surface (see the enum). Absent:\nCubicStrikeLinearTime. Bilinear only when asked for (its Dupire local\nvol has no smile curvature inside a cell). `/calibrate-vol-surface`\nreturns CubicStrikeLinearTimeForwardMoneyness."
               },
         "expiry_interpolator" : {
                 "$ref" : "#/definitions/quantra_enums_Interpolator",
-                "description" : "Deprecated for BlackVolSpec surfaces; retained for backward compatibility.\nMapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic."
+                "description" : "Deprecated for BlackVolSpec surfaces. (LogCubic,LogCubic) selects\nBicubic; (Linear,Linear), the default, leaves the choice to\nsurface_interpolator."
               },
         "strike_interpolator" : {
                 "$ref" : "#/definitions/quantra_enums_Interpolator",
-                "description" : "Deprecated for BlackVolSpec surfaces; retained for backward compatibility.\nMapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic."
+                "description" : "Deprecated for BlackVolSpec surfaces. (LogCubic,LogCubic) selects\nBicubic; (Linear,Linear), the default, leaves the choice to\nsurface_interpolator."
               },
         "local_vol_time_extrapolation" : {
                 "$ref" : "#/definitions/quantra_enums_LocalVolTimeExtrapolation",
-                "description" : "Optional. For a strike-dependent surface simulated as Dupire local\nvol by a structured note: how the local vol is extended beyond the\nlast expiry (see the enum). Absent = FlatImpliedVol (the local vol of\nthe flat-implied-vol extension). `/calibrate-vol-surface` returns\nFlatLocalVol. No effect on a Constant or AtmMatrix2D vol, nor on any\nBlack vol read (vanilla options, diagnostics)."
+                "description" : "Optional. For a strike-dependent surface simulated as Dupire local\nvol by a structured note: how the local vol is extended beyond the\nlast expiry (see the enum). Absent: FlatLocalVol (the local vol held\nat its value just before the last expiry). FlatImpliedVol only when\nasked for. No effect on a Constant or AtmMatrix2D vol, nor on any\nBlack vol read (vanilla options, diagnostics)."
               },
         "local_vol_strike_min" : {
                 "type" : "array", "items" : {"type" : "number"},
@@ -848,7 +848,7 @@
               },
         "local_vol_time_extrapolation" : {
                 "$ref" : "#/definitions/quantra_enums_LocalVolTimeExtrapolation",
-                "description" : "Optional. How the Dupire local vol a structured note simulates is\nextended beyond the last slice (see the enum). Absent =\nFlatImpliedVol. `/calibrate-vol-surface` returns FlatLocalVol. No\neffect on any Black vol read (vanilla options, diagnostics)."
+                "description" : "Optional. How the Dupire local vol a structured note simulates is\nextended beyond the last slice (see the enum). Absent: FlatLocalVol.\nFlatImpliedVol only when asked for. No effect on any Black vol read\n(vanilla options, diagnostics)."
               },
         "local_vol_strike_range" : {
                 "$ref" : "#/definitions/quantra_enums_LocalVolStrikeRange",

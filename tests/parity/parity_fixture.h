@@ -761,7 +761,9 @@ protected:
         const std::vector<QuantLib::Period>& expiries,
         const std::vector<double>& strikes,
         const std::vector<double>& volsFlat,
-        const std::string& refDate = "2025-01-15") {
+        const std::string& refDate = "2025-01-15",
+        quantra::enums::SurfaceInterpolator2D surfaceInterp =
+            quantra::enums::SurfaceInterpolator2D_Bilinear) {
         auto ref_date = b.CreateString(refDate);
         quantra::BlackVolBaseSpecBuilder baseBuilder(b);
         baseBuilder.add_reference_date(ref_date);
@@ -795,6 +797,7 @@ protected:
         blackBuilder.add_expiries(expVec);
         blackBuilder.add_strikes(strikeVec);
         blackBuilder.add_surface_vols(surfaceMatrix);
+        blackBuilder.add_surface_interpolator(surfaceInterp);
         auto blackPayload = blackBuilder.Finish();
 
         auto vol_id = b.CreateString(id);

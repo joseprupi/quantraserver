@@ -21,6 +21,8 @@ constexpr double kMargin = 1e-10;
 constexpr double kRhoMax = 0.999;
 constexpr double kInf = std::numeric_limits<double>::infinity();
 constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
+// Cap on the bisection that refines a raised anchor variance (kAnchorRaiseTolerance, header).
+constexpr int kAnchorRaiseMaxBisections = 60;
 
 std::string describeQuote(std::size_t i, const OptionQuote& q) {
     std::ostringstream os;
@@ -405,6 +407,17 @@ void requireMinUsedQuotes(
 
 } // namespace
 
+bool anchorFeasible(double kStar, double W, const SsviSliceParams& prev) {
+    const PrevSlice p{true, prev.theta, prev.psi, prev.rho};
+    const int n0 = 41;
+    const double step0 = 2.0 * kRhoMax / (n0 - 1);
+    double lo = 0.0, hi = 0.0;
+    for (int i = 0; i < n0; ++i) {
+        if (psiInterval(-kRhoMax + i * step0, kStar, W, p, lo, hi)) return true;
+    }
+    return psiInterval(prev.rho, kStar, W, p, lo, hi);
+}
+
 double anchorTheta(double W, double rho, double k, double psi) {
     return thetaAtAnchor(W, rho, k, psi);
 }
@@ -597,17 +610,39 @@ CalibrationResult calibrate(const CalibrationInput& in) {
             if (prev.exists) {
                 // Raise the anchor's total variance to the previous slice's and then, while no
                 // (rho, psi) is feasible (off the money the anchor variance also carries the
-                // rho psi k and psi^2 terms), by a doubling step: the smallest raise found
-                // that makes the calendar conditions feasible.
+                // rho psi k and psi^2 terms), by a doubling step. The first feasible value can
+                // overshoot the needed raise by up to the last step, so the bracket between
+                // the last infeasible value and it is then bisected, keeping the feasible end,
+                // until it is below kAnchorRaiseTolerance of the raise: the smallest raise that
+                // makes the calendar conditions feasible, within that tolerance.
+                const double anchorTheta = thetaStar;
                 double raised = std::max(thetaStar, floor);
                 double bump = std::max(1e-12, 1e-6 * floor);
+                double lastInfeasible = kNaN;
                 bool feasible = false;
                 for (int n = 0; n < 80 && !feasible; ++n) {
                     feasible = searchSlice(pts, ex.T, kStar, raised, prev, fit);
                     if (!feasible) {
+                        lastInfeasible = raised;
                         raised += bump;
                         bump *= 2.0;
                     }
+                }
+                if (feasible && std::isfinite(lastInfeasible)) {
+                    double lo = lastInfeasible, hi = raised;
+                    Fit trial;
+                    for (int n = 0; n < kAnchorRaiseMaxBisections &&
+                                    hi - lo > kAnchorRaiseTolerance * (hi - anchorTheta);
+                         ++n) {
+                        const double mid = 0.5 * (lo + hi);
+                        if (searchSlice(pts, ex.T, kStar, mid, prev, trial)) {
+                            hi = mid;
+                            fit = trial;
+                        } else {
+                            lo = mid;
+                        }
+                    }
+                    raised = hi;
                 }
                 thetaStar = raised;
                 clamped = true;

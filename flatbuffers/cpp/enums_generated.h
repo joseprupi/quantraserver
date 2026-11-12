@@ -153,7 +153,7 @@ inline const char *EnumNameInterpolator(Interpolator e) {
 ///     A structured note's local vol reads it against F(t) reshaped between
 ///     expiries like the note's own forward (equal to F_i at every expiry).
 ///     What `/calibrate-vol-surface` returns.
-///   A supplied grid keeps Bilinear unless it says otherwise.
+///   A BlackVolSpec without `surface_interpolator` reads CubicStrikeLinearTime.
 enum SurfaceInterpolator2D : int8_t {
   SurfaceInterpolator2D_Bilinear = 0,
   SurfaceInterpolator2D_Bicubic = 1,
@@ -246,7 +246,8 @@ inline const char *EnumNameSviTimeInterpolation(SviTimeInterpolation e) {
 ///     negative at long horizons (the note is then a 400).
 ///   FlatLocalVol: the local vol is held time-homogeneous: every time after
 ///     the last expiry reads the local vol at T - 0.001 years (T the last
-///     expiry's year fraction), at the simulated level.
+///     expiry's year fraction), at the simulated level. What a BlackVolSpec
+///     or an SviVolSpec without the field reads.
 /// The Black vol itself (vanilla pricing, diagnostics) is the flat implied
 /// vol beyond the last expiry under both.
 enum LocalVolTimeExtrapolation : int8_t {

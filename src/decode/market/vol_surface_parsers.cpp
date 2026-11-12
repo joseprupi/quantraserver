@@ -908,7 +908,7 @@ SurfaceInterpolationMode resolveBlackSurfaceInterpolation(
             return SurfaceInterpolationMode::CubicStrikeLinearTimeForwardMoneyness;
         default: QUANTRA_INVALID_ARGUMENT("Unsupported surface_interpolator for vol id: " + id);
     }
-    return SurfaceInterpolationMode::Bilinear;
+    return SurfaceInterpolationMode::CubicStrikeLinearTime;
 }
 
 /// The strike x expiry grid (`blackVols` is strikes x expiries) as the
@@ -2156,7 +2156,7 @@ BlackVolEntry parseBlackVol(
     entry.dayCounter = dc;
     entry.flatLocalVolBeyondLastExpiry =
         payload->local_vol_time_extrapolation().value_or(
-            quantra::enums::LocalVolTimeExtrapolation_FlatImpliedVol) ==
+            quantra::enums::LocalVolTimeExtrapolation_FlatLocalVol) ==
         quantra::enums::LocalVolTimeExtrapolation_FlatLocalVol;
     // Per-expiry local vol strike ranges (a strike x expiry surface only).
     {
@@ -2444,7 +2444,7 @@ BlackVolEntry parseSviVol(const quantra::VolSurfaceSpec* spec) {
     entry.pillarDates = dates;
     entry.flatLocalVolBeyondLastExpiry =
         payload->local_vol_time_extrapolation().value_or(
-            quantra::enums::LocalVolTimeExtrapolation_FlatImpliedVol) ==
+            quantra::enums::LocalVolTimeExtrapolation_FlatLocalVol) ==
         quantra::enums::LocalVolTimeExtrapolation_FlatLocalVol;
     entry.allowExtrapolation = payload->allow_extrapolation();
     if (payload->allow_extrapolation()) {

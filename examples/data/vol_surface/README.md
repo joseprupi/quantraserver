@@ -71,9 +71,10 @@ same surface as an `SviVolSpec` payload (the eight fitted slices with their
 forwards, the exact surface the quotes came from), and with
 `AndreasenHuge` instead `vol_surface_spec_svi_note` (no closed-form slices
 for that method); and one `arbitrage_free` flag per returned payload. How
-well the surface prices the quotes is `/validate-vol-surface` (the grid
-reprices every used quote inside its bid/ask under both methods on this
-sheet; `examples/data/vol_surface_validation/`). See "Volatility surface
+well the surface prices the quotes is `/validate-vol-surface` (on this
+sheet, against the forwards the calibration used, the grid reprices 189 of
+the 189 used quotes inside their bid/ask with `SviPerExpiry` and 180 of 189
+with `AndreasenHuge`; `examples/data/vol_surface_validation/`). See "Volatility surface
 from option quotes" and "Validating a surface" in `docs/http-api.md` for the
 method and every field.
 

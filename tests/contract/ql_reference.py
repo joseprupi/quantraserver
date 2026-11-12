@@ -5559,10 +5559,12 @@ def _sn_local_vol_strike_bands(pricing: dict, vol_id: str):
 
 def _sn_flat_local_vol(pricing: dict, vol_id: str) -> bool:
     """`local_vol_time_extrapolation: FlatLocalVol` on the referenced Black
-    vol spec (BlackVolSpec or SviVolSpec); absent = FlatImpliedVol."""
+    vol spec (BlackVolSpec or SviVolSpec); absent = FlatLocalVol. An
+    SsviVolSpec without the field keeps the model's own continuation."""
     spec = _find_vol_surface_spec(pricing, vol_id)
     payload = spec.get("payload") or {}
-    return payload.get("local_vol_time_extrapolation", "FlatImpliedVol") == "FlatLocalVol"
+    default = "FlatImpliedVol" if spec.get("payload_type") == "SsviVolSpec" else "FlatLocalVol"
+    return payload.get("local_vol_time_extrapolation", default) == "FlatLocalVol"
 
 
 def _sn_black_vol(pricing: dict, vol_id: str, shift: float = 0.0):
@@ -5633,7 +5635,7 @@ def _sn_black_vol(pricing: dict, vol_id: str, shift: float = 0.0):
             raise ValueError(f"vol {vol_id}: surface_vols has {len(values)} values, "
                              f"expected {n_exp} x {n_str}")
         legacy_cubic = (payload.get("expiry_interpolator", "Linear") == "LogCubic")
-        interp = payload.get("surface_interpolator", "Bilinear")
+        interp = payload.get("surface_interpolator", "CubicStrikeLinearTime")
         if interp in ("CubicStrikeLinearTime", "CubicStrikeLinearTimeForwardMoneyness") \
                 and not legacy_cubic:
             # The engine's SmileSliceVolSurface: per expiry the nodes'

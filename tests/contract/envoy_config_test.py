@@ -14,6 +14,7 @@ import importlib.machinery
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -54,6 +55,17 @@ def _cluster(config):
 def test_route_timeout_default_is_30s():
     route = _route(_generate())
     assert route["timeout"] == "30s"
+
+
+def test_gateway_deadline_default_equals_route_timeout_default():
+    # The JSON gateway's default RPC deadline (QUANTRA_GATEWAY_DEADLINE_MS,
+    # clients/cpp) is the default route timeout, so neither cuts a request
+    # the other would let through.
+    header = (REPO_ROOT / "clients" / "cpp" / "include" / "quantra_client.h").read_text()
+    m = re.search(r"constexpr long kDefaultGatewayDeadlineMs = (\d+);", header)
+    assert m, "kDefaultGatewayDeadlineMs not found"
+    generator = _load_module("envoy_config_for_deadline", ENVOY_CONFIG_SCRIPT)
+    assert int(m.group(1)) == generator.DEFAULT_ROUTE_TIMEOUT_MS == 30000
 
 
 def test_grpc_timeout_header_capped_at_60s():

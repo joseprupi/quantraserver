@@ -254,19 +254,20 @@ class BlackVolSpec(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
-    # Interpolation of a strike x expiry surface (see the enum): Bilinear
-    # unless asked; `/calibrate-vol-surface` returns
-    # CubicStrikeLinearTimeForwardMoneyness (CubicStrikeLinearTime before
-    # 0.16.10).
+    # Interpolation of a strike x expiry surface (see the enum). Absent:
+    # CubicStrikeLinearTime. Bilinear only when asked for (its Dupire local
+    # vol has no smile curvature inside a cell). `/calibrate-vol-surface`
+    # returns CubicStrikeLinearTimeForwardMoneyness.
     # BlackVolSpec
     def SurfaceInterpolator(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(40))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return 2
 
-    # Deprecated for BlackVolSpec surfaces; retained for backward compatibility.
-    # Mapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic.
+    # Deprecated for BlackVolSpec surfaces. (LogCubic,LogCubic) selects
+    # Bicubic; (Linear,Linear), the default, leaves the choice to
+    # surface_interpolator.
     # BlackVolSpec
     def ExpiryInterpolator(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(42))
@@ -274,8 +275,9 @@ class BlackVolSpec(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 2
 
-    # Deprecated for BlackVolSpec surfaces; retained for backward compatibility.
-    # Mapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic.
+    # Deprecated for BlackVolSpec surfaces. (LogCubic,LogCubic) selects
+    # Bicubic; (Linear,Linear), the default, leaves the choice to
+    # surface_interpolator.
     # BlackVolSpec
     def StrikeInterpolator(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(44))
@@ -285,9 +287,9 @@ class BlackVolSpec(object):
 
     # Optional. For a strike-dependent surface simulated as Dupire local
     # vol by a structured note: how the local vol is extended beyond the
-    # last expiry (see the enum). Absent = FlatImpliedVol (the local vol of
-    # the flat-implied-vol extension). `/calibrate-vol-surface` returns
-    # FlatLocalVol. No effect on a Constant or AtmMatrix2D vol, nor on any
+    # last expiry (see the enum). Absent: FlatLocalVol (the local vol held
+    # at its value just before the last expiry). FlatImpliedVol only when
+    # asked for. No effect on a Constant or AtmMatrix2D vol, nor on any
     # Black vol read (vanilla options, diagnostics).
     # BlackVolSpec
     def LocalVolTimeExtrapolation(self):
@@ -538,7 +540,7 @@ def AddAllowExtrapolation(builder, allowExtrapolation):
     BlackVolSpecAddAllowExtrapolation(builder, allowExtrapolation)
 
 def BlackVolSpecAddSurfaceInterpolator(builder, surfaceInterpolator):
-    builder.PrependInt8Slot(18, surfaceInterpolator, 0)
+    builder.PrependInt8Slot(18, surfaceInterpolator, 2)
 
 def AddSurfaceInterpolator(builder, surfaceInterpolator):
     BlackVolSpecAddSurfaceInterpolator(builder, surfaceInterpolator)
@@ -630,7 +632,7 @@ class BlackVolSpecT(object):
         self.useFlatDividendRate = False  # type: bool
         self.flatDividendRate = 0.0  # type: float
         self.allowExtrapolation = False  # type: bool
-        self.surfaceInterpolator = 0  # type: int
+        self.surfaceInterpolator = 2  # type: int
         self.expiryInterpolator = 2  # type: int
         self.strikeInterpolator = 2  # type: int
         self.localVolTimeExtrapolation = None  # type: Optional[int]

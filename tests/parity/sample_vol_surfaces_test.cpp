@@ -5,12 +5,14 @@
 // test_quantra_vs_quantlib gtest binary.
 #include "basket_model.h"
 #include "parity_fixture.h"
+#include "vol_surface_validation_evaluator.h"
 
 #include <ql/experimental/volatility/svismilesection.hpp>
 #include <ql/termstructures/volatility/equityfx/localvolsurface.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 
 #include <functional>
+#include <optional>
 
 namespace quantra { namespace testing {
 
@@ -1463,7 +1465,8 @@ flatbuffers::Offset<quantra::BlackVolBaseSpec> testVolBase(
 flatbuffers::Offset<quantra::VolSurfaceSpec> testGridSpec(
     flatbuffers::grpc::MessageBuilder& b,
     const std::vector<double>& strikes,
-    quantra::enums::SurfaceInterpolator2D interp) {
+    std::optional<quantra::enums::SurfaceInterpolator2D> interp,
+    std::optional<quantra::enums::LocalVolTimeExtrapolation> timeExtension = std::nullopt) {
     const auto slices = testSlices();
     std::vector<flatbuffers::Offset<quantra::Period>> periods;
     std::vector<double> vols;
@@ -1490,7 +1493,14 @@ flatbuffers::Offset<quantra::VolSurfaceSpec> testGridSpec(
     vb.add_strikes(strikesOff);
     vb.add_surface_vols(matrix);
     vb.add_allow_extrapolation(true);
-    vb.add_surface_interpolator(interp);
+    // Absent (std::nullopt) leaves the field out of the buffer; a value is
+    // always written, also when it equals the schema default.
+    if (interp) {
+        b.ForceDefaults(true);
+        vb.add_surface_interpolator(*interp);
+        b.ForceDefaults(false);
+    }
+    if (timeExtension) vb.add_local_vol_time_extrapolation(*timeExtension);
     auto payload = vb.Finish();
     auto id = b.CreateString("grid");
     quantra::VolSurfaceSpecBuilder sb(b);
@@ -1502,7 +1512,8 @@ flatbuffers::Offset<quantra::VolSurfaceSpec> testGridSpec(
 
 flatbuffers::Offset<quantra::VolSurfaceSpec> testSviSpec(
     flatbuffers::grpc::MessageBuilder& b,
-    const std::function<void(std::vector<TestSlice>&)>& edit) {
+    const std::function<void(std::vector<TestSlice>&)>& edit,
+    std::optional<quantra::enums::LocalVolTimeExtrapolation> timeExtension = std::nullopt) {
     auto slices = testSlices();
     edit(slices);
     std::vector<flatbuffers::Offset<quantra::SviSlice>> offs;
@@ -1524,6 +1535,7 @@ flatbuffers::Offset<quantra::VolSurfaceSpec> testSviSpec(
     svb.add_base(base);
     svb.add_slices(slicesOff);
     svb.add_allow_extrapolation(true);
+    if (timeExtension) svb.add_local_vol_time_extrapolation(*timeExtension);
     auto payload = svb.Finish();
     auto id = b.CreateString("svi");
     quantra::VolSurfaceSpecBuilder sb(b);
@@ -1534,6 +1546,64 @@ flatbuffers::Offset<quantra::VolSurfaceSpec> testSviSpec(
 }
 
 } // namespace
+
+// A supplied grid without `surface_interpolator` reads CubicStrikeLinearTime
+// (the same surface as the explicit request, value for value); an explicit
+// Bilinear still reads QuantLib's bilinear surface. Without
+// `local_vol_time_extrapolation` a grid and SVI slices hold the local vol
+// flat beyond the last expiry (FlatLocalVol); an explicit FlatImpliedVol is
+// still honoured.
+TEST_F(QuantraComparisonTest, BlackVolSurface_SuppliedGridDefaults) {
+    std::vector<double> strikes;
+    for (int j = 0; j <= 20; ++j)
+        strikes.push_back(50.0 + 5.0 * j);
+    using Interp = quantra::enums::SurfaceInterpolator2D;
+    using TimeExt = quantra::enums::LocalVolTimeExtrapolation;
+    auto parse = [&](std::optional<Interp> interp, std::optional<TimeExt> ext) {
+        flatbuffers::grpc::MessageBuilder b;
+        b.Finish(testGridSpec(b, strikes, interp, ext));
+        auto spec = flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer());
+        return parseBlackVol(spec, nullptr);
+    };
+    const auto absent = parse(std::nullopt, std::nullopt);
+    const auto cubic = parse(
+        quantra::enums::SurfaceInterpolator2D_CubicStrikeLinearTime,
+        quantra::enums::LocalVolTimeExtrapolation_FlatLocalVol);
+    const auto bilinear = parse(
+        quantra::enums::SurfaceInterpolator2D_Bilinear,
+        quantra::enums::LocalVolTimeExtrapolation_FlatImpliedVol);
+    EXPECT_EQ(absent.surfaceInterpolation, BlackSurfaceInterpolation::CubicStrikeLinearTime);
+    EXPECT_EQ(bilinear.surfaceInterpolation, BlackSurfaceInterpolation::Bilinear);
+    EXPECT_TRUE(absent.flatLocalVolBeyondLastExpiry);
+    EXPECT_TRUE(cubic.flatLocalVolBeyondLastExpiry);
+    EXPECT_FALSE(bilinear.flatLocalVolBeyondLastExpiry);
+    EXPECT_EQ(localVolTimeOf(&absent), mc::LocalVolTimeExtrapolation::FlatLocalVol);
+    EXPECT_EQ(localVolTimeOf(&bilinear), mc::LocalVolTimeExtrapolation::FlatImpliedVol);
+
+    const QuantLib::Date ref(30, QuantLib::September, 2026);
+    double maxBilinearGap = 0.0;
+    for (int days : {10, 16, 100, 365, 500}) {
+        for (double K = 52.5; K < 150.0; K += 5.0) {
+            const double a = absent.handle->blackVol(ref + days, K, true);
+            EXPECT_EQ(a, cubic.handle->blackVol(ref + days, K, true)) << days << " " << K;
+            maxBilinearGap = std::max(
+                maxBilinearGap, std::abs(a - bilinear.handle->blackVol(ref + days, K, true)));
+        }
+    }
+    EXPECT_GT(maxBilinearGap, 1e-4); // the two readings differ between nodes
+
+    auto parseSvi = [&](std::optional<TimeExt> ext) {
+        flatbuffers::grpc::MessageBuilder b;
+        b.Finish(testSviSpec(b, [](std::vector<TestSlice>&) {}, ext));
+        auto spec = flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer());
+        return parseSviVol(spec);
+    };
+    EXPECT_TRUE(parseSvi(std::nullopt).flatLocalVolBeyondLastExpiry);
+    EXPECT_TRUE(parseSvi(quantra::enums::LocalVolTimeExtrapolation_FlatLocalVol)
+                    .flatLocalVolBeyondLastExpiry);
+    EXPECT_FALSE(parseSvi(quantra::enums::LocalVolTimeExtrapolation_FlatImpliedVol)
+                     .flatLocalVolBeyondLastExpiry);
+}
 
 TEST_F(QuantraComparisonTest, BlackVolSurface_CubicStrikeLinearTimeKeepsTheSmileBetweenNodes) {
     std::vector<double> strikes;
