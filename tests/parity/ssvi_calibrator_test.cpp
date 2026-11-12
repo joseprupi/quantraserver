@@ -10,6 +10,7 @@
 // 2.5% against 1.5% on the curve, risk-free 4%, spot 100.
 #include "ssvi_calibrator.h"
 
+#include "date_convert.h"
 #include "error.h"
 
 #include <ql/pricingengines/blackformula.hpp>
@@ -255,9 +256,17 @@ TEST(SsviCalibTest, InvalidInputsAreClientErrors) {
     CalibMarket m;
     m.qGen = 0.015;
     {
+        // BidAsk without any two-sided quote: the 400 names the expiry.
         CalibrationInput in = m.input(m.truth(), false);
         in.weighting = QuoteWeighting::BidAsk;
-        EXPECT_THROW(ssvi::calibrate(in), QuantraInvalidArgument);
+        try {
+            ssvi::calibrate(in);
+            FAIL() << "expected throw";
+        } catch (const QuantraInvalidArgument& e) {
+            const std::string what = e.what();
+            EXPECT_NE(what.find("weighting BidAsk needs bid and ask"), std::string::npos) << what;
+            EXPECT_NE(what.find(DateToIso(m.ref + m.days[0])), std::string::npos) << what;
+        }
     }
     {
         CalibrationInput in = m.input(m.truth(), false);

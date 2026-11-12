@@ -15,7 +15,9 @@
 #include "date_convert.h"
 #include "error.h"
 #include "implied_forwards_evaluator.h"
+#include "quote_weighting.h"
 #include "smile_slice_vol_surface.h"
+#include "ssvi.h"
 #include "ssvi_vol_surface.h"
 #include "vol_surface_calibration_evaluator.h"
 #include "vol_surface_validation_evaluator.h"
@@ -680,6 +682,296 @@ TEST(VolSurfaceCalibration, RejectedRequests) {
         l.callBid = *l.callAsk + 1.0;
     EXPECT_THROW(
         VolSurfaceCalibrationEvaluator().evaluate(bad, mkt.reg, mkt.ctx), QuantraInvalidArgument);
+    // Andreasen-Huge fits with Vega weights only.
+    for (auto weighting : {QuoteWeighting::Uniform, QuoteWeighting::BidAsk}) {
+        bad = in;
+        bad.weighting = weighting;
+        try {
+            VolSurfaceCalibrationEvaluator().evaluate(bad, mkt.reg, mkt.ctx);
+            FAIL() << "expected a client error";
+        } catch (const QuantraInvalidArgument& e) {
+            const std::string m = e.what();
+            EXPECT_NE(m.find("weighting"), std::string::npos) << m;
+            EXPECT_NE(m.find(quoteWeightingName(weighting)), std::string::npos) << m;
+            EXPECT_NE(m.find("AndreasenHuge"), std::string::npos) << m;
+        }
+    }
+}
+
+// ===========================================================================
+// Quote weighting (`weighting`).
+// ===========================================================================
+
+namespace {
+
+// A sheet no SVI or eSSVI slice matches exactly: the SSVI smile plus a
+// displacement, relative bid/ask spreads widening from 0.4 % at the money to
+// 4.4 % at 80 % / 120 %. Per expiry the used quotes with their Black vega and
+// their spread in vol units, computed here.
+struct WeightedSheet {
+    struct Q {
+        double strike, k, vol, vega, volSpread;
+    };
+    std::vector<OptionQuoteLine> lines;
+    std::vector<Date> expiries;
+    std::vector<double> times;
+    std::vector<std::vector<Q>> quotes;
+
+    double weight(QuoteWeighting w, const Q& q) const {
+        return w == QuoteWeighting::Uniform ? 1.0
+               : w == QuoteWeighting::Vega  ? q.vega
+                                            : 1.0 / (q.volSpread * q.volSpread);
+    }
+    // sum_i weight_i (model_vol_i - market_vol_i)^2 over the expiry's quotes.
+    double objective(
+        QuoteWeighting w, std::size_t expiry, const std::function<double(double k)>& vol) const {
+        double s = 0.0;
+        for (const Q& q : quotes[expiry]) {
+            const double d = vol(q.k) - q.vol;
+            s += weight(w, q) * d * d;
+        }
+        return s;
+    }
+};
+
+// `bump(k, m)`: the vol added to the SSVI smile at log-moneyness k, strike
+// m x spot.
+WeightedSheet weightedSheet(
+    const Market& mkt,
+    const std::vector<std::size_t>& expiryIdx,
+    const std::function<double(double k, double m)>& bump) {
+    WeightedSheet sheet;
+    const auto truth = mkt.ssvi();
+    for (std::size_t i : expiryIdx) {
+        const Date& expiry = mkt.expiries[i];
+        const double T = mkt.t(expiry), F = mkt.forward(expiry), DF = mkt.df(expiry);
+        sheet.expiries.push_back(expiry);
+        sheet.times.push_back(T);
+        sheet.quotes.emplace_back();
+        for (double m : grid(0.80, 1.20, 0.025)) {
+            const double K = std::round(kSpot * m);
+            const double k = std::log(K / F);
+            const double vol = truth(k, T, i) + bump(k, m);
+            const double sd = vol * std::sqrt(T);
+            const double rel = 0.004 + 0.2 * std::fabs(m - 1.0);
+            const double c = QuantLib::blackFormula(QuantLib::Option::Call, K, F, sd, DF);
+            const double p = QuantLib::blackFormula(QuantLib::Option::Put, K, F, sd, DF);
+            OptionQuoteLine l;
+            l.expiry = expiry;
+            l.expiryIso = DateToIso(expiry);
+            l.strike = K;
+            l.callBid = c * (1.0 - rel / 2);
+            l.callAsk = c * (1.0 + rel / 2);
+            l.putBid = p * (1.0 - rel / 2);
+            l.putAsk = p * (1.0 + rel / 2);
+            sheet.lines.push_back(l);
+            const double vega = QuantLib::blackFormulaStdDevDerivative(K, F, sd, DF) * std::sqrt(T);
+            sheet.quotes.back().push_back(
+                WeightedSheet::Q{K, k, vol, vega, (K >= F ? c : p) * rel / vega});
+        }
+    }
+    return sheet;
+}
+
+// A ripple of 1 vol point across the strikes.
+WeightedSheet rippledSheet(const Market& mkt, const std::vector<std::size_t>& expiryIdx) {
+    return weightedSheet(
+        mkt, expiryIdx, [](double k, double) { return 0.010 * std::sin(9.0 * k); });
+}
+
+// The lowest strike (80 %: low vega, wide spread) 1.5 vol points above the
+// smile, every other quote on it.
+WeightedSheet displacedWingSheet(const Market& mkt, const std::vector<std::size_t>& expiryIdx) {
+    return weightedSheet(
+        mkt, expiryIdx, [](double, double m) { return m < 0.80 + 1e-9 ? 0.015 : 0.0; });
+}
+
+const std::vector<QuoteWeighting> kWeightings{
+    QuoteWeighting::Uniform, QuoteWeighting::Vega, QuoteWeighting::BidAsk};
+
+} // namespace
+
+// SviPerExpiry on a sheet with one displaced wing quote. The weight of that
+// quote against the at-the-money quotes falls from Uniform to Vega to BidAsk
+// (low vega, wide spread), so the slice follows it less and the other quotes
+// more, in that order; and under each weighting the slice has the lowest
+// weighted sum of squared vol errors under that weighting's own weights.
+TEST(VolSurfaceCalibration, SviWeightingMovesTheFitTowardsTheHeavierQuotes) {
+    Market mkt;
+    EXPECT_EQ(VolSurfaceCalibrationInputs().weighting, QuoteWeighting::Vega);
+    const WeightedSheet sheet = displacedWingSheet(mkt, {4, 6});
+    std::vector<VolSurfaceCalibrationResult> fits;
+    for (QuoteWeighting weighting : kWeightings) {
+        auto in = baseInputs(VolSurfaceFitMethod::SviPerExpiry);
+        in.base.quotes = sheet.lines;
+        in.weighting = weighting;
+        // The slices as fitted on each expiry's quotes alone.
+        in.enforceButterfly = false;
+        in.enforceCalendar = false;
+        fits.push_back(VolSurfaceCalibrationEvaluator().evaluate(in, mkt.reg, mkt.ctx));
+        const auto& r = fits.back();
+        EXPECT_EQ(r.weighting, weighting);
+        ASSERT_EQ(r.expiries.size(), 2u);
+        for (std::size_t e = 0; e < 2; ++e) {
+            ASSERT_TRUE(r.expiries[e].usable) << r.expiries[e].droppedReason;
+            ASSERT_TRUE(r.expiries[e].svi.has_value());
+            EXPECT_EQ(r.expiries[e].quotesUsed, sheet.quotes[e].size());
+            EXPECT_FALSE(r.expiries[e].calendarRefit);
+            // Not an exact fit: the displaced quote stays in the errors.
+            EXPECT_GT(*r.expiries[e].maxAbsErrorVol, 2e-3);
+        }
+    }
+    for (std::size_t e = 0; e < 2; ++e) {
+        auto volOf = [&](std::size_t fit) {
+            const SviParams p = *fits[fit].expiries[e].svi;
+            const double T = sheet.times[e];
+            return [p, T](double k) { return std::sqrt(sviTotalVariance(p, k) / T); };
+        };
+        // Error at the displaced quote (the first) and root mean square
+        // error over the others.
+        std::vector<double> displaced, others;
+        for (std::size_t fit = 0; fit < kWeightings.size(); ++fit) {
+            const auto vol = volOf(fit);
+            const auto& qs = sheet.quotes[e];
+            displaced.push_back(std::fabs(vol(qs[0].k) - qs[0].vol));
+            double ss = 0.0;
+            for (std::size_t j = 1; j < qs.size(); ++j)
+                ss += (vol(qs[j].k) - qs[j].vol) * (vol(qs[j].k) - qs[j].vol);
+            others.push_back(std::sqrt(ss / (qs.size() - 1)));
+        }
+        // Uniform (0), Vega (1), BidAsk (2).
+        EXPECT_LT(displaced[0], 0.95 * displaced[1]) << "expiry " << e;
+        EXPECT_LT(displaced[1], 0.95 * displaced[2]) << "expiry " << e;
+        EXPECT_GT(others[0], 1.02 * others[1]) << "expiry " << e;
+        EXPECT_GT(others[1], 1.02 * others[2]) << "expiry " << e;
+        for (std::size_t own = 0; own < kWeightings.size(); ++own) {
+            const double best = sheet.objective(kWeightings[own], e, volOf(own));
+            for (std::size_t other = 0; other < kWeightings.size(); ++other) {
+                if (other == own) continue;
+                const double worse = sheet.objective(kWeightings[own], e, volOf(other));
+                EXPECT_LT(best, worse * (1.0 - 1e-3))
+                    << "expiry " << e << ": objective of " << quoteWeightingName(kWeightings[own])
+                    << " under its own fit " << best << ", under the "
+                    << quoteWeightingName(kWeightings[other]) << " fit " << worse;
+            }
+        }
+        std::cout << "[svi-weighting] expiry " << e << ": error at the displaced quote "
+                  << displaced[0] << " / " << displaced[1] << " / " << displaced[2]
+                  << ", rms error over the others " << others[0] << " / " << others[1] << " / "
+                  << others[2] << " (Uniform / Vega / BidAsk)" << std::endl;
+    }
+}
+
+// The BidAsk fit of an expiry's quotes alone starts from QuantLib's
+// vega-weighted and equally weighted fits and searches the same parameter
+// set, so its BidAsk-weighted sum of squared vol errors is not above either
+// of them, also where QuantLib's fits have a wing slope the refits do not
+// allow (the rippled sheet: b (1 + |rho|) above 2 on the later expiry).
+TEST(VolSurfaceCalibration, SviBidAskFitIsNotAboveQuantLibsFitsInItsOwnObjective) {
+    Market mkt;
+    const WeightedSheet sheet = rippledSheet(mkt, {4, 6});
+    std::vector<VolSurfaceCalibrationResult> fits;
+    for (QuoteWeighting weighting : kWeightings) {
+        auto in = baseInputs(VolSurfaceFitMethod::SviPerExpiry);
+        in.base.quotes = sheet.lines;
+        in.weighting = weighting;
+        in.enforceButterfly = false;
+        in.enforceCalendar = false;
+        fits.push_back(VolSurfaceCalibrationEvaluator().evaluate(in, mkt.reg, mkt.ctx));
+    }
+    bool steep = false;
+    for (std::size_t e = 0; e < 2; ++e) {
+        auto objective = [&](std::size_t fit) {
+            const SviParams p = *fits[fit].expiries[e].svi;
+            const double T = sheet.times[e];
+            return sheet.objective(QuoteWeighting::BidAsk, e, [p, T](double k) {
+                return std::sqrt(sviTotalVariance(p, k) / T);
+            });
+        };
+        EXPECT_LE(objective(2), objective(0) * (1.0 + 1e-9)) << "expiry " << e;
+        EXPECT_LE(objective(2), objective(1) * (1.0 + 1e-9)) << "expiry " << e;
+        const SviParams vega = *fits[1].expiries[e].svi;
+        steep = steep || vega.b * (1.0 + std::fabs(vega.rho)) > 2.0;
+    }
+    EXPECT_TRUE(steep);
+}
+
+// Ssvi: under each weighting the slice has the lowest weighted sum of squared
+// vol errors under that weighting's own weights (one expiry, rippled sheet).
+TEST(VolSurfaceCalibration, SsviWeightingMinimisesItsOwnObjective) {
+    Market mkt;
+    const WeightedSheet sheet = rippledSheet(mkt, {4});
+    std::vector<VolSurfaceCalibrationResult> fits;
+    for (QuoteWeighting weighting : kWeightings) {
+        auto in = baseInputs(VolSurfaceFitMethod::Ssvi);
+        in.base.quotes = sheet.lines;
+        in.weighting = weighting;
+        fits.push_back(VolSurfaceCalibrationEvaluator().evaluate(in, mkt.reg, mkt.ctx));
+        const auto& r = fits.back();
+        EXPECT_EQ(r.weighting, weighting);
+        ASSERT_EQ(r.expiries.size(), 1u);
+        ASSERT_TRUE(r.expiries[0].ssvi.has_value());
+        EXPECT_EQ(r.expiries[0].quotesUsed, sheet.quotes[0].size());
+    }
+    auto volOf = [&](std::size_t fit) {
+        const SsviSliceParams p = *fits[fit].expiries[0].ssvi;
+        const double T = sheet.times[0];
+        return [p, T](double k) {
+            ssvi::Node n;
+            n.theta = p.theta;
+            n.psi = p.psi;
+            n.a = p.rho * p.psi;
+            return std::sqrt(ssvi::w(n, k) / T);
+        };
+    };
+    for (std::size_t own = 0; own < kWeightings.size(); ++own) {
+        const double best = sheet.objective(kWeightings[own], 0, volOf(own));
+        for (std::size_t other = 0; other < kWeightings.size(); ++other) {
+            if (other == own) continue;
+            const double worse = sheet.objective(kWeightings[own], 0, volOf(other));
+            EXPECT_LT(best, worse * (1.0 - 1e-3))
+                << "objective of " << quoteWeightingName(kWeightings[own]) << " under its own fit "
+                << best << ", under the " << quoteWeightingName(kWeightings[other]) << " fit "
+                << worse;
+        }
+    }
+}
+
+// BidAsk leaves out a quote whose ask is not above its bid, with the same
+// reason under SviPerExpiry and Ssvi; the other weightings use it.
+TEST(VolSurfaceCalibration, BidAskLeavesOutAQuoteWithoutASpread) {
+    Market mkt;
+    WeightedSheet sheet = rippledSheet(mkt, {4, 6});
+    // The 90 % strike of the first expiry (a put): bid = ask = mid.
+    double strike = 0.0;
+    for (auto& l : sheet.lines) {
+        if (l.expiry != sheet.expiries[0] || std::fabs(*l.strike / kSpot - 0.90) > 1e-9) continue;
+        const double mid = 0.5 * (*l.putBid + *l.putAsk);
+        l.putBid = mid;
+        l.putAsk = mid;
+        strike = *l.strike;
+    }
+    ASSERT_GT(strike, 0.0);
+    for (auto method : {VolSurfaceFitMethod::SviPerExpiry, VolSurfaceFitMethod::Ssvi}) {
+        for (QuoteWeighting weighting : kWeightings) {
+            auto in = baseInputs(method);
+            in.base.quotes = sheet.lines;
+            in.weighting = weighting;
+            const auto r = VolSurfaceCalibrationEvaluator().evaluate(in, mkt.reg, mkt.ctx);
+            const auto& e = r.expiries[0];
+            unsigned leftOut = 0;
+            for (const auto& d : e.dropped)
+                if (d.reason == kAskNotAboveBid) {
+                    ++leftOut;
+                    ASSERT_TRUE(d.strike.has_value());
+                    EXPECT_DOUBLE_EQ(*d.strike, strike);
+                }
+            const bool bidAsk = weighting == QuoteWeighting::BidAsk;
+            EXPECT_EQ(leftOut, bidAsk ? 1u : 0u);
+            EXPECT_EQ(e.quotesUsed, sheet.quotes[0].size() - (bidAsk ? 1u : 0u));
+            EXPECT_EQ(r.expiries[1].quotesUsed, sheet.quotes[1].size());
+        }
+    }
 }
 
 // ===========================================================================

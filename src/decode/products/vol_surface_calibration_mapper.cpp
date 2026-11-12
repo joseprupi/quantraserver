@@ -20,6 +20,14 @@ quantra::enums::VolSurfaceFitMethod toWire(VolSurfaceFitMethod m) {
     }
 }
 
+quantra::enums::QuoteWeighting toWire(QuoteWeighting w) {
+    switch (w) {
+        case QuoteWeighting::Uniform: return quantra::enums::QuoteWeighting_Uniform;
+        case QuoteWeighting::BidAsk: return quantra::enums::QuoteWeighting_BidAsk;
+        default: return quantra::enums::QuoteWeighting_Vega;
+    }
+}
+
 flatbuffers::Offset<quantra::QuoteFilter> buildFilter(
     flatbuffers::grpc::MessageBuilder& b, const QuoteFilterData& f) {
     quantra::QuoteFilterBuilder qb(b);
@@ -132,19 +140,13 @@ VolSurfaceCalibrationInputs VolSurfaceCalibrationMapper::toInputs(
             QUANTRA_INVALID_ARGUMENT("svi.min_forward_vol must be finite and >= 0");
         }
     }
+    switch (req->weighting()) {
+        case quantra::enums::QuoteWeighting_Uniform: in.weighting = QuoteWeighting::Uniform; break;
+        case quantra::enums::QuoteWeighting_Vega: in.weighting = QuoteWeighting::Vega; break;
+        case quantra::enums::QuoteWeighting_BidAsk: in.weighting = QuoteWeighting::BidAsk; break;
+        default: QUANTRA_INVALID_ARGUMENT("weighting is not a known QuoteWeighting");
+    }
     if (req->ssvi()) {
-        switch (req->ssvi()->weighting()) {
-            case quantra::enums::SsviQuoteWeighting_Uniform:
-                in.ssviWeighting = ssvi::QuoteWeighting::Uniform;
-                break;
-            case quantra::enums::SsviQuoteWeighting_Vega:
-                in.ssviWeighting = ssvi::QuoteWeighting::Vega;
-                break;
-            case quantra::enums::SsviQuoteWeighting_BidAsk:
-                in.ssviWeighting = ssvi::QuoteWeighting::BidAsk;
-                break;
-            default: QUANTRA_INVALID_ARGUMENT("ssvi.weighting is not a known SsviQuoteWeighting");
-        }
         in.ssviMaxAbsLogMoneyness = req->ssvi()->max_abs_log_moneyness();
         if (!std::isfinite(in.ssviMaxAbsLogMoneyness) || !(in.ssviMaxAbsLogMoneyness > 0.0)) {
             QUANTRA_INVALID_ARGUMENT("ssvi.max_abs_log_moneyness must be finite and > 0");
@@ -378,6 +380,7 @@ flatbuffers::Offset<quantra::CalibrateVolSurfaceResponse> VolSurfaceCalibrationM
     ob.add_underlying_id(underlyingOff);
     ob.add_spot(r.spot);
     ob.add_method(toWire(r.method));
+    ob.add_weighting(toWire(r.weighting));
     ob.add_forwards_source(sourceOff);
     ob.add_filter(filterOff);
     ob.add_forwards(fwdsOff);

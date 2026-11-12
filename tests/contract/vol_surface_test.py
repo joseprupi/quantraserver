@@ -27,6 +27,10 @@ through the JSON gateway these tests pin:
     1e-10; AndreasenHuge returns the note instead;
   * the pasted surface (grid or SVI payload) prices a structured note with
     steps_per_year;
+  * the quote weighting (`weighting`): echoed, Vega when absent; the
+    Uniform and BidAsk SVI examples equal the Python reference; BidAsk
+    leaves out a quote without a spread; AndreasenHuge accepts Vega only;
+    the former `ssvi.weighting` is refused by the JSON parser;
   * the 400s, the SviVolSpec payload's included.
 """
 
@@ -47,6 +51,8 @@ import make_synthetic_quote_sheet as gen  # noqa: E402
 
 AH_EXAMPLE = "vol_surface/synthetic_svi_sheet_2026-09-30_andreasen_huge.json"
 SVI_EXAMPLE = "vol_surface/synthetic_svi_sheet_2026-09-30_svi.json"
+SVI_UNIFORM_EXAMPLE = "vol_surface/synthetic_svi_sheet_2026-09-30_svi_uniform.json"
+SVI_BID_ASK_EXAMPLE = "vol_surface/synthetic_svi_sheet_2026-09-30_svi_bid_ask.json"
 NOTE_EXAMPLE = "structured_note/scotia_autocallable_trigger_ndx_rty_us06419jme72_with_synthetic_surface.json"
 NOTE_SVI_EXAMPLE = "structured_note/scotia_autocallable_trigger_ndx_rty_us06419jme72_with_synthetic_svi.json"
 
@@ -105,6 +111,11 @@ def test_examples_equal_generator(data_dir):
         gen.build_vol_surface_request(gen.SYNTHETIC_SVI_NDX_LIKE, "AndreasenHuge")
     assert load_json(data_dir / SVI_EXAMPLE) == \
         gen.build_vol_surface_request(gen.SYNTHETIC_SVI_NDX_LIKE, "SviPerExpiry")
+    for example, weighting in ((SVI_UNIFORM_EXAMPLE, "Uniform"), (SVI_BID_ASK_EXAMPLE, "BidAsk")):
+        request = gen.build_vol_surface_request(
+            gen.SYNTHETIC_SVI_NDX_LIKE, "SviPerExpiry", weighting=weighting)
+        assert request["weighting"] == weighting
+        assert load_json(data_dir / example) == request
 
 
 def test_response_shape_and_spec(client, data_dir):
@@ -352,7 +363,12 @@ def test_andreasen_huge_reproduces_the_surface_on_informative_quotes(client, dat
     assert all(mid < 1e-4 * 24000.0 for _e, _k, mid in outside), outside
 
 
-@pytest.mark.parametrize("example,tol", [(AH_EXAMPLE, 1e-6), (SVI_EXAMPLE, 1e-6)])
+# AndreasenHuge at 1e-5: the engine weights vol errors by vega, the reference
+# (QuantLib's class) minimises plain price errors; on this sheet, which the
+# model matches, the two end within 1.3e-6 of each other on the grid vols.
+@pytest.mark.parametrize("example,tol", [
+    (AH_EXAMPLE, 1e-5), (SVI_EXAMPLE, 1e-6), (SVI_UNIFORM_EXAMPLE, 1e-6),
+    (SVI_BID_ASK_EXAMPLE, 1e-6)])
 def test_api_equals_python_reference(client, data_dir, example, tol):
     request = load_json(data_dir / example)
     out = _ok(client, request)
@@ -598,6 +614,83 @@ def test_svi_payload_rejected_requests(client, data_dir):
     r = _post(client, {"pricing": p, "options": [{**option, "volatility": grid["id"]}]},
               "equity_option")
     assert r.status_code == 400 and "ForwardMoneyness needs at least 2 strikes" in r.text
+
+
+def test_weighting_is_echoed_and_defaults_to_vega(client, data_dir):
+    for example, expected in ((AH_EXAMPLE, "Vega"), (SVI_EXAMPLE, "Vega"),
+                              (SVI_UNIFORM_EXAMPLE, "Uniform"), (SVI_BID_ASK_EXAMPLE, "BidAsk")):
+        request = load_json(data_dir / example)
+        assert request.get("weighting", "Vega") == expected
+        assert _ok(client, request)["weighting"] == expected
+    # Vega written out is the default.
+    request = load_json(data_dir / SVI_EXAMPLE)
+    default = _ok(client, request)
+    explicit = _ok(client, {**request, "weighting": "Vega"})
+    assert explicit == default
+
+
+def test_weighting_moves_the_svi_fit_on_a_noisy_sheet(client, data_dir):
+    """On the daily-expiry sheet (1 % noise on the mids: no slice matches the
+    quotes) the three weightings return different slices, each echoed, and
+    every surface stays free of arbitrage."""
+    request = load_json(data_dir / "vol_surface/synthetic_spx_daily_expiries_sheet_svi.json")
+    fits = {}
+    for weighting in ("Uniform", "Vega", "BidAsk"):
+        out = _ok(client, {**request, "weighting": weighting})
+        assert out["weighting"] == weighting
+        assert out["arbitrage_free"] is True and out["arbitrage_free_svi"] is True
+        fits[weighting] = out
+    used = {w: [e["quotes_used"] for e in out["expiries"]] for w, out in fits.items()}
+    assert used["Uniform"] == used["Vega"] == used["BidAsk"]
+
+    for a, b in (("Uniform", "Vega"), ("Vega", "BidAsk"), ("Uniform", "BidAsk")):
+        assert max(abs(x["svi"][n] - y["svi"][n])
+                   for x, y in zip(fits[a]["expiries"], fits[b]["expiries"])
+                   for n in ("a", "b", "sigma", "rho", "m")) > 1e-4, (a, b)
+
+
+def test_bid_ask_leaves_out_a_quote_without_a_spread(client, data_dir):
+    request = load_json(data_dir / SVI_BID_ASK_EXAMPLE)
+    expiry, strike = "2027-03-19", 21600.0
+    for q in request["sheet"]["quotes"]:
+        if q["expiry"] == expiry and q["strike"] == strike:
+            # An out-of-the-money put (the forward is above 24000).
+            q["put_bid"] = q["put_ask"] = 0.5 * (q["put_bid"] + q["put_ask"])
+    base = _ok(client, {**request, "weighting": "Vega"})
+    out = _ok(client, request)
+    e = next(x for x in out["expiries"] if x["expiry"] == expiry)
+    e0 = next(x for x in base["expiries"] if x["expiry"] == expiry)
+    left_out = [d for d in e["dropped"] if d["reason"] == "ask_not_above_bid"]
+    assert [(d["expiry"], d["strike"]) for d in left_out] == [(expiry, strike)]
+    assert e["quotes_used"] == e0["quotes_used"] - 1
+    assert e["quotes_dropped"] == e0["quotes_dropped"] + 1
+    assert not any(d["reason"] == "ask_not_above_bid"
+                   for x in base["expiries"] for d in x.get("dropped", []))
+    # Same reason with Ssvi.
+    out = _ok(client, {**request, "method": "Ssvi"})
+    e = next(x for x in out["expiries"] if x["expiry"] == expiry)
+    assert [(d["expiry"], d["strike"]) for d in e["dropped"]
+            if d["reason"] == "ask_not_above_bid"] == [(expiry, strike)]
+
+
+def test_weighting_rejected_requests(client, data_dir):
+    base = load_json(data_dir / AH_EXAMPLE)
+    # Andreasen-Huge: Vega only.
+    for weighting in ("Uniform", "BidAsk"):
+        r = _post(client, {**base, "weighting": weighting})
+        assert r.status_code == 400, (weighting, r.status_code, r.text[:300])
+        assert f"weighting {weighting} is not available with method AndreasenHuge" in r.text
+    assert _ok(client, {**base, "weighting": "Vega"})["weighting"] == "Vega"
+    # Not a value of the enum.
+    r = _post(client, {**base, "weighting": "Spread"})
+    assert r.status_code == 400 and "Spread" in r.text, r.text[:300]
+    # The option left the `ssvi` block: the JSON parser refuses the field.
+    ssvi = load_json(data_dir / SVI_EXAMPLE)
+    ssvi["method"] = "Ssvi"
+    ssvi["ssvi"] = {"weighting": "BidAsk", "max_abs_log_moneyness": 0.5}
+    r = _post(client, ssvi)
+    assert r.status_code == 400, (r.status_code, r.text[:300])
+    assert "unknown field: weighting" in r.text, r.text[:300]
 
 
 def test_rejected_requests(client, data_dir):

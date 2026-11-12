@@ -5,10 +5,9 @@
 #include "error.h"
 #include "smile_slice_vol_surface.h"
 #include "ssvi_vol_surface.h"
+#include "weighted_andreasen_huge.h"
 
-#include <ql/exercise.hpp>
 #include <ql/experimental/volatility/sviinterpolation.hpp>
-#include <ql/instruments/vanillaoption.hpp>
 #include <ql/math/array.hpp>
 #include <ql/math/matrix.hpp>
 #include <ql/math/optimization/constraint.hpp>
@@ -19,8 +18,6 @@
 #include <ql/methods/finitedifferences/meshers/concentrating1dmesher.hpp>
 #include <ql/pricingengines/blackformula.hpp>
 #include <ql/quotes/simplequote.hpp>
-#include <ql/termstructures/volatility/equityfx/andreasenhugevolatilityadapter.hpp>
-#include <ql/termstructures/volatility/equityfx/andreasenhugevolatilityinterpl.hpp>
 #include <ql/termstructures/yield/discountcurve.hpp>
 #include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
@@ -78,6 +75,9 @@ struct ExpiryWork {
     double forward = 0.0;
     double df = 0.0;
     std::vector<UsedQuote> used; // sorted by strike
+    /// SviPerExpiry, AndreasenHuge: the quote weights of `used`, scaled to
+    /// sum 1 (ExpiryQuoteWeights::normalizedWeights).
+    std::vector<double> weights;
     std::optional<SviParams> svi;
     /// Strike region the surface is held to around this expiry (calendar
     /// constraint of the SVI fit, local vol check): the strikes quoted on
@@ -120,24 +120,28 @@ constexpr double kEps2 = 0.999999;
 // butterfly arbitrage). QuantLib's SviInterpolation admits up to 4; the
 // refits below keep the slices within Lee's bound.
 constexpr double kLeeSlope = 2.0;
+// The slope bound of QuantLib's SviInterpolation: the BidAsk-weighted fit
+// of an expiry's quotes alone searches the same set as QuantLib's fits.
+constexpr double kQuantLibSlope = 4.0;
 
-SviParams sviDirect(const QuantLib::Array& x) {
+SviParams sviDirect(const QuantLib::Array& x, double slopeBound = kLeeSlope) {
     SviParams p;
     p.sigma = x[2] * x[2] + kEps1;
     p.rho = std::sin(x[3]) * kEps2;
     p.m = x[4];
-    p.b = (std::atan(x[1]) + M_PI / 2.0) / M_PI * kEps2 * kLeeSlope / (1.0 + std::fabs(p.rho));
+    p.b = (std::atan(x[1]) + M_PI / 2.0) / M_PI * kEps2 * slopeBound / (1.0 + std::fabs(p.rho));
     p.a = kEps1 + x[0] * x[0] - p.b * p.sigma * std::sqrt(1.0 - p.rho * p.rho);
     return p;
 }
 
-QuantLib::Array sviInverse(const SviParams& p) {
+QuantLib::Array sviInverse(const SviParams& p, double slopeBound = kLeeSlope) {
     QuantLib::Array x(5);
     x[2] = std::sqrt(std::max(0.0, p.sigma - kEps1));
     x[3] = std::asin(std::max(-1.0, std::min(1.0, p.rho / kEps2)));
     x[4] = p.m;
     x[1] = std::tan(
-        std::max(1e-12, std::min(1.0 - 1e-12, p.b / kLeeSlope * (1.0 + std::fabs(p.rho)) / kEps2)) *
+        std::max(
+            1e-12, std::min(1.0 - 1e-12, p.b / slopeBound * (1.0 + std::fabs(p.rho)) / kEps2)) *
             M_PI -
         M_PI / 2.0);
     x[0] = std::sqrt(std::max(0.0, p.a - kEps1 + p.b * p.sigma * std::sqrt(1.0 - p.rho * p.rho)));
@@ -181,13 +185,15 @@ public:
         std::vector<double> penaltyKs,
         double butterflyWeight = kButterflyPenalty,
         std::vector<CalendarPoint> calendar = {},
-        double calendarWeight = 0.0)
+        double calendarWeight = 0.0,
+        double slopeBound = kLeeSlope)
         : ks_(std::move(ks)), vols_(std::move(vols)), sqrtWeights_(std::move(sqrtWeights)), T_(T),
           penaltyKs_(std::move(penaltyKs)), butterflyWeight_(butterflyWeight),
-          calendar_(std::move(calendar)), calendarWeight_(calendarWeight) {}
+          calendar_(std::move(calendar)), calendarWeight_(calendarWeight), slopeBound_(slopeBound) {
+    }
 
     QuantLib::Array values(const QuantLib::Array& x) const override {
-        const SviParams p = sviDirect(x);
+        const SviParams p = sviDirect(x, slopeBound_);
         QuantLib::Array r(ks_.size() + penaltyKs_.size() + calendar_.size());
         for (std::size_t i = 0; i < ks_.size(); ++i) {
             const double w = std::max(0.0, sviTotalVariance(p, ks_[i]));
@@ -218,6 +224,7 @@ private:
     double butterflyWeight_;
     std::vector<CalendarPoint> calendar_;
     double calendarWeight_;
+    double slopeBound_;
 };
 
 std::vector<double> butterflyGrid(double kLo, double kHi) {
@@ -378,6 +385,14 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
     out.underlyingId = base.underlyingId;
     out.spot = spot;
     out.method = in.method;
+    out.weighting = in.weighting;
+    if (in.method == VolSurfaceFitMethod::AndreasenHuge && in.weighting != QuoteWeighting::Vega) {
+        QUANTRA_INVALID_ARGUMENT(
+            std::string("weighting ") + quoteWeightingName(in.weighting) +
+            " is not available with method AndreasenHuge (Vega only): its calibration does not "
+            "settle on a close fit under other weights; use SviPerExpiry or Ssvi for " +
+            quoteWeightingName(in.weighting) + " weighting");
+    }
     out.filter = base.filter;
     out.asOfIso = DateToIso(asOf);
     out.volSurfaceId = in.volSurfaceId;
@@ -472,6 +487,27 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
         w.df = DF;
         w.used =
             selectOutOfTheMoneyQuotes(lines, base.filter, e.expiryIso, spot, F, DF, T, e.dropped);
+        // Quote weights (SviPerExpiry, AndreasenHuge; the eSSVI calibrator
+        // applies the same rule to the quotes it keeps). BidAsk leaves out
+        // a quote whose ask is not above its bid.
+        ExpiryQuoteWeights quoteWeights(in.weighting, F, DF, T);
+        if (in.method != VolSurfaceFitMethod::Ssvi) {
+            std::vector<UsedQuote> kept;
+            kept.reserve(w.used.size());
+            for (const auto& u : w.used) {
+                const auto sides = volBidAsk(u.strike, F, DF, T, u.vol, u.bid, u.mid, u.ask);
+                const std::optional<double> bid =
+                    sides ? std::optional<double>(sides->bid) : std::nullopt;
+                const std::optional<double> ask =
+                    sides ? std::optional<double>(sides->ask) : std::nullopt;
+                if (quoteWeights.add(u.strike, u.vol, bid, ask, false)) {
+                    kept.push_back(u);
+                } else {
+                    e.dropped.push_back(DroppedQuoteData{e.expiryIso, u.strike, kAskNotAboveBid});
+                }
+            }
+            w.used = std::move(kept);
+        }
         if (w.used.size() < minUsed) {
             dropExpiry(
                 "fewer than " + std::to_string(minUsed) + " quotes with an implied vol (" +
@@ -483,6 +519,8 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
                      : "; filter.min_quotes_per_expiry"));
             continue;
         }
+        if (in.method != VolSurfaceFitMethod::Ssvi)
+            w.weights = quoteWeights.normalizedWeights(e.expiryIso);
         e.usable = true;
         e.quotesUsed = static_cast<unsigned>(w.used.size());
         out.expiries.push_back(e);
@@ -623,24 +661,19 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
     // 3a. Andreasen-Huge.
     // ------------------------------------------------------------------
     if (in.method == VolSurfaceFitMethod::AndreasenHuge) {
-        QuantLib::AndreasenHugeVolatilityInterpl::CalibrationSet set;
+        std::vector<WeightedAndreasenHuge::Expiry> set;
         for (const auto& w : work) {
-            auto exercise = std::make_shared<QuantLib::EuropeanExercise>(w.expiry);
-            for (const auto& u : w.used) {
-                auto payoff = std::make_shared<QuantLib::PlainVanillaPayoff>(
-                    u.isCall ? QuantLib::Option::Call : QuantLib::Option::Put, u.strike);
-                set.emplace_back(
-                    std::make_shared<QuantLib::VanillaOption>(payoff, exercise),
-                    std::make_shared<QuantLib::SimpleQuote>(u.vol));
-            }
+            WeightedAndreasenHuge::Expiry x;
+            x.date = w.expiry;
+            for (std::size_t j = 0; j < w.used.size(); ++j)
+                x.quotes.push_back(
+                    WeightedAndreasenHuge::Quote{w.used[j].strike, w.used[j].vol, w.weights[j]});
+            set.push_back(std::move(x));
         }
-        std::shared_ptr<QuantLib::AndreasenHugeVolatilityInterpl> ah;
-        std::shared_ptr<QuantLib::AndreasenHugeVolatilityAdapter> adapter;
+        std::shared_ptr<WeightedAndreasenHuge> ah;
         try {
-            ah = std::make_shared<QuantLib::AndreasenHugeVolatilityInterpl>(
-                set, spotH, rTS, qTS, QuantLib::AndreasenHugeVolatilityInterpl::CubicSpline,
-                QuantLib::AndreasenHugeVolatilityInterpl::CallPut, kAndreasenHugeGridPoints);
-            adapter = std::make_shared<QuantLib::AndreasenHugeVolatilityAdapter>(ah);
+            ah = std::make_shared<WeightedAndreasenHuge>(
+                std::move(set), spot, rTS, qTS, kAndreasenHugeGridPoints);
             const auto err = ah->calibrationError();
             AndreasenHugeErrorData ed;
             ed.minVol = std::get<0>(err);
@@ -658,7 +691,7 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
             unsigned n = 0;
             for (const auto& u : w.used) {
                 try {
-                    const double v = adapter->blackVol(w.expiry, u.strike, true);
+                    const double v = ah->blackVol(w.expiry, u.strike);
                     const double d = v - u.vol;
                     ss += d * d;
                     mx = std::max(mx, std::fabs(d));
@@ -672,7 +705,7 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
             }
         }
         // The strike axis: the model's own finite-difference grid points
-        // (the Concentrating1dMesher AndreasenHugeVolatilityInterpl builds:
+        // (the Concentrating1dMesher of the calibration:
         // 500 points in ln(K / S) between its min and max strike,
         // concentrated at the spot) inside the output grid's range and every
         // expiry's region, so that the cubic reading of the returned grid
@@ -715,7 +748,7 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
                     const double price = ah->optionPrice(
                         T, K, K >= F ? QuantLib::Option::Call : QuantLib::Option::Put);
                     if (!(price >= kGridInversionResolution * spot)) continue;
-                    const double v = adapter->blackVol(gridDates[i], K, true);
+                    const double v = ah->blackVol(gridDates[i], K);
                     if (std::isfinite(v) && v > 0.0) row[j] = v;
                 } catch (...) {
                 }
@@ -758,10 +791,9 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
     // (The helpers below live at function scope: step 3c refits with them.)
     sviFits.assign(work.size(), std::nullopt);
 
-    // QuantLib's SviInterpolation on the expiry's quotes (cached: a refit
-    // starts from it again).
-    auto independentFit = [&](std::size_t i) {
-        if (sviFits[i]) return *sviFits[i];
+    // QuantLib's SviInterpolation on the expiry's quotes, with vega weights
+    // or equal weights.
+    auto quantLibFit = [&](std::size_t i, bool vegaWeighted) {
         const auto& w = work[i];
         std::vector<double> strikes, vols;
         for (const auto& u : w.used) {
@@ -775,7 +807,7 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
                 strikes.begin(), strikes.end(), vols.begin(), w.time, w.forward,
                 QuantLib::Null<Real>(), QuantLib::Null<Real>(), QuantLib::Null<Real>(),
                 QuantLib::Null<Real>(), QuantLib::Null<Real>(), false, false, false, false, false,
-                true, endCriteria, lm);
+                vegaWeighted, endCriteria, lm);
             interp.update();
             p.a = interp.a();
             p.b = interp.b();
@@ -786,7 +818,6 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
             QUANTRA_INVALID_ARGUMENT(
                 "SVI fit failed at expiry " + DateToIso(w.expiry) + ": " + trimMessage(ex.what()));
         }
-        sviFits[i] = p;
         return p;
     };
     // Butterfly grid: the output strike range and the regions of the two
@@ -827,20 +858,16 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
             s = std::max(s, boundedValue(q, c) - c.upperBound);
         return s;
     };
+    // Log-moneyness, market vols and square roots of the quote weights
+    // (scaled to sum 1) of the expiry's residuals.
     auto residualWeights = [&](std::size_t i, std::vector<double>& kq, std::vector<double>& vols,
                                std::vector<double>& sw) {
         const auto& w = work[i];
-        double wsum = 0.0;
-        for (const auto& u : w.used) {
-            kq.push_back(std::log(u.strike / w.forward));
-            vols.push_back(u.vol);
-            const double vega = QuantLib::blackFormulaStdDevDerivative(
-                u.strike, w.forward, u.vol * std::sqrt(w.time), 1.0);
-            sw.push_back(vega);
-            wsum += vega;
+        for (std::size_t j = 0; j < w.used.size(); ++j) {
+            kq.push_back(std::log(w.used[j].strike / w.forward));
+            vols.push_back(w.used[j].vol);
+            sw.push_back(std::sqrt(w.weights[j]));
         }
-        for (auto& x : sw)
-            x = std::sqrt(x / wsum);
     };
     auto fitRmse = [&](std::size_t i, const SviParams& q, double* maxAbs = nullptr) {
         const auto& w = work[i];
@@ -866,14 +893,15 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
         }
         return mx;
     };
-    // Levenberg-Marquardt on the vega-weighted vol residuals, plus the
+    // Levenberg-Marquardt on the weighted vol residuals, plus the
     // butterfly penalty on `bfKs` and the calendar penalty on `bounds`,
     // from each start, the best objective kept; the calendar weight rises
     // (x10 per round) until the remaining excess is a fraction of the
-    // margin.
+    // margin. The wing slope b (1 + |rho|) stays under `slopeBound`.
     auto penalizedRefit = [&](std::size_t i, const std::vector<SviParams>& starts,
                               const std::vector<double>& bfKs,
-                              const std::vector<CalendarPoint>& bounds, double margin) {
+                              const std::vector<CalendarPoint>& bounds, double margin,
+                              double slopeBound = kLeeSlope) {
         std::vector<double> kq, vols, sw;
         residualWeights(i, kq, vols, sw);
         double calW = kCalendarPenalty;
@@ -882,22 +910,43 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
             double bestObj = std::numeric_limits<double>::infinity();
             for (const SviParams& start : starts) {
                 SviPenalizedCost cost(
-                    kq, vols, sw, work[i].time, bfKs, sviTuning[i].butterflyWeight, bounds, calW);
+                    kq, vols, sw, work[i].time, bfKs, sviTuning[i].butterflyWeight, bounds, calW,
+                    slopeBound);
                 QuantLib::NoConstraint none;
-                QuantLib::Problem problem(cost, none, sviInverse(start));
+                QuantLib::Problem problem(cost, none, sviInverse(start, slopeBound));
                 QuantLib::LevenbergMarquardt lm(1e-10, 1e-10, 1e-10);
                 lm.minimize(problem, QuantLib::EndCriteria(2000, 200, 1e-12, 1e-10, 1e-10));
                 const QuantLib::Array r = cost.values(problem.currentValue());
                 const double obj = QuantLib::DotProduct(r, r);
                 if (obj < bestObj) {
                     bestObj = obj;
-                    best = sviDirect(problem.currentValue());
+                    best = sviDirect(problem.currentValue(), slopeBound);
                 }
             }
             if (bounds.empty() || excess(best, bounds) <= 0.1 * margin + kCalendarSlack) break;
             calW *= 10.0;
         }
         return best;
+    };
+
+    // The fit of the expiry's quotes alone (cached: a refit starts from it
+    // again). QuantLib's fit under Vega and Uniform weights; under BidAsk
+    // the weighted residuals from QuantLib's two fits, over the parameter
+    // set QuantLib's fit searches (the starts are inside it), the lower
+    // objective kept.
+    auto independentFit = [&](std::size_t i) {
+        if (sviFits[i]) return *sviFits[i];
+        SviParams p;
+        switch (in.weighting) {
+            case QuoteWeighting::Vega: p = quantLibFit(i, true); break;
+            case QuoteWeighting::Uniform: p = quantLibFit(i, false); break;
+            case QuoteWeighting::BidAsk:
+                p = penalizedRefit(
+                    i, {quantLibFit(i, true), quantLibFit(i, false)}, {}, {}, 0.0, kQuantLibSlope);
+                break;
+        }
+        sviFits[i] = p;
+        return p;
     };
 
     // Fit (or refit) slice i under the final slice i + 1.
@@ -1173,14 +1222,13 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
         ci.referenceDate = asOf;
         ci.dayCounter = dc;
         ci.spot = spot;
-        ci.weighting = in.ssviWeighting;
+        ci.weighting = in.weighting;
         ci.maxAbsLogMoneyness = in.ssviMaxAbsLogMoneyness;
         // Quote index -> (expiry slot, used-quote slot).
         std::vector<std::pair<std::size_t, std::size_t>> origin;
         for (std::size_t i = 0; i < work.size(); ++i) {
             const auto& w = work[i];
             ci.expiryMarkets[w.expiry] = ssvi::ExpiryMarket{w.forward, w.df};
-            const double sqrtT = std::sqrt(w.time);
             for (std::size_t j = 0; j < w.used.size(); ++j) {
                 const auto& u = w.used[j];
                 ssvi::OptionQuote q;
@@ -1188,14 +1236,11 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
                 q.strike = u.strike;
                 q.type = u.isCall ? QuantLib::Option::Call : QuantLib::Option::Put;
                 q.impliedVol = u.vol;
-                // Bid / ask in vol units (BidAsk weighting): the price
-                // half-spreads over the Black vega at the market vol.
-                const double vega = QuantLib::blackFormulaStdDevDerivative(
-                                        u.strike, w.forward, u.vol * sqrtT, w.df) *
-                                    sqrtT;
-                if (vega > 0.0 && std::isfinite(vega)) {
-                    q.bid = u.vol - (u.mid - u.bid) / vega;
-                    q.ask = u.vol + (u.ask - u.mid) / vega;
+                // Bid / ask in vol units (BidAsk weighting).
+                if (const auto sides =
+                        volBidAsk(u.strike, w.forward, w.df, w.time, u.vol, u.bid, u.mid, u.ask)) {
+                    q.bid = sides->bid;
+                    q.ask = sides->ask;
                 }
                 ci.quotes.push_back(q);
                 origin.emplace_back(i, j);

@@ -105,7 +105,7 @@
       "type" : "string",
       "enum": ["AndreasenHuge", "SviPerExpiry", "Ssvi"]
     },
-    "quantra_enums_SsviQuoteWeighting" : {
+    "quantra_enums_QuoteWeighting" : {
       "type" : "string",
       "enum": ["Uniform", "Vega", "BidAsk"]
     },
@@ -2120,6 +2120,10 @@
         "svi_local_vol_refit_action" : {
                 "type" : "string",
                 "description" : "`SviPerExpiry` only: what the local vol check of the SVI payload made\nthe fit do: \"none\", or the refit passes (the flagged slices refitted\nwith a larger calendar margin and butterfly weight, at most 3)."
+              },
+        "weighting" : {
+                "$ref" : "#/definitions/quantra_enums_QuoteWeighting",
+                "description" : "The quote weighting the fit used (the request's `weighting` or its\ndefault), reported with `method` for the three methods."
               }
       },
       "required" : ["sheet_id", "underlying_id", "forwards_source", "filter", "forwards", "expiries", "strikes_as_moneyness", "grid_strikes", "grid_expiries", "vol_surface_spec"],

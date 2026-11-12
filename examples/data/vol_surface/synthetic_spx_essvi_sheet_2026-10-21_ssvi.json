@@ -1352,9 +1352,9 @@
     "moneyness_window": 0.25
   },
   "method": "Ssvi",
+  "weighting": "BidAsk",
   "vol_surface_id": "SPX_SYN_VOL",
   "ssvi": {
-    "weighting": "BidAsk",
     "max_abs_log_moneyness": 0.5
   }
 }

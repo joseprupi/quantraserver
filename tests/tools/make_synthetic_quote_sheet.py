@@ -274,7 +274,10 @@ SYNTHETIC_SPX_ESSVI.update({
                    (0.188, -0.68, 0.200), (0.192, -0.65, 0.280)],
     },
     "strike_grid": {"lo": 0.75, "hi": 1.25, "step": 0.025},
-    "ssvi_fit": {"weighting": "BidAsk", "max_abs_log_moneyness": 0.5},
+    # Settings of the Ssvi request on this sheet: the top-level `weighting`
+    # and the `ssvi` block.
+    "ssvi_weighting": "BidAsk",
+    "ssvi_fit": {"max_abs_log_moneyness": 0.5},
 })
 SYNTHETIC_SPX_ESSVI["expiries"] = [
     (d, _essvi_yield(6000.0, 0.04, "2026-10-21", d, f)) for d, f in _ESSVI_SPX_FORWARDS]
@@ -526,19 +529,27 @@ def build_request(preset: dict = SYNTHETIC_NDX_LIKE) -> dict:
 
 def build_vol_surface_request(preset: dict = SYNTHETIC_SVI_NDX_LIKE,
                               method: str = "AndreasenHuge",
-                              forwards: list = None) -> dict:
+                              forwards: list = None,
+                              weighting: str = None) -> dict:
     """A complete `/calibrate-vol-surface` request on the preset's sheet.
     `forwards` (the `expiries` array of an implied-forwards response) is
-    pasted when given; otherwise the endpoint fits the forwards itself."""
+    pasted when given; otherwise the endpoint fits the forwards itself.
+    `weighting` (Uniform, Vega, BidAsk) is written when given, or when the
+    preset states one for the method; otherwise the request leaves it out
+    (the endpoint's default, Vega)."""
     base = build_request(preset)
+    if weighting is None and method == "Ssvi":
+        weighting = preset.get("ssvi_weighting")
     req = {
         "pricing": base["pricing"],
         "sheet": base["sheet"],
         "discounting_curve": base["discounting_curve"],
         "filter": base["filter"],
         "method": method,
-        "vol_surface_id": preset.get("vol_surface_id", preset["underlying_id"] + "_VOL"),
     }
+    if weighting is not None:
+        req["weighting"] = weighting
+    req["vol_surface_id"] = preset.get("vol_surface_id", preset["underlying_id"] + "_VOL")
     if forwards is not None:
         req["forwards"] = forwards
     if method == "Ssvi" and preset.get("ssvi_fit"):
@@ -573,6 +584,8 @@ def main() -> int:
                     default="implied-forwards", help="which request to write")
     ap.add_argument("--method", choices=["AndreasenHuge", "SviPerExpiry", "Ssvi"],
                     default="AndreasenHuge", help="vol-surface fit method")
+    ap.add_argument("--weighting", choices=["Uniform", "Vega", "BidAsk"], default=None,
+                    help="vol-surface quote weighting (default: left out of the request)")
     ap.add_argument("--spot", type=float, default=None, help="re-strike the preset at this spot")
     ap.add_argument("--underlying-id", default=None, help="rename the underlying (ids follow)")
     ap.add_argument("--noise", type=float, default=0.0,
@@ -597,7 +610,7 @@ def main() -> int:
         print(json.dumps(out, indent=2))
         return 0
     if args.endpoint == "vol-surface":
-        request = build_vol_surface_request(preset, args.method)
+        request = build_vol_surface_request(preset, args.method, weighting=args.weighting)
     else:
         request = build_request(preset)
     text = json.dumps(request, indent=2) + "\n"

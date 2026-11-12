@@ -3,7 +3,6 @@
 #include "date_convert.h"
 #include "error.h"
 
-#include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/pricingengines/blackformula.hpp>
 
 #include <algorithm>
@@ -292,13 +291,6 @@ QuoteVol quoteStdDev(const OptionQuote& q, double T, double F, double D) {
     return out;
 }
 
-// Black vega (price per unit of vol) at the market vol.
-double blackVega(double K, double F, double D, double T, double vol) {
-    const double sd = vol * std::sqrt(T);
-    const double d1 = std::log(F / K) / sd + 0.5 * sd;
-    return D * F * std::sqrt(T) * QuantLib::CumulativeNormalDistribution().derivative(d1);
-}
-
 struct ExpiryWork {
     QuantLib::Date expiry;
     double T = 0.0;
@@ -540,7 +532,7 @@ CalibrationResult calibrate(const CalibrationInput& in) {
 
         std::vector<Point> pts;
         std::vector<std::size_t> usedIdx; // quote indices of pts
-        std::vector<double> spreads;      // vol-unit spreads of the used quotes (NaN if none)
+        ExpiryQuoteWeights weights(in.weighting, ex.F, ex.D, ex.T);
         for (std::size_t j = 0; j < ex.idx.size(); ++j) {
             const std::size_t i = ex.idx[j];
             const OptionQuote& q = quotes[i];
@@ -575,42 +567,19 @@ CalibrationResult calibrate(const CalibrationInput& in) {
                 row.exclusionReason = "implied_vol_not_positive";
                 continue;
             }
-            double omega = 1.0;
-            double spread = kNaN;
-            const double vega = blackVega(q.strike, ex.F, ex.D, ex.T, row.marketVol);
-            if (in.weighting == QuoteWeighting::Vega) {
-                omega = vega;
-            } else if (in.weighting == QuoteWeighting::BidAsk && q.bid && q.ask) {
-                spread = *q.ask - *q.bid;
-                if (q.price) spread /= std::max(vega, 1e-300);
-                if (!(spread > 0.0)) {
-                    row.exclusionReason = "ask_not_above_bid";
-                    continue;
-                }
+            if (!weights.add(q.strike, row.marketVol, q.bid, q.ask, q.price.has_value())) {
+                row.exclusionReason = kAskNotAboveBid;
+                continue;
             }
             row.used = true;
-            pts.push_back(Point{row.k, row.marketVol, q.weight * omega});
+            pts.push_back(Point{row.k, row.marketVol, q.weight});
             usedIdx.push_back(i);
-            spreads.push_back(spread);
         }
         requireMinUsedQuotes(res.quotes, ex, pts.size(), in.maxAbsLogMoneyness);
-        if (in.weighting == QuoteWeighting::BidAsk) {
-            std::vector<double> known;
-            for (double s : spreads) {
-                if (!std::isnan(s)) known.push_back(s);
-            }
-            if (known.empty()) {
-                std::ostringstream os;
-                os << "SSVI calibration: BidAsk weighting needs bid and ask on at least one "
-                      "quote at expiry "
-                   << DateToIso(ex.expiry);
-                QUANTRA_INVALID_ARGUMENT(os.str());
-            }
-            const double med = median(known);
-            for (std::size_t p = 0; p < pts.size(); ++p) {
-                const double s = std::isnan(spreads[p]) ? med : spreads[p];
-                pts[p].weight = quotes[usedIdx[p]].weight / (s * s);
-            }
+        {
+            const std::vector<double> omega = weights.weights(DateToIso(ex.expiry));
+            for (std::size_t p = 0; p < pts.size(); ++p)
+                pts[p].weight = quotes[usedIdx[p]].weight * omega[p];
         }
 
         // anchor: used quote closest to the money

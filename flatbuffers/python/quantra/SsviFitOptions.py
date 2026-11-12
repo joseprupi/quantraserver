@@ -13,7 +13,8 @@ np = import_numpy()
 # fitted one expiry after the other in increasing time with an eSSVI slice
 # (theta, rho, psi; see `SsviVolSpec`). The used quote nearest the money is
 # reproduced exactly (theta is solved from it); (rho, psi) minimise the
-# weighted squared vol errors under the butterfly and calendar conditions,
+# weighted squared vol errors (`CalibrateVolSurfaceRequest.weighting`)
+# under the butterfly and calendar conditions,
 # each an interval in psi for a given rho, so the slices are free of static
 # arbitrage by construction. When no (rho, psi) is feasible against the
 # previous slice (calendar arbitrage at the money in the quotes) the
@@ -37,36 +38,23 @@ class SsviFitOptions(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # SsviFitOptions
-    def Weighting(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 1
-
     # Used quotes with |ln(K / F)| above this are left out of the fit and
     # reported as dropped ("max_abs_log_moneyness"). Finite and > 0.
     # SsviFitOptions
     def MaxAbsLogMoneyness(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 1.0
 
 def SsviFitOptionsStart(builder):
-    builder.StartObject(2)
+    builder.StartObject(1)
 
 def Start(builder):
     SsviFitOptionsStart(builder)
 
-def SsviFitOptionsAddWeighting(builder, weighting):
-    builder.PrependInt8Slot(0, weighting, 1)
-
-def AddWeighting(builder, weighting):
-    SsviFitOptionsAddWeighting(builder, weighting)
-
 def SsviFitOptionsAddMaxAbsLogMoneyness(builder, maxAbsLogMoneyness):
-    builder.PrependFloat64Slot(1, maxAbsLogMoneyness, 1.0)
+    builder.PrependFloat64Slot(0, maxAbsLogMoneyness, 1.0)
 
 def AddMaxAbsLogMoneyness(builder, maxAbsLogMoneyness):
     SsviFitOptionsAddMaxAbsLogMoneyness(builder, maxAbsLogMoneyness)
@@ -82,7 +70,6 @@ class SsviFitOptionsT(object):
 
     # SsviFitOptionsT
     def __init__(self):
-        self.weighting = 1  # type: int
         self.maxAbsLogMoneyness = 1.0  # type: float
 
     @classmethod
@@ -106,13 +93,11 @@ class SsviFitOptionsT(object):
     def _UnPack(self, ssviFitOptions):
         if ssviFitOptions is None:
             return
-        self.weighting = ssviFitOptions.Weighting()
         self.maxAbsLogMoneyness = ssviFitOptions.MaxAbsLogMoneyness()
 
     # SsviFitOptionsT
     def Pack(self, builder):
         SsviFitOptionsStart(builder)
-        SsviFitOptionsAddWeighting(builder, self.weighting)
         SsviFitOptionsAddMaxAbsLogMoneyness(builder, self.maxAbsLogMoneyness)
         ssviFitOptions = SsviFitOptionsEnd(builder)
         return ssviFitOptions

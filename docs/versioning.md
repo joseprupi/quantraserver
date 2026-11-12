@@ -26,6 +26,110 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.16.11 (November 2026) — one quote weighting option for the three surface methods
+
+`v0.16.11` is described change by change; each change has its own part
+below. QuantLib stays at 1.44.
+
+### Quote weighting: one option, `weighting`, on `/calibrate-vol-surface`
+
+**What was different per method.** The three methods weighted the quote
+errors of an expiry in three ways. `SviPerExpiry` used QuantLib's
+vega-weighted fit, with no choice. `Ssvi` had its own option,
+`ssvi.weighting` (`Uniform`, `Vega`, `BidAsk`). `AndreasenHuge` used
+QuantLib's calibration, which minimises plain price errors: in vol terms
+each quote weighted by its vega squared.
+
+**The option.** `CalibrateVolSurfaceRequest.weighting`, default `Vega`,
+with the same meaning for the three methods. Per expiry the fit minimises
+`sum_i weight_i (model_vol_i − market_vol_i)²` over the used quotes:
+
+| `weighting` | `weight_i` |
+|---|---|
+| `Uniform` | 1 |
+| `Vega` (default) | The Black vega of the quote at its market vol. |
+| `BidAsk` | `1 / spread_i²`, `spread_i = (ask_i − bid_i) / vega_i` (the bid/ask spread in vol units). |
+
+With `BidAsk` a used quote whose ask is not above its bid is left out of
+the fit and listed in `dropped` with reason `ask_not_above_bid`, for the
+three methods. A used quote without both sides takes the median spread of
+its expiry; an expiry without any two-sided quote is a `400` naming the
+expiry (`weighting BidAsk needs bid and ask on at least one used quote at
+expiry <date>`). The per-line rules keep two-sided lines only, so these two
+cases do not occur on a sheet today. The response echoes the value used as
+`weighting`, for the three methods.
+
+**Schema.**
+
+* The enum is `QuoteWeighting` (`Uniform`, `Vega`, `BidAsk`); it was
+  `SsviQuoteWeighting`, with the same values.
+* `CalibrateVolSurfaceRequest.weighting` (new, default `Vega`).
+* `SsviFitOptions.weighting` is removed.
+* `CalibrateVolSurfaceResponse.weighting` (new, always printed).
+
+**SviPerExpiry.** `Vega`: unchanged; the response is the one of 0.16.10
+field for field, plus `weighting`. `Uniform`: QuantLib's `SviInterpolation`
+with equal weights. `BidAsk`: QuantLib's class has no other weights, so its
+vega-weighted and equally weighted fits are the two starting points of the
+engine's own Levenberg-Marquardt on the `BidAsk`-weighted residuals, over
+the same parameter set as QuantLib's fit, and the lower objective is kept.
+The butterfly and calendar refits use the weights of the request. Where
+the slices match the quotes exactly, the three values give the same slices.
+Where they do not, a different weighting gives different slices, and the
+checks apply to them as to any fit (`arbitrage_free_svi`,
+`svi_local_vol_refit_action`). Measured on the steep-wing synthetic sheet:
+`Uniform` follows the wing quotes more closely than `Vega` (rms vol error
+0.02 against 1.6 vol points) and its slices are refused by the local-vol
+scan at 3 of 6,771 points (`arbitrage_free_svi: false`); `Vega` and
+`BidAsk` pass.
+
+**Ssvi.** Reads the top-level field. For each value the response is the
+one 0.16.10 gave with the same value in `ssvi.weighting`.
+
+**AndreasenHuge.** The calibration is now the engine's copy of QuantLib
+1.44's `AndreasenHugeVolatilityInterpl` with a weight per quote in the cost
+function. The residual of a quote is
+`sqrt(weight_i) (model_price_i − market_price_i) / vega_i`, the vega
+floored at 1 % of the expiry's at-the-money vega. The grid, the cubic
+spline, the `CallPut` calibration type, the 500 grid points, the positive
+constraint, the optimiser and its end criteria are QuantLib's. Only
+`weighting: Vega` is accepted; `Uniform` and `BidAsk` are a `400` naming
+`weighting`. Reason: the calibration starts from a flat local vol, and
+under these two weightings it does not settle on a close fit on every sheet
+(measured on the four synthetic example sheets: errors of 7 to 27 vol
+points on some quotes under `BidAsk` on three of them, 16 vol points under
+`Uniform` on one). With `Vega` the rms vol error at the quotes is within
+5 % of the one of QuantLib's calibration on the four sheets.
+
+**What changes for an existing request.**
+
+* A request with `ssvi.weighting` is refused by the JSON parser with a
+  `400` (`unknown field: weighting`). Move the value to the top-level
+  `weighting`; the result is the same.
+* A request with method `SviPerExpiry` or `Ssvi` and no weighting gives the
+  response of 0.16.10 plus the `weighting` field.
+* A request with method `AndreasenHuge` (the default method) gives a
+  slightly different surface, because the default is now vega weights
+  instead of vega-squared weights. Where the model matches the quotes the
+  two calibrations end on the same surface within the optimiser's
+  tolerance: the grid vols of the SVI example sheet move by at most
+  1.3e-6, those of the eSSVI example sheet by at most 9e-5. Where it does
+  not (the steep-wing and daily-expiry synthetic sheets) the grid vols move
+  by up to 0.2 vol points and the rms vol error at the quotes by less than
+  5 %. `arbitrage_free` is `false` on the four sheets in both versions.
+* The response has one more field, `weighting`.
+* Code generated from the schema: `SsviQuoteWeighting` is now `QuoteWeighting`.
+
+**Examples and catalog.** Two new example requests under
+`examples/data/vol_surface/` (`…_svi_uniform.json`, `…_svi_bid_ask.json`)
+and their catalog rows
+(`volsurf_synthetic_svi_sheet_svi_per_expiry_uniform`, `…_bid_ask`). The
+eSSVI example with `BidAsk` weights carries the top-level field. The
+Andreasen-Huge row (`volsurf_synthetic_svi_sheet_andreasen_huge`) is still
+compared with QuantLib's class, now within 1e-5 in vol instead of 1e-6
+(the engine's grid vols moved by at most 1.3e-6 on that sheet; the
+reference values did not move). No other row moved.
+
 ## Version 0.16.10 (November 2026) — time interpolation at fixed forward moneyness
 
 `v0.16.10` changes how the surfaces `/calibrate-vol-surface` returns are

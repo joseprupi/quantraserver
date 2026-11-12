@@ -144,6 +144,9 @@ table CalibrateVolSurfaceResponse {
     /// the fit do: "none", or the refit passes (the flagged slices refitted
     /// with a larger calendar margin and butterfly weight, at most 3).
     svi_local_vol_refit_action:string;
+    /// The quote weighting the fit used (the request's `weighting` or its
+    /// default), reported with `method` for the three methods.
+    weighting:enums.QuoteWeighting = null;
 }
 
 root_type CalibrateVolSurfaceResponse;

@@ -53,7 +53,7 @@ info:
     \n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond\
     \ \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/bonds/fixed_rate_bond_request.json\n\
     ```\n"
-  version: 0.16.10
+  version: 0.16.11
   contact:
     name: Quantra API Support
     url: https://github.com/joseprupi/quantraserver
@@ -1701,7 +1701,7 @@ components:
       - AndreasenHuge
       - SviPerExpiry
       - Ssvi
-    quantra_enums_SsviQuoteWeighting:
+    quantra_enums_QuoteWeighting:
       type: string
       enum:
       - Uniform
@@ -6617,7 +6617,9 @@ components:
 
         reproduced exactly (theta is solved from it); (rho, psi) minimise the
 
-        weighted squared vol errors under the butterfly and calendar conditions,
+        weighted squared vol errors (`CalibrateVolSurfaceRequest.weighting`)
+
+        under the butterfly and calendar conditions,
 
         each an interval in psi for a given rho, so the slices are free of static
 
@@ -6629,8 +6631,6 @@ components:
 
         as `ssvi_anchor_clamped`).'
       properties:
-        weighting:
-          $ref: '#/components/schemas/quantra_enums_SsviQuoteWeighting'
         max_abs_log_moneyness:
           type: number
           description: 'Used quotes with |ln(K / F)| above this are left out of the
@@ -6681,6 +6681,8 @@ components:
           $ref: '#/components/schemas/quantra_SviFitOptions'
         ssvi:
           $ref: '#/components/schemas/quantra_SsviFitOptions'
+        weighting:
+          $ref: '#/components/schemas/quantra_enums_QuoteWeighting'
       required:
       - pricing
       - sheet
@@ -6922,6 +6924,8 @@ components:
             the fit do: "none", or the refit passes (the flagged slices refitted
 
             with a larger calendar margin and butterfly weight, at most 3).'
+        weighting:
+          $ref: '#/components/schemas/quantra_enums_QuoteWeighting'
       required:
       - sheet_id
       - underlying_id

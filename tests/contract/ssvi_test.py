@@ -130,7 +130,8 @@ def test_ssvi_recovers_the_generating_slices(client, data_dir, example, preset, 
 
 def test_ssvi_settings_drop_quotes_by_moneyness(client, data_dir):
     request = load_json(data_dir / SVI_SHEET)
-    request["ssvi"] = {"weighting": "Uniform", "max_abs_log_moneyness": 0.1}
+    request["weighting"] = "Uniform"
+    request["ssvi"] = {"max_abs_log_moneyness": 0.1}
     out = _ok(client, request)
     reasons = [d["reason"] for e in out["expiries"] for d in e.get("dropped", [])]
     assert "max_abs_log_moneyness" in reasons

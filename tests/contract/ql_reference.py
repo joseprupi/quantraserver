@@ -7101,15 +7101,29 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
         points; AndreasenHugeVolatilityAdapter.blackVol at every grid point
         whose model price (interpl.optionPrice) is at least 1e-4 * spot, the
         others filled from the nearest inverted strike (lowest index on a
-        tie), as the engine does;
+        tie), as the engine does. The engine runs the same calibration with
+        each quote's price error divided by its vega and multiplied by the
+        square root of its weight (`weighting` Vega, the only value the
+        method accepts); QuantLib's class minimises the plain price errors.
+        The two have the same minimiser where the model matches the quotes,
+        which is the case of the catalog's sheet, and differ by the fit
+        residual elsewhere (tolerance of the row);
       * SviPerExpiry: SviInterpolatedSmileSection per expiry (all five
-        parameters free, vega-weighted, EndCriteria(500, 100, 1e-12, 1e-10,
+        parameters free, vega-weighted for `weighting` Vega and equal
+        weights for Uniform, EndCriteria(500, 100, 1e-12, 1e-10,
         1e-10), LevenbergMarquardt(1e-10, 1e-10, 1e-10)) — the same
         XABRInterpolationImpl the engine's SviInterpolation runs — then the
         butterfly check and the calendar clip. The engine's penalized
         butterfly refit is not reproduced here (no CostFunction subclassing
         in the bindings): a violation with enforce_butterfly on raises, so
-        the catalog only carries arbitrage-free sheets for this method.
+        the catalog only carries arbitrage-free sheets for this method. For
+        the same reason the engine's own least squares under BidAsk weights
+        is not reproduced: the vega-weighted slice is the reference only
+        when it matches every used quote (to 1e-8 in vol), where the
+        minimiser does not depend on the weights; otherwise this raises.
+
+    `weighting` BidAsk leaves out a used quote whose ask is not above its
+    bid, as the engine does.
 
     The grid: strikes = moneyness * spot (default 0.50 .. 1.50 step 0.025),
     expiries = the fitted sheet expiries (or the request's calendar-day
@@ -7135,6 +7149,11 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
     curve = build_curve_from_json(disc_json, eval_date, request)
     flt = dict(request.get("filter") or {})
     method = request.get("method", "AndreasenHuge")
+    weighting = request.get("weighting", "Vega")
+    if weighting not in ("Uniform", "Vega", "BidAsk"):
+        raise ValueError(f"unknown weighting {weighting}")
+    if method == "AndreasenHuge" and weighting != "Vega":
+        raise ValueError(f"weighting {weighting} is not available with method AndreasenHuge")
     svi_opts = dict(request.get("svi") or {})
     enforce_butterfly = bool(svi_opts.get("enforce_butterfly", True))
     enforce_calendar = bool(svi_opts.get("enforce_calendar", True))
@@ -7167,6 +7186,8 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
         fwd, df = forwards[expiry]
         t = dc.yearFraction(eval_date, exp_date)
         used = _otm_quotes(by_expiry[expiry], flt, spot, fwd, df, t)
+        if weighting == "BidAsk":
+            used = [u for u in used if u["ask"] > u["bid"]]
         if len(used) < min_used:
             continue
         work.append({"expiry": expiry, "date": exp_date, "t": t, "fwd": fwd, "df": df,
@@ -7256,10 +7277,20 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
             nd = ql.nullDouble()
             sec = ql.SviInterpolatedSmileSection(
                 w["date"], w["fwd"], strikes_w, False, vols_w[0], vols_w,
-                nd, nd, nd, nd, nd, False, False, False, False, False, True,
+                nd, nd, nd, nd, nd, False, False, False, False, False,
+                weighting != "Uniform",
                 ql.EndCriteria(500, 100, 1e-12, 1e-10, 1e-10),
                 ql.LevenbergMarquardt(1e-10, 1e-10, 1e-10), dc)
             p = {"a": sec.a(), "b": sec.b(), "sigma": sec.sigma(), "rho": sec.rho(), "m": sec.m()}
+            if weighting == "BidAsk":
+                misfit = max(
+                    abs(math.sqrt(max(0.0, _svi_total_variance(
+                        p, math.log(k_ / w["fwd"]))) / w["t"]) - v_)
+                    for k_, v_ in zip(strikes_w, vols_w))
+                if misfit > 1e-8:
+                    raise NotImplementedError(
+                        f"{w['expiry']}: the slice misses a quote by {misfit}; the least "
+                        "squares under BidAsk weights is engine-only")
             # Butterfly grid: the output range and the regions of the two
             # expiry pairs the slice belongs to.
             lo = min(w["region"][0], strikes[0])

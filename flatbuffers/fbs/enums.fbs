@@ -329,11 +329,17 @@ enum VolSurfaceFitMethod : byte {
     Ssvi = 2
 }
 
-/// Quote weighting of the `Ssvi` fit (`SsviFitOptions.weighting`).
-///   Uniform: every used quote counts equally.
-///   Vega: weighted by the Black vega at the market vol.
-///   BidAsk: weighted by 1 / (bid-ask spread in vol units)^2.
-enum SsviQuoteWeighting : byte {
+/// Quote weighting of a volatility surface fit
+/// (`CalibrateVolSurfaceRequest.weighting`). The fit minimises, over the
+/// used quotes of an expiry,
+///
+///     sum_i weight_i (model_vol_i - market_vol_i)^2.
+///
+///   Uniform: weight 1.
+///   Vega: the Black vega of the quote at its market vol.
+///   BidAsk: 1 / (bid-ask spread in vol units)^2, the spread of a price
+///     quote being (ask - bid) / vega.
+enum QuoteWeighting : byte {
     Uniform = 0,
     Vega = 1,
     BidAsk = 2

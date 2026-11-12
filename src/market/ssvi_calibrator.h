@@ -42,10 +42,10 @@
  *      theta(psi).
  *      Strict inequalities keep a relative margin 1e-10. For the first slice theta_prev =
  *      psi_prev = 0 (psi is then bounded below by 1e-9 upper).
- *      The objective is sum_j weight_j omega_j (sigma_model(k_j) - sigma_mkt_j)^2 with omega = 1
- *      (Uniform), the Black vega at the market vol (Vega) or 1 / spread^2 in vol units (BidAsk;
- *      a price spread is divided by the vega, quotes without bid/ask take the slice's median
- *      spread). psi is minimised for each rho by Brent's method (golden section + parabolic
+ *      The objective is sum_j weight_j omega_j (sigma_model(k_j) - sigma_mkt_j)^2 with omega
+ *      the quote weight of quote_weighting.h: 1 (Uniform), the Black vega at the market vol
+ *      (Vega) or 1 / spread^2 in vol units (BidAsk; a price spread is divided by the vega,
+ *      quotes without bid/ask take the slice's median spread). psi is minimised for each rho by Brent's method (golden section + parabolic
  *      interpolation, 1e-12 relative). rho goes through a 41-point grid on [-0.999, 0.999]
  *      (plus rho_prev, which is always feasible for a clamped anchor) and is then refined on
  *      21-point grids of half-width two spacings around the best value, the spacing shrinking by
@@ -59,6 +59,7 @@
  *      times, their midpoints, 0.5 T_1 and 1.5 T_N for k in [-1.5, 1.0] (201 points).
  */
 
+#include "quote_weighting.h"
 #include "ssvi.h"
 #include "ssvi_vol_surface.h"
 
@@ -76,7 +77,8 @@
 
 namespace quantra { namespace ssvi {
 
-enum class QuoteWeighting { Uniform, Vega, BidAsk };
+// The quote weighting shared by the surface fit methods (quote_weighting.h).
+using QuoteWeighting = quantra::QuoteWeighting;
 
 // Exactly one of price / impliedVol. bid / ask are in the units of the value given.
 struct OptionQuote {

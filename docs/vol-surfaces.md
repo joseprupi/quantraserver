@@ -15,6 +15,7 @@ engine, and where each one stops working. Field-by-field reference:
 | Forwards | One forward and one discount factor per expiry, from `/calibrate-implied-forwards` (put-call parity on the same sheet) or fitted in the same call. Dividends enter only through these forwards. |
 | Quotes used | The out-of-the-money side at each strike: the call at or above the forward, the put below. The mid is inverted with Black-76 on the expiry's forward. |
 | Quotes dropped | Lines failing `filter` (relative bid/ask spread above `max_relative_spread`), a mid below `1e-5 x spot`, a mid outside the Black bounds. Each dropped line is reported with its reason. |
+| Quote weights | One option, `weighting`, with the same meaning for the three methods. Per expiry the fit minimises `sum_i weight_i (model_vol_i - market_vol_i)^2` over the used quotes. `Uniform`: weight 1. `Vega` (default): the Black vega at the market vol. `BidAsk`: `1 / spread_i^2`, the spread being the quote's bid/ask spread in vol units, `(ask - bid) / vega`. With `BidAsk` a used quote whose ask is not above its bid is left out (reason `ask_not_above_bid`). The response echoes the value used. |
 | Time | Act/365 Fixed from the as-of date to the expiry date. |
 | Output | A surface spec to paste into a pricing request, the forwards used, a per-expiry report, and one `arbitrage_free` flag per returned spec. |
 
@@ -34,8 +35,8 @@ What none of the methods does:
 | Shape | Parametric, one slice per expiry | Parametric, one slice per expiry | Non-parametric |
 | Parameters per expiry | 5 | 3 | None (piecewise local vol) |
 | Minimum used quotes per expiry | 5 | 3 | `filter.min_quotes_per_expiry` |
-| Fit code | QuantLib `SviInterpolation`, then this engine's refits | This engine | QuantLib `AndreasenHugeVolatilityInterpl` |
-| Quote weights | Vega | `Uniform`, `Vega` or `BidAsk` | None, matches prices |
+| Fit code | QuantLib `SviInterpolation`, then this engine's refits | This engine | This engine's copy of QuantLib `AndreasenHugeVolatilityInterpl`, with weights |
+| `weighting` values | `Uniform`, `Vega`, `BidAsk` | `Uniform`, `Vega`, `BidAsk` | `Vega` only |
 | No butterfly arbitrage | Checked, refitted with a penalty when it fails | By construction | In the method's own model |
 | No calendar arbitrage | Enforced during the fit, last expiry first | By construction | In the method's own model |
 | Between expiries | Total variance linear in time at fixed forward moneyness | The three parameters interpolated in time | Total variance linear in time at fixed forward moneyness, on a sampled grid |
@@ -53,11 +54,16 @@ w(k) = a + b (rho (k - m) + sqrt((k - m)^2 + sigma^2)),   k = ln(K / F)
 ```
 
 **QuantLib part.** `SviInterpolation` fits the five parameters by
-Levenberg-Marquardt on vega-weighted vol errors, from several fixed starting
-points.
+Levenberg-Marquardt on weighted vol errors, from several fixed starting
+points. It offers vega weights (`weighting: Vega`) and equal weights
+(`Uniform`).
 
 **Engine part.**
 
+- `weighting: BidAsk`: QuantLib's two fits are the starting points of the
+  engine's own Levenberg-Marquardt on the `BidAsk`-weighted vol errors. The
+  lower objective is kept.
+- The refits below use the same weights as the fit.
 - Butterfly check on each slice (Durrleman's function on 201 points, and a
   wing slope `b (1 + |rho|)` of at most 2). A failing slice is refitted with a
   penalty.
@@ -112,8 +118,8 @@ code, contributed in #156.
 - Expiries are fitted in increasing time.
 - The quote nearest the money is the anchor. `theta` is solved so the slice
   reproduces it exactly.
-- `rho` and `psi` minimise the weighted squared vol errors under the
-  no-arbitrage conditions: butterfly `psi (1 + |rho|) <= 4` and
+- `rho` and `psi` minimise the weighted squared vol errors (`weighting`)
+  under the no-arbitrage conditions: butterfly `psi (1 + |rho|) <= 4` and
   `psi^2 (1 + |rho|) <= 4 theta`; calendar against the previous slice
   (`theta` and `psi` non-decreasing, `|rho psi - rho_prev psi_prev| <= psi -
   psi_prev`, `psi / theta` non-increasing).
@@ -149,13 +155,20 @@ expiry by expiry to the option prices with a one-step implicit
 finite-difference scheme (Andreasen and Huge, "Volatility Interpolation",
 2010).
 
-**QuantLib part.** `AndreasenHugeVolatilityInterpl` (cubic-spline
-interpolation, call/put calibration, 500 grid points) and
-`AndreasenHugeVolatilityAdapter`, which returns a Black vol by inverting the
-model price.
+**QuantLib part.** The method and its numerical scheme are QuantLib 1.44's
+`AndreasenHugeVolatilityInterpl` (cubic-spline interpolation, call/put
+calibration, 500 grid points, Levenberg-Marquardt).
 
 **Engine part.**
 
+- The calibration is an engine-side copy of that class with one change, the
+  cost function. The residual of a quote is
+  `sqrt(weight_i) (model_price_i - market_price_i) / vega_i`: the price error
+  turned into a vol error, then weighted. The vega is floored at 1 % of the
+  expiry's at-the-money vega. QuantLib's class minimises plain price errors,
+  which in vol terms is a weight of vega squared.
+- The Black vol is the model price inverted, as QuantLib's
+  `AndreasenHugeVolatilityAdapter` does.
 - The model's Black vols are sampled on the model's own strike mesh and
   returned as a grid.
 - A grid point is inverted only where the model's out-of-the-money price is
@@ -166,10 +179,16 @@ model price.
 **Assumptions.**
 
 - The quoted prices of each expiry are themselves free of arbitrage. The
-  method matches prices and has no weights to discount a bad quote.
+  model has one parameter per used quote and tries to match every quote.
+  The weights only decide where the error goes when it cannot.
 
 **Known limits.**
 
+- `weighting` accepts `Vega` only. Under `Uniform` or `BidAsk` weights the
+  calibration, started from a flat local vol, does not settle on a close fit
+  on every sheet, so the two values are a `400`.
+- On an expiry the model cannot match, the optimiser stops at its evaluation
+  limit. The result is then the best point found, not a converged minimum.
 - The method is free of arbitrage in its own one-step model. What is returned
   is a sampled grid of implied vols, read back with a cubic spline in strike
   and linear total variance in time. The Dupire local vol of that grid is not

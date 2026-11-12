@@ -1774,11 +1774,12 @@ structured note reads in closed form.
   "filter": {"max_relative_spread": 0.05, "min_quotes_per_expiry": 4, "moneyness_window": 0.25},
   "forwards": [ "<the expiries array of a /calibrate-implied-forwards response, optional>" ],
   "method": "AndreasenHuge",
+  "weighting": "Vega",
   "output_grid": {"strikes_as_moneyness": [0.5, 0.525, "...", 1.5],
                   "expiries": [{"n": 16, "unit": "Days"}, {"n": 51, "unit": "Days"}]},
   "vol_surface_id": "NDX_VOL",
   "svi": {"enforce_butterfly": true, "enforce_calendar": true, "min_forward_vol": 0.01},
-  "ssvi": {"weighting": "Vega", "max_abs_log_moneyness": 1.0}
+  "ssvi": {"max_abs_log_moneyness": 1.0}
 }
 ```
 
@@ -1787,11 +1788,11 @@ structured note reads in closed form.
 | `sheet`, `discounting_curve`, `filter` | As for `/calibrate-implied-forwards`; same per-line rules, same reasons. `filter.moneyness_window` concerns the forward fit only: the vol fit uses every line that passes the per-line rules. European exercise only (`400` otherwise). |
 | `forwards` | Optional. The `expiries` array of an implied-forwards response pasted as is; only `expiry`, `usable`, `forward` and `implied_discount_factor` are read (non-usable entries skipped). Absent: the same fit is run here with `filter`, and `forwards_source` says `"fitted"` instead of `"request"`. A sheet expiry without a forward is reported unusable. |
 | `method` | `AndreasenHuge` (default), `SviPerExpiry` or `Ssvi`. |
+| `weighting` | The weight of each used quote's squared vol error in the fit: `Uniform`, `Vega` (default) or `BidAsk`. Same meaning for the three methods (see "Quote weighting" below). `SviPerExpiry` and `Ssvi` accept the three values; `AndreasenHuge` accepts `Vega` only (`400` naming the field otherwise). |
 | `output_grid.strikes_as_moneyness` | Strikes as multiples of the spot, > 0, strictly increasing, at least 2. Default `0.500, 0.525, …, 1.500` (41 points). The returned surface is keyed by absolute strike (`strike = moneyness x spot`); the spot used is echoed as `spot`. With `AndreasenHuge` only the first and the last value matter: the returned strikes are the model's own finite-difference points within that range and the expiries' regions (see the method). |
 | `output_grid.expiries` | Calendar-day periods from `as_of_date` (`{n, unit}`; months and years are added on a NullCalendar, unadjusted). Default: the fitted sheet expiries. `SviPerExpiry` requires each one to be a fitted sheet expiry (`400` otherwise: the slices are not interpolated in time); `AndreasenHuge` and `Ssvi` accept any date up to the last fitted expiry. |
 | `vol_surface_id` | Id of the returned spec. |
 | `svi.enforce_butterfly`, `svi.enforce_calendar` | `SviPerExpiry` only, default true: fix what the checks find (below) or report only. |
-| `ssvi.weighting` | `Ssvi` only, default `Vega`: the weight of each used quote's squared vol error, `Uniform`, `Vega` (Black vega at the market vol) or `BidAsk` (1 / (bid-ask spread in vol units)², the price spread over the vega). |
 | `ssvi.max_abs_log_moneyness` | `Ssvi` only, default `1.0`: used quotes with `|ln(K / F)|` above it are left out of the fit (dropped with reason `max_abs_log_moneyness`). Finite and `> 0` (`400` otherwise). |
 | `svi.min_forward_vol` | `SviPerExpiry` only, default `0.01` (1 % forward vol): the calendar margin between consecutive fitted expiries, `min_forward_vol² (T_i − T_{i−1})` in total variance. `0` = no margin. Finite and `≥ 0` (`400` otherwise). |
 
@@ -1810,18 +1811,62 @@ bounds (no vol solves). An expiry needs
 (five parameters) and `filter.min_quotes_per_expiry` for `AndreasenHuge`;
 with fewer it is reported unusable. `400` when no expiry is usable.
 
-**AndreasenHuge.** Every used quote becomes a calibration pair of QuantLib's
-`AndreasenHugeVolatilityInterpl` (the out-of-the-money `VanillaOption` and a
-quote carrying its implied vol; interpolation `CubicSpline`, calibration
-type `CallPut`, 500 grid points, Levenberg-Marquardt), on a risk-free curve
+**Quote weighting (`weighting`).** Per expiry the fit minimises, over the
+used quotes,
+
+```
+sum_i weight_i (model_vol_i − market_vol_i)²
+```
+
+| `weighting` | `weight_i` |
+|---|---|
+| `Uniform` | 1 |
+| `Vega` (default) | The Black vega of the quote at its market vol. |
+| `BidAsk` | `1 / spread_i²`, with `spread_i = (ask_i − bid_i) / vega_i`, the bid/ask spread of the quote in vol units. |
+
+Only the ratios between the weights of one expiry matter. With `BidAsk` a
+used quote whose ask is not above its bid has no spread: it is left out of
+the fit and listed in `dropped` with reason `ask_not_above_bid` (an expiry
+left with too few quotes is unusable, as above). A quote without both sides
+would take the median spread of its expiry, and an expiry without any
+two-sided quote is a `400` naming the expiry; the per-line rules keep
+two-sided lines only, so neither occurs on a sheet today. The response
+echoes the value used as `weighting`.
+
+What each method does with the weights:
+
+- `SviPerExpiry`: the fit of each slice and its butterfly and calendar
+  refits use them.
+- `Ssvi`: the search for `(ρ, ψ)` uses them. The quote nearest the money is
+  reproduced exactly under every weighting.
+- `AndreasenHuge`: `Vega` only. The model has one parameter per used quote,
+  so the weights matter only on an expiry whose quotes the model cannot
+  match.
+
+**AndreasenHuge.** Every used quote is a calibration instrument (the
+out-of-the-money option at its implied vol) of the engine's copy of
+QuantLib 1.44's `AndreasenHugeVolatilityInterpl` (interpolation
+`CubicSpline`, calibration type `CallPut`, 500 grid points,
+Levenberg-Marquardt, the same end criteria), on a risk-free curve
 built from the implied discount factors and a dividend curve with
 `DF_q(T) = F · DF / S` (both log-linear, Act/365F), so the model's forwards
 and discounting are the sheet's. The method calibrates a piecewise local
 volatility expiry by expiry to the Black prices of those vols on a one-step
 finite-difference scheme (Andreasen & Huge, *Volatility Interpolation*,
-2010) and is free of static arbitrage by construction; no weights, the
-calibration matches prices. `AndreasenHugeVolatilityAdapter` then gives the
-Black vol at every grid point by inverting the model price. A point is
+2010) and is free of static arbitrage by construction. The copy differs
+from QuantLib's class in the calibration's cost function only: the residual
+of a quote is `sqrt(weight_i) (model_price_i − market_price_i) / vega_i`,
+its price error turned into a vol error and weighted (`weighting`), with
+the vega floored at 1 % of the expiry's at-the-money vega so that a quote
+with almost no vega does not dominate. QuantLib's class minimises the plain
+price errors, which in vol terms weights each quote by its vega squared;
+up to 0.16.10 the endpoint used it as is. Only `weighting: Vega` is
+accepted: started from the flat local vol of the calibration, the fit
+under `Uniform` or `BidAsk` weights does not settle on a close fit on every
+sheet (on the four synthetic example sheets: errors of 7 to 27 vol points
+on some quotes under `BidAsk` on three of them, 16 vol points under
+`Uniform` on one), so those two values are a `400`. The Black vol at every
+grid point is the model price inverted. A point is
 inverted only where the model's out-of-the-money price is at least
 `1e-4 x spot` (the finite-difference price carries noise of about
 `1e-7 x spot`, which below that moves the implied vol by more than a tenth
@@ -1838,7 +1883,7 @@ grid follows the model between its own nodes instead of re-interpolating
 41 samples (`strikes_as_moneyness` echoes them as multiples of the spot).
 
 **SviPerExpiry.** Per usable expiry QuantLib's `SviInterpolation`
-(Levenberg-Marquardt on the vega-weighted implied-vol residuals, several
+(Levenberg-Marquardt on the weighted implied-vol residuals, several
 deterministic starts; the parameter transforms keep `b ≥ 0`, `|ρ| < 1`,
 `σ > 0`, `a + b σ √(1 − ρ²) ≥ 0`, `b (1 + |ρ|) ≤ 4`) fits the raw SVI
 total variance
@@ -1846,6 +1891,13 @@ total variance
 ```
 w(k) = a + b (ρ (k − m) + sqrt((k − m)² + σ²)),   k = ln(K / F)
 ```
+
+QuantLib's fit takes vega weights (`weighting: Vega`) or equal weights
+(`Uniform`). It has no other weights, so with `BidAsk` its two fits are the
+starting points of the engine's own Levenberg-Marquardt on the
+`BidAsk`-weighted residuals, over the same parameter set, and the lower
+objective is kept. The butterfly and calendar refits below use the same
+weights as the fit. With `Vega` the slices are those of 0.16.10.
 
 Butterfly check: Durrleman's `g(k) = (1 − k w′/(2w))² − (w′²/4)(1/w + 1/4)
 + w″/2` on 201 points covering the output strike range and the regions
@@ -1935,7 +1987,7 @@ SSVI slices", 2019): `w(k) = ½ (θ + ρψk + sqrt(ψ²k² + 2ρψθk + θ²))`,
 `k = ln(K / F)`, `θ` the at-the-money total variance, `ψ = θφ`. The used
 quote nearest the money is the anchor: `θ` is solved from it so that the
 slice reproduces it exactly, and `(ρ, ψ)` minimise the weighted squared
-vol errors (`ssvi.weighting`) under the static-arbitrage conditions —
+vol errors (`weighting`) under the static-arbitrage conditions —
 butterfly `ψ (1 + |ρ|) ≤ 4` and `ψ² (1 + |ρ|) ≤ 4θ`, calendar against the
 previous slice `θ` and `ψ` non-decreasing, `|ρψ − ρ_prev ψ_prev| ≤ ψ −
 ψ_prev` and `ψ / θ` non-increasing (sufficient, Hendriks-Martini) — each
@@ -1990,7 +2042,7 @@ average and its wing fills are flat), so for structured notes use
 ```json
 {
   "sheet_id": "NDX_SYN_SVI_2026-09-30", "underlying_id": "NDX_SYN", "spot": 24000.0,
-  "method": "SviPerExpiry", "forwards_source": "fitted",
+  "method": "SviPerExpiry", "weighting": "Vega", "forwards_source": "fitted",
   "filter": {"max_relative_spread": 0.05, "min_quotes_per_expiry": 4, "moneyness_window": 0.25},
   "forwards": [{"expiry": "2026-10-16", "time": 0.0438, "forward": 24033.597, "implied_discount_factor": 0.998252}],
   "expiries": [
@@ -2050,7 +2102,8 @@ fields appear with `SviPerExpiry`, `grid_points_filled` with
 `butterfly_violation`, `calendar_min_margin`, `calendar_min_forward_vol`,
 `ssvi_margin_*`, `ssvi_arbitrage`) and the full `local_vol_check*` blocks;
 they are `/validate-vol-surface`'s since 0.16.7 (`docs/versioning.md`).
-`method` is always printed (it is an optional enum on the response). The
+`method` and `weighting` (the quote weighting the fit used) are always
+printed (they are optional enums on the response). The
 surface's expiries are calendar-day periods on a NullCalendar so that the
 pricers' `calendar.advance(reference_date, period, Unadjusted)` lands on
 the grid dates exactly. `vol_surface_spec_svi` is present with
