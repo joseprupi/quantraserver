@@ -86,20 +86,63 @@ scan at 3 of 6,771 points (`arbitrage_free_svi: false`); `Vega` and
 **Ssvi.** Reads the top-level field. For each value the response is the
 one 0.16.10 gave with the same value in `ssvi.weighting`.
 
-**AndreasenHuge.** The calibration is now the engine's copy of QuantLib
-1.44's `AndreasenHugeVolatilityInterpl` with a weight per quote in the cost
-function. The residual of a quote is
-`sqrt(weight_i) (model_price_i − market_price_i) / vega_i`, the vega
-floored at 1 % of the expiry's at-the-money vega. The grid, the cubic
-spline, the `CallPut` calibration type, the 500 grid points, the positive
-constraint, the optimiser and its end criteria are QuantLib's. Only
-`weighting: Vega` is accepted; `Uniform` and `BidAsk` are a `400` naming
-`weighting`. Reason: the calibration starts from a flat local vol, and
-under these two weightings it does not settle on a close fit on every sheet
-(measured on the four synthetic example sheets: errors of 7 to 27 vol
-points on some quotes under `BidAsk` on three of them, 16 vol points under
-`Uniform` on one). With `Vega` the rms vol error at the quotes is within
-5 % of the one of QuantLib's calibration on the four sheets.
+**AndreasenHuge.** Two stages, the same for the three values.
+
+1. The fit to the prices: QuantLib 1.44's calibration of
+   `AndreasenHugeVolatilityInterpl` as it is, without weights. This is the
+   surface of 0.16.10.
+2. The weighted fit: a second surface, calibrated expiry by expiry, each
+   expiry started from the first stage's local vols of that expiry. It
+   minimises `sum_i weight_i (model_vol_i − market_vol_i)² / sum_i weight_i`.
+   `model_vol_i` is the Black vol the surface returns at the quote (the
+   model's price at the quoted strike, inverted). Where that price has no
+   implied vol, the error of the quote is its price error divided by its
+   vega, the vega floored at 1 % of the expiry's at-the-money vega. At an
+   expiry where the optimiser does not lower the sum, the stage keeps its
+   starting point.
+
+The surface returned is the second stage's when its weighted sum, added
+over the expiries, is below the first stage's. Otherwise it is the first
+stage's. So the result is never worse than QuantLib's calibration in the
+request's own weighted measure. The grid, the cubic spline, the `CallPut`
+calibration type, the 500 grid points, the positive constraint, the
+optimiser and its end criteria are QuantLib's in both stages. The code is
+the engine's copy of QuantLib's class, because the class does not expose
+its cost functions.
+
+Why two stages: started from the flat local vol of the calibration, the
+weighted sum alone does not settle on a close fit on every sheet. The
+model has one parameter per used quote. Where it matches the quotes, the
+three values give the same surface. Where it does not, the three surfaces
+differ.
+
+Measured on the four synthetic example sheets. Per cell: rms vol error at
+the used quotes in vol points (the vol read from the returned grid), quotes
+inside bid/ask, calibrate time on the test machine.
+
+| Sheet (used quotes) | 0.16.10 | `Vega` (default) | `Uniform` | `BidAsk` |
+|---|---|---|---|---|
+| SVI sheet (189) | 0.114, 180, 0.18 s | 0.114, 180, 0.15 s | 0.114, 180, 0.15 s | 0.114, 180, 0.16 s |
+| eSSVI sheet (99) | 0.095, 95, 0.11 s | 0.095, 95, 0.10 s | 0.095, 95, 0.10 s | 0.095, 95, 0.10 s |
+| Steep-wing sheet (181) | 0.448, 89, 6.4 s | 0.107, 140, 9.8 s | 0.112, 137, 9.3 s | 0.102, 139, 9.3 s |
+| Daily-expiry sheet (463) | 1.569, 322, 6.6 s | 1.569, 322, 9.0 s | 1.569, 322, 8.3 s | 1.569, 321, 9.1 s |
+
+Limits of the second stage, on the two sheets the model cannot match:
+
+* The optimiser stops on its evaluation limit at most expiries, in both
+  stages (as QuantLib's calibration did in 0.16.10). The second stage's
+  point is better than the first stage's in the weighted measure. It is not
+  a converged minimum.
+* On the steep-wing sheet each value lowers its own weighted rms vol error
+  against 0.16.10 (`Uniform` 0.47 to 0.12 vol points, `Vega` 0.22 to 0.05,
+  `BidAsk` 0.40 to 0.26). The three surfaces are close to each other, and
+  the surface of a value is not always the best of the three under that
+  value's own weights (differences up to 9 %).
+* On the daily-expiry sheet the error at the quotes is unchanged to three
+  digits for the three values.
+* The calibration takes about 1.5 times as long. With the default gateway
+  deadline of 10 s (`QUANTRA_GATEWAY_DEADLINE_MS`), the request on the
+  steep-wing sheet is at the limit on the test machine (9.3 to 10.2 s).
 
 **What changes for an existing request.**
 
@@ -108,26 +151,35 @@ points on some quotes under `BidAsk` on three of them, 16 vol points under
   `weighting`; the result is the same.
 * A request with method `SviPerExpiry` or `Ssvi` and no weighting gives the
   response of 0.16.10 plus the `weighting` field.
-* A request with method `AndreasenHuge` (the default method) gives a
-  slightly different surface, because the default is now vega weights
-  instead of vega-squared weights. Where the model matches the quotes the
-  two calibrations end on the same surface within the optimiser's
-  tolerance: the grid vols of the SVI example sheet move by at most
-  1.3e-6, those of the eSSVI example sheet by at most 9e-5. Where it does
-  not (the steep-wing and daily-expiry synthetic sheets) the grid vols move
-  by up to 0.2 vol points and the rms vol error at the quotes by less than
-  5 %. `arbitrage_free` is `false` on the four sheets in both versions.
+* A request with method `AndreasenHuge` (the default method) and no
+  weighting runs the second stage with vega weights. Where the model
+  matches the quotes the surface moves little: the grid vols of the SVI
+  example sheet by at most 7.3e-5, those of the eSSVI example sheet by at
+  most 6.2e-4, and the request is not slower. Where it does not, the
+  surface changes and the request takes about 1.5 times as long. Steep-wing
+  sheet: rms vol error at the quotes 0.45 to 0.11 vol points, quotes inside
+  bid/ask 89 to 140 of 181, grid vols moved by up to 10 vol points,
+  calibrate time 6.4 s to 9.8 s. Daily-expiry sheet: rms vol error 1.57 vol
+  points and 322 of 463 quotes inside in both versions, grid vols moved by
+  at most 0.05 vol points, calibrate time 6.6 s to 9.0 s. `arbitrage_free`
+  is `false` on the four sheets in both versions (points refused by the
+  scan: 753 to 783 of 6,825 on the steep-wing sheet, 1,067 to 1,097 of
+  12,581 on the daily-expiry sheet, unchanged on the two others).
+* A deployment that calibrates Andreasen-Huge surfaces on sheets of this
+  kind close to its time limits needs a higher gateway deadline
+  (`QUANTRA_GATEWAY_DEADLINE_MS`, see `docs/configuration.md`).
 * The response has one more field, `weighting`.
 * Code generated from the schema: `SsviQuoteWeighting` is now `QuoteWeighting`.
 
-**Examples and catalog.** Two new example requests under
-`examples/data/vol_surface/` (`…_svi_uniform.json`, `…_svi_bid_ask.json`)
-and their catalog rows
-(`volsurf_synthetic_svi_sheet_svi_per_expiry_uniform`, `…_bid_ask`). The
-eSSVI example with `BidAsk` weights carries the top-level field. The
-Andreasen-Huge row (`volsurf_synthetic_svi_sheet_andreasen_huge`) is still
-compared with QuantLib's class, now within 1e-5 in vol instead of 1e-6
-(the engine's grid vols moved by at most 1.3e-6 on that sheet; the
+**Examples and catalog.** Three new example requests under
+`examples/data/vol_surface/` (`…_svi_uniform.json`, `…_svi_bid_ask.json`,
+`…_andreasen_huge_bid_ask.json`) and their catalog rows
+(`volsurf_synthetic_svi_sheet_svi_per_expiry_uniform`,
+`…_svi_per_expiry_bid_ask`, `volsurf_synthetic_svi_sheet_andreasen_huge_bid_ask`).
+The eSSVI example with `BidAsk` weights carries the top-level field. The
+two Andreasen-Huge rows are compared with QuantLib's class, which is the
+first stage, within 2e-4 in vol; the row of 0.16.10 was compared at 1e-6
+(the engine's grid vols moved by at most 7.3e-5 on that sheet; the
 reference values did not move). No other row moved.
 
 ## Version 0.16.10 (November 2026) — time interpolation at fixed forward moneyness

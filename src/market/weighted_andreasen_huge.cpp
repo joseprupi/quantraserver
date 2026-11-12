@@ -71,6 +71,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <exception>
 #include <limits>
 #include <numeric>
 #include <utility>
@@ -88,15 +89,13 @@ public:
     WeightedAndreasenHugeCostFunction(
         Array marketNPVs,
         Array marketVegas,
-        Array residualScales,
         Array lnMarketStrikes,
         Array previousNPVs,
         const std::shared_ptr<QuantLib::FdmMesherComposite>& mesher,
         Time dT)
         : marketNPVs_(std::move(marketNPVs)), marketVegas_(std::move(marketVegas)),
-          residualScales_(std::move(residualScales)), lnMarketStrikes_(std::move(lnMarketStrikes)),
-          previousNPVs_(std::move(previousNPVs)), mesher_(mesher), dT_(dT),
-          cubicSpline_(lnMarketStrikes_.size() > 1),
+          lnMarketStrikes_(std::move(lnMarketStrikes)), previousNPVs_(std::move(previousNPVs)),
+          mesher_(mesher), dT_(dT), cubicSpline_(lnMarketStrikes_.size() > 1),
           dxMap_(QuantLib::FirstDerivativeOp(0, mesher_)),
           dxxMap_(QuantLib::SecondDerivativeOp(0, mesher_)), mapT_(0, mesher_) {}
 
@@ -149,17 +148,24 @@ public:
         return retVal;
     }
 
-    // The weighted residuals: sqrt(weight) * price error / floored vega.
-    Array values(const Array& sig) const override { return priceErrors(sig) * residualScales_; }
+    Array values(const Array& sig) const override { return priceErrors(sig); }
 
     Array vegaCalibrationError(const Array& sig) const { return priceErrors(sig) / marketVegas_; }
 
     Array initialValues() const { return Array(lnMarketStrikes_.size(), 0.25); }
 
+    // The prices on the grid at the expiry under `sig`.
+    Array expiryNPVs(const Array& sig) const { return solveFor(dT_, sig, previousNPVs_); }
+
     const Array& lnMarketStrikes() const { return lnMarketStrikes_; }
+    const Array& marketNPVs() const { return marketNPVs_; }
+    const Array& marketVegas() const { return marketVegas_; }
+    const std::vector<Real>& gridPoints() const {
+        return mesher_->getFdm1dMeshers().front()->locations();
+    }
 
 private:
-    const Array marketNPVs_, marketVegas_, residualScales_;
+    const Array marketNPVs_, marketVegas_;
     const Array lnMarketStrikes_, previousNPVs_;
     const std::shared_ptr<QuantLib::FdmMesherComposite> mesher_;
     const Time dT_;
@@ -172,7 +178,8 @@ private:
 
 namespace {
 
-// Put residuals followed by call residuals.
+// Put residuals followed by call residuals: QuantLib's cost function, the
+// first stage.
 class CombinedCostFunction : public QuantLib::CostFunction {
 public:
     CombinedCostFunction(
@@ -198,6 +205,83 @@ public:
 private:
     const std::shared_ptr<WeightedAndreasenHugeCostFunction> putCostFct_;
     const std::shared_ptr<WeightedAndreasenHugeCostFunction> callCostFct_;
+};
+
+// The second stage's residuals at one expiry: for quote i,
+// sqrt(weight_i / sum of the weights) times the vol error of the surface.
+// The surface vol is read as blackVol() reads it at the expiry: the call
+// prices on the grid, the spline without the two end points, put-call parity
+// below the forward, the implied standard deviation.
+class SurfaceVolCostFunction : public QuantLib::CostFunction {
+public:
+    SurfaceVolCostFunction(
+        std::shared_ptr<WeightedAndreasenHugeCostFunction> callCostFct,
+        const std::vector<WeightedAndreasenHuge::Quote>& quotes,
+        Time expiryTime,
+        Real vegaFloor)
+        : callCostFct_(std::move(callCostFct)), sqrtExpiryTime_(std::sqrt(expiryTime)),
+          // The at-the-money vega of the expiry, forward-normalised.
+          vegaFloor_(
+              vegaFloor * sqrtExpiryTime_ *
+              QuantLib::CumulativeNormalDistribution().derivative(0.0)),
+          marketVols_(quotes.size()), scales_(quotes.size()) {
+        Real sumOfWeights = 0.0;
+        for (const auto& quote : quotes)
+            sumOfWeights += quote.weight;
+        for (Size j = 0; j < quotes.size(); ++j) {
+            marketVols_[j] = quotes[j].vol;
+            scales_[j] = (sumOfWeights > 0.0) ? std::sqrt(quotes[j].weight / sumOfWeights) : 0.0;
+        }
+    }
+
+    Array values(const Array& sig) const override {
+        const Array npvs = callCostFct_->expiryNPVs(sig);
+        const std::vector<Real>& gridPoints = callCostFct_->gridPoints();
+        const QuantLib::CubicNaturalSpline interpl(
+            gridPoints.begin() + 1, gridPoints.end() - 1, npvs.begin() + 1);
+
+        const Array& lnMarketStrikes = callCostFct_->lnMarketStrikes();
+        Array retVal(lnMarketStrikes.size());
+        for (Size j = 0; j < retVal.size(); ++j) {
+            if (scales_[j] == 0.0) {
+                retVal[j] = 0.0;
+                continue;
+            }
+            const Real k = lnMarketStrikes[j];
+            const Real callNPV =
+                interpl(std::max(gridPoints[1], std::min(*(gridPoints.end() - 2), k)));
+            retVal[j] = scales_[j] * volError(j, k, callNPV);
+        }
+        return retVal;
+    }
+
+    // Sum of the squared residuals: the weighted mean squared vol error.
+    Real cost(const Array& sig) const {
+        const Array r = values(sig);
+        return QuantLib::DotProduct(r, r);
+    }
+
+private:
+    Real volError(Size j, Real k, Real callNPV) const {
+        const bool put = k < 0.0;
+        const Real strike = std::exp(k);
+        try {
+            const Real stdDev = QuantLib::blackFormulaImpliedStdDevLiRS(
+                put ? QuantLib::Option::Put : QuantLib::Option::Call, strike, 1.0,
+                put ? callNPV + strike - 1.0 : callNPV, 1.0, 0.0, marketVols_[j] * sqrtExpiryTime_,
+                1.0, 1e-13, 1000);
+            const Real error = stdDev / sqrtExpiryTime_ - marketVols_[j];
+            if (std::isfinite(error)) return error;
+        } catch (const std::exception&) {
+            // No implied volatility at this price: the price error over the vega.
+        }
+        return (callNPV - callCostFct_->marketNPVs()[j]) /
+               std::max(callCostFct_->marketVegas()[j], vegaFloor_);
+    }
+
+    const std::shared_ptr<WeightedAndreasenHugeCostFunction> callCostFct_;
+    const Real sqrtExpiryTime_, vegaFloor_;
+    std::vector<Real> marketVols_, scales_;
 };
 
 } // namespace
@@ -261,11 +345,6 @@ std::shared_ptr<WeightedAndreasenHugeCostFunction> WeightedAndreasenHuge::buildC
     const Size nOptions = quotes.size();
 
     Array lnMarketStrikes(nOptions), marketNPVs(nOptions), marketVegas(nOptions);
-    Array residualScales(nOptions);
-
-    // The at-the-money vega of the expiry, forward-normalised.
-    const Real floor = vegaFloor_ * std::sqrt(expiryTime) *
-                       QuantLib::CumulativeNormalDistribution().derivative(0.0);
 
     // calculate undiscounted market prices
     for (Size k = 0; k < nOptions; ++k) {
@@ -281,12 +360,10 @@ std::shared_ptr<WeightedAndreasenHugeCostFunction> WeightedAndreasenHuge::buildC
         marketNPVs[k] = npv / (discount * fwd);
         marketVegas[k] = vega / (discount * fwd);
         lnMarketStrikes[k] = std::log(quotes[k].strike / fwd);
-        residualScales[k] = std::sqrt(quotes[k].weight) / std::max(marketVegas[k], floor);
     }
 
     return std::make_shared<WeightedAndreasenHugeCostFunction>(
-        marketNPVs, marketVegas, residualScales, lnMarketStrikes, previousNPVs, mesher_,
-        dT_[iExpiry]);
+        marketNPVs, marketVegas, lnMarketStrikes, previousNPVs, mesher_, dT_[iExpiry]);
 }
 
 void WeightedAndreasenHuge::calibrate() {
@@ -305,52 +382,35 @@ void WeightedAndreasenHuge::calibrate() {
 
     gridPoints_ = mesher_->locations(0);
 
-    avgError_ = 0.0;
-    minError_ = std::numeric_limits<Real>::max();
-    maxError_ = 0.0;
-
-    calibrationResults_.reserve(expiries_.size());
     fits_.reserve(expiries_.size());
 
-    Array npvPuts(nGridPoints_);
-    Array npvCalls(nGridPoints_);
+    // One surface per stage, each stepped from the payoff.
+    struct Stage {
+        Array npvPuts, npvCalls;
+        std::vector<SingleStepCalibrationResult> results;
+        Real sumError = 0.0, minError = std::numeric_limits<Real>::max(), maxError = 0.0;
+    };
+    Stage priceStage, weightedStage;
 
+    priceStage.npvPuts = Array(nGridPoints_);
+    priceStage.npvCalls = Array(nGridPoints_);
     for (Size i = 0; i < nGridPoints_; ++i) {
         const Real strike = std::exp(gridPoints_[i]);
-        npvPuts[i] = QuantLib::PlainVanillaPayoff(QuantLib::Option::Put, strike)(1.0);
-        npvCalls[i] = QuantLib::PlainVanillaPayoff(QuantLib::Option::Call, strike)(1.0);
+        priceStage.npvPuts[i] = QuantLib::PlainVanillaPayoff(QuantLib::Option::Put, strike)(1.0);
+        priceStage.npvCalls[i] = QuantLib::PlainVanillaPayoff(QuantLib::Option::Call, strike)(1.0);
     }
+    weightedStage.npvPuts = priceStage.npvPuts;
+    weightedStage.npvCalls = priceStage.npvCalls;
 
-    const QuantLib::EndCriteria endCriteria(500, 100, 1e-12, 1e-10, 1e-10);
-
-    for (Size i = 0; i < expiries_.size(); ++i) {
-        const std::shared_ptr<WeightedAndreasenHugeCostFunction> putCostFct =
-            buildCostFunction(i, QuantLib::Option::Put, npvPuts);
-        const std::shared_ptr<WeightedAndreasenHugeCostFunction> callCostFct =
-            buildCostFunction(i, QuantLib::Option::Call, npvCalls);
-
-        CombinedCostFunction costFunction(putCostFct, callCostFct);
-
-        QuantLib::PositiveConstraint positiveConstraint;
-        QuantLib::Problem problem(costFunction, positiveConstraint, costFunction.initialValues());
-
-        QuantLib::LevenbergMarquardt optimizationMethod;
-        const QuantLib::EndCriteria::Type ended = optimizationMethod.minimize(problem, endCriteria);
-
-        const Array& sig = problem.currentValue();
-
-        calibrationResults_.push_back(
-            SingleStepCalibrationResult{npvPuts, npvCalls, sig, putCostFct});
-
-        ExpiryFit fit;
-        fit.time = expiryTimes_[i];
-        fit.endCriteria = ended;
-        fit.functionEvaluations = problem.functionEvaluation();
-        {
-            const Array r = costFunction.values(sig);
-            fit.cost = QuantLib::DotProduct(r, r);
-        }
-        fits_.push_back(fit);
+    // Stores the expiry's volatilities on a stage's surface and steps its
+    // prices to the expiry.
+    const auto advance = [this](
+                             Stage& stage, Size i,
+                             const std::shared_ptr<WeightedAndreasenHugeCostFunction>& putCostFct,
+                             const std::shared_ptr<WeightedAndreasenHugeCostFunction>& callCostFct,
+                             const Array& sig) {
+        stage.results.push_back(
+            SingleStepCalibrationResult{stage.npvPuts, stage.npvCalls, sig, putCostFct});
 
         // The error of each quote's out-of-the-money side.
         const Array vegaPutDiffs = putCostFct->vegaCalibrationError(sig);
@@ -362,15 +422,92 @@ void WeightedAndreasenHuge::calibrate() {
             vegaDiffs[j] =
                 std::fabs((lnMarketStrikes[j] < 0.0) ? vegaPutDiffs[j] : vegaCallDiffs[j]);
 
-        avgError_ += std::accumulate(vegaDiffs.begin(), vegaDiffs.end(), Real(0.0));
-        minError_ = std::min(minError_, *std::min_element(vegaDiffs.begin(), vegaDiffs.end()));
-        maxError_ = std::max(maxError_, *std::max_element(vegaDiffs.begin(), vegaDiffs.end()));
+        stage.sumError += std::accumulate(vegaDiffs.begin(), vegaDiffs.end(), Real(0.0));
+        stage.minError =
+            std::min(stage.minError, *std::min_element(vegaDiffs.begin(), vegaDiffs.end()));
+        stage.maxError =
+            std::max(stage.maxError, *std::max_element(vegaDiffs.begin(), vegaDiffs.end()));
 
-        npvPuts = putCostFct->solveFor(dT_[i], sig, npvPuts);
-        npvCalls = callCostFct->solveFor(dT_[i], sig, npvCalls);
+        stage.npvPuts = putCostFct->solveFor(dT_[i], sig, stage.npvPuts);
+        stage.npvCalls = callCostFct->solveFor(dT_[i], sig, stage.npvCalls);
+    };
+
+    const QuantLib::EndCriteria endCriteria(500, 100, 1e-12, 1e-10, 1e-10);
+
+    for (Size i = 0; i < expiries_.size(); ++i) {
+        QuantLib::PositiveConstraint positiveConstraint;
+
+        ExpiryFit fit;
+        fit.time = expiryTimes_[i];
+
+        // Stage 1: QuantLib's fit, the price errors from the flat start.
+        const std::shared_ptr<WeightedAndreasenHugeCostFunction> pricePutCostFct =
+            buildCostFunction(i, QuantLib::Option::Put, priceStage.npvPuts);
+        const std::shared_ptr<WeightedAndreasenHugeCostFunction> priceCallCostFct =
+            buildCostFunction(i, QuantLib::Option::Call, priceStage.npvCalls);
+
+        CombinedCostFunction priceCostFunction(pricePutCostFct, priceCallCostFct);
+        QuantLib::Problem priceProblem(
+            priceCostFunction, positiveConstraint, priceCostFunction.initialValues());
+        {
+            QuantLib::LevenbergMarquardt optimizationMethod;
+            fit.priceStageEndCriteria = optimizationMethod.minimize(priceProblem, endCriteria);
+        }
+        fit.priceStageEvaluations = priceProblem.functionEvaluation();
+
+        const Array priceSig = priceProblem.currentValue();
+        fit.priceStageCost = SurfaceVolCostFunction(
+                                 priceCallCostFct, expiries_[i].quotes, expiryTimes_[i], vegaFloor_)
+                                 .cost(priceSig);
+
+        // Stage 2: the weighted vol errors on the second surface, from the
+        // stage-1 volatilities of the expiry. The optimiser's result is
+        // kept only when it lowers the cost of that start.
+        const std::shared_ptr<WeightedAndreasenHugeCostFunction> weightedPutCostFct =
+            buildCostFunction(i, QuantLib::Option::Put, weightedStage.npvPuts);
+        const std::shared_ptr<WeightedAndreasenHugeCostFunction> weightedCallCostFct =
+            buildCostFunction(i, QuantLib::Option::Call, weightedStage.npvCalls);
+
+        SurfaceVolCostFunction weightedCostFunction(
+            weightedCallCostFct, expiries_[i].quotes, expiryTimes_[i], vegaFloor_);
+        Array weightedSig = priceSig;
+        fit.weightedStageCost = weightedCostFunction.cost(weightedSig);
+        if (fit.weightedStageCost > 0.0) {
+            QuantLib::Problem weightedProblem(
+                weightedCostFunction, positiveConstraint, weightedSig);
+            QuantLib::LevenbergMarquardt optimizationMethod;
+            fit.weightedStageEndCriteria =
+                optimizationMethod.minimize(weightedProblem, endCriteria);
+            fit.weightedStageEvaluations = weightedProblem.functionEvaluation();
+
+            const Array candidate = weightedProblem.currentValue();
+            const Real candidateCost = weightedCostFunction.cost(candidate);
+            if (candidateCost < fit.weightedStageCost) {
+                fit.weightedStageKept = true;
+                fit.weightedStageCost = candidateCost;
+                weightedSig = candidate;
+            }
+        }
+        fit.functionEvaluations = fit.priceStageEvaluations + fit.weightedStageEvaluations;
+        fits_.push_back(fit);
+
+        priceStageCost_ += fit.priceStageCost;
+        weightedStageCost_ += fit.weightedStageCost;
+
+        advance(priceStage, i, pricePutCostFct, priceCallCostFct, priceSig);
+        advance(weightedStage, i, weightedPutCostFct, weightedCallCostFct, weightedSig);
     }
 
-    avgError_ /= static_cast<Real>(nQuotes_);
+    // The second stage's surface only when it lowers the weighted cost.
+    weightedStageUsed_ = weightedStageCost_ < priceStageCost_;
+    for (auto& fit : fits_)
+        fit.cost = weightedStageUsed_ ? fit.weightedStageCost : fit.priceStageCost;
+
+    Stage& used = weightedStageUsed_ ? weightedStage : priceStage;
+    calibrationResults_ = std::move(used.results);
+    minError_ = used.minError;
+    maxError_ = used.maxError;
+    avgError_ = used.sumError / static_cast<Real>(nQuotes_);
 }
 
 double WeightedAndreasenHuge::minStrike() const {

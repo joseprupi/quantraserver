@@ -59,21 +59,36 @@
  * configuration the engine uses (interpolation CubicSpline, calibration
  * CallPut), with these changes:
  *
- *   1. The cost function. QuantLib minimises, per expiry, the squared
+ *   1. The two stages. QuantLib minimises, per expiry, the squared
  *      forward-normalised price errors of the put and of the call at each
- *      quoted strike. Here each of the two price errors of quote i is
- *      multiplied by
+ *      quoted strike, from a flat volatility. Here that calibration is the
+ *      first stage, unchanged. The second stage calibrates a second
+ *      surface, expiry by expiry, each expiry started from the first
+ *      stage's volatilities of that expiry, by minimising
  *
- *          sqrt(weight_i) / max(vega_i, kVegaFloor sqrt(T) pdf(0)),
+ *          sum_i weight_i (surface vol_i - market vol_i)^2 / sum_i weight_i,
  *
- *      vega_i the forward-normalised Black vega of the quote at its market
- *      vol (sqrt(T) pdf(d1)), so that the fit minimises
- *      sum_i weight_i (vol error_i)^2 with the vol error taken as the price
- *      error over the vega. The floor is relative to the at-the-money vega
- *      of the expiry: below it a price error of the finite-difference
- *      solution would otherwise be read as a large vol error. With
- *      weight_i = vega_i^2 (and no vega below the floor) the cost function
- *      is QuantLib's.
+ *      the surface vol at quote i read as blackVol() reads it at the
+ *      expiry: the call prices on the grid, the spline, put-call parity
+ *      below the forward, the implied standard deviation. Where the
+ *      surface price has no implied volatility, the vol error is the price
+ *      error over max(vega_i, kVegaFloor sqrt(T) pdf(0)), vega_i the
+ *      forward-normalised Black vega of the quote at its market vol. At an
+ *      expiry where the optimiser does not lower this cost, the second
+ *      stage keeps its start.
+ *
+ *      The surface returned is the second stage's when the sum of its
+ *      costs over the expiries is below the same sum for the first stage's
+ *      surface, otherwise the first stage's. The result is therefore never
+ *      worse than QuantLib's calibration in the weighted cost, and with all
+ *      weights zero it is QuantLib's calibration.
+ *
+ *      Started from the flat volatility, a weighted cost alone does not
+ *      settle on a close fit for every set of weights (weights that are
+ *      large where the vega is small leave the volatility near the money
+ *      free to collapse); started from the price fit it does. The cost is
+ *      the vol the surface returns, not the price error over the vega: on
+ *      quotes the model cannot match, the two do not move together.
  *   2. The calibration set is given as plain numbers per expiry (strike,
  *      market vol, weight) instead of instruments and quotes, and the
  *      calibration runs in the constructor (no lazy evaluation, no
@@ -93,9 +108,10 @@
  * Everything else follows QuantLib: the finite-difference grid
  * (Concentrating1dMesher between min strike / 8 and 8 max strike,
  * concentrated at the spot), the implicit step per expiry, the cubic spline
- * of the piecewise volatility through the quoted strikes, the start (0.25),
- * the positive constraint, the optimiser (Levenberg-Marquardt, QuantLib's
- * default settings) and the end criteria (500, 100, 1e-12, 1e-10, 1e-10).
+ * of the piecewise volatility through the quoted strikes, the start (0.25)
+ * of the first stage, the positive constraint, the optimiser
+ * (Levenberg-Marquardt, QuantLib's default settings) and the end criteria
+ * (500, 100, 1e-12, 1e-10, 1e-10), both used by each of the two stages.
  */
 
 #include <ql/handle.hpp>
@@ -122,8 +138,9 @@ class WeightedAndreasenHugeCostFunction;
 
 class WeightedAndreasenHuge {
 public:
-    /// Floor of a quote's vega in the cost function, as a fraction of the
-    /// at-the-money vega of its expiry.
+    /// Floor of a quote's vega where the weighted cost falls back on the
+    /// price error over the vega, as a fraction of the at-the-money vega of
+    /// its expiry.
     static constexpr double kVegaFloor = 1e-2;
 
     struct Quote {
@@ -136,18 +153,37 @@ public:
         QuantLib::Date date;
         std::vector<Quote> quotes;
     };
-    /// How the optimisation of one expiry ended.
+    /// How the two stages ended at one expiry. The costs are the weighted
+    /// mean squared vol error of the file comment, each on its own stage's
+    /// surface; 0 when the weights of the expiry are all zero.
     struct ExpiryFit {
         QuantLib::Time time = 0.0;
-        QuantLib::EndCriteria::Type endCriteria = QuantLib::EndCriteria::None;
-        std::size_t functionEvaluations = 0;
-        /// The cost at the solution: sum of the squared weighted residuals.
+        /// First stage: QuantLib's price fit from the flat volatility.
+        QuantLib::EndCriteria::Type priceStageEndCriteria = QuantLib::EndCriteria::None;
+        std::size_t priceStageEvaluations = 0;
+        /// The weighted cost of the first stage's surface.
+        double priceStageCost = 0.0;
+        /// Second stage: the weighted fit from the first stage's
+        /// volatilities. None and 0 when it did not run (its start has a
+        /// zero cost).
+        QuantLib::EndCriteria::Type weightedStageEndCriteria = QuantLib::EndCriteria::None;
+        std::size_t weightedStageEvaluations = 0;
+        /// The weighted cost of the second stage's surface.
+        double weightedStageCost = 0.0;
+        /// True when the second stage's optimiser lowered the cost of its
+        /// start. False: the second stage's surface has the first stage's
+        /// volatilities at this expiry.
+        bool weightedStageKept = false;
+        /// The weighted cost of the surface returned.
         double cost = 0.0;
+        std::size_t functionEvaluations = 0;
     };
 
-    /// Throws QuantLib::Error when the set is empty, an expiry repeats or
-    /// has no quote, a strike repeats within an expiry, or the optimiser
-    /// fails. Expiries and quotes may come in any order.
+    /// Calibrates in two stages, each expiry by expiry (see the file
+    /// comment). Throws QuantLib::Error when the set is empty, an expiry
+    /// repeats or has no quote, a strike repeats within an expiry, a weight
+    /// is negative or not finite, or the optimiser fails. Expiries and
+    /// quotes may come in any order.
     WeightedAndreasenHuge(
         std::vector<Expiry> expiries,
         double spot,
@@ -165,6 +201,12 @@ public:
     /// error over the unfloored vega) over the calibration quotes.
     std::tuple<double, double, double> calibrationError() const;
     const std::vector<ExpiryFit>& fits() const { return fits_; }
+    /// The sum over the expiries of the weighted cost of each stage's
+    /// surface, and which of the two is returned (the second stage's only
+    /// when its sum is the smaller).
+    double priceStageCost() const { return priceStageCost_; }
+    double weightedStageCost() const { return weightedStageCost_; }
+    bool weightedStageUsed() const { return weightedStageUsed_; }
 
     QuantLib::Real optionPrice(
         QuantLib::Time t, QuantLib::Real strike, QuantLib::Option::Type optionType) const;
@@ -211,6 +253,8 @@ private:
     std::size_t nQuotes_ = 0;
     std::vector<QuantLib::Time> expiryTimes_, dT_;
     double avgError_ = 0.0, minError_ = 0.0, maxError_ = 0.0;
+    double priceStageCost_ = 0.0, weightedStageCost_ = 0.0;
+    bool weightedStageUsed_ = false;
 
     std::shared_ptr<QuantLib::FdmMesherComposite> mesher_;
     QuantLib::Array gridPoints_;

@@ -386,13 +386,6 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
     out.spot = spot;
     out.method = in.method;
     out.weighting = in.weighting;
-    if (in.method == VolSurfaceFitMethod::AndreasenHuge && in.weighting != QuoteWeighting::Vega) {
-        QUANTRA_INVALID_ARGUMENT(
-            std::string("weighting ") + quoteWeightingName(in.weighting) +
-            " is not available with method AndreasenHuge (Vega only): its calibration does not "
-            "settle on a close fit under other weights; use SviPerExpiry or Ssvi for " +
-            quoteWeightingName(in.weighting) + " weighting");
-    }
     out.filter = base.filter;
     out.asOfIso = DateToIso(asOf);
     out.volSurfaceId = in.volSurfaceId;

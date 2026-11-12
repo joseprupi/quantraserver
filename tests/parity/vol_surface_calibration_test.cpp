@@ -682,20 +682,6 @@ TEST(VolSurfaceCalibration, RejectedRequests) {
         l.callBid = *l.callAsk + 1.0;
     EXPECT_THROW(
         VolSurfaceCalibrationEvaluator().evaluate(bad, mkt.reg, mkt.ctx), QuantraInvalidArgument);
-    // Andreasen-Huge fits with Vega weights only.
-    for (auto weighting : {QuoteWeighting::Uniform, QuoteWeighting::BidAsk}) {
-        bad = in;
-        bad.weighting = weighting;
-        try {
-            VolSurfaceCalibrationEvaluator().evaluate(bad, mkt.reg, mkt.ctx);
-            FAIL() << "expected a client error";
-        } catch (const QuantraInvalidArgument& e) {
-            const std::string m = e.what();
-            EXPECT_NE(m.find("weighting"), std::string::npos) << m;
-            EXPECT_NE(m.find(quoteWeightingName(weighting)), std::string::npos) << m;
-            EXPECT_NE(m.find("AndreasenHuge"), std::string::npos) << m;
-        }
-    }
 }
 
 // ===========================================================================
@@ -930,6 +916,68 @@ TEST(VolSurfaceCalibration, SsviWeightingMinimisesItsOwnObjective) {
             if (other == own) continue;
             const double worse = sheet.objective(kWeightings[own], 0, volOf(other));
             EXPECT_LT(best, worse * (1.0 - 1e-3))
+                << "objective of " << quoteWeightingName(kWeightings[own]) << " under its own fit "
+                << best << ", under the " << quoteWeightingName(kWeightings[other]) << " fit "
+                << worse;
+        }
+    }
+}
+
+// AndreasenHuge runs under the three weightings. On quotes the model cannot
+// match (every second strike 3 vol points above the smile: butterfly
+// violations), the BidAsk surface and each of the two others have the lower
+// weighted sum of squared vol errors under their own weights (one expiry;
+// the vol at a quote read from the returned grid, linear between its
+// strikes). Uniform and Vega weights differ much less over this strike
+// range than either does from BidAsk: their two surfaces are within 1 % of
+// each other in either objective.
+TEST(VolSurfaceCalibration, AndreasenHugeRunsUnderTheThreeWeightings) {
+    Market mkt;
+    const WeightedSheet sheet = weightedSheet(mkt, {4}, [](double, double m) {
+        return (static_cast<long>(std::lround(m / 0.025)) % 2 == 0) ? 0.03 : 0.0;
+    });
+    std::vector<VolSurfaceCalibrationResult> fits;
+    for (QuoteWeighting weighting : kWeightings) {
+        auto in = baseInputs(VolSurfaceFitMethod::AndreasenHuge);
+        in.base.quotes = sheet.lines;
+        in.weighting = weighting;
+        fits.push_back(VolSurfaceCalibrationEvaluator().evaluate(in, mkt.reg, mkt.ctx));
+        const auto& r = fits.back();
+        EXPECT_EQ(r.weighting, weighting);
+        ASSERT_EQ(r.expiries.size(), 1u);
+        ASSERT_TRUE(r.expiries[0].usable) << r.expiries[0].droppedReason;
+        EXPECT_EQ(r.expiries[0].quotesUsed, sheet.quotes[0].size());
+        ASSERT_TRUE(r.andreasenHugeError.has_value());
+    }
+    const double F = mkt.forward(sheet.expiries[0]);
+    auto volOf = [&](std::size_t fit) {
+        const VolSurfaceCalibrationResult& r = fits[fit];
+        return [&r, F](double k) {
+            const double K = F * std::exp(k);
+            const auto& strikes = r.gridStrikes;
+            const std::size_t hi = std::min<std::size_t>(
+                strikes.size() - 1,
+                std::max<std::size_t>(
+                    1, std::upper_bound(strikes.begin(), strikes.end(), K) - strikes.begin()));
+            const double x = (K - strikes[hi - 1]) / (strikes[hi] - strikes[hi - 1]);
+            return (1.0 - x) * gridVol(r, 0, hi - 1) + x * gridVol(r, 0, hi);
+        };
+    };
+    for (std::size_t own = 0; own < kWeightings.size(); ++own) {
+        const double best = sheet.objective(kWeightings[own], 0, volOf(own));
+        // Not an exact fit: an rms vol error above 0.3 vol points.
+        if (kWeightings[own] == QuoteWeighting::Uniform) {
+            EXPECT_GT(std::sqrt(best / sheet.quotes[0].size()), 3e-3);
+        }
+        for (std::size_t other = 0; other < kWeightings.size(); ++other) {
+            if (other == own) continue;
+            const double worse = sheet.objective(kWeightings[own], 0, volOf(other));
+            std::cout << "[ah-weighting] objective of " << quoteWeightingName(kWeightings[own])
+                      << " under its own fit " << best << ", under the "
+                      << quoteWeightingName(kWeightings[other]) << " fit " << worse << "\n";
+            const bool bidAsk = kWeightings[own] == QuoteWeighting::BidAsk ||
+                                kWeightings[other] == QuoteWeighting::BidAsk;
+            EXPECT_LT(best, worse * (bidAsk ? 1.0 - 1e-2 : 1.0 + 1e-2))
                 << "objective of " << quoteWeightingName(kWeightings[own]) << " under its own fit "
                 << best << ", under the " << quoteWeightingName(kWeightings[other]) << " fit "
                 << worse;

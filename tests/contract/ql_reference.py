@@ -7101,13 +7101,13 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
         points; AndreasenHugeVolatilityAdapter.blackVol at every grid point
         whose model price (interpl.optionPrice) is at least 1e-4 * spot, the
         others filled from the nearest inverted strike (lowest index on a
-        tie), as the engine does. The engine runs the same calibration with
-        each quote's price error divided by its vega and multiplied by the
-        square root of its weight (`weighting` Vega, the only value the
-        method accepts); QuantLib's class minimises the plain price errors.
-        The two have the same minimiser where the model matches the quotes,
-        which is the case of the catalog's sheet, and differ by the fit
-        residual elsewhere (tolerance of the row);
+        tie), as the engine does. This is the first of the engine's two
+        stages (QuantLib's class minimises the plain price errors, without
+        weights). The engine's second stage starts from it and minimises
+        the weighted vol errors of `weighting`. The two surfaces agree
+        where the model matches the quotes, which is the case of the
+        catalog's sheet (tolerance of the row), and differ on a sheet it
+        cannot match;
       * SviPerExpiry: SviInterpolatedSmileSection per expiry (all five
         parameters free, vega-weighted for `weighting` Vega and equal
         weights for Uniform, EndCriteria(500, 100, 1e-12, 1e-10,
@@ -7152,8 +7152,6 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
     weighting = request.get("weighting", "Vega")
     if weighting not in ("Uniform", "Vega", "BidAsk"):
         raise ValueError(f"unknown weighting {weighting}")
-    if method == "AndreasenHuge" and weighting != "Vega":
-        raise ValueError(f"weighting {weighting} is not available with method AndreasenHuge")
     svi_opts = dict(request.get("svi") or {})
     enforce_butterfly = bool(svi_opts.get("enforce_butterfly", True))
     enforce_calendar = bool(svi_opts.get("enforce_calendar", True))

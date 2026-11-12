@@ -51,14 +51,19 @@
  *    moves the implied vol by more than a tenth of a vol point below that
  *    and inverts to arbitrary vols where the true price is ~0); the other
  *    points are filled flat from the nearest inverted strike of the same
- *    expiry and the report counts them. The vol error of a quote in the fit
- *    is its model price error over its Black vega (the vega floored at 1 %
- *    of the expiry's at-the-money vega), so the residual of quote i is
- *    sqrt(weight_i) (model_price_i - market_price_i) / vega_i. Only
- *    `weighting` Vega is accepted: started from the flat local vol of the
- *    calibration, the fit under Uniform or BidAsk weights ends on some
- *    sheets far from the quotes it matches under Vega (measured on the
- *    example sheets), so those two values are a 400.
+ *    expiry and the report counts them. The fit has two stages, the same
+ *    for the three `weighting` values. The first is QuantLib's calibration
+ *    as it is (plain price errors, no weights, from the flat local vol).
+ *    The second builds a second surface, each expiry started from the
+ *    first stage's local vols, and minimises
+ *    sum_i weight_i (model_vol_i - market_vol_i)^2 / sum_i weight_i, the
+ *    model vol being the Black vol the surface returns at the quote (where
+ *    the model price has no implied vol: the price error over the Black
+ *    vega, floored at 1 % of the expiry's at-the-money vega). The surface
+ *    kept is the second stage's when its weighted sum over the expiries is
+ *    below the first stage's, otherwise the first stage's (started from
+ *    the flat local vol, the weighted fit alone ends on some sheets far
+ *    from the quotes).
  *
  * 3b. SviPerExpiry. Per usable expiry QuantLib's SviInterpolation
  *    (Levenberg-Marquardt, weighted least squares of the implied vols,
@@ -198,8 +203,7 @@ struct VolSurfaceCalibrationInputs {
     /// fitted slices (the calendar margin sigma_min^2 (T_i - T_{i-1}) in
     /// total variance), >= 0.
     double minForwardVol = 0.01;
-    /// Quote weighting of the fit (the three methods; AndreasenHuge accepts
-    /// Vega only).
+    /// Quote weighting of the fit (the three methods).
     QuoteWeighting weighting = QuoteWeighting::Vega;
     /// Ssvi: the |ln(K / F)| beyond which a used quote is left out of the
     /// fit (finite, > 0).

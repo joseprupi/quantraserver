@@ -1788,7 +1788,7 @@ structured note reads in closed form.
 | `sheet`, `discounting_curve`, `filter` | As for `/calibrate-implied-forwards`; same per-line rules, same reasons. `filter.moneyness_window` concerns the forward fit only: the vol fit uses every line that passes the per-line rules. European exercise only (`400` otherwise). |
 | `forwards` | Optional. The `expiries` array of an implied-forwards response pasted as is; only `expiry`, `usable`, `forward` and `implied_discount_factor` are read (non-usable entries skipped). Absent: the same fit is run here with `filter`, and `forwards_source` says `"fitted"` instead of `"request"`. A sheet expiry without a forward is reported unusable. |
 | `method` | `AndreasenHuge` (default), `SviPerExpiry` or `Ssvi`. |
-| `weighting` | The weight of each used quote's squared vol error in the fit: `Uniform`, `Vega` (default) or `BidAsk`. Same meaning for the three methods (see "Quote weighting" below). `SviPerExpiry` and `Ssvi` accept the three values; `AndreasenHuge` accepts `Vega` only (`400` naming the field otherwise). |
+| `weighting` | The weight of each used quote's squared vol error in the fit: `Uniform`, `Vega` (default) or `BidAsk`. Same meaning for the three methods (see "Quote weighting" below). The three methods accept the three values. |
 | `output_grid.strikes_as_moneyness` | Strikes as multiples of the spot, > 0, strictly increasing, at least 2. Default `0.500, 0.525, …, 1.500` (41 points). The returned surface is keyed by absolute strike (`strike = moneyness x spot`); the spot used is echoed as `spot`. With `AndreasenHuge` only the first and the last value matter: the returned strikes are the model's own finite-difference points within that range and the expiries' regions (see the method). |
 | `output_grid.expiries` | Calendar-day periods from `as_of_date` (`{n, unit}`; months and years are added on a NullCalendar, unadjusted). Default: the fitted sheet expiries. `SviPerExpiry` requires each one to be a fitted sheet expiry (`400` otherwise: the slices are not interpolated in time); `AndreasenHuge` and `Ssvi` accept any date up to the last fitted expiry. |
 | `vol_surface_id` | Id of the returned spec. |
@@ -1839,9 +1839,9 @@ What each method does with the weights:
   refits use them.
 - `Ssvi`: the search for `(ρ, ψ)` uses them. The quote nearest the money is
   reproduced exactly under every weighting.
-- `AndreasenHuge`: `Vega` only. The model has one parameter per used quote,
-  so the weights matter only on an expiry whose quotes the model cannot
-  match.
+- `AndreasenHuge`: the second of its two stages uses them (below). The
+  model has one parameter per used quote, so the weights matter only on an
+  expiry whose quotes the model cannot match.
 
 **AndreasenHuge.** Every used quote is a calibration instrument (the
 out-of-the-money option at its implied vol) of the engine's copy of
@@ -1853,19 +1853,24 @@ built from the implied discount factors and a dividend curve with
 and discounting are the sheet's. The method calibrates a piecewise local
 volatility expiry by expiry to the Black prices of those vols on a one-step
 finite-difference scheme (Andreasen & Huge, *Volatility Interpolation*,
-2010) and is free of static arbitrage by construction. The copy differs
-from QuantLib's class in the calibration's cost function only: the residual
-of a quote is `sqrt(weight_i) (model_price_i − market_price_i) / vega_i`,
-its price error turned into a vol error and weighted (`weighting`), with
-the vega floored at 1 % of the expiry's at-the-money vega so that a quote
-with almost no vega does not dominate. QuantLib's class minimises the plain
-price errors, which in vol terms weights each quote by its vega squared;
-up to 0.16.10 the endpoint used it as is. Only `weighting: Vega` is
-accepted: started from the flat local vol of the calibration, the fit
-under `Uniform` or `BidAsk` weights does not settle on a close fit on every
-sheet (on the four synthetic example sheets: errors of 7 to 27 vol points
-on some quotes under `BidAsk` on three of them, 16 vol points under
-`Uniform` on one), so those two values are a `400`. The Black vol at every
+2010) and is free of static arbitrage by construction. The calibration
+has two stages. The first is QuantLib's own: the fit to the prices, without
+weights (the surface of 0.16.10). The second builds a second surface,
+expiry by expiry, each expiry started from the first stage's local vols,
+and minimises `sum_i weight_i (model_vol_i − market_vol_i)² / sum_i weight_i`
+(`weighting`), where `model_vol_i` is the Black vol the surface returns at
+the quote. Where the model's price at a quote has no implied vol, the error
+of the quote is its price error divided by its vega, the vega floored at
+1 % of the expiry's at-the-money vega. The surface returned is the second
+stage's when its weighted sum, added over the expiries, is below the first
+stage's, otherwise the first stage's: the result is never worse than
+QuantLib's calibration in the request's own weighted measure. The two
+stages are needed because the weighted sum alone, started from the flat
+local vol of the calibration, does not settle on a close fit on every
+sheet. On an expiry the model cannot match, the optimiser stops on its
+evaluation limit in both stages, and the request takes about 1.5 times as
+long as the first stage alone (the gateway deadline is
+`QUANTRA_GATEWAY_DEADLINE_MS` in `configuration.md`). The Black vol at every
 grid point is the model price inverted. A point is
 inverted only where the model's out-of-the-money price is at least
 `1e-4 x spot` (the finite-difference price carries noise of about

@@ -180,11 +180,14 @@ class CalibrateVolSurfaceRequest(object):
     #   Ssvi: the weights apply to the (rho, psi) search of each slice; the
     #     used quote nearest the money is reproduced exactly whatever the
     #     weighting.
-    #   AndreasenHuge: `Vega` only; `Uniform` and `BidAsk` are a 400
-    #     naming this field. The vol error of a quote is its model price
-    #     error over its Black vega. The model has one parameter per used
-    #     quote, so the weights matter only where the quotes cannot all be
-    #     matched.
+    #   AndreasenHuge: two stages. The first is the fit to the prices
+    #     (no weights). The second starts from it and minimises the
+    #     weighted sum, the model vol read from the surface at each quote.
+    #     The surface returned is the second stage's when it lowers the
+    #     weighted sum (per expiry divided by the sum of the weights, then
+    #     added over the expiries), otherwise the first stage's. The model
+    #     has one parameter per used quote, so the weights matter only
+    #     where the quotes cannot all be matched.
     # CalibrateVolSurfaceRequest
     def Weighting(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))

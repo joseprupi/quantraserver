@@ -5,8 +5,13 @@
 //     against the SviPerExpiry formula of the versions before the option;
 //     BidAsk: price and vol spreads, the median for a one-sided quote, the
 //     quote left out, the 400 naming the expiry;
-//   * WeightedAndreasenHuge with weight vega^2 and no vega floor against
-//     QuantLib's AndreasenHugeVolatilityInterpl + adapter (same vols);
+//   * WeightedAndreasenHuge with all weights zero against QuantLib's
+//     AndreasenHugeVolatilityInterpl + adapter (same vols: the first stage
+//     alone);
+//   * with uniform, vega and inverse squared spread weights, on quotes the
+//     model matches and on quotes it cannot match: the weighted cost of the
+//     result is never above the first stage's, and the weighted vol error
+//     at the quotes is never above that of QuantLib's class;
 //   * on quotes no arbitrage-free model matches (a butterfly violation),
 //     raising a quote's weight lowers its error.
 #include "quote_weighting.h"
@@ -17,6 +22,7 @@
 #include <ql/exercise.hpp>
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
+#include <ql/math/functional.hpp>
 #include <ql/pricingengines/blackcalculator.hpp>
 #include <ql/pricingengines/blackformula.hpp>
 #include <ql/quotes/simplequote.hpp>
@@ -197,58 +203,170 @@ struct AhMarket {
     }
 };
 
-} // namespace
-
-TEST(WeightedAndreasenHuge, VegaSquaredWeightsAreQuantLibsCalibration) {
-    AhMarket m;
+// QuantLib's class on the quotes of `expiries`.
+std::shared_ptr<QuantLib::AndreasenHugeVolatilityInterpl> quantLibFit(
+    const AhMarket& m, const std::vector<WeightedAndreasenHuge::Expiry>& expiries) {
     QuantLib::AndreasenHugeVolatilityInterpl::CalibrationSet set;
-    std::vector<WeightedAndreasenHuge::Expiry> expiries;
-    for (const Date& d : m.expiries) {
-        const auto exercise = std::make_shared<QuantLib::EuropeanExercise>(d);
-        WeightedAndreasenHuge::Expiry x;
-        x.date = d;
-        for (double K : m.strikes) {
-            const double v = m.vol(d, K);
-            const auto type = K >= m.forward(d) ? QuantLib::Option::Call : QuantLib::Option::Put;
+    for (const auto& x : expiries) {
+        const auto exercise = std::make_shared<QuantLib::EuropeanExercise>(x.date);
+        for (const auto& q : x.quotes) {
+            const auto type =
+                q.strike >= m.forward(x.date) ? QuantLib::Option::Call : QuantLib::Option::Put;
             set.emplace_back(
                 std::make_shared<QuantLib::VanillaOption>(
-                    std::make_shared<QuantLib::PlainVanillaPayoff>(type, K), exercise),
-                std::make_shared<QuantLib::SimpleQuote>(v));
-            const double vega = m.forwardVega(d, K, v);
-            x.quotes.push_back(WeightedAndreasenHuge::Quote{K, v, vega * vega});
+                    std::make_shared<QuantLib::PlainVanillaPayoff>(type, q.strike), exercise),
+                std::make_shared<QuantLib::SimpleQuote>(q.vol));
+        }
+    }
+    const Handle<QuantLib::Quote> spotH(std::make_shared<QuantLib::SimpleQuote>(m.spot));
+    return std::make_shared<QuantLib::AndreasenHugeVolatilityInterpl>(
+        set, spotH, m.rTS, m.qTS, QuantLib::AndreasenHugeVolatilityInterpl::CubicSpline,
+        QuantLib::AndreasenHugeVolatilityInterpl::CallPut, 500);
+}
+
+enum class TestWeights { Zero, Uniform, Vega, InverseSquaredSpread };
+
+// The quotes of the market, the smile of AhMarket::vol or, with `kinked`,
+// the same smile with every second strike 3 vol points higher (butterfly
+// violations: no arbitrage-free model matches these quotes).
+std::vector<WeightedAndreasenHuge::Expiry> ahQuotes(
+    const AhMarket& m, TestWeights weights, bool kinked) {
+    std::vector<WeightedAndreasenHuge::Expiry> expiries;
+    for (const Date& d : m.expiries) {
+        WeightedAndreasenHuge::Expiry x;
+        x.date = d;
+        for (std::size_t j = 0; j < m.strikes.size(); ++j) {
+            const double K = m.strikes[j];
+            const double v = m.vol(d, K) + ((kinked && j % 2 == 1) ? 0.03 : 0.0);
+            double w = 0.0;
+            if (weights == TestWeights::Uniform) w = 1.0;
+            if (weights == TestWeights::Vega) w = m.forwardVega(d, K, v);
+            // A vol spread that widens away from the money.
+            if (weights == TestWeights::InverseSquaredSpread)
+                w = 1.0 / QuantLib::squared(0.002 + 0.02 * std::fabs(std::log(K / m.forward(d))));
+            x.quotes.push_back(WeightedAndreasenHuge::Quote{K, v, w});
         }
         expiries.push_back(x);
     }
-    const Handle<QuantLib::Quote> spotH(std::make_shared<QuantLib::SimpleQuote>(m.spot));
-    const auto ql = std::make_shared<QuantLib::AndreasenHugeVolatilityInterpl>(
-        set, spotH, m.rTS, m.qTS, QuantLib::AndreasenHugeVolatilityInterpl::CubicSpline,
-        QuantLib::AndreasenHugeVolatilityInterpl::CallPut, 500);
-    const QuantLib::AndreasenHugeVolatilityAdapter adapter(ql);
-    const WeightedAndreasenHuge copy(expiries, m.spot, m.rTS, m.qTS, 500, 0.0);
+    return expiries;
+}
 
-    EXPECT_DOUBLE_EQ(copy.minStrike(), ql->minStrike());
-    EXPECT_DOUBLE_EQ(copy.maxStrike(), ql->maxStrike());
-    double maxDiff = 0.0, maxErr = 0.0;
-    for (const Date& d : m.expiries) {
-        EXPECT_DOUBLE_EQ(copy.fwd(m.time(d)), ql->fwd(m.time(d)));
-        for (double K = 72.5; K <= 122.5; K += 2.5) {
-            const double a = adapter.blackVol(d, K, true), b = copy.blackVol(d, K);
-            maxDiff = std::max(maxDiff, std::fabs(a - b));
-            const auto type = K >= m.forward(d) ? QuantLib::Option::Call : QuantLib::Option::Put;
-            EXPECT_NEAR(
-                copy.optionPrice(m.time(d), K, type), ql->optionPrice(m.time(d), K, type), 1e-13);
-        }
-        for (double K : m.strikes)
-            maxErr = std::max(maxErr, std::fabs(copy.blackVol(d, K) - m.vol(d, K)));
+// sum_i weight_i (vol_i - market vol_i)^2 / sum_i weight_i at one expiry.
+double weightedMeanSquaredVolError(
+    const WeightedAndreasenHuge::Expiry& x, const std::function<double(double)>& volAt) {
+    double num = 0.0, den = 0.0;
+    for (const auto& q : x.quotes) {
+        num += q.weight * QuantLib::squared(volAt(q.strike) - q.vol);
+        den += q.weight;
     }
-    EXPECT_LT(maxDiff, 1e-12) << "largest vol difference to QuantLib's class";
-    EXPECT_LT(maxErr, 2e-3) << "largest vol error on the quotes";
-    // A date between two expiries.
-    const Date mid(31, QuantLib::March, 2027);
-    EXPECT_NEAR(adapter.blackVol(mid, 97.0, true), copy.blackVol(mid, 97.0), 1e-12);
-    ASSERT_EQ(copy.fits().size(), m.expiries.size());
-    for (const auto& f : copy.fits())
-        EXPECT_GT(f.functionEvaluations, 0u);
+    return num / den;
+}
+
+} // namespace
+
+TEST(WeightedAndreasenHuge, ZeroWeightsAreQuantLibsCalibration) {
+    AhMarket m;
+    for (const bool kinked : {false, true}) {
+        const auto expiries = ahQuotes(m, TestWeights::Zero, kinked);
+        const auto ql = quantLibFit(m, expiries);
+        const QuantLib::AndreasenHugeVolatilityAdapter adapter(ql);
+        const WeightedAndreasenHuge copy(expiries, m.spot, m.rTS, m.qTS);
+
+        EXPECT_DOUBLE_EQ(copy.minStrike(), ql->minStrike());
+        EXPECT_DOUBLE_EQ(copy.maxStrike(), ql->maxStrike());
+        double maxDiff = 0.0, maxErr = 0.0;
+        for (const Date& d : m.expiries) {
+            EXPECT_DOUBLE_EQ(copy.fwd(m.time(d)), ql->fwd(m.time(d)));
+            for (double K = 72.5; K <= 122.5; K += 2.5) {
+                const double a = adapter.blackVol(d, K, true), b = copy.blackVol(d, K);
+                maxDiff = std::max(maxDiff, std::fabs(a - b));
+                const auto type =
+                    K >= m.forward(d) ? QuantLib::Option::Call : QuantLib::Option::Put;
+                EXPECT_NEAR(
+                    copy.optionPrice(m.time(d), K, type), ql->optionPrice(m.time(d), K, type),
+                    1e-13);
+            }
+            for (double K : m.strikes)
+                maxErr = std::max(maxErr, std::fabs(copy.blackVol(d, K) - m.vol(d, K)));
+        }
+        EXPECT_LT(maxDiff, 1e-12) << "largest vol difference to QuantLib's class";
+        if (!kinked) {
+            EXPECT_LT(maxErr, 2e-3) << "largest vol error on the quotes";
+        }
+        // A date between two expiries.
+        const Date mid(31, QuantLib::March, 2027);
+        EXPECT_NEAR(adapter.blackVol(mid, 97.0, true), copy.blackVol(mid, 97.0), 1e-12);
+
+        // The second stage has nothing to lower and does not run.
+        EXPECT_FALSE(copy.weightedStageUsed());
+        EXPECT_EQ(copy.priceStageCost(), 0.0);
+        ASSERT_EQ(copy.fits().size(), m.expiries.size());
+        for (const auto& f : copy.fits()) {
+            EXPECT_GT(f.priceStageEvaluations, 0u);
+            EXPECT_EQ(f.weightedStageEvaluations, 0u);
+            EXPECT_FALSE(f.weightedStageKept);
+        }
+    }
+}
+
+TEST(WeightedAndreasenHuge, TheResultIsNeverWorseThanTheFirstStageInTheWeightedCost) {
+    AhMarket m;
+    for (const bool kinked : {false, true}) {
+        for (const TestWeights weights :
+             {TestWeights::Uniform, TestWeights::Vega, TestWeights::InverseSquaredSpread}) {
+            SCOPED_TRACE(
+                std::string(kinked ? "kinked" : "smooth") + " quotes, weights " +
+                std::to_string(static_cast<int>(weights)));
+            const auto expiries = ahQuotes(m, weights, kinked);
+            const WeightedAndreasenHuge fit(expiries, m.spot, m.rTS, m.qTS);
+            const QuantLib::AndreasenHugeVolatilityAdapter ql(quantLibFit(m, expiries));
+
+            // The bookkeeping: the surface returned is the one with the
+            // smaller weighted cost.
+            ASSERT_EQ(fit.fits().size(), expiries.size());
+            double priceStage = 0.0, weightedStage = 0.0, returned = 0.0;
+            for (const auto& f : fit.fits()) {
+                priceStage += f.priceStageCost;
+                weightedStage += f.weightedStageCost;
+                returned += f.cost;
+                EXPECT_EQ(f.cost, fit.weightedStageUsed() ? f.weightedStageCost : f.priceStageCost);
+            }
+            EXPECT_DOUBLE_EQ(priceStage, fit.priceStageCost());
+            EXPECT_DOUBLE_EQ(weightedStage, fit.weightedStageCost());
+            EXPECT_EQ(fit.weightedStageUsed(), fit.weightedStageCost() < fit.priceStageCost());
+            EXPECT_LE(returned, fit.priceStageCost());
+            // Here the second stage lowers the cost and is returned.
+            EXPECT_TRUE(fit.weightedStageUsed());
+            EXPECT_LT(fit.weightedStageCost(), 0.9 * fit.priceStageCost());
+
+            // The same from outside: the cost is the vol error blackVol()
+            // returns at the quotes, and the first stage is QuantLib's class.
+            double ours = 0.0, quantLibs = 0.0;
+            for (std::size_t i = 0; i < expiries.size(); ++i) {
+                const Date d = expiries[i].date;
+                const double oursAtExpiry = weightedMeanSquaredVolError(
+                    expiries[i], [&](double K) { return fit.blackVol(d, K); });
+                const double quantLibsAtExpiry = weightedMeanSquaredVolError(
+                    expiries[i], [&](double K) { return ql.blackVol(d, K, true); });
+                // blackVol() inverts to 1e-6 in standard deviation.
+                EXPECT_NEAR(std::sqrt(oursAtExpiry), std::sqrt(fit.fits()[i].cost), 1e-5);
+                EXPECT_NEAR(
+                    std::sqrt(quantLibsAtExpiry), std::sqrt(fit.fits()[i].priceStageCost), 1e-5);
+                ours += oursAtExpiry;
+                quantLibs += quantLibsAtExpiry;
+            }
+            RecordProperty("weighted_rms_vol_error", std::sqrt(ours / expiries.size()));
+            RecordProperty(
+                "weighted_rms_vol_error_quantlib", std::sqrt(quantLibs / expiries.size()));
+            EXPECT_LT(ours, quantLibs);
+            if (!kinked) {
+                // Quotes the model matches: both fits are on the quotes.
+                for (const auto& x : expiries)
+                    for (const auto& q : x.quotes)
+                        EXPECT_NEAR(fit.blackVol(x.date, q.strike), q.vol, 1e-4);
+            }
+        }
+    }
 }
 
 TEST(WeightedAndreasenHuge, RaisingAQuotesWeightLowersItsError) {

@@ -35,8 +35,8 @@ What none of the methods does:
 | Shape | Parametric, one slice per expiry | Parametric, one slice per expiry | Non-parametric |
 | Parameters per expiry | 5 | 3 | None (piecewise local vol) |
 | Minimum used quotes per expiry | 5 | 3 | `filter.min_quotes_per_expiry` |
-| Fit code | QuantLib `SviInterpolation`, then this engine's refits | This engine | This engine's copy of QuantLib `AndreasenHugeVolatilityInterpl`, with weights |
-| `weighting` values | `Uniform`, `Vega`, `BidAsk` | `Uniform`, `Vega`, `BidAsk` | `Vega` only |
+| Fit code | QuantLib `SviInterpolation`, then this engine's refits | This engine | This engine's copy of QuantLib `AndreasenHugeVolatilityInterpl`: its fit to the prices, then a weighted second stage |
+| `weighting` values | `Uniform`, `Vega`, `BidAsk` | `Uniform`, `Vega`, `BidAsk` | `Uniform`, `Vega`, `BidAsk` |
 | No butterfly arbitrage | Checked, refitted with a penalty when it fails | By construction | In the method's own model |
 | No calendar arbitrage | Enforced during the fit, last expiry first | By construction | In the method's own model |
 | Between expiries | Total variance linear in time at fixed forward moneyness | The three parameters interpolated in time | Total variance linear in time at fixed forward moneyness, on a sampled grid |
@@ -161,12 +161,20 @@ calibration, 500 grid points, Levenberg-Marquardt).
 
 **Engine part.**
 
-- The calibration is an engine-side copy of that class with one change, the
-  cost function. The residual of a quote is
-  `sqrt(weight_i) (model_price_i - market_price_i) / vega_i`: the price error
-  turned into a vol error, then weighted. The vega is floored at 1 % of the
-  expiry's at-the-money vega. QuantLib's class minimises plain price errors,
-  which in vol terms is a weight of vega squared.
+- The calibration is an engine-side copy of that class and runs in two
+  stages. The first is QuantLib's calibration as it is: the fit to the
+  prices, without weights.
+- The second stage builds a second surface, expiry by expiry, each expiry
+  started from the first stage's local vols. It minimises
+  `sum_i weight_i (model_vol_i - market_vol_i)^2 / sum_i weight_i`, where
+  `model_vol_i` is the Black vol the surface returns at the quote. Where the
+  model's price at a quote has no implied vol, the error of the quote is its
+  price error divided by its vega, the vega floored at 1 % of the expiry's
+  at-the-money vega.
+- The surface returned is the second stage's when its weighted sum, added
+  over the expiries, is below the first stage's. Otherwise it is the first
+  stage's. The result is never worse than QuantLib's calibration in the
+  request's own weighted measure.
 - The Black vol is the model price inverted, as QuantLib's
   `AndreasenHugeVolatilityAdapter` does.
 - The model's Black vols are sampled on the model's own strike mesh and
@@ -184,11 +192,15 @@ calibration, 500 grid points, Levenberg-Marquardt).
 
 **Known limits.**
 
-- `weighting` accepts `Vega` only. Under `Uniform` or `BidAsk` weights the
-  calibration, started from a flat local vol, does not settle on a close fit
-  on every sheet, so the two values are a `400`.
+- Started from a flat local vol, the weighted sum alone does not settle on a
+  close fit on every sheet. This is why the weighted stage starts from the
+  fit to the prices.
 - On an expiry the model cannot match, the optimiser stops at its evaluation
-  limit. The result is then the best point found, not a converged minimum.
+  limit, in both stages. The result is then the best point found, not a
+  converged minimum. The surface of one `weighting` value is then not always
+  the best of the three under that value's own weights.
+- On a sheet the model cannot match, the second stage adds about half of the
+  first stage's time.
 - The method is free of arbitrage in its own one-step model. What is returned
   is a sampled grid of implied vols, read back with a cubic spline in strike
   and linear total variance in time. The Dupire local vol of that grid is not

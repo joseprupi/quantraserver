@@ -10,7 +10,7 @@ What this suite locks, end to end through the JSON gateway:
     `ssvi_arbitrage` blocks (the 0.16.6 numbers in
     fixtures/vol_surface_validation_0_16_6.json; the surfaces are proven the
     same by the hash of their spec, Andreasen-Huge's within 0.5 vol points
-    of the former one since its calibration weights vol errors by vega); the
+    of the former one since its calibration has a weighted second stage); the
     simulation equals the former
     `diagnostics.vanilla_repricing` of a single-underlying note whose
     observation dates are sheet expiries (same seed, paths and grid);
@@ -60,7 +60,7 @@ CORE_MIN_MID_OF_SPOT = 2.5e-3
 CORE_Z = 3.5
 
 # The largest move of a used quote's Andreasen-Huge vol against the 0.16.6
-# numbers (measured: 2e-7 on the NDX sheet, 4.4e-3 on the 16-day expiry of
+# numbers (measured: 4e-5 on the NDX sheet, 1.1e-3 on the 16-day expiry of
 # the RTY sheet, which the model does not match).
 ANDREASEN_HUGE_VOL_SHIFT = 5e-3
 
@@ -144,10 +144,11 @@ def test_reproduces_the_former_calibrate_checks(client, case):
     former = _former()["calibrations"][case]
     req, out = _calibrate(client, PRESETS[former["name"]], former["method"])
     payloads = [p for p in ("grid", "svi", "ssvi") if former["spec_sha256"][p]]
-    # Since 0.16.11 the Andreasen-Huge calibration weights vol errors by vega
-    # (the former one minimised plain price errors): its surface is close to
-    # the former one, not equal. The quotes are compared within
-    # ANDREASEN_HUGE_VOL_SHIFT below; the verdicts are the former ones.
+    # Since 0.16.11 the Andreasen-Huge calibration has a second stage on the
+    # weighted vol errors (the former one stopped at the fit to the prices):
+    # its surface is close to the former one, not equal. The quotes are
+    # compared within ANDREASEN_HUGE_VOL_SHIFT below; the verdicts are the
+    # former ones.
     andreasen_huge = former["method"] == "AndreasenHuge"
     for p in payloads:
         if p == "ssvi" or andreasen_huge:
