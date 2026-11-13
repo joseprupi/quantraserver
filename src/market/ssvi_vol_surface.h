@@ -4,6 +4,10 @@
 /**
  * QuantLib term-structure wrappers around the eSSVI math in ssvi.h.
  *
+ * Under a simulation (notes, /validate-vol-surface) the surface and the
+ * process curves given to SsviLocalVol are on the simulation's axis,
+ * Actual/365 (Fixed) years from the valuation date (src/market/simulation_axis.h).
+ *
  * SsviBlackVol is a BlackVarianceTermStructure whose total variance at expiry t
  * and strike K is
  *

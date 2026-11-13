@@ -10548,7 +10548,7 @@
           },
           "time_grid": {
             "type": "array",
-            "description": "The grid, in years from the valuation date (day counter of the\ndiscounting curve).",
+            "description": "The grid, in Actual/365 (Fixed) years from the valuation date (every\ncurve is read by date on this axis, whatever its day counter).",
             "items": {
               "type": "number"
             }

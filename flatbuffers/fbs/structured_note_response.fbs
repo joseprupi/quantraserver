@@ -183,8 +183,8 @@ table StructuredNoteModelEcho {
     observation_dates_only:bool;
     /// Number of time steps of the grid.
     time_steps:uint;
-    /// The grid, in years from the valuation date (day counter of the
-    /// discounting curve).
+    /// The grid, in Actual/365 (Fixed) years from the valuation date (every
+    /// curve is read by date on this axis, whatever its day counter).
     time_grid:[double];
     /// Dimension of the random sequence (time steps x underlyings).
     sequence_dimension:uint;

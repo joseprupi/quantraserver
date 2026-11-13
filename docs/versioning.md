@@ -26,7 +26,7 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
-## Version 0.16.11 (November 2026) — one quote weighting option, safe defaults for supplied grids, digitals and barriers refused on a smile, 30 s gateway deadline
+## Version 0.16.11 (November 2026) — one quote weighting option, safe defaults for supplied grids, digitals and barriers refused on a smile, 30 s gateway deadline, curves read by date under a simulation
 
 `v0.16.11` is described change by change; each change has its own part
 below. QuantLib stays at 1.44.
@@ -299,6 +299,73 @@ sheet takes 9 to 10 s.
 **What changes for a caller.** A request that took between 10 and 30 s
 answered `504` and now completes. A deployment that set
 `QUANTRA_GATEWAY_DEADLINE_MS` keeps its value.
+
+### Curves of any day counter under a simulation; vols on Actual/365 (Fixed)
+
+**What it was.** A structured note and `/validate-vol-surface` measure time
+in Actual/365 (Fixed) years from `as_of_date` (the simulation grid, the
+expiries, the arbitrage scan). They read the curves at those times, and
+QuantLib reads a time on the curve's own day counter from the curve's own
+reference date. A curve on Actual/360, 30/360 or Actual/Actual therefore
+returned the discount factor of another date: the forwards, the drift, the
+local vol and the discounting of the cash flows (the funding-spreaded
+discount curve reads its base curve by time too) were off. The vols were read the same way.
+
+**What it is now.** Every curve a note or `/validate-vol-surface` reads
+(the note curve, the dividend curves, a quanto underlying's own curve, the
+validation's discounting and dividend curves, and the curves of a
+`CubicStrikeLinearTimeForwardMoneyness` grid's forward when the grid is on
+Actual/365 (Fixed)) is read by date: at time `t` the discount factor is
+the curve's at the date `t x 365` days after `as_of_date`; a fraction of a
+day interpolates the curve's own time between the two dates. A curve on
+Actual/365 (Fixed) with `reference_date` equal to `as_of_date` is read as
+before, bit for bit. Every vol a note reads (the underlyings' and a quanto
+FX vol) and the vol `/validate-vol-surface` checks must have `day_counter`
+`Actual365Fixed` and `reference_date` equal to `as_of_date`; any other is
+a `400` (`INVALID_ARGUMENT`) naming the vol and the field. Vanilla
+`/price-equity-option` is unchanged (QuantLib's process reads its curves
+by date).
+
+**What changes for a caller.** A note or a validation on curves of
+another day counter moves to the values the same curves give on
+Actual/365 (Fixed). A note or a validation whose vol is not on
+Actual/365 (Fixed) at `as_of_date` gets a `400`; the surfaces
+`/calibrate-vol-surface` returns are on it. `model.time_grid` of the note
+response was documented as using the discounting curve's day counter; it
+is Actual/365 (Fixed) years from the valuation date, as it always was. No
+example or catalog row uses another day counter or reference date on a
+curve or a vol under a note or a validation.
+
+**Measured** on synthetic examples: each curve relabelled Actual/360 with
+its continuous zero rates scaled by 360/365, which leaves the discount
+factor at every date unchanged.
+
+`/validate-vol-surface`, `vol_surface_validation/scotia_ndx_svi.json`
+(forward at the 2027-12-17 expiry; quotes inside bid/ask, of 189; scan
+points, none refused):
+
+| Curves relabelled | 0.16.10 | 0.16.11 |
+|---|---|---|
+| None | 31,973.227, 189, 6,773 | 31,973.227, 189, 6,773 |
+| Discounting | 31,946.814, 136, 6,781 | 31,973.227, 189, 6,773 |
+| Dividend | 31,975.513, 189, 6,781 | 31,973.227, 189, 6,773 |
+| Both | 31,949.098, 155, 6,781 | 31,973.227, 189, 6,773 |
+
+Notes, NPV per 1,000 (note curve and dividend curves relabelled; for the
+quanto note the underlyings' own curves and the dividend curves, 2048
+paths):
+
+| Example | Base | 0.16.10 relabelled | 0.16.11 relabelled |
+|---|---|---|---|
+| `synthetic_spx_1y_autocall_on_daily_expiry_svi.json` (local vol) | 983.7609 | 983.7253 | 983.7609 |
+| `synthetic_two_asset_worst_of_flat_vol_autocall.json` (constant vols) | 894.5823 | 894.0892 | 894.5823 |
+| `bnp_quad_index_classic_autocall_xs2741509801.json` (quanto) | 874.0008 | 874.4798 | 874.0008 |
+
+On the relabelled curves the constant-vol and quanto notes give the base
+NPV bit for bit and the local-vol note within 1e-9 relative (the local
+vol's finite differences amplify the last-digit differences of the
+discount factors). Cost: the local-vol note simulates in 1.33 s on
+Actual/365 (Fixed) curves (unchanged) and 1.61 s on Actual/360 curves.
 
 ## Version 0.16.10 (November 2026) — time interpolation at fixed forward moneyness
 

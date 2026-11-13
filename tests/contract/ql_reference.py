@@ -5761,6 +5761,19 @@ def _sn_gaussian_source(sequence: str, brownian_bridge: bool, seed: int,
     return lambda: list(rsg.nextSequence().value())
 
 
+def _sn_on_simulation_axis(curve_handle, as_of, curve_id):
+    """The reference reads curves at Actual/365 (Fixed) years from as_of
+    with QuantLib's time reads, which is the engine's by-date reading only
+    for a curve on Actual/365 (Fixed) at as_of (the engine puts any other
+    curve on that axis through a view, src/market/simulation_axis.h)."""
+    if curve_handle.dayCounter() != ql.Actual365Fixed() or curve_handle.referenceDate() != as_of:
+        raise NotImplementedError(
+            f"curve '{curve_id}': the reference needs Actual365Fixed at as_of_date under a "
+            f"simulation, got {curve_handle.dayCounter().name()} at "
+            f"{curve_handle.referenceDate().ISO()}")
+    return curve_handle
+
+
 def _sn_spreaded(curve_handle, spread: float):
     """The engine's funding / rate shift: ZeroSpreadedTermStructure(curve,
     spread, Continuous, Annual, Actual/365 (Fixed)), extrapolating."""
@@ -5860,7 +5873,7 @@ def structured_note_ql(request: dict, index: int = 0, _vanilla_options=None) -> 
     # --- market -------------------------------------------------------------
     def curve(curve_id, what):
         spec = _sn_find(pricing["curves"], "id", curve_id, what)
-        return build_curve_from_json(spec, as_of, request)
+        return _sn_on_simulation_axis(build_curve_from_json(spec, as_of, request), as_of, curve_id)
 
     note_curve = curve(note["discounting_curve"], "Discounting curve")
     spreaded = _sn_spreaded(note_curve, float(note.get("funding_spread_bp", 0.0)) * 1.0e-4)
@@ -7458,12 +7471,12 @@ def validate_vol_surface_ql(request: dict) -> dict:
         fwd_in = {e["expiry"]: (float(e["forward"]), float(e["implied_discount_factor"]))
                   for e in request["forwards"] if e.get("usable")}
     else:
-        disc = build_curve_from_json(
+        disc = _sn_on_simulation_axis(build_curve_from_json(
             _sn_find(pricing["curves"], "id", request["discounting_curve"], "Discounting curve"),
-            as_of, request)
-        div = build_curve_from_json(
+            as_of, request), as_of, request["discounting_curve"])
+        div = _sn_on_simulation_axis(build_curve_from_json(
             _sn_find(pricing["curves"], "id", eq["dividend_yield_curve_id"], "Dividend curve"),
-            as_of, request)
+            as_of, request), as_of, eq["dividend_yield_curve_id"])
     vol, _shape, _exact = _sn_black_vol(pricing, request["volatility_id"])
 
     by_expiry = {}

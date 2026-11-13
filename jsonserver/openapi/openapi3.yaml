@@ -10154,10 +10154,10 @@ components:
           maximum: 4294967295
         time_grid:
           type: array
-          description: 'The grid, in years from the valuation date (day counter of
-            the
+          description: 'The grid, in Actual/365 (Fixed) years from the valuation date
+            (every
 
-            discounting curve).'
+            curve is read by date on this axis, whatever its day counter).'
           items:
             type: number
         sequence_dimension:

@@ -36,6 +36,10 @@
  * observation date the local-vol evolution is wrong (frozen at the local vol
  * of the starting point).
  *
+ * Curves and vols are read at times on the simulation's axis, Actual/365
+ * (Fixed) years from the valuation date: callers pass curves through
+ * OnSimulationAxis and vols already on it (src/market/simulation_axis.h).
+ *
  * The processes keep the handles (no copies): a relinked or bumped spot, curve
  * or vol flows through to the next simulation (bump-and-reprice Greeks with
  * the same seed).

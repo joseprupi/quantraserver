@@ -3,6 +3,7 @@
 #include "date_convert.h"
 #include "error.h"
 #include "path_engine.h"
+#include "simulation_axis.h"
 #include "smile_slice_vol_surface.h"
 #include "ssvi.h"
 #include "ssvi_calibrator.h"
@@ -630,10 +631,16 @@ VolSurfaceValidationResult VolSurfaceValidationEvaluator::evaluate(
             "spot of underlying '" + in.underlyingId + "' must be finite and > 0");
     }
     out.spot = spot;
-    const Handle<QuantLib::YieldTermStructure> curve = findCurve(reg, in.discountingCurveId);
-    const Handle<QuantLib::YieldTermStructure> dividend = eqIt->second.dividend;
     const Date asOf = ctx.asOf;
     const QuantLib::DayCounter dc = QuantLib::Actual365Fixed();
+    // The forwards, the scan and the simulation read curves and the vol at
+    // Actual/365 (Fixed) years from asOf: the curves through a view on that
+    // axis (read by date, src/market/simulation_axis.h), the vol on it.
+    const Handle<QuantLib::YieldTermStructure> curve =
+        OnSimulationAxis(findCurve(reg, in.discountingCurveId), asOf);
+    const Handle<QuantLib::YieldTermStructure> dividend =
+        OnSimulationAxis(eqIt->second.dividend, asOf);
+    RequireVolOnSimulationAxis(**entry.handle, asOf, in.volatilityId);
 
     std::map<Date, VolSurfaceForwardInput> forwardByDate;
     if (in.forwards) {

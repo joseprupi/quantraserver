@@ -615,7 +615,7 @@ CalibrationResult calibrate(const CalibrationInput& in) {
                 // the last infeasible value and it is then bisected, keeping the feasible end,
                 // until it is below kAnchorRaiseTolerance of the raise: the smallest raise that
                 // makes the calendar conditions feasible, within that tolerance.
-                const double anchorTheta = thetaStar;
+                const double marketTheta = thetaStar;
                 double raised = std::max(thetaStar, floor);
                 double bump = std::max(1e-12, 1e-6 * floor);
                 double lastInfeasible = kNaN;
@@ -632,7 +632,7 @@ CalibrationResult calibrate(const CalibrationInput& in) {
                     double lo = lastInfeasible, hi = raised;
                     Fit trial;
                     for (int n = 0; n < kAnchorRaiseMaxBisections &&
-                                    hi - lo > kAnchorRaiseTolerance * (hi - anchorTheta);
+                                    hi - lo > kAnchorRaiseTolerance * (hi - marketTheta);
                          ++n) {
                         const double mid = 0.5 * (lo + hi);
                         if (searchSlice(pts, ex.T, kStar, mid, prev, trial)) {

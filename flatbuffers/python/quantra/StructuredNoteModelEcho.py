@@ -66,8 +66,8 @@ class StructuredNoteModelEcho(object):
             return self._tab.Get(flatbuffers.number_types.Uint32Flags, o + self._tab.Pos)
         return 0
 
-    # The grid, in years from the valuation date (day counter of the
-    # discounting curve).
+    # The grid, in Actual/365 (Fixed) years from the valuation date (every
+    # curve is read by date on this axis, whatever its day counter).
     # StructuredNoteModelEcho
     def TimeGrid(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))

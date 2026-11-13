@@ -1516,6 +1516,15 @@ there is no adapter around the original object).
   Monte Carlo repricing of `/validate-vol-surface` shows it (2 to 3 vol points high at one
   year on the synthetic SVI surfaces). `CubicStrikeLinearTime` and the SVI
   payload keep the curvature and reprice the quotes from two months on the mean vol error per expiry is within 0.12 vol points at 65 536 paths and every option with a mid of at least 0.25 % of the spot is within 3.5 standard errors of its bid/ask; the note prices 951.9 ± 6.2 instead of 939.6 ± 7.1 at 2048 paths, both with `local_vol_time_extrapolation: FlatImpliedVol` — the lost convexity was worth 12 per 1,000.
+- Time axis: Actual/365 (Fixed) years from the valuation date. Every curve
+  (the note curve, the dividend curves, a quanto underlying's own curve) is
+  read by date on that axis, whatever its `day_counter` and
+  `reference_date`: the discount factor at time `t` is the curve's at the
+  date `t x 365` days after the valuation date (a fraction of a day
+  interpolates the curve's own time between the two dates). Every vol the
+  note reads (the underlyings' and a quanto FX vol) must have `day_counter`
+  `Actual365Fixed` and `reference_date` equal to `as_of_date`; any other is
+  a `400` naming the vol and the field.
 - Grid: Actual/365 (Fixed) years from the valuation date to every future
   dated observation (accrual-only events are not observed); with
   `steps_per_year` each interval is split into `ceil(length x
@@ -2300,6 +2309,13 @@ switched in `checks`:
   by Monte Carlo on the local vol of the surface, with the path engine,
   process and local vol a structured note uses, and compared with its
   bid/ask within the Monte Carlo noise.
+
+Time: the three tests measure it in Actual/365 (Fixed) years from
+`as_of_date` (the expiry's `time`, the scan's times, the simulation grid).
+The discounting and dividend curves are read by date on that axis, whatever
+their `day_counter` and `reference_date`, as a structured note reads them.
+The surface must have `day_counter` `Actual365Fixed` and `reference_date`
+equal to `as_of_date`; any other is a `400` naming the vol and the field.
 
 When to run it: after every calibration, before the surface prices
 anything; on a vendor surface before using it; and before a structured

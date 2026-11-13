@@ -238,6 +238,12 @@ calibration, 500 grid points, Levenberg-Marquardt).
   per expiry, linear in time at fixed strike. `Bilinear` is read only when
   asked for; its Dupire local vol has no smile curvature between two grid
   strikes.
+- A structured note and `/validate-vol-surface` measure time in Actual/365
+  (Fixed) years from the as-of date. They read every curve by date on that
+  axis, whatever its day counter, and require the surface itself on it:
+  `day_counter` `Actual365Fixed` and `reference_date` equal to the as-of
+  date (`400` otherwise). The surfaces `/calibrate-vol-surface` returns
+  are on it.
 - Price on the discounting curve the quotes were fitted against and on the
   dividend curve `/calibrate-implied-forwards` returned. With other forwards
   the strikes sit at a different moneyness than in the market.

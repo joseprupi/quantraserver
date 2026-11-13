@@ -1473,8 +1473,8 @@ struct StructuredNoteModelEcho FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::
   uint32_t time_steps() const {
     return GetField<uint32_t>(VT_TIME_STEPS, 0);
   }
-  /// The grid, in years from the valuation date (day counter of the
-  /// discounting curve).
+  /// The grid, in Actual/365 (Fixed) years from the valuation date (every
+  /// curve is read by date on this axis, whatever its day counter).
   const ::flatbuffers::Vector<double> *time_grid() const {
     return GetPointer<const ::flatbuffers::Vector<double> *>(VT_TIME_GRID);
   }
