@@ -5,11 +5,11 @@ Two extensions of a strike-dependent Black surface are locked here:
   * IN TIME, beyond the last expiry (`local_vol_time_extrapolation` on
     `BlackVolSpec` / `SviVolSpec`). The surface extends its implied vol flat
     in time; on a skew that is not arbitrage-free at long horizons (the
-    -t^2 v_k^2 / 16 term of Durrleman's condition grows with t), so a note
-    running years past the last expiry is a 400. `FlatLocalVol` holds the
-    local vol at its value 0.001 years before the last expiry instead, and
-    the same note prices. `/calibrate-vol-surface` returns FlatLocalVol on
-    both specs.
+    -t^2 v_k^2 / 16 term of Durrleman's condition grows with t), so with
+    `FlatImpliedVol` a note running years past the last expiry is a 400.
+    `FlatLocalVol` (also what an absent field reads) holds the local vol at
+    its value 0.001 years before the last expiry instead, and the same note
+    prices. `/calibrate-vol-surface` returns FlatLocalVol on both specs.
   * IN STRIKE, beyond the quoted strikes of an SVI slice (`strike_min` /
     `strike_max`). A raw SVI wing fitted to quotes from 60 % to 115 % of the
     spot is butterfly-free on the calibrator's output range (50 % to 150 %)
@@ -76,16 +76,23 @@ def test_long_dated_note_prices_with_flat_local_vol(client, data_dir):
     assert note["npv"] > 0.0 and note["standard_error"] > 0.0
 
 
-@pytest.mark.parametrize("mode", ["absent", "FlatImpliedVol"])
-def test_long_dated_note_with_flat_implied_vol_is_400(client, data_dir, mode):
+def test_long_dated_note_with_flat_implied_vol_is_400(client, data_dir):
     request = load_json(data_dir / LONG_DATED)
     for v in _vols(request):
-        if mode == "absent":
-            v["payload"].pop("local_vol_time_extrapolation")
-        else:
-            v["payload"]["local_vol_time_extrapolation"] = mode
+        v["payload"]["local_vol_time_extrapolation"] = "FlatImpliedVol"
     _400(client, request, "could not be evaluated along the simulated paths",
          "negative local vol^2", "local_vol_time_extrapolation: FlatLocalVol")
+
+
+def test_absent_time_extrapolation_is_flat_local_vol(client, data_dir):
+    """Absent `local_vol_time_extrapolation` reads FlatLocalVol: the response
+    equals the explicit request's."""
+    request = load_json(data_dir / LONG_DATED)
+    request.pop("diagnostics", None)  # timings differ between two runs
+    explicit = _ok(client, request)
+    for v in _vols(request):
+        v["payload"].pop("local_vol_time_extrapolation")
+    assert _ok(client, request) == explicit
 
 
 def test_flat_local_vol_inside_the_expiry_range_is_unchanged(client, data_dir):

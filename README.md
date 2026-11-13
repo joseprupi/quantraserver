@@ -111,12 +111,12 @@ The published GHCR image starts both the JSON API and the gRPC/Envoy endpoint:
 - gRPC/Envoy endpoint: `50051`
 
 ```bash
-docker pull ghcr.io/joseprupi/quantra-server:0.16.10
+docker pull ghcr.io/joseprupi/quantra-server:0.16.11
 
 docker run --rm \
   -p 8080:8080 \
   -p 50051:50051 \
-  ghcr.io/joseprupi/quantra-server:0.16.10
+  ghcr.io/joseprupi/quantra-server:0.16.11
 ```
 
 Check the running service:
@@ -135,7 +135,7 @@ docker run --rm \
   -e QUANTRA_WORKERS=2 \
   -p 8080:8080 \
   -p 50051:50051 \
-  ghcr.io/joseprupi/quantra-server:0.16.10
+  ghcr.io/joseprupi/quantra-server:0.16.11
 ```
 
 See `docs/process-manager.md` for the full scaling model (load balancing, health

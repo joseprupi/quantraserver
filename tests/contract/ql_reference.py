@@ -5559,10 +5559,12 @@ def _sn_local_vol_strike_bands(pricing: dict, vol_id: str):
 
 def _sn_flat_local_vol(pricing: dict, vol_id: str) -> bool:
     """`local_vol_time_extrapolation: FlatLocalVol` on the referenced Black
-    vol spec (BlackVolSpec or SviVolSpec); absent = FlatImpliedVol."""
+    vol spec (BlackVolSpec or SviVolSpec); absent = FlatLocalVol. An
+    SsviVolSpec without the field keeps the model's own continuation."""
     spec = _find_vol_surface_spec(pricing, vol_id)
     payload = spec.get("payload") or {}
-    return payload.get("local_vol_time_extrapolation", "FlatImpliedVol") == "FlatLocalVol"
+    default = "FlatImpliedVol" if spec.get("payload_type") == "SsviVolSpec" else "FlatLocalVol"
+    return payload.get("local_vol_time_extrapolation", default) == "FlatLocalVol"
 
 
 def _sn_black_vol(pricing: dict, vol_id: str, shift: float = 0.0):
@@ -5633,7 +5635,7 @@ def _sn_black_vol(pricing: dict, vol_id: str, shift: float = 0.0):
             raise ValueError(f"vol {vol_id}: surface_vols has {len(values)} values, "
                              f"expected {n_exp} x {n_str}")
         legacy_cubic = (payload.get("expiry_interpolator", "Linear") == "LogCubic")
-        interp = payload.get("surface_interpolator", "Bilinear")
+        interp = payload.get("surface_interpolator", "CubicStrikeLinearTime")
         if interp in ("CubicStrikeLinearTime", "CubicStrikeLinearTimeForwardMoneyness") \
                 and not legacy_cubic:
             # The engine's SmileSliceVolSurface: per expiry the nodes'
@@ -5759,6 +5761,19 @@ def _sn_gaussian_source(sequence: str, brownian_bridge: bool, seed: int,
     return lambda: list(rsg.nextSequence().value())
 
 
+def _sn_on_simulation_axis(curve_handle, as_of, curve_id):
+    """The reference reads curves at Actual/365 (Fixed) years from as_of
+    with QuantLib's time reads, which is the engine's by-date reading only
+    for a curve on Actual/365 (Fixed) at as_of (the engine puts any other
+    curve on that axis through a view, src/market/simulation_axis.h)."""
+    if curve_handle.dayCounter() != ql.Actual365Fixed() or curve_handle.referenceDate() != as_of:
+        raise NotImplementedError(
+            f"curve '{curve_id}': the reference needs Actual365Fixed at as_of_date under a "
+            f"simulation, got {curve_handle.dayCounter().name()} at "
+            f"{curve_handle.referenceDate().ISO()}")
+    return curve_handle
+
+
 def _sn_spreaded(curve_handle, spread: float):
     """The engine's funding / rate shift: ZeroSpreadedTermStructure(curve,
     spread, Continuous, Annual, Actual/365 (Fixed)), extrapolating."""
@@ -5858,7 +5873,7 @@ def structured_note_ql(request: dict, index: int = 0, _vanilla_options=None) -> 
     # --- market -------------------------------------------------------------
     def curve(curve_id, what):
         spec = _sn_find(pricing["curves"], "id", curve_id, what)
-        return build_curve_from_json(spec, as_of, request)
+        return _sn_on_simulation_axis(build_curve_from_json(spec, as_of, request), as_of, curve_id)
 
     note_curve = curve(note["discounting_curve"], "Discounting curve")
     spreaded = _sn_spreaded(note_curve, float(note.get("funding_spread_bp", 0.0)) * 1.0e-4)
@@ -7101,15 +7116,29 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
         points; AndreasenHugeVolatilityAdapter.blackVol at every grid point
         whose model price (interpl.optionPrice) is at least 1e-4 * spot, the
         others filled from the nearest inverted strike (lowest index on a
-        tie), as the engine does;
+        tie), as the engine does. This is the first of the engine's two
+        stages (QuantLib's class minimises the plain price errors, without
+        weights). The engine's second stage starts from it and minimises
+        the weighted vol errors of `weighting`. The two surfaces agree
+        where the model matches the quotes, which is the case of the
+        catalog's sheet (tolerance of the row), and differ on a sheet it
+        cannot match;
       * SviPerExpiry: SviInterpolatedSmileSection per expiry (all five
-        parameters free, vega-weighted, EndCriteria(500, 100, 1e-12, 1e-10,
+        parameters free, vega-weighted for `weighting` Vega and equal
+        weights for Uniform, EndCriteria(500, 100, 1e-12, 1e-10,
         1e-10), LevenbergMarquardt(1e-10, 1e-10, 1e-10)) — the same
         XABRInterpolationImpl the engine's SviInterpolation runs — then the
         butterfly check and the calendar clip. The engine's penalized
         butterfly refit is not reproduced here (no CostFunction subclassing
         in the bindings): a violation with enforce_butterfly on raises, so
-        the catalog only carries arbitrage-free sheets for this method.
+        the catalog only carries arbitrage-free sheets for this method. For
+        the same reason the engine's own least squares under BidAsk weights
+        is not reproduced: the vega-weighted slice is the reference only
+        when it matches every used quote (to 1e-8 in vol), where the
+        minimiser does not depend on the weights; otherwise this raises.
+
+    `weighting` BidAsk leaves out a used quote whose ask is not above its
+    bid, as the engine does.
 
     The grid: strikes = moneyness * spot (default 0.50 .. 1.50 step 0.025),
     expiries = the fitted sheet expiries (or the request's calendar-day
@@ -7134,7 +7163,10 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
     disc_json = next(c for c in pricing["curves"] if c["id"] == request["discounting_curve"])
     curve = build_curve_from_json(disc_json, eval_date, request)
     flt = dict(request.get("filter") or {})
-    method = request.get("method", "AndreasenHuge")
+    method = request.get("method", "Ssvi")
+    weighting = request.get("weighting", "Vega")
+    if weighting not in ("Uniform", "Vega", "BidAsk"):
+        raise ValueError(f"unknown weighting {weighting}")
     svi_opts = dict(request.get("svi") or {})
     enforce_butterfly = bool(svi_opts.get("enforce_butterfly", True))
     enforce_calendar = bool(svi_opts.get("enforce_calendar", True))
@@ -7167,6 +7199,8 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
         fwd, df = forwards[expiry]
         t = dc.yearFraction(eval_date, exp_date)
         used = _otm_quotes(by_expiry[expiry], flt, spot, fwd, df, t)
+        if weighting == "BidAsk":
+            used = [u for u in used if u["ask"] > u["bid"]]
         if len(used) < min_used:
             continue
         work.append({"expiry": expiry, "date": exp_date, "t": t, "fwd": fwd, "df": df,
@@ -7256,10 +7290,20 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
             nd = ql.nullDouble()
             sec = ql.SviInterpolatedSmileSection(
                 w["date"], w["fwd"], strikes_w, False, vols_w[0], vols_w,
-                nd, nd, nd, nd, nd, False, False, False, False, False, True,
+                nd, nd, nd, nd, nd, False, False, False, False, False,
+                weighting != "Uniform",
                 ql.EndCriteria(500, 100, 1e-12, 1e-10, 1e-10),
                 ql.LevenbergMarquardt(1e-10, 1e-10, 1e-10), dc)
             p = {"a": sec.a(), "b": sec.b(), "sigma": sec.sigma(), "rho": sec.rho(), "m": sec.m()}
+            if weighting == "BidAsk":
+                misfit = max(
+                    abs(math.sqrt(max(0.0, _svi_total_variance(
+                        p, math.log(k_ / w["fwd"]))) / w["t"]) - v_)
+                    for k_, v_ in zip(strikes_w, vols_w))
+                if misfit > 1e-8:
+                    raise NotImplementedError(
+                        f"{w['expiry']}: the slice misses a quote by {misfit}; the least "
+                        "squares under BidAsk weights is engine-only")
             # Butterfly grid: the output range and the regions of the two
             # expiry pairs the slice belongs to.
             lo = min(w["region"][0], strikes[0])
@@ -7427,12 +7471,12 @@ def validate_vol_surface_ql(request: dict) -> dict:
         fwd_in = {e["expiry"]: (float(e["forward"]), float(e["implied_discount_factor"]))
                   for e in request["forwards"] if e.get("usable")}
     else:
-        disc = build_curve_from_json(
+        disc = _sn_on_simulation_axis(build_curve_from_json(
             _sn_find(pricing["curves"], "id", request["discounting_curve"], "Discounting curve"),
-            as_of, request)
-        div = build_curve_from_json(
+            as_of, request), as_of, request["discounting_curve"])
+        div = _sn_on_simulation_axis(build_curve_from_json(
             _sn_find(pricing["curves"], "id", eq["dividend_yield_curve_id"], "Dividend curve"),
-            as_of, request)
+            as_of, request), as_of, eq["dividend_yield_curve_id"])
     vol, _shape, _exact = _sn_black_vol(pricing, request["volatility_id"])
 
     by_expiry = {}

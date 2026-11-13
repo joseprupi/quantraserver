@@ -719,6 +719,7 @@ struct CalibrateVolSurfaceResponseT : public ::flatbuffers::NativeTable {
   ::flatbuffers::Optional<bool> arbitrage_free_svi = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<bool> arbitrage_free_ssvi = ::flatbuffers::nullopt;
   std::string svi_local_vol_refit_action{};
+  ::flatbuffers::Optional<quantra::enums::QuoteWeighting> weighting = ::flatbuffers::nullopt;
   CalibrateVolSurfaceResponseT() = default;
   CalibrateVolSurfaceResponseT(const CalibrateVolSurfaceResponseT &o);
   CalibrateVolSurfaceResponseT(CalibrateVolSurfaceResponseT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -748,7 +749,8 @@ struct CalibrateVolSurfaceResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffe
     VT_ARBITRAGE_FREE = 34,
     VT_ARBITRAGE_FREE_SVI = 36,
     VT_ARBITRAGE_FREE_SSVI = 38,
-    VT_SVI_LOCAL_VOL_REFIT_ACTION = 40
+    VT_SVI_LOCAL_VOL_REFIT_ACTION = 40,
+    VT_WEIGHTING = 42
   };
   const ::flatbuffers::String *sheet_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_SHEET_ID);
@@ -846,6 +848,11 @@ struct CalibrateVolSurfaceResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffe
   const ::flatbuffers::String *svi_local_vol_refit_action() const {
     return GetPointer<const ::flatbuffers::String *>(VT_SVI_LOCAL_VOL_REFIT_ACTION);
   }
+  /// The quote weighting the fit used (the request's `weighting` or its
+  /// default), reported with `method` for the three methods.
+  ::flatbuffers::Optional<quantra::enums::QuoteWeighting> weighting() const {
+    return GetOptional<int8_t, quantra::enums::QuoteWeighting>(VT_WEIGHTING);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_SHEET_ID) &&
@@ -884,6 +891,7 @@ struct CalibrateVolSurfaceResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffe
            VerifyField<uint8_t>(verifier, VT_ARBITRAGE_FREE_SSVI, 1) &&
            VerifyOffset(verifier, VT_SVI_LOCAL_VOL_REFIT_ACTION) &&
            verifier.VerifyString(svi_local_vol_refit_action()) &&
+           VerifyField<int8_t>(verifier, VT_WEIGHTING, 1) &&
            verifier.EndTable();
   }
   CalibrateVolSurfaceResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -952,6 +960,9 @@ struct CalibrateVolSurfaceResponseBuilder {
   void add_svi_local_vol_refit_action(::flatbuffers::Offset<::flatbuffers::String> svi_local_vol_refit_action) {
     fbb_.AddOffset(CalibrateVolSurfaceResponse::VT_SVI_LOCAL_VOL_REFIT_ACTION, svi_local_vol_refit_action);
   }
+  void add_weighting(quantra::enums::QuoteWeighting weighting) {
+    fbb_.AddElement<int8_t>(CalibrateVolSurfaceResponse::VT_WEIGHTING, static_cast<int8_t>(weighting));
+  }
   explicit CalibrateVolSurfaceResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -993,7 +1004,8 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
     bool arbitrage_free = false,
     ::flatbuffers::Optional<bool> arbitrage_free_svi = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<bool> arbitrage_free_ssvi = ::flatbuffers::nullopt,
-    ::flatbuffers::Offset<::flatbuffers::String> svi_local_vol_refit_action = 0) {
+    ::flatbuffers::Offset<::flatbuffers::String> svi_local_vol_refit_action = 0,
+    ::flatbuffers::Optional<quantra::enums::QuoteWeighting> weighting = ::flatbuffers::nullopt) {
   CalibrateVolSurfaceResponseBuilder builder_(_fbb);
   builder_.add_spot(spot);
   builder_.add_svi_local_vol_refit_action(svi_local_vol_refit_action);
@@ -1010,6 +1022,7 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
   builder_.add_forwards_source(forwards_source);
   builder_.add_underlying_id(underlying_id);
   builder_.add_sheet_id(sheet_id);
+  if(weighting) { builder_.add_weighting(*weighting); }
   if(arbitrage_free_ssvi) { builder_.add_arbitrage_free_ssvi(*arbitrage_free_ssvi); }
   if(arbitrage_free_svi) { builder_.add_arbitrage_free_svi(*arbitrage_free_svi); }
   builder_.add_arbitrage_free(arbitrage_free);
@@ -1037,7 +1050,8 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
     bool arbitrage_free = false,
     ::flatbuffers::Optional<bool> arbitrage_free_svi = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<bool> arbitrage_free_ssvi = ::flatbuffers::nullopt,
-    const char *svi_local_vol_refit_action = nullptr) {
+    const char *svi_local_vol_refit_action = nullptr,
+    ::flatbuffers::Optional<quantra::enums::QuoteWeighting> weighting = ::flatbuffers::nullopt) {
   auto sheet_id__ = sheet_id ? _fbb.CreateString(sheet_id) : 0;
   auto underlying_id__ = underlying_id ? _fbb.CreateString(underlying_id) : 0;
   auto forwards_source__ = forwards_source ? _fbb.CreateString(forwards_source) : 0;
@@ -1068,7 +1082,8 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
       arbitrage_free,
       arbitrage_free_svi,
       arbitrage_free_ssvi,
-      svi_local_vol_refit_action__);
+      svi_local_vol_refit_action__,
+      weighting);
 }
 
 ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurfaceResponse(::flatbuffers::FlatBufferBuilder &_fbb, const CalibrateVolSurfaceResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -1336,7 +1351,8 @@ inline CalibrateVolSurfaceResponseT::CalibrateVolSurfaceResponseT(const Calibrat
         arbitrage_free(o.arbitrage_free),
         arbitrage_free_svi(o.arbitrage_free_svi),
         arbitrage_free_ssvi(o.arbitrage_free_ssvi),
-        svi_local_vol_refit_action(o.svi_local_vol_refit_action) {
+        svi_local_vol_refit_action(o.svi_local_vol_refit_action),
+        weighting(o.weighting) {
   forwards.reserve(o.forwards.size());
   for (const auto &forwards_ : o.forwards) { forwards.emplace_back((forwards_) ? new quantra::VolSurfaceForwardT(*forwards_) : nullptr); }
   expiries.reserve(o.expiries.size());
@@ -1363,6 +1379,7 @@ inline CalibrateVolSurfaceResponseT &CalibrateVolSurfaceResponseT::operator=(Cal
   std::swap(arbitrage_free_svi, o.arbitrage_free_svi);
   std::swap(arbitrage_free_ssvi, o.arbitrage_free_ssvi);
   std::swap(svi_local_vol_refit_action, o.svi_local_vol_refit_action);
+  std::swap(weighting, o.weighting);
   return *this;
 }
 
@@ -1394,6 +1411,7 @@ inline void CalibrateVolSurfaceResponse::UnPackTo(CalibrateVolSurfaceResponseT *
   { auto _e = arbitrage_free_svi(); _o->arbitrage_free_svi = _e; }
   { auto _e = arbitrage_free_ssvi(); _o->arbitrage_free_ssvi = _e; }
   { auto _e = svi_local_vol_refit_action(); if (_e) _o->svi_local_vol_refit_action = _e->str(); }
+  { auto _e = weighting(); _o->weighting = _e; }
 }
 
 inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CalibrateVolSurfaceResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CalibrateVolSurfaceResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -1423,6 +1441,7 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
   auto _arbitrage_free_svi = _o->arbitrage_free_svi;
   auto _arbitrage_free_ssvi = _o->arbitrage_free_ssvi;
   auto _svi_local_vol_refit_action = _o->svi_local_vol_refit_action.empty() ? 0 : _fbb.CreateString(_o->svi_local_vol_refit_action);
+  auto _weighting = _o->weighting;
   return quantra::CreateCalibrateVolSurfaceResponse(
       _fbb,
       _sheet_id,
@@ -1443,7 +1462,8 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceResponse> CreateCalibrateVolSurf
       _arbitrage_free,
       _arbitrage_free_svi,
       _arbitrage_free_ssvi,
-      _svi_local_vol_refit_action);
+      _svi_local_vol_refit_action,
+      _weighting);
 }
 
 inline const quantra::CalibrateVolSurfaceResponse *GetCalibrateVolSurfaceResponse(const void *buf) {

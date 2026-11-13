@@ -42,10 +42,10 @@
  *      theta(psi).
  *      Strict inequalities keep a relative margin 1e-10. For the first slice theta_prev =
  *      psi_prev = 0 (psi is then bounded below by 1e-9 upper).
- *      The objective is sum_j weight_j omega_j (sigma_model(k_j) - sigma_mkt_j)^2 with omega = 1
- *      (Uniform), the Black vega at the market vol (Vega) or 1 / spread^2 in vol units (BidAsk;
- *      a price spread is divided by the vega, quotes without bid/ask take the slice's median
- *      spread). psi is minimised for each rho by Brent's method (golden section + parabolic
+ *      The objective is sum_j weight_j omega_j (sigma_model(k_j) - sigma_mkt_j)^2 with omega
+ *      the quote weight of quote_weighting.h: 1 (Uniform), the Black vega at the market vol
+ *      (Vega) or 1 / spread^2 in vol units (BidAsk; a price spread is divided by the vega,
+ *      quotes without bid/ask take the slice's median spread). psi is minimised for each rho by Brent's method (golden section + parabolic
  *      interpolation, 1e-12 relative). rho goes through a 41-point grid on [-0.999, 0.999]
  *      (plus rho_prev, which is always feasible for a clamped anchor) and is then refined on
  *      21-point grids of half-width two spacings around the best value, the spacing shrinking by
@@ -53,12 +53,16 @@
  *      4e-4, too coarse to recover the parameters to 1e-6).
  *      If no rho is feasible (calendar arbitrage in the data at the money) theta* is raised to
  *      theta_prev (1 + 1e-6) + 1e-12 and, while still infeasible, raised further by a doubling
- *      step (from 1e-6 theta_prev; at most 80 steps), and anchorClamped is set; if still
- *      infeasible the call fails naming the expiry.
+ *      step (from 1e-6 theta_prev; at most 80 steps); the bracket between the last infeasible
+ *      and the first feasible value is then bisected (keeping the feasible end, at most 60
+ *      halvings) until it is below kAnchorRaiseTolerance of the raise, so the raise is the
+ *      smallest feasible one within that tolerance. anchorClamped is set; if still infeasible
+ *      the call fails naming the expiry.
  *   5. checkArbitrage must be empty (else QUANTRA_ERROR) and a numeric scan runs on the slice
  *      times, their midpoints, 0.5 T_1 and 1.5 T_N for k in [-1.5, 1.0] (201 points).
  */
 
+#include "quote_weighting.h"
 #include "ssvi.h"
 #include "ssvi_vol_surface.h"
 
@@ -76,7 +80,8 @@
 
 namespace quantra { namespace ssvi {
 
-enum class QuoteWeighting { Uniform, Vega, BidAsk };
+// The quote weighting shared by the surface fit methods (quote_weighting.h).
+using QuoteWeighting = quantra::QuoteWeighting;
 
 // Exactly one of price / impliedVol. bid / ask are in the units of the value given.
 struct OptionQuote {
@@ -160,6 +165,14 @@ struct CalibrationResult {
     std::vector<Violation> violations; // empty on success
     ScanResult scan;
 };
+
+// Relative tolerance of a raised anchor variance (step 4): the returned raise exceeds the
+// smallest feasible one by at most this fraction of the raise.
+constexpr double kAnchorRaiseTolerance = 1e-3;
+
+// Whether step 4 starts with a feasible (rho, psi) for the anchor (k*, W) after the slice `prev`:
+// some rho of the 41-point grid on [-0.999, 0.999], or rho_prev, has a non-empty psi interval.
+bool anchorFeasible(double kStar, double W, const SsviSliceParams& prev);
 
 // theta(psi) = W - rho k psi - c psi^2, c = (1 - rho^2) k^2 / (4 W): the slice variance for which
 // the slice (theta, rho, psi) has total variance W at log-moneyness k (see step 4 above).

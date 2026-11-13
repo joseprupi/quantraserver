@@ -80,8 +80,9 @@ struct Config {
 };
 
 // Default deadline the client sets on every RPC to the engine, in
-// milliseconds, when QUANTRA_GATEWAY_DEADLINE_MS is unset or invalid.
-constexpr long kDefaultGatewayDeadlineMs = 10000;
+// milliseconds, when QUANTRA_GATEWAY_DEADLINE_MS is unset or invalid: 30 s,
+// the default Envoy route timeout (QUANTRA_ROUTE_TIMEOUT_MS).
+constexpr long kDefaultGatewayDeadlineMs = 30000;
 
 // Parses a QUANTRA_GATEWAY_DEADLINE_MS value. Returns the value when it is a
 // positive integer (whole string), otherwise kDefaultGatewayDeadlineMs; a null

@@ -105,7 +105,7 @@
       "type" : "string",
       "enum": ["AndreasenHuge", "SviPerExpiry", "Ssvi"]
     },
-    "quantra_enums_SsviQuoteWeighting" : {
+    "quantra_enums_QuoteWeighting" : {
       "type" : "string",
       "enum": ["Uniform", "Vega", "BidAsk"]
     },
@@ -1631,7 +1631,7 @@
               },
         "time_grid" : {
                 "type" : "array", "items" : {"type" : "number"},
-                "description" : "The grid, in years from the valuation date (day counter of the\ndiscounting curve)."
+                "description" : "The grid, in Actual/365 (Fixed) years from the valuation date (every\ncurve is read by date on this axis, whatever its day counter)."
               },
         "sequence_dimension" : {
                 "type" : "integer", "minimum" : 0, "maximum" : 4294967295,

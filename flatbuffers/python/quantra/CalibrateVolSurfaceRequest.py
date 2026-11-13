@@ -105,13 +105,14 @@ class CalibrateVolSurfaceRequest(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         return o == 0
 
-    # Fit method; default Andreasen-Huge.
+    # Fit method; default Ssvi (eSSVI: free of static arbitrage by
+    # construction, analytic local vol, no further field required).
     # CalibrateVolSurfaceRequest
     def Method(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return 2
 
     # Sampling grid of the returned surface; defaults documented on the
     # table.
@@ -147,7 +148,7 @@ class CalibrateVolSurfaceRequest(object):
             return obj
         return None
 
-    # `Ssvi` settings; defaults (Vega, 1.0) apply when absent.
+    # `Ssvi` settings; the default (1.0) applies when absent.
     # CalibrateVolSurfaceRequest
     def Ssvi(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
@@ -159,8 +160,44 @@ class CalibrateVolSurfaceRequest(object):
             return obj
         return None
 
+    # Weight of each used quote in the fit, the same for the three
+    # methods. The fit minimises, over the used quotes of an expiry,
+    #
+    #     sum_i weight_i (model_vol_i - market_vol_i)^2
+    #
+    # with weight_i
+    #   Uniform: 1;
+    #   Vega: the Black vega of the quote at its market vol;
+    #   BidAsk: 1 / spread_i^2, spread_i = (ask_i - bid_i) / vega_i (the
+    #     bid-ask spread of the quote in vol units). A used quote whose ask
+    #     is not above its bid is left out and reported as dropped
+    #     ("ask_not_above_bid"). A used quote without both sides takes the
+    #     median spread of its expiry; an expiry without any two-sided
+    #     quote is a 400 naming the expiry.
+    #
+    # Per method:
+    #   SviPerExpiry: the weights apply to the fit of each slice and to
+    #     its butterfly and calendar refits.
+    #   Ssvi: the weights apply to the (rho, psi) search of each slice; the
+    #     used quote nearest the money is reproduced exactly whatever the
+    #     weighting.
+    #   AndreasenHuge: two stages. The first is the fit to the prices
+    #     (no weights). The second starts from it and minimises the
+    #     weighted sum, the model vol read from the surface at each quote.
+    #     The surface returned is the second stage's when it lowers the
+    #     weighted sum (per expiry divided by the sum of the weights, then
+    #     added over the expiries), otherwise the first stage's. The model
+    #     has one parameter per used quote, so the weights matter only
+    #     where the quotes cannot all be matched.
+    # CalibrateVolSurfaceRequest
+    def Weighting(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 1
+
 def CalibrateVolSurfaceRequestStart(builder):
-    builder.StartObject(10)
+    builder.StartObject(11)
 
 def Start(builder):
     CalibrateVolSurfaceRequestStart(builder)
@@ -202,7 +239,7 @@ def StartForwardsVector(builder, numElems):
     return CalibrateVolSurfaceRequestStartForwardsVector(builder, numElems)
 
 def CalibrateVolSurfaceRequestAddMethod(builder, method):
-    builder.PrependInt8Slot(5, method, 0)
+    builder.PrependInt8Slot(5, method, 2)
 
 def AddMethod(builder, method):
     CalibrateVolSurfaceRequestAddMethod(builder, method)
@@ -231,6 +268,12 @@ def CalibrateVolSurfaceRequestAddSsvi(builder, ssvi):
 def AddSsvi(builder, ssvi):
     CalibrateVolSurfaceRequestAddSsvi(builder, ssvi)
 
+def CalibrateVolSurfaceRequestAddWeighting(builder, weighting):
+    builder.PrependInt8Slot(10, weighting, 1)
+
+def AddWeighting(builder, weighting):
+    CalibrateVolSurfaceRequestAddWeighting(builder, weighting)
+
 def CalibrateVolSurfaceRequestEnd(builder):
     return builder.EndObject()
 
@@ -251,11 +294,12 @@ class CalibrateVolSurfaceRequestT(object):
         self.discountingCurve = None  # type: str
         self.filter = None  # type: Optional[QuoteFilterT]
         self.forwards = None  # type: List[ImpliedForwardExpiryT]
-        self.method = 0  # type: int
+        self.method = 2  # type: int
         self.outputGrid = None  # type: Optional[VolSurfaceOutputGridT]
         self.volSurfaceId = None  # type: str
         self.svi = None  # type: Optional[SviFitOptionsT]
         self.ssvi = None  # type: Optional[SsviFitOptionsT]
+        self.weighting = 1  # type: int
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -301,6 +345,7 @@ class CalibrateVolSurfaceRequestT(object):
             self.svi = SviFitOptionsT.InitFromObj(calibrateVolSurfaceRequest.Svi())
         if calibrateVolSurfaceRequest.Ssvi() is not None:
             self.ssvi = SsviFitOptionsT.InitFromObj(calibrateVolSurfaceRequest.Ssvi())
+        self.weighting = calibrateVolSurfaceRequest.Weighting()
 
     # CalibrateVolSurfaceRequestT
     def Pack(self, builder):
@@ -348,5 +393,6 @@ class CalibrateVolSurfaceRequestT(object):
             CalibrateVolSurfaceRequestAddSvi(builder, svi)
         if self.ssvi is not None:
             CalibrateVolSurfaceRequestAddSsvi(builder, ssvi)
+        CalibrateVolSurfaceRequestAddWeighting(builder, self.weighting)
         calibrateVolSurfaceRequest = CalibrateVolSurfaceRequestEnd(builder)
         return calibrateVolSurfaceRequest

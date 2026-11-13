@@ -4,6 +4,10 @@
 /**
  * Black volatility surfaces built from one smile per expiry.
  *
+ * Under a simulation (notes, /validate-vol-surface) the surface and the curves
+ * of its forwards are on the simulation's axis, Actual/365 (Fixed) years from
+ * the valuation date (src/market/simulation_axis.h).
+ *
  * A `SmileSliceVolSurface` is a QuantLib BlackVolTermStructure (through
  * BlackVarianceTermStructure, so blackVol is sqrt(variance / t)) whose total
  * variance at (t, K) is interpolated LINEARLY IN TIME between the slices

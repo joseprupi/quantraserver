@@ -3,7 +3,6 @@
 #include "date_convert.h"
 #include "error.h"
 
-#include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/pricingengines/blackformula.hpp>
 
 #include <algorithm>
@@ -22,6 +21,8 @@ constexpr double kMargin = 1e-10;
 constexpr double kRhoMax = 0.999;
 constexpr double kInf = std::numeric_limits<double>::infinity();
 constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
+// Cap on the bisection that refines a raised anchor variance (kAnchorRaiseTolerance, header).
+constexpr int kAnchorRaiseMaxBisections = 60;
 
 std::string describeQuote(std::size_t i, const OptionQuote& q) {
     std::ostringstream os;
@@ -292,13 +293,6 @@ QuoteVol quoteStdDev(const OptionQuote& q, double T, double F, double D) {
     return out;
 }
 
-// Black vega (price per unit of vol) at the market vol.
-double blackVega(double K, double F, double D, double T, double vol) {
-    const double sd = vol * std::sqrt(T);
-    const double d1 = std::log(F / K) / sd + 0.5 * sd;
-    return D * F * std::sqrt(T) * QuantLib::CumulativeNormalDistribution().derivative(d1);
-}
-
 struct ExpiryWork {
     QuantLib::Date expiry;
     double T = 0.0;
@@ -412,6 +406,17 @@ void requireMinUsedQuotes(
 }
 
 } // namespace
+
+bool anchorFeasible(double kStar, double W, const SsviSliceParams& prev) {
+    const PrevSlice p{true, prev.theta, prev.psi, prev.rho};
+    const int n0 = 41;
+    const double step0 = 2.0 * kRhoMax / (n0 - 1);
+    double lo = 0.0, hi = 0.0;
+    for (int i = 0; i < n0; ++i) {
+        if (psiInterval(-kRhoMax + i * step0, kStar, W, p, lo, hi)) return true;
+    }
+    return psiInterval(prev.rho, kStar, W, p, lo, hi);
+}
 
 double anchorTheta(double W, double rho, double k, double psi) {
     return thetaAtAnchor(W, rho, k, psi);
@@ -540,7 +545,7 @@ CalibrationResult calibrate(const CalibrationInput& in) {
 
         std::vector<Point> pts;
         std::vector<std::size_t> usedIdx; // quote indices of pts
-        std::vector<double> spreads;      // vol-unit spreads of the used quotes (NaN if none)
+        ExpiryQuoteWeights weights(in.weighting, ex.F, ex.D, ex.T);
         for (std::size_t j = 0; j < ex.idx.size(); ++j) {
             const std::size_t i = ex.idx[j];
             const OptionQuote& q = quotes[i];
@@ -575,42 +580,19 @@ CalibrationResult calibrate(const CalibrationInput& in) {
                 row.exclusionReason = "implied_vol_not_positive";
                 continue;
             }
-            double omega = 1.0;
-            double spread = kNaN;
-            const double vega = blackVega(q.strike, ex.F, ex.D, ex.T, row.marketVol);
-            if (in.weighting == QuoteWeighting::Vega) {
-                omega = vega;
-            } else if (in.weighting == QuoteWeighting::BidAsk && q.bid && q.ask) {
-                spread = *q.ask - *q.bid;
-                if (q.price) spread /= std::max(vega, 1e-300);
-                if (!(spread > 0.0)) {
-                    row.exclusionReason = "ask_not_above_bid";
-                    continue;
-                }
+            if (!weights.add(q.strike, row.marketVol, q.bid, q.ask, q.price.has_value())) {
+                row.exclusionReason = kAskNotAboveBid;
+                continue;
             }
             row.used = true;
-            pts.push_back(Point{row.k, row.marketVol, q.weight * omega});
+            pts.push_back(Point{row.k, row.marketVol, q.weight});
             usedIdx.push_back(i);
-            spreads.push_back(spread);
         }
         requireMinUsedQuotes(res.quotes, ex, pts.size(), in.maxAbsLogMoneyness);
-        if (in.weighting == QuoteWeighting::BidAsk) {
-            std::vector<double> known;
-            for (double s : spreads) {
-                if (!std::isnan(s)) known.push_back(s);
-            }
-            if (known.empty()) {
-                std::ostringstream os;
-                os << "SSVI calibration: BidAsk weighting needs bid and ask on at least one "
-                      "quote at expiry "
-                   << DateToIso(ex.expiry);
-                QUANTRA_INVALID_ARGUMENT(os.str());
-            }
-            const double med = median(known);
-            for (std::size_t p = 0; p < pts.size(); ++p) {
-                const double s = std::isnan(spreads[p]) ? med : spreads[p];
-                pts[p].weight = quotes[usedIdx[p]].weight / (s * s);
-            }
+        {
+            const std::vector<double> omega = weights.weights(DateToIso(ex.expiry));
+            for (std::size_t p = 0; p < pts.size(); ++p)
+                pts[p].weight = quotes[usedIdx[p]].weight * omega[p];
         }
 
         // anchor: used quote closest to the money
@@ -628,17 +610,39 @@ CalibrationResult calibrate(const CalibrationInput& in) {
             if (prev.exists) {
                 // Raise the anchor's total variance to the previous slice's and then, while no
                 // (rho, psi) is feasible (off the money the anchor variance also carries the
-                // rho psi k and psi^2 terms), by a doubling step: the smallest raise found
-                // that makes the calendar conditions feasible.
+                // rho psi k and psi^2 terms), by a doubling step. The first feasible value can
+                // overshoot the needed raise by up to the last step, so the bracket between
+                // the last infeasible value and it is then bisected, keeping the feasible end,
+                // until it is below kAnchorRaiseTolerance of the raise: the smallest raise that
+                // makes the calendar conditions feasible, within that tolerance.
+                const double marketTheta = thetaStar;
                 double raised = std::max(thetaStar, floor);
                 double bump = std::max(1e-12, 1e-6 * floor);
+                double lastInfeasible = kNaN;
                 bool feasible = false;
                 for (int n = 0; n < 80 && !feasible; ++n) {
                     feasible = searchSlice(pts, ex.T, kStar, raised, prev, fit);
                     if (!feasible) {
+                        lastInfeasible = raised;
                         raised += bump;
                         bump *= 2.0;
                     }
+                }
+                if (feasible && std::isfinite(lastInfeasible)) {
+                    double lo = lastInfeasible, hi = raised;
+                    Fit trial;
+                    for (int n = 0; n < kAnchorRaiseMaxBisections &&
+                                    hi - lo > kAnchorRaiseTolerance * (hi - marketTheta);
+                         ++n) {
+                        const double mid = 0.5 * (lo + hi);
+                        if (searchSlice(pts, ex.T, kStar, mid, prev, trial)) {
+                            hi = mid;
+                            fit = trial;
+                        } else {
+                            lo = mid;
+                        }
+                    }
+                    raised = hi;
                 }
                 thetaStar = raised;
                 clamped = true;

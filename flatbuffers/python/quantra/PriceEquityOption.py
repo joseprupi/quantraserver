@@ -44,7 +44,12 @@ class PriceEquityOption(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Reference to volatility in pricing.volatility.vol_surfaces by id.
+    # Reference to volatility in pricing.volatility.vol_surfaces by id (a
+    # BlackVolSpec, SviVolSpec or SsviVolSpec). A plain vanilla payoff prices
+    # on any of them. A cash-or-nothing or asset-or-nothing payoff and a
+    # barrier are priced with one vol read at the strike, so they require a
+    # vol that does not depend on strike (a Constant or AtmMatrix2D
+    # BlackVolSpec); a strike x expiry grid, SVI or eSSVI slices are a 400.
     # PriceEquityOption
     def Volatility(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))

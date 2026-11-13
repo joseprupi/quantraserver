@@ -23,33 +23,59 @@
  *    mid whose inversion does not solve (outside the Black bounds) is
  *    dropped with that reason.
  *
- * 3a. AndreasenHuge. Every used quote becomes a calibration pair
- *    (VanillaOption with the out-of-the-money payoff and the expiry, a
- *    SimpleQuote carrying its implied vol) of QuantLib's
- *    AndreasenHugeVolatilityInterpl (interpolation CubicSpline, calibration
- *    type CallPut, 500 grid points, Levenberg-Marquardt), on a risk-free
+ *    Quote weighting (`weighting`, src/market/quote_weighting.h). The fit of
+ *    an expiry minimises sum_i weight_i (model_vol_i - market_vol_i)^2 over
+ *    its used quotes: weight 1 (Uniform), the Black vega at the market vol
+ *    (Vega) or 1 / spread_i^2 with the bid-ask spread in vol units, (ask -
+ *    bid) / vega (BidAsk). Under BidAsk a quote whose ask is not above its
+ *    bid is left out and reported dropped ("ask_not_above_bid") before the
+ *    quote count of the expiry. SviPerExpiry and AndreasenHuge take the
+ *    weights scaled to sum 1 per expiry; the eSSVI calibrator applies the
+ *    same rule to the quotes it keeps.
+ *
+ * 3a. AndreasenHuge. Every used quote (strike, implied vol, weight) goes to
+ *    WeightedAndreasenHuge (src/market/weighted_andreasen_huge.h), the
+ *    calibration of QuantLib's AndreasenHugeVolatilityInterpl
+ *    (interpolation CubicSpline, calibration type CallPut, 500 grid points,
+ *    Levenberg-Marquardt) with a weight per quote, on a risk-free
  *    curve with the implied discount factors (log-linear) and a dividend
  *    curve with DF_q(T) = F DF / S, so the model's forwards and discounting
  *    are the sheet's. The method calibrates a piecewise local volatility
  *    expiry by expiry to the Black prices of those vols on a one-step
  *    finite-difference scheme and is free of static arbitrage by
  *    construction (Andreasen & Huge, "Volatility Interpolation", 2010). The
- *    AndreasenHugeVolatilityAdapter then returns the Black vol at any grid
- *    (date, strike) by inverting the model price. A grid point is inverted
+ *    Black vol at any grid (date, strike) is the inversion of the model
+ *    price. A grid point is inverted
  *    only where the model's out-of-the-money price is at least 1e-4 * S (the
  *    one-step finite-difference price carries noise of ~1e-7 * S, which
  *    moves the implied vol by more than a tenth of a vol point below that
  *    and inverts to arbitrary vols where the true price is ~0); the other
  *    points are filled flat from the nearest inverted strike of the same
- *    expiry and the report counts them. No weights: the calibration matches
- *    prices.
+ *    expiry and the report counts them. The fit has two stages, the same
+ *    for the three `weighting` values. The first is QuantLib's calibration
+ *    as it is (plain price errors, no weights, from the flat local vol).
+ *    The second builds a second surface, each expiry started from the
+ *    first stage's local vols, and minimises
+ *    sum_i weight_i (model_vol_i - market_vol_i)^2 / sum_i weight_i, the
+ *    model vol being the Black vol the surface returns at the quote (where
+ *    the model price has no implied vol: the price error over the Black
+ *    vega, floored at 1 % of the expiry's at-the-money vega). The surface
+ *    kept is the second stage's when its weighted sum over the expiries is
+ *    below the first stage's, otherwise the first stage's (started from
+ *    the flat local vol, the weighted fit alone ends on some sheets far
+ *    from the quotes).
  *
  * 3b. SviPerExpiry. Per usable expiry QuantLib's SviInterpolation
- *    (Levenberg-Marquardt, vega-weighted least squares of the implied vols,
+ *    (Levenberg-Marquardt, weighted least squares of the implied vols,
  *    multiple deterministic starts) fits the raw SVI total variance
  *
  *        w(k) = a + b (rho (k - m) + sqrt((k - m)^2 + sigma^2)),  k = ln(K / F).
  *
+ *    QuantLib's fit takes vega weights (Vega) or equal weights (Uniform).
+ *    Under BidAsk its two fits are the starts of the engine's own
+ *    Levenberg-Marquardt on the weighted vol residuals (the objective of
+ *    the refits below without penalties), the lower objective kept. The
+ *    butterfly and calendar refits use the same weights.
  *    At least 5 used quotes are needed. Each expiry has a region, where a
  *    simulation goes around it: 5 standard deviations of the log-forward
  *    on each side with the market's implied vols along the way, and the
@@ -145,6 +171,7 @@
 #include "implied_forwards_evaluator.h"
 #include "pricing_context.h"
 #include "pricing_registry.h"
+#include "quote_weighting.h"
 #include "ssvi_calibrator.h"
 #include "vol_surface_validation_evaluator.h"
 
@@ -164,7 +191,7 @@ struct VolSurfaceCalibrationInputs {
     ImpliedForwardsInputs base;
     /// Present iff the request carried `forwards`.
     std::optional<std::vector<VolSurfaceForwardInput>> forwards;
-    VolSurfaceFitMethod method = VolSurfaceFitMethod::AndreasenHuge;
+    VolSurfaceFitMethod method = VolSurfaceFitMethod::Ssvi;
     /// Empty = default grid.
     std::vector<double> moneyness;
     /// Empty = fitted sheet expiries.
@@ -176,9 +203,10 @@ struct VolSurfaceCalibrationInputs {
     /// fitted slices (the calendar margin sigma_min^2 (T_i - T_{i-1}) in
     /// total variance), >= 0.
     double minForwardVol = 0.01;
-    /// Ssvi: quote weighting and the |ln(K / F)| beyond which a used quote
-    /// is left out of the fit (finite, > 0).
-    ssvi::QuoteWeighting ssviWeighting = ssvi::QuoteWeighting::Vega;
+    /// Quote weighting of the fit (the three methods).
+    QuoteWeighting weighting = QuoteWeighting::Vega;
+    /// Ssvi: the |ln(K / F)| beyond which a used quote is left out of the
+    /// fit (finite, > 0).
     double ssviMaxAbsLogMoneyness = 1.0;
 };
 
@@ -240,7 +268,9 @@ struct VolSurfaceCalibrationResult {
     std::string sheetId;
     std::string underlyingId;
     double spot = 0.0;
-    VolSurfaceFitMethod method = VolSurfaceFitMethod::AndreasenHuge;
+    VolSurfaceFitMethod method = VolSurfaceFitMethod::Ssvi;
+    /// The quote weighting the fit used.
+    QuoteWeighting weighting = QuoteWeighting::Vega;
     std::string forwardsSource; // "request" | "fitted"
     QuoteFilterData filter;
     std::string asOfIso;

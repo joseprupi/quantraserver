@@ -9,7 +9,9 @@ What this suite locks, end to end through the JSON gateway:
     and the eSSVI check equal the former `local_vol_check*` /
     `ssvi_arbitrage` blocks (the 0.16.6 numbers in
     fixtures/vol_surface_validation_0_16_6.json; the surfaces are proven the
-    same by the hash of their spec); the simulation equals the former
+    same by the hash of their spec, Andreasen-Huge's within 0.5 vol points
+    of the former one since its calibration has a weighted second stage); the
+    simulation equals the former
     `diagnostics.vanilla_repricing` of a single-underlying note whose
     observation dates are sheet expiries (same seed, paths and grid);
   * the response on the three payloads of the Scotia NDX sheet: every quote
@@ -56,6 +58,11 @@ PRESETS = {"scotia_ndx": gen.SYNTHETIC_SVI_SCOTIA_NDX, "scotia_rty": gen.SYNTHET
 # on). The 16-day expiry and the deep wings are reported, not required.
 CORE_MIN_MID_OF_SPOT = 2.5e-3
 CORE_Z = 3.5
+
+# The largest move of a used quote's Andreasen-Huge vol against the 0.16.6
+# numbers (measured: 4e-5 on the NDX sheet, 1.1e-3 on the 16-day expiry of
+# the RTY sheet, which the model does not match).
+ANDREASEN_HUGE_VOL_SHIFT = 5e-3
 
 
 def _post(client, request, product):
@@ -137,8 +144,14 @@ def test_reproduces_the_former_calibrate_checks(client, case):
     former = _former()["calibrations"][case]
     req, out = _calibrate(client, PRESETS[former["name"]], former["method"])
     payloads = [p for p in ("grid", "svi", "ssvi") if former["spec_sha256"][p]]
+    # Since 0.16.11 the Andreasen-Huge calibration has a second stage on the
+    # weighted vol errors (the former one stopped at the fit to the prices):
+    # its surface is close to the former one, not equal. The quotes are
+    # compared within ANDREASEN_HUGE_VOL_SHIFT below; the verdicts are the
+    # former ones.
+    andreasen_huge = former["method"] == "AndreasenHuge"
     for p in payloads:
-        if p == "ssvi":
+        if p == "ssvi" or andreasen_huge:
             # Since 0.16.9 the eSSVI payload carries no strike range: the
             # slices are compared through the eSSVI check below (to 1e-9).
             continue
@@ -162,10 +175,17 @@ def test_reproduces_the_former_calibrate_checks(client, case):
     assert len(rows) == former["vanilla_repricing"]["count"]
     for expiry, strike, model_vol, model_price, inside in rows:
         q = fit[(expiry, strike)]
+        if andreasen_huge:
+            assert abs(q["model_vol"] - model_vol) <= ANDREASEN_HUGE_VOL_SHIFT, \
+                (expiry, strike, q["model_vol"], model_vol)
+            continue
         assert _close(q["model_vol"], model_vol), (expiry, strike, q["model_vol"], model_vol)
         assert _close(q["model_price"], model_price, rel=1e-9, abs_=1e-9), (expiry, strike)
         assert q["inside_spread"] == inside
-    if former["method"] != "Ssvi":  # Ssvi left |k| > 1 out of its fit, not of the sheet
+    if andreasen_huge:
+        assert grid["fit"]["count"] == len(rows)
+        assert grid["fit"]["inside"] >= former["vanilla_repricing"]["inside_bid_ask"]
+    elif former["method"] != "Ssvi":  # Ssvi left |k| > 1 out of its fit, not of the sheet
         assert grid["fit"]["count"] == len(rows)
         assert grid["fit"]["inside"] == former["vanilla_repricing"]["inside_bid_ask"]
     if former["method"] == "AndreasenHuge":
@@ -173,16 +193,17 @@ def test_reproduces_the_former_calibrate_checks(client, case):
         # output range the calibration clamped its scan regions to, so the
         # scan over the spec's own limits is a slightly different set of
         # points; the verdict is the same (refused points, not arbitrage free).
-        # The first refusal is the former one when the grid is read the
-        # former way (fixed strike); read at fixed forward moneyness (since
-        # 0.16.10) it still refuses.
+        # Read the former way (fixed strike) or at fixed forward moneyness
+        # (since 0.16.10) the grid still refuses, first at the same time as
+        # the former one (the first expiry's lower wing).
         check = grid["arbitrage"]["local_vol_check"]
         assert check["arbitrage_free"] is False and former["local_vol_check"]["arbitrage_free"] is False
         assert check["refused"] > 0 and former["local_vol_check"]["refused"] > 0
         fixed = validate(client, req, {**out, "vol_surface_spec": _fixed_strike(
             out["vol_surface_spec"], former)}, "grid", checks={"fit": False, "arbitrage": True})
-        assert fixed["arbitrage"]["local_vol_check"]["first_refusal"] == \
-            former["local_vol_check"]["first_refusal"]
+        assert fixed["arbitrage"]["local_vol_check"]["refused"] > 0
+        assert fixed["arbitrage"]["local_vol_check"]["first_refusal"].split(" and time ")[1] == \
+            former["local_vol_check"]["first_refusal"].split(" and time ")[1]
     else:
         _same_verdict(grid["arbitrage"]["local_vol_check"], former["local_vol_check"])
     if "svi" in payloads:

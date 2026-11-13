@@ -24,6 +24,7 @@
 #include <cmath>
 #include <limits>
 #include <memory>
+#include <string>
 #include <variant>
 
 namespace quantra {
@@ -40,6 +41,26 @@ template <typename Fn> double safeGreek(Fn&& fn) {
     } catch (...) {
         return std::numeric_limits<double>::quiet_NaN();
     }
+}
+
+/// How the refusal of a digital or barrier names a strike-dependent vol.
+std::string strikeDependentVolName(const BlackVolEntry& entry) {
+    switch (entry.shapeFb) {
+        case quantra::enums::VolSurfaceShape_SmileCube3D:
+            return "a SmileCube3D strike x expiry grid";
+        case quantra::enums::VolSurfaceShape_SurfaceFromPrices:
+            return "a SurfaceFromPrices strike x expiry grid";
+        case quantra::enums::VolSurfaceShape_SviSlices: return "SVI slices";
+        case quantra::enums::VolSurfaceShape_SsviSlices: return "eSSVI slices";
+        default: return "a strike-dependent surface";
+    }
+}
+
+/// The product a digital or barrier refusal names.
+std::string exoticProductName(const EquityOptionTrade& trade) {
+    if (trade.hasBarrier) return "a barrier option";
+    if (trade.payoffKind == EquityPayoffKind::CashOrNothing) return "a cash-or-nothing payoff";
+    return "an asset-or-nothing payoff";
 }
 
 EquityOptionPerTrade priceTrade(
@@ -101,6 +122,22 @@ EquityOptionPerTrade priceTrade(
                     "Bermudan exercise_dates must all be after the evaluation date");
             }
         }
+    }
+
+    // Digital payoffs and barriers are priced by engines that read one Black
+    // vol, at the strike (AnalyticEuropeanEngine, AnalyticDigitalAmericanEngine,
+    // AnalyticBarrierEngine). On a vol that depends on strike a digital priced
+    // that way misses the skew term (the slope of the smile at the strike) and
+    // a barrier is priced under a model that is not the surface's, so both are
+    // refused there.
+    if ((!isPlainVanilla || trade.hasBarrier) && blackVolDependsOnStrike(volIt->second)) {
+        QUANTRA_INVALID_ARGUMENT(
+            "Equity option '" + trade.tradeId + "': volatility '" + trade.volatilityId +
+            "' depends on strike (" + strikeDependentVolName(volIt->second) + "); " +
+            exoticProductName(trade) +
+            " is priced with a single vol read at the strike and is therefore accepted only "
+            "on a vol that does not depend on strike: send a Constant or an AtmMatrix2D "
+            "(term) BlackVolSpec");
     }
 
     QuantLib::Handle<QuantLib::Quote> spot = underlying.spot;

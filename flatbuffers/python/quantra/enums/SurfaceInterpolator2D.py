@@ -29,7 +29,7 @@
 #     A structured note's local vol reads it against F(t) reshaped between
 #     expiries like the note's own forward (equal to F_i at every expiry).
 #     What `/calibrate-vol-surface` returns.
-#   A supplied grid keeps Bilinear unless it says otherwise.
+#   A BlackVolSpec without `surface_interpolator` reads CubicStrikeLinearTime.
 class SurfaceInterpolator2D(object):
     Bilinear = 0
     Bicubic = 1

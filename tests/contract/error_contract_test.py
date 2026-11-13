@@ -1793,6 +1793,19 @@ SCENARIOS = [
                              "rebate": 0.0, "monitoring": "Discrete",
                              "monitoring_dates": ["2025-07-15", "2026-01-15"]}),
      _ec_body_contains("Discrete monitoring")),
+    # Digital payoffs and barriers are priced with one vol read at the strike,
+    # so they are refused on a vol that depends on strike (here eSSVI slices);
+    # the message names the vol, the product and what to send instead.
+    ("ec:400 equity digital payoff on a strike-dependent vol rejected", "equity_option",
+     "equity/eqopt_eur_call_on_ssvi_slices.json", 400,
+     _ec_equity_set_payoff("EquityCashOrNothingPayoff",
+                           {"option_type": "Call", "strike": 6100.0, "cash": 1.0}),
+     _ec_body_contains("volatility 'spx_ssvi' depends on strike")),
+    ("ec:400 equity barrier on a strike-dependent vol rejected", "equity_option",
+     "equity/eqopt_eur_call_on_ssvi_slices.json", 400,
+     _ec_equity_set_barrier({"barrier_type": "DownOut", "level": 5000.0,
+                             "rebate": 0.0, "monitoring": "Continuous"}),
+     _ec_body_contains("a barrier option is priced with a single vol read at the strike")),
     # ---- 400 INVALID_ARGUMENT: swaption rebump requires market data ----
     # Rebump snapshots are built in the mapper (before the registry's usual
     # rates-presence guard); omitting pricing.rates used to crash the worker.

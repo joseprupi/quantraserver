@@ -3,7 +3,7 @@
   "info": {
     "title": "Quantra Pricing API",
     "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Zero Coupon Bond | `/price-zero-coupon-bond` | Price zero-coupon (single redemption) bonds |\n| Zero Coupon Swap | `/price-zero-coupon-swap` | Price zero-coupon fixed-vs-compounded-floating swaps |\n| Year-on-Year Inflation Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation caps, floors, and collars |\n| Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |\n| FX Forward | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount curves |\n| Cross-Currency Swap | `/price-cross-currency-swap` | Price cross-currency swaps (two SwapLeg entries in two currencies, fixed / IBOR / overnight coupons, principal exchanges) |\n| Structured Note | `/price-structured-note` | Price structured notes on equity-index baskets (autocallables, Phoenix / Athena coupons, capital barriers) by Monte Carlo |\n| Calibrate Implied Forwards | `/calibrate-implied-forwards` | Implied forwards, funding and dividend yields per expiry from listed-option quotes (put-call parity fit), with a ready-to-use dividend curve |\n| Calibrate Vol Surface | `/calibrate-vol-surface` | Black implied-vol surface from listed-option quotes (Andreasen-Huge, SVI per expiry or eSSVI), as ready-to-paste payloads with one arbitrage-free flag each |\n| Validate Vol Surface | `/validate-vol-surface` | Test any equity Black vol surface against listed-option quotes: Black-76 fit per quote, local-vol arbitrage scan as a note reads it, optional Monte Carlo repricing; tables by moneyness band and maturity, verdicts |\n| Calibrate Correlation | `/calibrate-correlation` | Correlation matrix from price histories (aligned returns, Ledoit-Wolf shrinkage, eigenvalue floor), as a ready-to-paste `CorrelationMatrixSpec` |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/bonds/fixed_rate_bond_request.json\n```\n",
-    "version": "0.16.10",
+    "version": "0.16.11",
     "contact": {
       "name": "Quantra API Support",
       "url": "https://github.com/joseprupi/quantraserver"
@@ -2363,7 +2363,7 @@
           "Ssvi"
         ]
       },
-      "quantra_enums_SsviQuoteWeighting": {
+      "quantra_enums_QuoteWeighting": {
         "type": "string",
         "enum": [
           "Uniform",
@@ -7352,11 +7352,8 @@
       },
       "quantra_SsviFitOptions": {
         "type": "object",
-        "description": "Settings of the `Ssvi` method (ignored by the others).\n\nThe used quotes of every fitted expiry (the same out-of-the-money mids,\nimplied vols, forwards and discount factors as the other methods) are\nfitted one expiry after the other in increasing time with an eSSVI slice\n(theta, rho, psi; see `SsviVolSpec`). The used quote nearest the money is\nreproduced exactly (theta is solved from it); (rho, psi) minimise the\nweighted squared vol errors under the butterfly and calendar conditions,\neach an interval in psi for a given rho, so the slices are free of static\narbitrage by construction. When no (rho, psi) is feasible against the\nprevious slice (calendar arbitrage at the money in the quotes) the\nat-the-money total variance is raised to the previous slice's (reported\nas `ssvi_anchor_clamped`).",
+        "description": "Settings of the `Ssvi` method (ignored by the others).\n\nThe used quotes of every fitted expiry (the same out-of-the-money mids,\nimplied vols, forwards and discount factors as the other methods) are\nfitted one expiry after the other in increasing time with an eSSVI slice\n(theta, rho, psi; see `SsviVolSpec`). The used quote nearest the money is\nreproduced exactly (theta is solved from it); (rho, psi) minimise the\nweighted squared vol errors (`CalibrateVolSurfaceRequest.weighting`)\nunder the butterfly and calendar conditions,\neach an interval in psi for a given rho, so the slices are free of static\narbitrage by construction. When no (rho, psi) is feasible against the\nprevious slice (calendar arbitrage at the money in the quotes) the\nat-the-money total variance is raised to the previous slice's (reported\nas `ssvi_anchor_clamped`).",
         "properties": {
-          "weighting": {
-            "$ref": "#/components/schemas/quantra_enums_SsviQuoteWeighting"
-          },
           "max_abs_log_moneyness": {
             "type": "number",
             "description": "Used quotes with |ln(K / F)| above this are left out of the fit and\nreported as dropped (\"max_abs_log_moneyness\"). Finite and > 0."
@@ -7403,6 +7400,9 @@
           },
           "ssvi": {
             "$ref": "#/components/schemas/quantra_SsviFitOptions"
+          },
+          "weighting": {
+            "$ref": "#/components/schemas/quantra_enums_QuoteWeighting"
           }
         },
         "required": [
@@ -7658,6 +7658,9 @@
           "svi_local_vol_refit_action": {
             "type": "string",
             "description": "`SviPerExpiry` only: what the local vol check of the SVI payload made\nthe fit do: \"none\", or the refit passes (the flagged slices refitted\nwith a larger calendar margin and butterfly weight, at most 3)."
+          },
+          "weighting": {
+            "$ref": "#/components/schemas/quantra_enums_QuoteWeighting"
           }
         },
         "required": [
@@ -8772,7 +8775,7 @@
           },
           "volatility": {
             "type": "string",
-            "description": "Reference to volatility in pricing.volatility.vol_surfaces by id."
+            "description": "Reference to volatility in pricing.volatility.vol_surfaces by id (a\nBlackVolSpec, SviVolSpec or SsviVolSpec). A plain vanilla payoff prices\non any of them. A cash-or-nothing or asset-or-nothing payoff and a\nbarrier are priced with one vol read at the strike, so they require a\nvol that does not depend on strike (a Constant or AtmMatrix2D\nBlackVolSpec); a strike x expiry grid, SVI or eSSVI slices are a 400."
           },
           "model": {
             "type": "string",
@@ -10545,7 +10548,7 @@
           },
           "time_grid": {
             "type": "array",
-            "description": "The grid, in years from the valuation date (day counter of the\ndiscounting curve).",
+            "description": "The grid, in Actual/365 (Fixed) years from the valuation date (every\ncurve is read by date on this axis, whatever its day counter).",
             "items": {
               "type": "number"
             }

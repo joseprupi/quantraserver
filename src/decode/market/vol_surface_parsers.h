@@ -139,14 +139,16 @@ struct BlackVolEntry {
     std::vector<QuantLib::Volatility> termVols;
     std::vector<QuantLib::Real> strikes;
     QuantLib::Matrix surfaceVols;
-    BlackSurfaceInterpolation surfaceInterpolation = BlackSurfaceInterpolation::Bilinear;
+    BlackSurfaceInterpolation surfaceInterpolation =
+        BlackSurfaceInterpolation::CubicStrikeLinearTime;
     /// The surface forward of a CubicStrikeLinearTimeForwardMoneyness grid
     /// (null otherwise), kept for the shifted rebuild.
     std::shared_ptr<const SurfaceForward> surfaceForward;
     bool allowExtrapolation = false;
-    /// `local_vol_time_extrapolation` of the spec: true for FlatLocalVol
-    /// (a structured note holds the local vol flat beyond the last expiry);
-    /// false when absent or FlatImpliedVol.
+    /// `local_vol_time_extrapolation` of the spec: true for FlatLocalVol and,
+    /// on a BlackVolSpec or SviVolSpec, when absent (a structured note holds
+    /// the local vol flat beyond the last expiry); false for FlatImpliedVol
+    /// and for an SsviVolSpec without the field (the model's continuation).
     bool flatLocalVolBeyondLastExpiry = false;
     /// SviSlices with `strike_min` / `strike_max`: [min strike_min, max
     /// strike_max] over the slices (a slice without one leaves that side at
@@ -165,6 +167,19 @@ struct BlackVolEntry {
     };
     std::vector<StrikeBand> localVolStrikeBands;
 };
+
+/// True when the entry's Black vol depends on strike: a strike x expiry grid
+/// (SmileCube3D, SurfaceFromPrices), SVI slices (SviSlices) or eSSVI slices
+/// (SsviSlices). False for a Constant or an AtmMatrix2D (term) vol.
+inline bool blackVolDependsOnStrike(const BlackVolEntry& entry) {
+    switch (entry.shapeFb) {
+        case quantra::enums::VolSurfaceShape_SmileCube3D:
+        case quantra::enums::VolSurfaceShape_SurfaceFromPrices:
+        case quantra::enums::VolSurfaceShape_SviSlices:
+        case quantra::enums::VolSurfaceShape_SsviSlices: return true;
+        default: return false;
+    }
+}
 
 /**
  * Rebuild `entry`'s vol with every Black vol shifted by `shift` (absolute,

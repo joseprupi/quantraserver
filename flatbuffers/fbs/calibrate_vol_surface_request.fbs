@@ -66,14 +66,14 @@ table SviFitOptions {
 /// fitted one expiry after the other in increasing time with an eSSVI slice
 /// (theta, rho, psi; see `SsviVolSpec`). The used quote nearest the money is
 /// reproduced exactly (theta is solved from it); (rho, psi) minimise the
-/// weighted squared vol errors under the butterfly and calendar conditions,
+/// weighted squared vol errors (`CalibrateVolSurfaceRequest.weighting`)
+/// under the butterfly and calendar conditions,
 /// each an interval in psi for a given rho, so the slices are free of static
 /// arbitrage by construction. When no (rho, psi) is feasible against the
 /// previous slice (calendar arbitrage at the money in the quotes) the
 /// at-the-money total variance is raised to the previous slice's (reported
 /// as `ssvi_anchor_clamped`).
 table SsviFitOptions {
-    weighting:enums.SsviQuoteWeighting = Vega;
     /// Used quotes with |ln(K / F)| above this are left out of the fit and
     /// reported as dropped ("max_abs_log_moneyness"). Finite and > 0.
     max_abs_log_moneyness:double = 1.0;
@@ -101,8 +101,9 @@ table CalibrateVolSurfaceRequest {
     /// `implied_discount_factor` are read. When absent the same fit is run
     /// here with `filter` and the fitted values are reported.
     forwards:[ImpliedForwardExpiry];
-    /// Fit method; default Andreasen-Huge.
-    method:enums.VolSurfaceFitMethod = AndreasenHuge;
+    /// Fit method; default Ssvi (eSSVI: free of static arbitrage by
+    /// construction, analytic local vol, no further field required).
+    method:enums.VolSurfaceFitMethod = Ssvi;
     /// Sampling grid of the returned surface; defaults documented on the
     /// table.
     output_grid:VolSurfaceOutputGrid;
@@ -111,8 +112,38 @@ table CalibrateVolSurfaceRequest {
     /// SVI arbitrage handling; defaults (both on, min_forward_vol 0.01)
     /// apply when absent.
     svi:SviFitOptions;
-    /// `Ssvi` settings; defaults (Vega, 1.0) apply when absent.
+    /// `Ssvi` settings; the default (1.0) applies when absent.
     ssvi:SsviFitOptions;
+    /// Weight of each used quote in the fit, the same for the three
+    /// methods. The fit minimises, over the used quotes of an expiry,
+    ///
+    ///     sum_i weight_i (model_vol_i - market_vol_i)^2
+    ///
+    /// with weight_i
+    ///   Uniform: 1;
+    ///   Vega: the Black vega of the quote at its market vol;
+    ///   BidAsk: 1 / spread_i^2, spread_i = (ask_i - bid_i) / vega_i (the
+    ///     bid-ask spread of the quote in vol units). A used quote whose ask
+    ///     is not above its bid is left out and reported as dropped
+    ///     ("ask_not_above_bid"). A used quote without both sides takes the
+    ///     median spread of its expiry; an expiry without any two-sided
+    ///     quote is a 400 naming the expiry.
+    ///
+    /// Per method:
+    ///   SviPerExpiry: the weights apply to the fit of each slice and to
+    ///     its butterfly and calendar refits.
+    ///   Ssvi: the weights apply to the (rho, psi) search of each slice; the
+    ///     used quote nearest the money is reproduced exactly whatever the
+    ///     weighting.
+    ///   AndreasenHuge: two stages. The first is the fit to the prices
+    ///     (no weights). The second starts from it and minimises the
+    ///     weighted sum, the model vol read from the surface at each quote.
+    ///     The surface returned is the second stage's when it lowers the
+    ///     weighted sum (per expiry divided by the sum of the weights, then
+    ///     added over the expiries), otherwise the first stage's. The model
+    ///     has one parameter per used quote, so the weights matter only
+    ///     where the quotes cannot all be matched.
+    weighting:enums.QuoteWeighting = Vega;
 }
 
 root_type CalibrateVolSurfaceRequest;

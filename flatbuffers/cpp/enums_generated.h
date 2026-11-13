@@ -153,7 +153,7 @@ inline const char *EnumNameInterpolator(Interpolator e) {
 ///     A structured note's local vol reads it against F(t) reshaped between
 ///     expiries like the note's own forward (equal to F_i at every expiry).
 ///     What `/calibrate-vol-surface` returns.
-///   A supplied grid keeps Bilinear unless it says otherwise.
+///   A BlackVolSpec without `surface_interpolator` reads CubicStrikeLinearTime.
 enum SurfaceInterpolator2D : int8_t {
   SurfaceInterpolator2D_Bilinear = 0,
   SurfaceInterpolator2D_Bicubic = 1,
@@ -246,7 +246,8 @@ inline const char *EnumNameSviTimeInterpolation(SviTimeInterpolation e) {
 ///     negative at long horizons (the note is then a 400).
 ///   FlatLocalVol: the local vol is held time-homogeneous: every time after
 ///     the last expiry reads the local vol at T - 0.001 years (T the last
-///     expiry's year fraction), at the simulated level.
+///     expiry's year fraction), at the simulated level. What a BlackVolSpec
+///     or an SviVolSpec without the field reads.
 /// The Black vol itself (vanilla pricing, diagnostics) is the flat implied
 /// vol beyond the last expiry under both.
 enum LocalVolTimeExtrapolation : int8_t {
@@ -1151,7 +1152,7 @@ inline const char *EnumNameCallabilityType(CallabilityType e) {
 /// Fit method of `/calibrate-vol-surface`: Andreasen-Huge local-vol
 /// interpolation (arbitrage-free by construction, QuantLib
 /// AndreasenHugeVolatilityInterpl), one SVI slice per expiry with
-/// butterfly and calendar checks, or eSSVI slices.
+/// butterfly and calendar checks, or eSSVI slices (the default).
 enum VolSurfaceFitMethod : int8_t {
   VolSurfaceFitMethod_AndreasenHuge = 0,
   VolSurfaceFitMethod_SviPerExpiry = 1,
@@ -1187,28 +1188,34 @@ inline const char *EnumNameVolSurfaceFitMethod(VolSurfaceFitMethod e) {
   return EnumNamesVolSurfaceFitMethod()[index];
 }
 
-/// Quote weighting of the `Ssvi` fit (`SsviFitOptions.weighting`).
-///   Uniform: every used quote counts equally.
-///   Vega: weighted by the Black vega at the market vol.
-///   BidAsk: weighted by 1 / (bid-ask spread in vol units)^2.
-enum SsviQuoteWeighting : int8_t {
-  SsviQuoteWeighting_Uniform = 0,
-  SsviQuoteWeighting_Vega = 1,
-  SsviQuoteWeighting_BidAsk = 2,
-  SsviQuoteWeighting_MIN = SsviQuoteWeighting_Uniform,
-  SsviQuoteWeighting_MAX = SsviQuoteWeighting_BidAsk
+/// Quote weighting of a volatility surface fit
+/// (`CalibrateVolSurfaceRequest.weighting`). The fit minimises, over the
+/// used quotes of an expiry,
+///
+///     sum_i weight_i (model_vol_i - market_vol_i)^2.
+///
+///   Uniform: weight 1.
+///   Vega: the Black vega of the quote at its market vol.
+///   BidAsk: 1 / (bid-ask spread in vol units)^2, the spread of a price
+///     quote being (ask - bid) / vega.
+enum QuoteWeighting : int8_t {
+  QuoteWeighting_Uniform = 0,
+  QuoteWeighting_Vega = 1,
+  QuoteWeighting_BidAsk = 2,
+  QuoteWeighting_MIN = QuoteWeighting_Uniform,
+  QuoteWeighting_MAX = QuoteWeighting_BidAsk
 };
 
-inline const SsviQuoteWeighting (&EnumValuesSsviQuoteWeighting())[3] {
-  static const SsviQuoteWeighting values[] = {
-    SsviQuoteWeighting_Uniform,
-    SsviQuoteWeighting_Vega,
-    SsviQuoteWeighting_BidAsk
+inline const QuoteWeighting (&EnumValuesQuoteWeighting())[3] {
+  static const QuoteWeighting values[] = {
+    QuoteWeighting_Uniform,
+    QuoteWeighting_Vega,
+    QuoteWeighting_BidAsk
   };
   return values;
 }
 
-inline const char * const *EnumNamesSsviQuoteWeighting() {
+inline const char * const *EnumNamesQuoteWeighting() {
   static const char * const names[4] = {
     "Uniform",
     "Vega",
@@ -1218,10 +1225,10 @@ inline const char * const *EnumNamesSsviQuoteWeighting() {
   return names;
 }
 
-inline const char *EnumNameSsviQuoteWeighting(SsviQuoteWeighting e) {
-  if (::flatbuffers::IsOutRange(e, SsviQuoteWeighting_Uniform, SsviQuoteWeighting_BidAsk)) return "";
+inline const char *EnumNameQuoteWeighting(QuoteWeighting e) {
+  if (::flatbuffers::IsOutRange(e, QuoteWeighting_Uniform, QuoteWeighting_BidAsk)) return "";
   const size_t index = static_cast<size_t>(e);
-  return EnumNamesSsviQuoteWeighting()[index];
+  return EnumNamesQuoteWeighting()[index];
 }
 
 /// Exercise style: European (at expiry only), Bermudan (on specific dates), or American (any time).

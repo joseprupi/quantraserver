@@ -26,6 +26,375 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.16.11 (November 2026) — eSSVI as the default fit method, one quote weighting option, safe defaults for supplied grids, digitals and barriers refused on a smile, 30 s gateway deadline, curves read by date under a simulation
+
+`v0.16.11` is described change by change; each change has its own part
+below. QuantLib stays at 1.44.
+
+### Quote weighting: one option, `weighting`, on `/calibrate-vol-surface`
+
+**What was different per method.** The three methods weighted the quote
+errors of an expiry in three ways. `SviPerExpiry` used QuantLib's
+vega-weighted fit, with no choice. `Ssvi` had its own option,
+`ssvi.weighting` (`Uniform`, `Vega`, `BidAsk`). `AndreasenHuge` used
+QuantLib's calibration, which minimises plain price errors: in vol terms
+each quote weighted by its vega squared.
+
+**The option.** `CalibrateVolSurfaceRequest.weighting`, default `Vega`,
+with the same meaning for the three methods. Per expiry the fit minimises
+`sum_i weight_i (model_vol_i − market_vol_i)²` over the used quotes:
+
+| `weighting` | `weight_i` |
+|---|---|
+| `Uniform` | 1 |
+| `Vega` (default) | The Black vega of the quote at its market vol. |
+| `BidAsk` | `1 / spread_i²`, `spread_i = (ask_i − bid_i) / vega_i` (the bid/ask spread in vol units). |
+
+With `BidAsk` a used quote whose ask is not above its bid is left out of
+the fit and listed in `dropped` with reason `ask_not_above_bid`, for the
+three methods. A used quote without both sides takes the median spread of
+its expiry; an expiry without any two-sided quote is a `400` naming the
+expiry (`weighting BidAsk needs bid and ask on at least one used quote at
+expiry <date>`). The per-line rules keep two-sided lines only, so these two
+cases do not occur on a sheet today. The response echoes the value used as
+`weighting`, for the three methods.
+
+**Schema.**
+
+* The enum is `QuoteWeighting` (`Uniform`, `Vega`, `BidAsk`); it was
+  `SsviQuoteWeighting`, with the same values.
+* `CalibrateVolSurfaceRequest.weighting` (new, default `Vega`).
+* `SsviFitOptions.weighting` is removed.
+* `CalibrateVolSurfaceResponse.weighting` (new, always printed).
+
+**SviPerExpiry.** `Vega`: unchanged; the response is the one of 0.16.10
+field for field, plus `weighting`. `Uniform`: QuantLib's `SviInterpolation`
+with equal weights. `BidAsk`: QuantLib's class has no other weights, so its
+vega-weighted and equally weighted fits are the two starting points of the
+engine's own Levenberg-Marquardt on the `BidAsk`-weighted residuals, over
+the same parameter set as QuantLib's fit, and the lower objective is kept.
+The butterfly and calendar refits use the weights of the request. Where
+the slices match the quotes exactly, the three values give the same slices.
+Where they do not, a different weighting gives different slices, and the
+checks apply to them as to any fit (`arbitrage_free_svi`,
+`svi_local_vol_refit_action`). Measured on the steep-wing synthetic sheet:
+`Uniform` follows the wing quotes more closely than `Vega` (rms vol error
+0.02 against 1.6 vol points) and its slices are refused by the local-vol
+scan at 3 of 6,771 points (`arbitrage_free_svi: false`); `Vega` and
+`BidAsk` pass.
+
+**Ssvi.** Reads the top-level field. For each value the response is the
+one 0.16.10 gave with the same value in `ssvi.weighting`.
+
+**AndreasenHuge.** Two stages, the same for the three values.
+
+1. The fit to the prices: QuantLib 1.44's calibration of
+   `AndreasenHugeVolatilityInterpl` as it is, without weights. This is the
+   surface of 0.16.10.
+2. The weighted fit: a second surface, calibrated expiry by expiry, each
+   expiry started from the first stage's local vols of that expiry. It
+   minimises `sum_i weight_i (model_vol_i − market_vol_i)² / sum_i weight_i`.
+   `model_vol_i` is the Black vol the surface returns at the quote (the
+   model's price at the quoted strike, inverted). Where that price has no
+   implied vol, the error of the quote is its price error divided by its
+   vega, the vega floored at 1 % of the expiry's at-the-money vega. At an
+   expiry where the optimiser does not lower the sum, the stage keeps its
+   starting point.
+
+The surface returned is the second stage's when its weighted sum, added
+over the expiries, is below the first stage's. Otherwise it is the first
+stage's. So the result is never worse than QuantLib's calibration in the
+request's own weighted measure. The grid, the cubic spline, the `CallPut`
+calibration type, the 500 grid points, the positive constraint, the
+optimiser and its end criteria are QuantLib's in both stages. The code is
+the engine's copy of QuantLib's class, because the class does not expose
+its cost functions.
+
+Why two stages: started from the flat local vol of the calibration, the
+weighted sum alone does not settle on a close fit on every sheet. The
+model has one parameter per used quote. Where it matches the quotes, the
+three values give the same surface. Where it does not, the three surfaces
+differ.
+
+Measured on the four synthetic example sheets. Per cell: rms vol error at
+the used quotes in vol points (the vol read from the returned grid), quotes
+inside bid/ask, calibrate time on the test machine.
+
+| Sheet (used quotes) | 0.16.10 | `Vega` (default) | `Uniform` | `BidAsk` |
+|---|---|---|---|---|
+| SVI sheet (189) | 0.114, 180, 0.18 s | 0.114, 180, 0.15 s | 0.114, 180, 0.15 s | 0.114, 180, 0.16 s |
+| eSSVI sheet (99) | 0.095, 95, 0.11 s | 0.095, 95, 0.10 s | 0.095, 95, 0.10 s | 0.095, 95, 0.10 s |
+| Steep-wing sheet (181) | 0.448, 89, 6.4 s | 0.107, 140, 9.8 s | 0.112, 137, 9.3 s | 0.102, 139, 9.3 s |
+| Daily-expiry sheet (463) | 1.569, 322, 6.6 s | 1.569, 322, 9.0 s | 1.569, 322, 8.3 s | 1.569, 321, 9.1 s |
+
+Limits of the second stage, on the two sheets the model cannot match:
+
+* The optimiser stops on its evaluation limit at most expiries, in both
+  stages (as QuantLib's calibration did in 0.16.10). The second stage's
+  point is better than the first stage's in the weighted measure. It is not
+  a converged minimum.
+* On the steep-wing sheet each value lowers its own weighted rms vol error
+  against 0.16.10 (`Uniform` 0.47 to 0.12 vol points, `Vega` 0.22 to 0.05,
+  `BidAsk` 0.40 to 0.26). The three surfaces are close to each other, and
+  the surface of a value is not always the best of the three under that
+  value's own weights (differences up to 9 %).
+* On the daily-expiry sheet the error at the quotes is unchanged to three
+  digits for the three values.
+* The calibration takes about 1.5 times as long: 9.3 to 10.2 s on the
+  steep-wing sheet on the test machine, at the 10 s gateway deadline of
+  0.16.10. The default deadline is now 30 s (see "Gateway deadline"
+  below).
+
+**What changes for an existing request.**
+
+* A request with `ssvi.weighting` is refused by the JSON parser with a
+  `400` (`unknown field: weighting`). Move the value to the top-level
+  `weighting`; the result is the same.
+* A request with method `SviPerExpiry` or `Ssvi` and no weighting gives the
+  response of 0.16.10 plus the `weighting` field.
+* A request with method `AndreasenHuge` and no weighting runs the second
+  stage with vega weights. (`AndreasenHuge` was the default method in
+  0.16.10; a request without `method` now runs `Ssvi`, see "Default fit
+  method" below.) Where the model matches the quotes the surface moves
+  little: the grid vols of the SVI
+  example sheet by at most 7.3e-5, those of the eSSVI example sheet by at
+  most 6.2e-4, and the request is not slower. Where it does not, the
+  surface changes and the request takes about 1.5 times as long. Steep-wing
+  sheet: rms vol error at the quotes 0.45 to 0.11 vol points, quotes inside
+  bid/ask 89 to 140 of 181, grid vols moved by up to 10 vol points,
+  calibrate time 6.4 s to 9.8 s. Daily-expiry sheet: rms vol error 1.57 vol
+  points and 322 of 463 quotes inside in both versions, grid vols moved by
+  at most 0.05 vol points, calibrate time 6.6 s to 9.0 s. `arbitrage_free`
+  is `false` on the four sheets in both versions (points refused by the
+  scan: 753 to 783 of 6,825 on the steep-wing sheet, 1,067 to 1,097 of
+  12,581 on the daily-expiry sheet, unchanged on the two others).
+* The default gateway deadline is now 30 s (`QUANTRA_GATEWAY_DEADLINE_MS`,
+  see "Gateway deadline" below), so these requests fit with the default
+  settings.
+* The response has one more field, `weighting`.
+* Code generated from the schema: `SsviQuoteWeighting` is now `QuoteWeighting`.
+
+**Examples and catalog.** Three new example requests under
+`examples/data/vol_surface/` (`…_svi_uniform.json`, `…_svi_bid_ask.json`,
+`…_andreasen_huge_bid_ask.json`) and their catalog rows
+(`volsurf_synthetic_svi_sheet_svi_per_expiry_uniform`,
+`…_svi_per_expiry_bid_ask`, `volsurf_synthetic_svi_sheet_andreasen_huge_bid_ask`).
+The eSSVI example with `BidAsk` weights carries the top-level field. The
+two Andreasen-Huge rows are compared with QuantLib's class, which is the
+first stage, within 2e-4 in vol; the row of 0.16.10 was compared at 1e-6
+(the engine's grid vols moved by at most 7.3e-5 on that sheet; the
+reference values did not move). No other row moved.
+
+### Default fit method of `/calibrate-vol-surface`: `Ssvi`
+
+**What it was.** A request without `method` ran `AndreasenHuge`.
+
+**What it is now.** A request without `method` runs `Ssvi` (eSSVI slices)
+and the response echoes `"method": "Ssvi"`. The eSSVI surface is free of
+static arbitrage by construction and its local vol is analytic. On the
+example sheets the `AndreasenHuge` grid does not pass the endpoint's own
+arbitrage scan (`arbitrage_free` false). `Ssvi` needs no field beyond the
+required ones (`pricing`, `sheet`, `discounting_curve`,
+`vol_surface_id`): `ssvi.max_abs_log_moneyness` defaults to 1.0, and an
+expiry needs at least 3 used quotes (or `filter.min_quotes_per_expiry` if
+higher).
+
+**What changes for a caller.** A request that relied on the default gets
+the eSSVI fit: other grid vols, the `vol_surface_spec_ssvi` payload with
+its `arbitrage_free_ssvi` flag next to the grid, and the per-expiry
+`ssvi` parameters. The grid returned next to the eSSVI payload is sampled
+from it and checked on its own: on the daily-expiry example sheet its
+`arbitrage_free` is false while `arbitrage_free_ssvi` is true. To keep the Andreasen-Huge surface, send
+`"method": "AndreasenHuge"`. Every example request and catalog row already
+names its method; no reference value moved. The workflow script
+`examples/structured_note_workflow/price_note_from_quotes.py` leaves
+`method` out unless `--method` is given (it sent `SviPerExpiry` by
+default before).
+
+### Digital payoffs and barriers on a strike-dependent vol: refused
+
+**What it was.** `/price-equity-option` priced cash-or-nothing and
+asset-or-nothing payoffs with QuantLib's `AnalyticEuropeanEngine`
+(`AnalyticDigitalAmericanEngine` for American exercise) and barriers with
+`AnalyticBarrierEngine`. These engines read one Black vol, at the strike.
+On a vol that depends on strike (a `SmileCube3D` or `SurfaceFromPrices`
+grid, an `SviVolSpec`, an `SsviVolSpec`) a digital priced that way misses
+the skew term, and a barrier is priced as a flat-vol barrier, not under
+the surface.
+
+**What it is now.** A digital payoff or a barrier that references a
+strike-dependent vol is a `400` (`INVALID_ARGUMENT`) naming the trade, the
+vol id, its shape and the payoff or product, and asking for a Constant or
+an `AtmMatrix2D` (term) vol. Every exercise style is covered. Plain vanilla
+payoffs price on every vol as before. Digitals and barriers on Constant and
+term vols are unchanged, bit for bit.
+
+**What changes for a caller.** A request that priced a digital or a
+barrier on a grid, SVI or eSSVI vol gets a `400`. To keep pricing it with
+one vol, send that vol as a Constant (or term) `BlackVolSpec`. No example
+or catalog row priced such a combination.
+
+**Measured** on the eSSVI example market
+(`examples/data/equity/eqopt_eur_call_on_ssvi_slices.json`, spot 6,000,
+expiry 2027-07-21), on 0.16.10: a cash-or-nothing call at strike 6,100
+paying 1 priced 0.4627; the call spread `(C(6093.9) − C(6106.1)) / 12.2`,
+which is the digital under the smile, is 0.6032. The single-vol price was
+23 % low.
+
+### Defaults of a strike x expiry grid or SVI slices you supply
+
+**What it was.** A `BlackVolSpec` grid without `surface_interpolator` was
+read `Bilinear`: its Dupire local vol has no smile curvature inside a grid
+cell, and a structured note simulated on it reprices vanillas 2 to 3 vol
+points high at a year. A `BlackVolSpec` grid or an `SviVolSpec` without
+`local_vol_time_extrapolation` read `FlatImpliedVol` beyond the last
+expiry: the local vol of a flat implied vol, which on a skew turns negative
+at long horizons (the note was then a `400`).
+
+**What it is now.** Absent `surface_interpolator` reads
+`CubicStrikeLinearTime`. Absent `local_vol_time_extrapolation` reads
+`FlatLocalVol` on a `BlackVolSpec` and an `SviVolSpec`. Explicit values
+keep their meaning: a request that sends `Bilinear` or `FlatImpliedVol`
+gets them. An `SsviVolSpec` without the field keeps the model's own
+continuation (`FlatImpliedVol` stays a `400` there). The legacy pair
+`expiry_interpolator` / `strike_interpolator` still selects `Bicubic` with
+`LogCubic`; with `Linear` (the default) `surface_interpolator` decides.
+The surfaces `/calibrate-vol-surface` returns set both fields and do not
+change.
+
+**What changes for a caller.** A supplied grid without
+`surface_interpolator` reads different vols between the nodes (the nodes
+themselves are unchanged): vanilla equity options, `/sample-vol-surfaces`,
+`/validate-vol-surface` and structured notes on such a grid move. A note
+simulated past the last expiry of a grid or SVI slices without
+`local_vol_time_extrapolation` moves; one that was a `400` there now
+prices. A note that ends before the last expiry is unchanged. Send
+`surface_interpolator: Bilinear` or `local_vol_time_extrapolation:
+FlatImpliedVol` to keep the old reading.
+
+**Measured.** The two Scotia examples on synthetic surfaces run to
+2028-10-05, beyond their last expiry 2027-12-17, and carry no
+`local_vol_time_extrapolation` (2048 Sobol paths):
+
+| Example | 0.16.10 | 0.16.11 |
+|---|---|---|
+| `…_with_synthetic_surface.json` (grid) | 951.908 ± 6.188 | 952.302 ± 6.044 |
+| `…_with_synthetic_svi.json` (SVI slices) | 953.362 ± 6.567 | 952.592 ± 6.120 |
+
+With `FlatImpliedVol` set explicitly both give the 0.16.10 values bit for
+bit. No example or catalog row sends a grid without `surface_interpolator`.
+
+### eSSVI: the smallest feasible raise of an anchor
+
+**What it was.** When no `(rho, psi)` was feasible for a slice of method
+`Ssvi` (the at-the-money quotes cross the previous expiry), the anchor's
+total variance was raised by a doubling step until a slice was feasible.
+The last step could overshoot the needed raise by up to its own size.
+
+**What it is now.** After the doubling, the interval between the last
+infeasible and the first feasible value is bisected, keeping the feasible
+end, until it is below 0.1 % of the raise (at most 60 halvings). The raise
+is the smallest feasible one within that tolerance. Slices that are not
+clamped do not change.
+
+**What changes for a caller.** A calibration with `ssvi_anchor_clamped`
+on some expiry returns a lower anchor variance there (closer to the
+quotes), and the later slices can move slightly through the calendar
+constraints.
+
+**Measured.** On the daily-expiry synthetic sheet with method `Ssvi`,
+three expiries are clamped. Anchor total variance, 0.16.10 to 0.16.11:
+2026-10-09 0.000587249 to 0.000580153, 2026-10-13 0.000837946 to
+0.000829533, 2026-10-15 0.001069212 to 0.001061393. The other slices move
+by at most 5e-9 in `rho` and `psi`. The eSSVI note on those slices
+(`synthetic_spx_1y_autocall_on_daily_expiry_ssvi.json`, regenerated from
+the new output) moves from 983.122 to 982.989 (standard error 1.75). In
+the unit case of the tests the raise goes from 0.00262 (doubling) to
+0.00144.
+
+### Gateway deadline: 30 s by default
+
+**What it was.** The JSON gateway set a 10 s deadline on every call to the
+engine (`QUANTRA_GATEWAY_DEADLINE_MS`), below Envoy's default route
+timeout of 30 s. An Andreasen-Huge calibration on the steep-wing example
+sheet takes 9 to 10 s.
+
+**What it is now.** The default is 30,000 ms, equal to the default
+`QUANTRA_ROUTE_TIMEOUT_MS`. Envoy's cap on a caller's `grpc-timeout`
+(`max(60 s, route timeout)`) and the engine budget of the container
+(`QUANTRA_REQUEST_BUDGET_MS=35000`) are unchanged and stay above it.
+
+**What changes for a caller.** A request that took between 10 and 30 s
+answered `504` and now completes. A deployment that set
+`QUANTRA_GATEWAY_DEADLINE_MS` keeps its value.
+
+### Curves of any day counter under a simulation; vols on Actual/365 (Fixed)
+
+**What it was.** A structured note and `/validate-vol-surface` measure time
+in Actual/365 (Fixed) years from `as_of_date` (the simulation grid, the
+expiries, the arbitrage scan). They read the curves at those times, and
+QuantLib reads a time on the curve's own day counter from the curve's own
+reference date. A curve on Actual/360, 30/360 or Actual/Actual therefore
+returned the discount factor of another date: the forwards, the drift, the
+local vol and the discounting of the cash flows (the funding-spreaded
+discount curve reads its base curve by time too) were off. The vols were read the same way.
+
+**What it is now.** Every curve a note or `/validate-vol-surface` reads
+(the note curve, the dividend curves, a quanto underlying's own curve, the
+validation's discounting and dividend curves, and the curves of a
+`CubicStrikeLinearTimeForwardMoneyness` grid's forward when the grid is on
+Actual/365 (Fixed)) is read by date: at time `t` the discount factor is
+the curve's at the date `t x 365` days after `as_of_date`; a fraction of a
+day interpolates the curve's own time between the two dates. A curve on
+Actual/365 (Fixed) with `reference_date` equal to `as_of_date` is read as
+before, bit for bit. Every vol a note reads (the underlyings' and a quanto
+FX vol) and the vol `/validate-vol-surface` checks must have `day_counter`
+`Actual365Fixed` and `reference_date` equal to `as_of_date`; any other is
+a `400` (`INVALID_ARGUMENT`) naming the vol and the field. Vanilla
+`/price-equity-option` is unchanged (QuantLib's process reads its curves
+by date).
+
+**What changes for a caller.** A note or a validation on curves of
+another day counter moves to the values the same curves give on
+Actual/365 (Fixed). A note or a validation whose vol is not on
+Actual/365 (Fixed) at `as_of_date` gets a `400`; the surfaces
+`/calibrate-vol-surface` returns are on it. `model.time_grid` of the note
+response was documented as using the discounting curve's day counter; it
+is Actual/365 (Fixed) years from the valuation date, as it always was. No
+example or catalog row uses another day counter or reference date on a
+curve or a vol under a note or a validation.
+
+**Measured** on synthetic examples: each curve relabelled Actual/360 with
+its continuous zero rates scaled by 360/365, which leaves the discount
+factor at every date unchanged.
+
+`/validate-vol-surface`, `vol_surface_validation/scotia_ndx_svi.json`
+(forward at the 2027-12-17 expiry; quotes inside bid/ask, of 189; scan
+points, none refused):
+
+| Curves relabelled | 0.16.10 | 0.16.11 |
+|---|---|---|
+| None | 31,973.227, 189, 6,773 | 31,973.227, 189, 6,773 |
+| Discounting | 31,946.814, 136, 6,781 | 31,973.227, 189, 6,773 |
+| Dividend | 31,975.513, 189, 6,781 | 31,973.227, 189, 6,773 |
+| Both | 31,949.098, 155, 6,781 | 31,973.227, 189, 6,773 |
+
+Notes, NPV per 1,000 (note curve and dividend curves relabelled; for the
+quanto note the underlyings' own curves and the dividend curves, 2048
+paths):
+
+| Example | Base | 0.16.10 relabelled | 0.16.11 relabelled |
+|---|---|---|---|
+| `synthetic_spx_1y_autocall_on_daily_expiry_svi.json` (local vol) | 983.7609 | 983.7253 | 983.7609 |
+| `synthetic_two_asset_worst_of_flat_vol_autocall.json` (constant vols) | 894.5823 | 894.0892 | 894.5823 |
+| `bnp_quad_index_classic_autocall_xs2741509801.json` (quanto) | 874.0008 | 874.4798 | 874.0008 |
+
+On the relabelled curves the constant-vol and quanto notes give the base
+NPV bit for bit and the local-vol note within 1e-9 relative (the local
+vol's finite differences amplify the last-digit differences of the
+discount factors). Cost: the local-vol note simulates in 1.33 s on
+Actual/365 (Fixed) curves (unchanged) and 1.61 s on Actual/360 curves.
+
 ## Version 0.16.10 (November 2026) — time interpolation at fixed forward moneyness
 
 `v0.16.10` changes how the surfaces `/calibrate-vol-surface` returns are

@@ -185,22 +185,24 @@ table BlackVolSpec {
     flat_dividend_rate:double = 0.0;
     /// Default extrapolation mode for this surface when consumed by pricing endpoints.
     allow_extrapolation:bool = false;
-    /// Interpolation of a strike x expiry surface (see the enum): Bilinear
-    /// unless asked; `/calibrate-vol-surface` returns
-    /// CubicStrikeLinearTimeForwardMoneyness (CubicStrikeLinearTime before
-    /// 0.16.10).
-    surface_interpolator:enums.SurfaceInterpolator2D = Bilinear;
-    /// Deprecated for BlackVolSpec surfaces; retained for backward compatibility.
-    /// Mapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic.
+    /// Interpolation of a strike x expiry surface (see the enum). Absent:
+    /// CubicStrikeLinearTime. Bilinear only when asked for (its Dupire local
+    /// vol has no smile curvature inside a cell). `/calibrate-vol-surface`
+    /// returns CubicStrikeLinearTimeForwardMoneyness.
+    surface_interpolator:enums.SurfaceInterpolator2D = CubicStrikeLinearTime;
+    /// Deprecated for BlackVolSpec surfaces. (LogCubic,LogCubic) selects
+    /// Bicubic; (Linear,Linear), the default, leaves the choice to
+    /// surface_interpolator.
     expiry_interpolator:enums.Interpolator = Linear;
-    /// Deprecated for BlackVolSpec surfaces; retained for backward compatibility.
-    /// Mapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic.
+    /// Deprecated for BlackVolSpec surfaces. (LogCubic,LogCubic) selects
+    /// Bicubic; (Linear,Linear), the default, leaves the choice to
+    /// surface_interpolator.
     strike_interpolator:enums.Interpolator = Linear;
     /// Optional. For a strike-dependent surface simulated as Dupire local
     /// vol by a structured note: how the local vol is extended beyond the
-    /// last expiry (see the enum). Absent = FlatImpliedVol (the local vol of
-    /// the flat-implied-vol extension). `/calibrate-vol-surface` returns
-    /// FlatLocalVol. No effect on a Constant or AtmMatrix2D vol, nor on any
+    /// last expiry (see the enum). Absent: FlatLocalVol (the local vol held
+    /// at its value just before the last expiry). FlatImpliedVol only when
+    /// asked for. No effect on a Constant or AtmMatrix2D vol, nor on any
     /// Black vol read (vanilla options, diagnostics).
     local_vol_time_extrapolation:enums.LocalVolTimeExtrapolation = null;
     /// Optional, a strike x expiry surface only (SmileCube3D): the strike
@@ -321,9 +323,9 @@ table SviVolSpec {
     /// implied vol); strikes need no flag, the formula is global.
     allow_extrapolation:bool = false;
     /// Optional. How the Dupire local vol a structured note simulates is
-    /// extended beyond the last slice (see the enum). Absent =
-    /// FlatImpliedVol. `/calibrate-vol-surface` returns FlatLocalVol. No
-    /// effect on any Black vol read (vanilla options, diagnostics).
+    /// extended beyond the last slice (see the enum). Absent: FlatLocalVol.
+    /// FlatImpliedVol only when asked for. No effect on any Black vol read
+    /// (vanilla options, diagnostics).
     local_vol_time_extrapolation:enums.LocalVolTimeExtrapolation = null;
     /// Optional. How the slices' strike_min / strike_max bound the local
     /// vol (see the enum). Absent = Global (one range for every time).

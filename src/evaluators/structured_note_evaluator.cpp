@@ -5,6 +5,7 @@
 #include "error.h"
 #include "path_engine.h"
 #include "quanto_builder.h"
+#include "simulation_axis.h"
 #include "time_grid.h"
 #include "vol_surface_validation_evaluator.h"
 
@@ -253,10 +254,16 @@ Handle<QuantLib::YieldTermStructure> findCurve(
     return Handle<QuantLib::YieldTermStructure>(it->second->currentLink());
 }
 
+/// The underlyings' market. Every curve comes through `onAxis` (the
+/// simulation's time axis, src/market/simulation_axis.h) and every vol must
+/// already be on it.
 std::vector<ResolvedUnderlying> resolveUnderlyings(
     const StructuredNoteTrade& trade,
     const PricingRegistry& reg,
-    const Handle<QuantLib::YieldTermStructure>& noteCurve) {
+    const Handle<QuantLib::YieldTermStructure>& noteCurve,
+    const Date& asOf,
+    const std::function<Handle<QuantLib::YieldTermStructure>(
+        const Handle<QuantLib::YieldTermStructure>&)>& onAxis) {
     std::vector<ResolvedUnderlying> out;
     out.reserve(trade.underlyings.size());
     for (std::size_t k = 0; k < trade.underlyings.size(); ++k) {
@@ -279,8 +286,9 @@ std::vector<ResolvedUnderlying> resolveUnderlyings(
                 "note underlying (it decides whether the underlying is quanto)");
         }
         r.spot = eqIt->second.spot;
-        r.plainDividend = eqIt->second.dividend;
+        r.plainDividend = onAxis(eqIt->second.dividend);
         r.localCurve = noteCurve;
+        RequireVolOnSimulationAxis(**volIt->second.handle, asOf, u.volatilityId);
         r.vol = volIt->second.handle;
         r.volEntry = &volIt->second;
         r.volShape = volIt->second.shapeFb;
@@ -296,10 +304,10 @@ std::vector<ResolvedUnderlying> resolveUnderlyings(
                 "' is in the note currency " + trade.currency);
         }
         if (!u.quanto) {
-            r.dividend = eqIt->second.dividend;
+            r.dividend = r.plainDividend;
         } else {
             const QuantoData& q = *u.quanto;
-            auto localCurve = findCurve(reg, q.discountingCurveId, "Discounting curve");
+            auto localCurve = onAxis(findCurve(reg, q.discountingCurveId, "Discounting curve"));
             const FxSpot& fx = reg.fx.spots.get(q.fxSpotId); // 404 when absent
             const bool pairOk =
                 (fx.baseCurrency == r.currency && fx.quoteCurrency == trade.currency) ||
@@ -320,12 +328,13 @@ std::vector<ResolvedUnderlying> resolveUnderlyings(
                     "' must be a Constant or term (AtmMatrix2D) BlackVolSpec: the FX rate is not "
                     "simulated, its vol only enters the quanto drift");
             }
+            RequireVolOnSimulationAxis(**fxVolIt->second.handle, asOf, q.fxVolatilityId);
             r.fxVol = fxVolIt->second.handle;
             r.fxSpot = fx.rate->value();
             r.rho = q.fxUnderlyingCorrelation;
             r.localCurve = localCurve;
             r.dividend = buildQuantoDividendCurve(
-                eqIt->second.dividend, localCurve, noteCurve, r.vol, r.fxVol, r.fxSpot, r.rho,
+                r.plainDividend, localCurve, noteCurve, r.vol, r.fxVol, r.fxSpot, r.rho,
                 u.initialLevel);
         }
         out.push_back(r);
@@ -580,8 +589,18 @@ NoteResultRow priceNote(
     }
 
     // --- market -----------------------------------------------------------------
+    // Every curve on the simulation's time axis (Actual/365 (Fixed) years
+    // from asOf), one view per curve: a curve of any day counter is read by
+    // date, a curve already on the axis is the registry's own handle.
+    std::map<const QuantLib::YieldTermStructure*, Handle<QuantLib::YieldTermStructure>> axisCurves;
+    auto onAxis = [&](const Handle<QuantLib::YieldTermStructure>& curve) {
+        auto it = axisCurves.find(curve.currentLink().get());
+        if (it == axisCurves.end())
+            it = axisCurves.emplace(curve.currentLink().get(), OnSimulationAxis(curve, asOf)).first;
+        return it->second;
+    };
     const Handle<QuantLib::YieldTermStructure> noteCurve =
-        findCurve(reg, trade.discountingCurveId, "Discounting curve");
+        onAxis(findCurve(reg, trade.discountingCurveId, "Discounting curve"));
     const std::shared_ptr<QuantLib::YieldTermStructure> spreaded =
         spreadedCurve(noteCurve, trade.fundingSpreadBp * kBasisPoint);
     auto dfOn = [&](const std::shared_ptr<QuantLib::YieldTermStructure>& curve, const Date& d) {
@@ -589,7 +608,8 @@ NoteResultRow priceNote(
     };
     auto df = [&](const Date& d) { return dfOn(spreaded, d); };
 
-    const std::vector<ResolvedUnderlying> und = resolveUnderlyings(trade, reg, noteCurve);
+    const std::vector<ResolvedUnderlying> und =
+        resolveUnderlyings(trade, reg, noteCurve, asOf, onAxis);
 
     std::vector<std::string> ids;
     for (const auto& u : trade.underlyings)
@@ -973,8 +993,9 @@ NoteResultRow priceNote(
                 "variance from the strike curvature, or total variance decreasing in time): "
                 "recalibrate it (/calibrate-vol-surface returns arbitrage-free surfaces) or "
                 "smooth the quoted vols; beyond the surface's last expiry, set "
-                "local_vol_time_extrapolation: FlatLocalVol on it (the flat implied vol of the "
-                "default extension is not arbitrage-free on a skew at long horizons)");
+                "local_vol_time_extrapolation: FlatLocalVol on it, or leave it absent (the "
+                "flat implied vol of FlatImpliedVol is not arbitrage-free on a skew at long "
+                "horizons)");
         }
         return mc::PathEngineResult{};
     };

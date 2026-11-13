@@ -10,6 +10,7 @@
 #include "request_validation.h"
 #include "roll_offset.h"
 #include "sabr_calibrate_cache.h"
+#include "simulation_axis.h"
 #include "ssvi_vol_parser.h"
 
 #include <ql/exercise.hpp>
@@ -29,6 +30,7 @@
 #include <ql/termstructures/volatility/swaption/sabrswaptionvolatilitycube.hpp>
 #include <ql/termstructures/volatility/swaption/swaptionvolmatrix.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -908,7 +910,7 @@ SurfaceInterpolationMode resolveBlackSurfaceInterpolation(
             return SurfaceInterpolationMode::CubicStrikeLinearTimeForwardMoneyness;
         default: QUANTRA_INVALID_ARGUMENT("Unsupported surface_interpolator for vol id: " + id);
     }
-    return SurfaceInterpolationMode::Bilinear;
+    return SurfaceInterpolationMode::CubicStrikeLinearTime;
 }
 
 /// The strike x expiry grid (`blackVols` is strikes x expiries) as the
@@ -962,6 +964,17 @@ std::shared_ptr<QuantLib::BlackVolTermStructure> buildGridSurface(
 
 using CurveMap = std::
     map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>>;
+
+/// A registry curve as a surface forward reads it, at the surface's own
+/// times: through the simulation-axis view from the surface's reference date
+/// (read by date, whatever the curve's day counter) when the surface is on
+/// Actual/365 (Fixed), as given otherwise.
+QuantLib::Handle<QuantLib::YieldTermStructure> curveOnSurfaceAxis(
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& curve,
+    const QuantLib::Date& ref,
+    const QuantLib::DayCounter& dc) {
+    return dc == QuantLib::Actual365Fixed() ? OnSimulationAxis(curve, ref) : curve;
+}
 
 /// The surface forward of a CubicStrikeLinearTimeForwardMoneyness grid
 /// (see BlackVolSpec.expiry_forwards): the node forwards (with `spot` at
@@ -1037,7 +1050,8 @@ std::shared_ptr<const SurfaceForward> buildGridSurfaceForward(
                 QUANTRA_NOT_FOUND(
                     std::string(what) + " curve " + cid->str() + " not found for vol id: " + id);
             }
-            return QuantLib::Handle<QuantLib::YieldTermStructure>(it->second->currentLink());
+            return curveOnSurfaceAxis(
+                QuantLib::Handle<QuantLib::YieldTermStructure>(it->second->currentLink()), ref, dc);
         }
         return QuantLib::Handle<QuantLib::YieldTermStructure>(
             std::make_shared<QuantLib::FlatForward>(ref, flatRate, dc));
@@ -2122,8 +2136,9 @@ BlackVolEntry parseBlackVol(
                 std::shared_ptr<const SurfaceForward> surfaceForward;
                 if (surfaceInterp ==
                     SurfaceInterpolationMode::CubicStrikeLinearTimeForwardMoneyness) {
-                    surfaceForward =
-                        std::make_shared<CurveSurfaceForward>(spot->value(), dividend, discount);
+                    surfaceForward = std::make_shared<CurveSurfaceForward>(
+                        spot->value(), curveOnSurfaceAxis(dividend, ref, dc),
+                        curveOnSurfaceAxis(discount, ref, dc));
                 }
                 auto qlVol = buildGridSurface(
                     surfaceInterp, ref, cal, bdc, dates, strikes, blackVolMatrix, dc, id,
@@ -2156,7 +2171,7 @@ BlackVolEntry parseBlackVol(
     entry.dayCounter = dc;
     entry.flatLocalVolBeyondLastExpiry =
         payload->local_vol_time_extrapolation().value_or(
-            quantra::enums::LocalVolTimeExtrapolation_FlatImpliedVol) ==
+            quantra::enums::LocalVolTimeExtrapolation_FlatLocalVol) ==
         quantra::enums::LocalVolTimeExtrapolation_FlatLocalVol;
     // Per-expiry local vol strike ranges (a strike x expiry surface only).
     {
@@ -2444,7 +2459,7 @@ BlackVolEntry parseSviVol(const quantra::VolSurfaceSpec* spec) {
     entry.pillarDates = dates;
     entry.flatLocalVolBeyondLastExpiry =
         payload->local_vol_time_extrapolation().value_or(
-            quantra::enums::LocalVolTimeExtrapolation_FlatImpliedVol) ==
+            quantra::enums::LocalVolTimeExtrapolation_FlatLocalVol) ==
         quantra::enums::LocalVolTimeExtrapolation_FlatLocalVol;
     entry.allowExtrapolation = payload->allow_extrapolation();
     if (payload->allow_extrapolation()) {

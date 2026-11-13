@@ -300,8 +300,17 @@ class CalibrateVolSurfaceResponse(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # The quote weighting the fit used (the request's `weighting` or its
+    # default), reported with `method` for the three methods.
+    # CalibrateVolSurfaceResponse
+    def Weighting(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(42))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return None
+
 def CalibrateVolSurfaceResponseStart(builder):
-    builder.StartObject(19)
+    builder.StartObject(20)
 
 def Start(builder):
     CalibrateVolSurfaceResponseStart(builder)
@@ -450,6 +459,12 @@ def CalibrateVolSurfaceResponseAddSviLocalVolRefitAction(builder, sviLocalVolRef
 def AddSviLocalVolRefitAction(builder, sviLocalVolRefitAction):
     CalibrateVolSurfaceResponseAddSviLocalVolRefitAction(builder, sviLocalVolRefitAction)
 
+def CalibrateVolSurfaceResponseAddWeighting(builder, weighting):
+    builder.PrependInt8Slot(19, weighting, None)
+
+def AddWeighting(builder, weighting):
+    CalibrateVolSurfaceResponseAddWeighting(builder, weighting)
+
 def CalibrateVolSurfaceResponseEnd(builder):
     return builder.EndObject()
 
@@ -484,6 +499,7 @@ class CalibrateVolSurfaceResponseT(object):
         self.arbitrageFreeSvi = None  # type: Optional[bool]
         self.arbitrageFreeSsvi = None  # type: Optional[bool]
         self.sviLocalVolRefitAction = None  # type: str
+        self.weighting = None  # type: Optional[int]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -558,6 +574,7 @@ class CalibrateVolSurfaceResponseT(object):
         self.arbitrageFreeSvi = calibrateVolSurfaceResponse.ArbitrageFreeSvi()
         self.arbitrageFreeSsvi = calibrateVolSurfaceResponse.ArbitrageFreeSsvi()
         self.sviLocalVolRefitAction = calibrateVolSurfaceResponse.SviLocalVolRefitAction()
+        self.weighting = calibrateVolSurfaceResponse.Weighting()
 
     # CalibrateVolSurfaceResponseT
     def Pack(self, builder):
@@ -653,5 +670,6 @@ class CalibrateVolSurfaceResponseT(object):
         CalibrateVolSurfaceResponseAddArbitrageFreeSsvi(builder, self.arbitrageFreeSsvi)
         if self.sviLocalVolRefitAction is not None:
             CalibrateVolSurfaceResponseAddSviLocalVolRefitAction(builder, sviLocalVolRefitAction)
+        CalibrateVolSurfaceResponseAddWeighting(builder, self.weighting)
         calibrateVolSurfaceResponse = CalibrateVolSurfaceResponseEnd(builder)
         return calibrateVolSurfaceResponse

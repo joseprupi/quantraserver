@@ -10,7 +10,8 @@
 #     negative at long horizons (the note is then a 400).
 #   FlatLocalVol: the local vol is held time-homogeneous: every time after
 #     the last expiry reads the local vol at T - 0.001 years (T the last
-#     expiry's year fraction), at the simulated level.
+#     expiry's year fraction), at the simulated level. What a BlackVolSpec
+#     or an SviVolSpec without the field reads.
 # The Black vol itself (vanilla pricing, diagnostics) is the flat implied
 # vol beyond the last expiry under both.
 class LocalVolTimeExtrapolation(object):

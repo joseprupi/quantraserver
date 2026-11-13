@@ -7,6 +7,11 @@ engine, and where each one stops working. Field-by-field reference:
 `http-api.md`, sections "Volatility surface from option quotes" and
 "Validating a surface".
 
+The default method is `Ssvi`: its surface is free of static arbitrage by
+construction and its local vol is analytic. On the example sheets the
+`AndreasenHuge` grid does not pass the endpoint's own arbitrage scan
+(`arbitrage_free` false).
+
 ## Common to the three methods
 
 | Item | What the engine does |
@@ -15,6 +20,7 @@ engine, and where each one stops working. Field-by-field reference:
 | Forwards | One forward and one discount factor per expiry, from `/calibrate-implied-forwards` (put-call parity on the same sheet) or fitted in the same call. Dividends enter only through these forwards. |
 | Quotes used | The out-of-the-money side at each strike: the call at or above the forward, the put below. The mid is inverted with Black-76 on the expiry's forward. |
 | Quotes dropped | Lines failing `filter` (relative bid/ask spread above `max_relative_spread`), a mid below `1e-5 x spot`, a mid outside the Black bounds. Each dropped line is reported with its reason. |
+| Quote weights | One option, `weighting`, with the same meaning for the three methods. Per expiry the fit minimises `sum_i weight_i (model_vol_i - market_vol_i)^2` over the used quotes. `Uniform`: weight 1. `Vega` (default): the Black vega at the market vol. `BidAsk`: `1 / spread_i^2`, the spread being the quote's bid/ask spread in vol units, `(ask - bid) / vega`. With `BidAsk` a used quote whose ask is not above its bid is left out (reason `ask_not_above_bid`). The response echoes the value used. |
 | Time | Act/365 Fixed from the as-of date to the expiry date. |
 | Output | A surface spec to paste into a pricing request, the forwards used, a per-expiry report, and one `arbitrage_free` flag per returned spec. |
 
@@ -34,8 +40,8 @@ What none of the methods does:
 | Shape | Parametric, one slice per expiry | Parametric, one slice per expiry | Non-parametric |
 | Parameters per expiry | 5 | 3 | None (piecewise local vol) |
 | Minimum used quotes per expiry | 5 | 3 | `filter.min_quotes_per_expiry` |
-| Fit code | QuantLib `SviInterpolation`, then this engine's refits | This engine | QuantLib `AndreasenHugeVolatilityInterpl` |
-| Quote weights | Vega | `Uniform`, `Vega` or `BidAsk` | None, matches prices |
+| Fit code | QuantLib `SviInterpolation`, then this engine's refits | This engine | This engine's copy of QuantLib `AndreasenHugeVolatilityInterpl`: its fit to the prices, then a weighted second stage |
+| `weighting` values | `Uniform`, `Vega`, `BidAsk` | `Uniform`, `Vega`, `BidAsk` | `Uniform`, `Vega`, `BidAsk` |
 | No butterfly arbitrage | Checked, refitted with a penalty when it fails | By construction | In the method's own model |
 | No calendar arbitrage | Enforced during the fit, last expiry first | By construction | In the method's own model |
 | Between expiries | Total variance linear in time at fixed forward moneyness | The three parameters interpolated in time | Total variance linear in time at fixed forward moneyness, on a sampled grid |
@@ -53,11 +59,16 @@ w(k) = a + b (rho (k - m) + sqrt((k - m)^2 + sigma^2)),   k = ln(K / F)
 ```
 
 **QuantLib part.** `SviInterpolation` fits the five parameters by
-Levenberg-Marquardt on vega-weighted vol errors, from several fixed starting
-points.
+Levenberg-Marquardt on weighted vol errors, from several fixed starting
+points. It offers vega weights (`weighting: Vega`) and equal weights
+(`Uniform`).
 
 **Engine part.**
 
+- `weighting: BidAsk`: QuantLib's two fits are the starting points of the
+  engine's own Levenberg-Marquardt on the `BidAsk`-weighted vol errors. The
+  lower objective is kept.
+- The refits below use the same weights as the fit.
 - Butterfly check on each slice (Durrleman's function on 201 points, and a
   wing slope `b (1 + |rho|)` of at most 2). A failing slice is refitted with a
   penalty.
@@ -112,8 +123,8 @@ code, contributed in #156.
 - Expiries are fitted in increasing time.
 - The quote nearest the money is the anchor. `theta` is solved so the slice
   reproduces it exactly.
-- `rho` and `psi` minimise the weighted squared vol errors under the
-  no-arbitrage conditions: butterfly `psi (1 + |rho|) <= 4` and
+- `rho` and `psi` minimise the weighted squared vol errors (`weighting`)
+  under the no-arbitrage conditions: butterfly `psi (1 + |rho|) <= 4` and
   `psi^2 (1 + |rho|) <= 4 theta`; calendar against the previous slice
   (`theta` and `psi` non-decreasing, `|rho psi - rho_prev psi_prev| <= psi -
   psi_prev`, `psi / theta` non-increasing).
@@ -137,8 +148,9 @@ limits.
   The difference is largest in short-dated wings.
 - When the quotes themselves cross at the money (a short expiry quoted above
   the next one in total variance), no feasible slice exists. The anchor is
-  raised to the smallest feasible value, `ssvi_anchor_clamped` is set, and
-  that slice misses its at-the-money quotes by the size of the crossing.
+  raised to the smallest feasible value (within 0.1 % of the raise),
+  `ssvi_anchor_clamped` is set, and that slice misses its at-the-money
+  quotes by the size of the crossing.
 - Each slice is constrained by the one before it, so an error in an early
   slice limits the later ones.
 
@@ -149,13 +161,28 @@ expiry by expiry to the option prices with a one-step implicit
 finite-difference scheme (Andreasen and Huge, "Volatility Interpolation",
 2010).
 
-**QuantLib part.** `AndreasenHugeVolatilityInterpl` (cubic-spline
-interpolation, call/put calibration, 500 grid points) and
-`AndreasenHugeVolatilityAdapter`, which returns a Black vol by inverting the
-model price.
+**QuantLib part.** The method and its numerical scheme are QuantLib 1.44's
+`AndreasenHugeVolatilityInterpl` (cubic-spline interpolation, call/put
+calibration, 500 grid points, Levenberg-Marquardt).
 
 **Engine part.**
 
+- The calibration is an engine-side copy of that class and runs in two
+  stages. The first is QuantLib's calibration as it is: the fit to the
+  prices, without weights.
+- The second stage builds a second surface, expiry by expiry, each expiry
+  started from the first stage's local vols. It minimises
+  `sum_i weight_i (model_vol_i - market_vol_i)^2 / sum_i weight_i`, where
+  `model_vol_i` is the Black vol the surface returns at the quote. Where the
+  model's price at a quote has no implied vol, the error of the quote is its
+  price error divided by its vega, the vega floored at 1 % of the expiry's
+  at-the-money vega.
+- The surface returned is the second stage's when its weighted sum, added
+  over the expiries, is below the first stage's. Otherwise it is the first
+  stage's. The result is never worse than QuantLib's calibration in the
+  request's own weighted measure.
+- The Black vol is the model price inverted, as QuantLib's
+  `AndreasenHugeVolatilityAdapter` does.
 - The model's Black vols are sampled on the model's own strike mesh and
   returned as a grid.
 - A grid point is inverted only where the model's out-of-the-money price is
@@ -166,10 +193,20 @@ model price.
 **Assumptions.**
 
 - The quoted prices of each expiry are themselves free of arbitrage. The
-  method matches prices and has no weights to discount a bad quote.
+  model has one parameter per used quote and tries to match every quote.
+  The weights only decide where the error goes when it cannot.
 
 **Known limits.**
 
+- Started from a flat local vol, the weighted sum alone does not settle on a
+  close fit on every sheet. This is why the weighted stage starts from the
+  fit to the prices.
+- On an expiry the model cannot match, the optimiser stops at its evaluation
+  limit, in both stages. The result is then the best point found, not a
+  converged minimum. The surface of one `weighting` value is then not always
+  the best of the three under that value's own weights.
+- On a sheet the model cannot match, the second stage adds about half of the
+  first stage's time.
 - The method is free of arbitrage in its own one-step model. What is returned
   is a sampled grid of implied vols, read back with a cubic spline in strike
   and linear total variance in time. The Dupire local vol of that grid is not
@@ -183,7 +220,7 @@ model price.
 
 | Use | What is read |
 |---|---|
-| Equity option | The Black vol at the option's expiry and strike. |
+| Equity option | The Black vol at the option's expiry and strike. Digital payoffs and barriers read only that one vol, so they are refused (`400`) on a surface that depends on strike: grid, SVI or eSSVI slices. |
 | Structured note, grid or SVI slices | Dupire local vol from QuantLib's `LocalVolSurface`, which differentiates the implied surface numerically in strike and time. |
 | Structured note, eSSVI slices | Local vol from the closed-form derivatives of the eSSVI formula. |
 
@@ -195,10 +232,23 @@ model price.
   how many reads were floored.
 - Beyond the per-expiry strike range of a grid or of SVI slices, the local
   vol is held at its value on the edge.
-- Beyond the last expiry, grids and SVI slices from
-  `/calibrate-vol-surface` hold the local vol of the last expiry
-  (`local_vol_time_extrapolation: FlatLocalVol`). eSSVI slices continue the
-  last forward variance with `rho` and `psi` held.
+- Beyond the last expiry, grids and SVI slices hold the local vol of the
+  last expiry (`local_vol_time_extrapolation: FlatLocalVol`, what
+  `/calibrate-vol-surface` returns and what an absent field reads).
+  `FlatImpliedVol` continues the implied vol flat instead, only when asked
+  for. eSSVI slices continue the last forward variance with `rho` and `psi`
+  held.
+- A grid supplied without `surface_interpolator` is read
+  `CubicStrikeLinearTime`: a cubic spline of total variance in log-strike
+  per expiry, linear in time at fixed strike. `Bilinear` is read only when
+  asked for; its Dupire local vol has no smile curvature between two grid
+  strikes.
+- A structured note and `/validate-vol-surface` measure time in Actual/365
+  (Fixed) years from the as-of date. They read every curve by date on that
+  axis, whatever its day counter, and require the surface itself on it:
+  `day_counter` `Actual365Fixed` and `reference_date` equal to the as-of
+  date (`400` otherwise). The surfaces `/calibrate-vol-surface` returns
+  are on it.
 - Price on the discounting curve the quotes were fitted against and on the
   dividend curve `/calibrate-implied-forwards` returned. With other forwards
   the strikes sit at a different moneyness than in the market.

@@ -105,7 +105,7 @@
       "type" : "string",
       "enum": ["AndreasenHuge", "SviPerExpiry", "Ssvi"]
     },
-    "quantra_enums_SsviQuoteWeighting" : {
+    "quantra_enums_QuoteWeighting" : {
       "type" : "string",
       "enum": ["Uniform", "Vega", "BidAsk"]
     },
@@ -1488,19 +1488,19 @@
               },
         "surface_interpolator" : {
                 "$ref" : "#/definitions/quantra_enums_SurfaceInterpolator2D",
-                "description" : "Interpolation of a strike x expiry surface (see the enum): Bilinear\nunless asked; `/calibrate-vol-surface` returns\nCubicStrikeLinearTimeForwardMoneyness (CubicStrikeLinearTime before\n0.16.10)."
+                "description" : "Interpolation of a strike x expiry surface (see the enum). Absent:\nCubicStrikeLinearTime. Bilinear only when asked for (its Dupire local\nvol has no smile curvature inside a cell). `/calibrate-vol-surface`\nreturns CubicStrikeLinearTimeForwardMoneyness."
               },
         "expiry_interpolator" : {
                 "$ref" : "#/definitions/quantra_enums_Interpolator",
-                "description" : "Deprecated for BlackVolSpec surfaces; retained for backward compatibility.\nMapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic."
+                "description" : "Deprecated for BlackVolSpec surfaces. (LogCubic,LogCubic) selects\nBicubic; (Linear,Linear), the default, leaves the choice to\nsurface_interpolator."
               },
         "strike_interpolator" : {
                 "$ref" : "#/definitions/quantra_enums_Interpolator",
-                "description" : "Deprecated for BlackVolSpec surfaces; retained for backward compatibility.\nMapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic."
+                "description" : "Deprecated for BlackVolSpec surfaces. (LogCubic,LogCubic) selects\nBicubic; (Linear,Linear), the default, leaves the choice to\nsurface_interpolator."
               },
         "local_vol_time_extrapolation" : {
                 "$ref" : "#/definitions/quantra_enums_LocalVolTimeExtrapolation",
-                "description" : "Optional. For a strike-dependent surface simulated as Dupire local\nvol by a structured note: how the local vol is extended beyond the\nlast expiry (see the enum). Absent = FlatImpliedVol (the local vol of\nthe flat-implied-vol extension). `/calibrate-vol-surface` returns\nFlatLocalVol. No effect on a Constant or AtmMatrix2D vol, nor on any\nBlack vol read (vanilla options, diagnostics)."
+                "description" : "Optional. For a strike-dependent surface simulated as Dupire local\nvol by a structured note: how the local vol is extended beyond the\nlast expiry (see the enum). Absent: FlatLocalVol (the local vol held\nat its value just before the last expiry). FlatImpliedVol only when\nasked for. No effect on a Constant or AtmMatrix2D vol, nor on any\nBlack vol read (vanilla options, diagnostics)."
               },
         "local_vol_strike_min" : {
                 "type" : "array", "items" : {"type" : "number"},
@@ -1610,7 +1610,7 @@
               },
         "local_vol_time_extrapolation" : {
                 "$ref" : "#/definitions/quantra_enums_LocalVolTimeExtrapolation",
-                "description" : "Optional. How the Dupire local vol a structured note simulates is\nextended beyond the last slice (see the enum). Absent =\nFlatImpliedVol. `/calibrate-vol-surface` returns FlatLocalVol. No\neffect on any Black vol read (vanilla options, diagnostics)."
+                "description" : "Optional. How the Dupire local vol a structured note simulates is\nextended beyond the last slice (see the enum). Absent: FlatLocalVol.\nFlatImpliedVol only when asked for. No effect on any Black vol read\n(vanilla options, diagnostics)."
               },
         "local_vol_strike_range" : {
                 "$ref" : "#/definitions/quantra_enums_LocalVolStrikeRange",
@@ -3011,11 +3011,8 @@
     },
     "quantra_SsviFitOptions" : {
       "type" : "object",
-      "description" : "Settings of the `Ssvi` method (ignored by the others).\n\nThe used quotes of every fitted expiry (the same out-of-the-money mids,\nimplied vols, forwards and discount factors as the other methods) are\nfitted one expiry after the other in increasing time with an eSSVI slice\n(theta, rho, psi; see `SsviVolSpec`). The used quote nearest the money is\nreproduced exactly (theta is solved from it); (rho, psi) minimise the\nweighted squared vol errors under the butterfly and calendar conditions,\neach an interval in psi for a given rho, so the slices are free of static\narbitrage by construction. When no (rho, psi) is feasible against the\nprevious slice (calendar arbitrage at the money in the quotes) the\nat-the-money total variance is raised to the previous slice's (reported\nas `ssvi_anchor_clamped`).",
+      "description" : "Settings of the `Ssvi` method (ignored by the others).\n\nThe used quotes of every fitted expiry (the same out-of-the-money mids,\nimplied vols, forwards and discount factors as the other methods) are\nfitted one expiry after the other in increasing time with an eSSVI slice\n(theta, rho, psi; see `SsviVolSpec`). The used quote nearest the money is\nreproduced exactly (theta is solved from it); (rho, psi) minimise the\nweighted squared vol errors (`CalibrateVolSurfaceRequest.weighting`)\nunder the butterfly and calendar conditions,\neach an interval in psi for a given rho, so the slices are free of static\narbitrage by construction. When no (rho, psi) is feasible against the\nprevious slice (calendar arbitrage at the money in the quotes) the\nat-the-money total variance is raised to the previous slice's (reported\nas `ssvi_anchor_clamped`).",
       "properties" : {
-        "weighting" : {
-                "$ref" : "#/definitions/quantra_enums_SsviQuoteWeighting"
-              },
         "max_abs_log_moneyness" : {
                 "type" : "number",
                 "description" : "Used quotes with |ln(K / F)| above this are left out of the fit and\nreported as dropped (\"max_abs_log_moneyness\"). Finite and > 0."
@@ -3049,7 +3046,7 @@
               },
         "method" : {
                 "$ref" : "#/definitions/quantra_enums_VolSurfaceFitMethod",
-                "description" : "Fit method; default Andreasen-Huge."
+                "description" : "Fit method; default Ssvi (eSSVI: free of static arbitrage by\nconstruction, analytic local vol, no further field required)."
               },
         "output_grid" : {
                 "$ref" : "#/definitions/quantra_VolSurfaceOutputGrid",
@@ -3065,7 +3062,11 @@
               },
         "ssvi" : {
                 "$ref" : "#/definitions/quantra_SsviFitOptions",
-                "description" : "`Ssvi` settings; defaults (Vega, 1.0) apply when absent."
+                "description" : "`Ssvi` settings; the default (1.0) applies when absent."
+              },
+        "weighting" : {
+                "$ref" : "#/definitions/quantra_enums_QuoteWeighting",
+                "description" : "Weight of each used quote in the fit, the same for the three\nmethods. The fit minimises, over the used quotes of an expiry,\n\nsum_i weight_i (model_vol_i - market_vol_i)^2\n\nwith weight_i\nUniform: 1;\nVega: the Black vega of the quote at its market vol;\nBidAsk: 1 / spread_i^2, spread_i = (ask_i - bid_i) / vega_i (the\nbid-ask spread of the quote in vol units). A used quote whose ask\nis not above its bid is left out and reported as dropped\n(\"ask_not_above_bid\"). A used quote without both sides takes the\nmedian spread of its expiry; an expiry without any two-sided\nquote is a 400 naming the expiry.\n\nPer method:\nSviPerExpiry: the weights apply to the fit of each slice and to\nits butterfly and calendar refits.\nSsvi: the weights apply to the (rho, psi) search of each slice; the\nused quote nearest the money is reproduced exactly whatever the\nweighting.\nAndreasenHuge: two stages. The first is the fit to the prices\n(no weights). The second starts from it and minimises the\nweighted sum, the model vol read from the surface at each quote.\nThe surface returned is the second stage's when it lowers the\nweighted sum (per expiry divided by the sum of the weights, then\nadded over the expiries), otherwise the first stage's. The model\nhas one parameter per used quote, so the weights matter only\nwhere the quotes cannot all be matched."
               }
       },
       "required" : ["pricing", "sheet", "discounting_curve", "vol_surface_id"],

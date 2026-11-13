@@ -10,6 +10,7 @@
 // 2.5% against 1.5% on the curve, risk-free 4%, spot 100.
 #include "ssvi_calibrator.h"
 
+#include "date_convert.h"
 #include "error.h"
 
 #include <ql/pricingengines/blackformula.hpp>
@@ -22,6 +23,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -255,9 +257,17 @@ TEST(SsviCalibTest, InvalidInputsAreClientErrors) {
     CalibMarket m;
     m.qGen = 0.015;
     {
+        // BidAsk without any two-sided quote: the 400 names the expiry.
         CalibrationInput in = m.input(m.truth(), false);
         in.weighting = QuoteWeighting::BidAsk;
-        EXPECT_THROW(ssvi::calibrate(in), QuantraInvalidArgument);
+        try {
+            ssvi::calibrate(in);
+            FAIL() << "expected throw";
+        } catch (const QuantraInvalidArgument& e) {
+            const std::string what = e.what();
+            EXPECT_NE(what.find("weighting BidAsk needs bid and ask"), std::string::npos) << what;
+            EXPECT_NE(what.find(DateToIso(m.ref + m.days[0])), std::string::npos) << what;
+        }
     }
     {
         CalibrationInput in = m.input(m.truth(), false);
@@ -305,6 +315,51 @@ void expectArbitrageFree(const CalibrationResult& r) {
 }
 
 } // namespace
+
+// A clamped anchor off the forward whose doubling search overshoots: the returned anchor variance
+// is feasible, and lowering it by three tolerances of the raise is not (the raise is the smallest
+// feasible one within kAnchorRaiseTolerance). The doubling alone is reproduced here for the log.
+TEST(SsviCalibTest, ClampedAnchorRaiseIsTheSmallestFeasible) {
+    CalibMarket m = offForwardMarket();
+    m.offsets[1] = -0.02; // anchor below the forward: rho k* > 0 adds to the needed raise
+    m.qGen = 0.015;
+    auto p = m.truth();
+    p[1].theta = 0.8 * p[0].theta;
+    const CalibrationResult r = ssvi::calibrate(m.input(p, false));
+    expectArbitrageFree(r);
+    ASSERT_TRUE(r.slices[1].anchorClamped);
+    const double kStar = r.slices[1].anchorK;
+    const double raised = r.slices[1].anchorTheta;
+    double W0 = std::numeric_limits<double>::quiet_NaN();
+    for (const auto& row : r.quotes) {
+        if (row.used && row.expiry == r.expiries[1] && row.k == kStar)
+            W0 = row.marketVol * row.marketVol * r.times[1];
+    }
+    ASSERT_TRUE(std::isfinite(W0));
+    const SsviSliceParams prev = r.params[0];
+    const double floor = prev.theta * (1.0 + 1e-6) + 1e-12;
+    double doubled = std::max(W0, floor);
+    double bump = std::max(1e-12, 1e-6 * floor);
+    int steps = 0;
+    while (!ssvi::anchorFeasible(kStar, doubled, prev) && steps < 80) {
+        doubled += bump;
+        bump *= 2.0;
+        ++steps;
+    }
+    std::cout << "[ssvi-calib] anchor raise: W " << W0 << ", doubling " << doubled - W0 << " ("
+              << steps << " steps), returned " << raised - W0 << std::endl;
+    ASSERT_GT(steps, 0); // the doubling stepped, so there is a bracket to refine
+    const double raise = raised - W0;
+    EXPECT_GT(raise, 0.0);
+    EXPECT_LE(raised, doubled);
+    EXPECT_TRUE(ssvi::anchorFeasible(kStar, raised, prev));
+    EXPECT_FALSE(
+        ssvi::anchorFeasible(kStar, raised - 3.0 * ssvi::kAnchorRaiseTolerance * raise, prev));
+    // The fitted slice goes through the raised anchor.
+    const ssvi::Node n{
+        r.params[1].theta, r.params[1].psi, r.params[1].rho * r.params[1].psi, 0, 0, 0};
+    EXPECT_NEAR(ssvi::w(n, kStar), raised, 1e-12 * raised);
+}
 
 // The exact anchor inversion: w(k; anchorTheta(W, rho, k, psi), rho, psi) = W.
 TEST(SsviCalibTest, AnchorThetaInvertsTheSliceVariance) {
