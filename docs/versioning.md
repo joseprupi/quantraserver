@@ -26,7 +26,7 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
-## Version 0.16.11 (November 2026) — one quote weighting option, safe defaults for supplied grids, digitals and barriers refused on a smile, 30 s gateway deadline, curves read by date under a simulation
+## Version 0.16.11 (November 2026) — eSSVI as the default fit method, one quote weighting option, safe defaults for supplied grids, digitals and barriers refused on a smile, 30 s gateway deadline, curves read by date under a simulation
 
 `v0.16.11` is described change by change; each change has its own part
 below. QuantLib stays at 1.44.
@@ -152,9 +152,11 @@ Limits of the second stage, on the two sheets the model cannot match:
   `weighting`; the result is the same.
 * A request with method `SviPerExpiry` or `Ssvi` and no weighting gives the
   response of 0.16.10 plus the `weighting` field.
-* A request with method `AndreasenHuge` (the default method) and no
-  weighting runs the second stage with vega weights. Where the model
-  matches the quotes the surface moves little: the grid vols of the SVI
+* A request with method `AndreasenHuge` and no weighting runs the second
+  stage with vega weights. (`AndreasenHuge` was the default method in
+  0.16.10; a request without `method` now runs `Ssvi`, see "Default fit
+  method" below.) Where the model matches the quotes the surface moves
+  little: the grid vols of the SVI
   example sheet by at most 7.3e-5, those of the eSSVI example sheet by at
   most 6.2e-4, and the request is not slower. Where it does not, the
   surface changes and the request takes about 1.5 times as long. Steep-wing
@@ -182,6 +184,32 @@ two Andreasen-Huge rows are compared with QuantLib's class, which is the
 first stage, within 2e-4 in vol; the row of 0.16.10 was compared at 1e-6
 (the engine's grid vols moved by at most 7.3e-5 on that sheet; the
 reference values did not move). No other row moved.
+
+### Default fit method of `/calibrate-vol-surface`: `Ssvi`
+
+**What it was.** A request without `method` ran `AndreasenHuge`.
+
+**What it is now.** A request without `method` runs `Ssvi` (eSSVI slices)
+and the response echoes `"method": "Ssvi"`. The eSSVI surface is free of
+static arbitrage by construction and its local vol is analytic. On the
+example sheets the `AndreasenHuge` grid does not pass the endpoint's own
+arbitrage scan (`arbitrage_free` false). `Ssvi` needs no field beyond the
+required ones (`pricing`, `sheet`, `discounting_curve`,
+`vol_surface_id`): `ssvi.max_abs_log_moneyness` defaults to 1.0, and an
+expiry needs at least 3 used quotes (or `filter.min_quotes_per_expiry` if
+higher).
+
+**What changes for a caller.** A request that relied on the default gets
+the eSSVI fit: other grid vols, the `vol_surface_spec_ssvi` payload with
+its `arbitrage_free_ssvi` flag next to the grid, and the per-expiry
+`ssvi` parameters. The grid returned next to the eSSVI payload is sampled
+from it and checked on its own: on the daily-expiry example sheet its
+`arbitrage_free` is false while `arbitrage_free_ssvi` is true. To keep the Andreasen-Huge surface, send
+`"method": "AndreasenHuge"`. Every example request and catalog row already
+names its method; no reference value moved. The workflow script
+`examples/structured_note_workflow/price_note_from_quotes.py` leaves
+`method` out unless `--method` is given (it sent `SviPerExpiry` by
+default before).
 
 ### Digital payoffs and barriers on a strike-dependent vol: refused
 

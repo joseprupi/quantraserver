@@ -310,7 +310,7 @@ struct CalibrateVolSurfaceRequestT : public ::flatbuffers::NativeTable {
   std::string discounting_curve{};
   std::unique_ptr<quantra::QuoteFilterT> filter{};
   std::vector<std::unique_ptr<quantra::ImpliedForwardExpiryT>> forwards{};
-  quantra::enums::VolSurfaceFitMethod method = quantra::enums::VolSurfaceFitMethod_AndreasenHuge;
+  quantra::enums::VolSurfaceFitMethod method = quantra::enums::VolSurfaceFitMethod_Ssvi;
   std::unique_ptr<quantra::VolSurfaceOutputGridT> output_grid{};
   std::string vol_surface_id{};
   std::unique_ptr<quantra::SviFitOptionsT> svi{};
@@ -369,9 +369,10 @@ struct CalibrateVolSurfaceRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffer
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::ImpliedForwardExpiry>> *forwards() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::ImpliedForwardExpiry>> *>(VT_FORWARDS);
   }
-  /// Fit method; default Andreasen-Huge.
+  /// Fit method; default Ssvi (eSSVI: free of static arbitrage by
+  /// construction, analytic local vol, no further field required).
   quantra::enums::VolSurfaceFitMethod method() const {
-    return static_cast<quantra::enums::VolSurfaceFitMethod>(GetField<int8_t>(VT_METHOD, 0));
+    return static_cast<quantra::enums::VolSurfaceFitMethod>(GetField<int8_t>(VT_METHOD, 2));
   }
   /// Sampling grid of the returned surface; defaults documented on the
   /// table.
@@ -473,7 +474,7 @@ struct CalibrateVolSurfaceRequestBuilder {
     fbb_.AddOffset(CalibrateVolSurfaceRequest::VT_FORWARDS, forwards);
   }
   void add_method(quantra::enums::VolSurfaceFitMethod method) {
-    fbb_.AddElement<int8_t>(CalibrateVolSurfaceRequest::VT_METHOD, static_cast<int8_t>(method), 0);
+    fbb_.AddElement<int8_t>(CalibrateVolSurfaceRequest::VT_METHOD, static_cast<int8_t>(method), 2);
   }
   void add_output_grid(::flatbuffers::Offset<quantra::VolSurfaceOutputGrid> output_grid) {
     fbb_.AddOffset(CalibrateVolSurfaceRequest::VT_OUTPUT_GRID, output_grid);
@@ -512,7 +513,7 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceRequest> CreateCalibrateVolSurfa
     ::flatbuffers::Offset<::flatbuffers::String> discounting_curve = 0,
     ::flatbuffers::Offset<quantra::QuoteFilter> filter = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::ImpliedForwardExpiry>>> forwards = 0,
-    quantra::enums::VolSurfaceFitMethod method = quantra::enums::VolSurfaceFitMethod_AndreasenHuge,
+    quantra::enums::VolSurfaceFitMethod method = quantra::enums::VolSurfaceFitMethod_Ssvi,
     ::flatbuffers::Offset<quantra::VolSurfaceOutputGrid> output_grid = 0,
     ::flatbuffers::Offset<::flatbuffers::String> vol_surface_id = 0,
     ::flatbuffers::Offset<quantra::SviFitOptions> svi = 0,
@@ -540,7 +541,7 @@ inline ::flatbuffers::Offset<CalibrateVolSurfaceRequest> CreateCalibrateVolSurfa
     const char *discounting_curve = nullptr,
     ::flatbuffers::Offset<quantra::QuoteFilter> filter = 0,
     const std::vector<::flatbuffers::Offset<quantra::ImpliedForwardExpiry>> *forwards = nullptr,
-    quantra::enums::VolSurfaceFitMethod method = quantra::enums::VolSurfaceFitMethod_AndreasenHuge,
+    quantra::enums::VolSurfaceFitMethod method = quantra::enums::VolSurfaceFitMethod_Ssvi,
     ::flatbuffers::Offset<quantra::VolSurfaceOutputGrid> output_grid = 0,
     const char *vol_surface_id = nullptr,
     ::flatbuffers::Offset<quantra::SviFitOptions> svi = 0,

@@ -7,6 +7,11 @@ engine, and where each one stops working. Field-by-field reference:
 `http-api.md`, sections "Volatility surface from option quotes" and
 "Validating a surface".
 
+The default method is `Ssvi`: its surface is free of static arbitrage by
+construction and its local vol is analytic. On the example sheets the
+`AndreasenHuge` grid does not pass the endpoint's own arbitrage scan
+(`arbitrage_free` false).
+
 ## Common to the three methods
 
 | Item | What the engine does |

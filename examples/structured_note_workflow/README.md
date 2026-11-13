@@ -80,7 +80,7 @@ histories; the chain is three calibration endpoints and the pricer, and the
 script runs it:
 
 ```bash
-python3 examples/structured_note_workflow/price_note_from_quotes.py --url http://localhost:8080 --flat --closes
+python3 examples/structured_note_workflow/price_note_from_quotes.py --url http://localhost:8080 --method SviPerExpiry --flat --closes
 # own sheets, own note:
 python3 examples/structured_note_workflow/price_note_from_quotes.py \
   --sheet-ndx ndx_eod_sheet.json --sheet-rty rut_eod_sheet.json --note my_note.json \
@@ -120,8 +120,9 @@ Steps, each printed with a one-line summary:
   prints that table.
 - (d) `POST /calibrate-vol-surface` per index: the same `pricing` and
   `sheet`, the step-(b) `expiries` array as `forwards` (so the surface is
-  fitted on exactly the forwards the note will simulate), `method`
-  (`SviPerExpiry` here, or `Ssvi`; `AndreasenHuge` is the default) and
+  fitted on exactly the forwards the note will simulate), `method` from
+  `--method` (`SviPerExpiry` in the run below; without `--method` the
+  script leaves `method` out and the engine's default, `Ssvi`, applies) and
   `vol_surface_id` = the note's `volatility_id` for that index. The response
   gives the per-expiry report of how the surface was built (`quotes_used`,
   the fitted `svi` parameters, what the butterfly and calendar handling
@@ -148,9 +149,9 @@ Steps, each printed with a one-line summary:
   `steps_per_year`: the level-1 request built from the same sheets.
 - (g) The table.
 
-Run on the synthetic sheets at the defaults (2,048 Sobol paths, 252 steps
-per year) with `--flat` and `--closes` (the matrix is 0.7472 instead of
-the booked 0.747); the 507-step local-vol simulation of the note takes
+Run on the synthetic sheets with `--method SviPerExpiry` at the default
+2,048 Sobol paths and 252 steps per year, with `--flat` and `--closes`
+(the matrix is 0.7472 instead of the booked 0.747); the 507-step local-vol simulation of the note takes
 about 2.5 s in the engine at this path count, each validation's
 one-index simulation well under that:
 
@@ -196,7 +197,7 @@ How to read it:
 The request bodies the script sends (`correlation_request.json` with
 `--closes`, `implied_forwards_<ID>_request.json`,
 `vol_surface_<ID>_request.json`, `validate_<RUN>_<ID>_request.json`,
-`price_note_{grid,svi,flat}_request.json`)
+`price_note_{grid,svi,ssvi,flat}_request.json`, one per payload)
 and the responses are written to `--out-dir` (a temp dir by default; the
 path is printed). Any HTTP error ends the run with the engine's message and
 a non-zero exit.

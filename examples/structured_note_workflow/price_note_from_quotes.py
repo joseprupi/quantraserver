@@ -296,7 +296,8 @@ def step_c_forwards(engine: Engine, note_req: dict, sheets: dict) -> dict:
     return out
 
 
-def step_d_surfaces(engine: Engine, note_req: dict, sheets: dict, forwards: dict, method: str) -> dict:
+def step_d_surfaces(engine: Engine, note_req: dict, sheets: dict, forwards: dict,
+                    method: str | None) -> dict:
     note = note_req["notes"][0]
     out = {}
     for uid, loaded in sheets.items():
@@ -305,8 +306,9 @@ def step_d_surfaces(engine: Engine, note_req: dict, sheets: dict, forwards: dict
         vol_id = find(note["underlyings"], "underlying_id", uid)["volatility_id"]
         body = {"pricing": pricing, "sheet": loaded["sheet"],
                 "discounting_curve": note["discounting_curve"], "filter": FILTER,
-                "forwards": forwards[uid]["expiries"], "method": method,
-                "vol_surface_id": vol_id}
+                "forwards": forwards[uid]["expiries"], "vol_surface_id": vol_id}
+        if method is not None:  # otherwise the engine's default method applies
+            body["method"] = method
         resp = engine.post("calibrate-vol-surface", body, f"vol_surface_{uid}")
         grid = resp["vol_surface_spec"]["payload"]
         flags = ", ".join(f"{name} {'arbitrage free' if resp.get(flag) else 'NOT arbitrage free'}"
@@ -494,9 +496,10 @@ def main() -> int:
     ap.add_argument("--steps-per-year", type=int, default=252,
                     help="time steps per year of the local-vol simulation (default %(default)s)")
     ap.add_argument("--method", choices=["SviPerExpiry", "Ssvi", "AndreasenHuge"],
-                    default="SviPerExpiry",
-                    help="surface fit (default %(default)s; Ssvi also returns eSSVI slices; "
-                         "AndreasenHuge returns the grid only)")
+                    default=None,
+                    help="surface fit (default: left out of the request, so the engine's default "
+                         "applies, Ssvi; Ssvi also returns eSSVI slices, SviPerExpiry SVI slices, "
+                         "AndreasenHuge the grid only)")
     ap.add_argument("--flat", action="store_true",
                     help="also price with flat vols = the one-year ATM implied vol of each sheet "
                          "(the level-1 comparison line)")

@@ -101,8 +101,9 @@ table CalibrateVolSurfaceRequest {
     /// `implied_discount_factor` are read. When absent the same fit is run
     /// here with `filter` and the fitted values are reported.
     forwards:[ImpliedForwardExpiry];
-    /// Fit method; default Andreasen-Huge.
-    method:enums.VolSurfaceFitMethod = AndreasenHuge;
+    /// Fit method; default Ssvi (eSSVI: free of static arbitrage by
+    /// construction, analytic local vol, no further field required).
+    method:enums.VolSurfaceFitMethod = Ssvi;
     /// Sampling grid of the returned surface; defaults documented on the
     /// table.
     output_grid:VolSurfaceOutputGrid;

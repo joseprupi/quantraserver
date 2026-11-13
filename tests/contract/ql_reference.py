@@ -7163,7 +7163,7 @@ def calibrate_vol_surface_ql(request: dict) -> dict:
     disc_json = next(c for c in pricing["curves"] if c["id"] == request["discounting_curve"])
     curve = build_curve_from_json(disc_json, eval_date, request)
     flt = dict(request.get("filter") or {})
-    method = request.get("method", "AndreasenHuge")
+    method = request.get("method", "Ssvi")
     weighting = request.get("weighting", "Vega")
     if weighting not in ("Uniform", "Vega", "BidAsk"):
         raise ValueError(f"unknown weighting {weighting}")

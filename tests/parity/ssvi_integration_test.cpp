@@ -3,7 +3,7 @@
 // closed-form local vol (mc::LocalVolCache, mc::EdgeClampedLocalVol with the strike edges, the
 // FlatLocalVol clamp and the floor), the vega bump that keeps it eSSVI, and the Ssvi method of
 // /calibrate-vol-surface on an SSVI power-law sheet (recovery, arbitrage report, local vol check,
-// grid sampling, dropped quotes).
+// grid sampling, dropped quotes, the default method).
 #include "basket_model.h"
 #include "date_convert.h"
 #include "error.h"
@@ -12,6 +12,8 @@
 #include "ssvi_vol_parser.h"
 #include "ssvi_vol_surface.h"
 #include "vol_surface_calibration_evaluator.h"
+
+#include "calibrate_vol_surface_request_generated.h"
 
 #include <ql/pricingengines/blackformula.hpp>
 #include <ql/quotes/simplequote.hpp>
@@ -348,6 +350,40 @@ TEST(VolSurfaceCalibrationSsvi, RecoversAnSsviSurfaceArbitrageFree) {
     EXPECT_FALSE(r.localVolCheckSvi.has_value());
     EXPECT_EQ(r.fit.count, used);
     EXPECT_EQ(r.fit.inside, used);
+}
+
+TEST(VolSurfaceCalibrationSsvi, IsTheDefaultMethod) {
+    // On the wire: a request table without `method` reads Ssvi (an empty table, built without
+    // the generated builder, whose Finish asserts the required fields).
+    flatbuffers::FlatBufferBuilder fbb;
+    const auto start = fbb.StartTable();
+    fbb.Finish(flatbuffers::Offset<quantra::CalibrateVolSurfaceRequest>(fbb.EndTable(start)));
+    const auto* req =
+        flatbuffers::GetRoot<quantra::CalibrateVolSurfaceRequest>(fbb.GetBufferPointer());
+    EXPECT_EQ(req->method(), quantra::enums::VolSurfaceFitMethod_Ssvi);
+    // In the evaluator: inputs that leave the method at its default run Ssvi and give the
+    // result of the same inputs with Ssvi set.
+    EXPECT_EQ(VolSurfaceCalibrationInputs().method, VolSurfaceFitMethod::Ssvi);
+    SheetMarket mkt;
+    auto in = ssviInputs(mkt);
+    const auto explicitSsvi = VolSurfaceCalibrationEvaluator().evaluate(in, mkt.reg, mkt.ctx);
+    in.method = VolSurfaceCalibrationInputs().method;
+    const auto byDefault = VolSurfaceCalibrationEvaluator().evaluate(in, mkt.reg, mkt.ctx);
+    EXPECT_EQ(byDefault.method, VolSurfaceFitMethod::Ssvi);
+    EXPECT_EQ(byDefault.gridStrikes, explicitSsvi.gridStrikes);
+    EXPECT_EQ(byDefault.gridVols, explicitSsvi.gridVols);
+    ASSERT_EQ(byDefault.expiries.size(), explicitSsvi.expiries.size());
+    for (std::size_t i = 0; i < byDefault.expiries.size(); ++i) {
+        const auto& a = byDefault.expiries[i];
+        const auto& b = explicitSsvi.expiries[i];
+        EXPECT_EQ(a.quotesUsed, b.quotesUsed);
+        ASSERT_TRUE(a.ssvi.has_value() && b.ssvi.has_value());
+        EXPECT_EQ(a.ssvi->theta, b.ssvi->theta);
+        EXPECT_EQ(a.ssvi->rho, b.ssvi->rho);
+        EXPECT_EQ(a.ssvi->psi, b.ssvi->psi);
+    }
+    ASSERT_TRUE(byDefault.localVolCheckSsvi.has_value());
+    EXPECT_TRUE(byDefault.localVolCheckSsvi->arbitrageFree);
 }
 
 TEST(VolSurfaceCalibrationSsvi, GridBetweenExpiriesAndMoneynessCut) {

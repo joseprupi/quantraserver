@@ -528,7 +528,7 @@ def build_request(preset: dict = SYNTHETIC_NDX_LIKE) -> dict:
 
 
 def build_vol_surface_request(preset: dict = SYNTHETIC_SVI_NDX_LIKE,
-                              method: str = "AndreasenHuge",
+                              method: str = "Ssvi",
                               forwards: list = None,
                               weighting: str = None) -> dict:
     """A complete `/calibrate-vol-surface` request on the preset's sheet.
@@ -583,7 +583,7 @@ def main() -> int:
     ap.add_argument("--endpoint", choices=["implied-forwards", "vol-surface"],
                     default="implied-forwards", help="which request to write")
     ap.add_argument("--method", choices=["AndreasenHuge", "SviPerExpiry", "Ssvi"],
-                    default="AndreasenHuge", help="vol-surface fit method")
+                    default="Ssvi", help="vol-surface fit method (default Ssvi, the endpoint's)")
     ap.add_argument("--weighting", choices=["Uniform", "Vega", "BidAsk"], default=None,
                     help="vol-surface quote weighting (default: left out of the request)")
     ap.add_argument("--spot", type=float, default=None, help="re-strike the preset at this spot")

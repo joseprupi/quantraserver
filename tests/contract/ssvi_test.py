@@ -17,6 +17,7 @@ End to end through the JSON gateway:
   * a structured note simulates the payload with the closed-form local vol
     (no Dupire stencil): it prices, with and without the floor, and its
     Greeks run (the vega bump keeps the slices eSSVI);
+  * a request without `method` runs Ssvi (the default method);
   * the 400s of the payload and of the method's settings, each naming the
     field.
 
@@ -126,6 +127,22 @@ def test_ssvi_recovers_the_generating_slices(client, data_dir, example, preset, 
     assert "Ssvi" in out["vol_surface_spec_svi_note"]
     # The slices are the generating surface: every used quote inside.
     assert v["fit"]["inside"] == v["fit"]["count"] > 0
+
+
+@pytest.mark.parametrize("example", [SVI_SHEET, SPX_SHEET])
+def test_ssvi_is_the_default_method(client, data_dir, example):
+    """A request with only the required fields (no method, filter,
+    weighting, ssvi or output grid) runs the Ssvi method with its own
+    defaults: the response equals the one of the same request with method
+    Ssvi and echoes it."""
+    full = load_json(data_dir / example)
+    bare = {k: full[k] for k in ("pricing", "sheet", "discounting_curve", "vol_surface_id")}
+    out = _ok(client, bare)
+    assert out == _ok(client, {**bare, "method": "Ssvi"})
+    assert out["method"] == "Ssvi" and out["weighting"] == "Vega"
+    assert "vol_surface_spec_ssvi" in out and out["arbitrage_free_ssvi"] is True
+    assert len(out["vol_surface_spec_ssvi"]["payload"]["slices"]) == \
+        sum(e["usable"] for e in out["expiries"]) > 0
 
 
 def test_ssvi_settings_drop_quotes_by_moneyness(client, data_dir):

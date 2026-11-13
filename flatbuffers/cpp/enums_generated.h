@@ -1152,7 +1152,7 @@ inline const char *EnumNameCallabilityType(CallabilityType e) {
 /// Fit method of `/calibrate-vol-surface`: Andreasen-Huge local-vol
 /// interpolation (arbitrage-free by construction, QuantLib
 /// AndreasenHugeVolatilityInterpl), one SVI slice per expiry with
-/// butterfly and calendar checks, or eSSVI slices.
+/// butterfly and calendar checks, or eSSVI slices (the default).
 enum VolSurfaceFitMethod : int8_t {
   VolSurfaceFitMethod_AndreasenHuge = 0,
   VolSurfaceFitMethod_SviPerExpiry = 1,

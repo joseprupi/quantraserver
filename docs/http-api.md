@@ -1801,14 +1801,16 @@ structured note reads it, evaluates everywhere the scan of
 `/validate-vol-surface` reaches. How good the surface is — the fit of every
 quote, the full arbitrage checks, the Monte Carlo repricing — is the
 separate endpoint `/validate-vol-surface` (see "Validating a surface"),
-run on the returned payload with the same sheet. Three methods:
-Andreasen-Huge local-vol interpolation (default; arbitrage-free by
-construction in its own model), one SVI slice per expiry, fitted from
-the last expiry back so that consecutive slices are ordered in time
-(calendar) as well as butterfly-free, and eSSVI slices (`Ssvi`, see
-"eSSVI slices" below), free of static arbitrage by construction, returned
-as an `SsviVolSpec` payload (`vol_surface_spec_ssvi`) whose local vol a
-structured note reads in closed form.
+run on the returned payload with the same sheet. Three methods: eSSVI
+slices (`Ssvi`, the default, see "eSSVI slices" below), free of static
+arbitrage by construction, returned as an `SsviVolSpec` payload
+(`vol_surface_spec_ssvi`) whose local vol a structured note reads in
+closed form; one SVI slice per expiry (`SviPerExpiry`), fitted from the
+last expiry back so that consecutive slices are ordered in time
+(calendar) as well as butterfly-free; and Andreasen-Huge local-vol
+interpolation (`AndreasenHuge`; arbitrage-free by construction in its own
+model, but the grid it returns does not pass the arbitrage scan on the
+example sheets: `arbitrage_free` false).
 
 ### Request
 
@@ -1819,7 +1821,7 @@ structured note reads in closed form.
   "discounting_curve": "USD_OIS",
   "filter": {"max_relative_spread": 0.05, "min_quotes_per_expiry": 4, "moneyness_window": 0.25},
   "forwards": [ "<the expiries array of a /calibrate-implied-forwards response, optional>" ],
-  "method": "AndreasenHuge",
+  "method": "Ssvi",
   "weighting": "Vega",
   "output_grid": {"strikes_as_moneyness": [0.5, 0.525, "...", 1.5],
                   "expiries": [{"n": 16, "unit": "Days"}, {"n": 51, "unit": "Days"}]},
@@ -1833,7 +1835,7 @@ structured note reads in closed form.
 |---|---|
 | `sheet`, `discounting_curve`, `filter` | As for `/calibrate-implied-forwards`; same per-line rules, same reasons. `filter.moneyness_window` concerns the forward fit only: the vol fit uses every line that passes the per-line rules. European exercise only (`400` otherwise). |
 | `forwards` | Optional. The `expiries` array of an implied-forwards response pasted as is; only `expiry`, `usable`, `forward` and `implied_discount_factor` are read (non-usable entries skipped). Absent: the same fit is run here with `filter`, and `forwards_source` says `"fitted"` instead of `"request"`. A sheet expiry without a forward is reported unusable. |
-| `method` | `AndreasenHuge` (default), `SviPerExpiry` or `Ssvi`. |
+| `method` | `Ssvi` (default), `SviPerExpiry` or `AndreasenHuge`. A request without it needs no further field: `ssvi` has its own default. |
 | `weighting` | The weight of each used quote's squared vol error in the fit: `Uniform`, `Vega` (default) or `BidAsk`. Same meaning for the three methods (see "Quote weighting" below). The three methods accept the three values. |
 | `output_grid.strikes_as_moneyness` | Strikes as multiples of the spot, > 0, strictly increasing, at least 2. Default `0.500, 0.525, …, 1.500` (41 points). The returned surface is keyed by absolute strike (`strike = moneyness x spot`); the spot used is echoed as `spot`. With `AndreasenHuge` only the first and the last value matter: the returned strikes are the model's own finite-difference points within that range and the expiries' regions (see the method). |
 | `output_grid.expiries` | Calendar-day periods from `as_of_date` (`{n, unit}`; months and years are added on a NullCalendar, unadjusted). Default: the fitted sheet expiries. `SviPerExpiry` requires each one to be a fitted sheet expiry (`400` otherwise: the slices are not interpolated in time); `AndreasenHuge` and `Ssvi` accept any date up to the last fitted expiry. |

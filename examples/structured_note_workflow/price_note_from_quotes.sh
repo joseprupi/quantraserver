@@ -7,9 +7,8 @@
 # REQUEST_DIR holds the request bodies price_note_from_quotes.py writes
 # (correlation_request.json when it ran with --closes,
 # implied_forwards_<ID>_request.json, vol_surface_<ID>_request.json,
-# validate_<RUN>_<ID>_request.json, price_note_grid_request.json,
-# price_note_svi_request.json). Without it the
-# shipped example requests are used instead: the NDX / RTY closes of
+# validate_<RUN>_<ID>_request.json, price_note_<RUN>_request.json).
+# Without it the shipped example requests are used instead: the NDX / RTY closes of
 # examples/data/correlation/, the synthetic NDX-like sheet of
 # examples/data/implied_forwards/ and examples/data/vol_surface/, and the
 # validation requests of examples/data/vol_surface_validation/ and the

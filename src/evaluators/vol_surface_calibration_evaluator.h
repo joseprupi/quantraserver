@@ -191,7 +191,7 @@ struct VolSurfaceCalibrationInputs {
     ImpliedForwardsInputs base;
     /// Present iff the request carried `forwards`.
     std::optional<std::vector<VolSurfaceForwardInput>> forwards;
-    VolSurfaceFitMethod method = VolSurfaceFitMethod::AndreasenHuge;
+    VolSurfaceFitMethod method = VolSurfaceFitMethod::Ssvi;
     /// Empty = default grid.
     std::vector<double> moneyness;
     /// Empty = fitted sheet expiries.
@@ -268,7 +268,7 @@ struct VolSurfaceCalibrationResult {
     std::string sheetId;
     std::string underlyingId;
     double spot = 0.0;
-    VolSurfaceFitMethod method = VolSurfaceFitMethod::AndreasenHuge;
+    VolSurfaceFitMethod method = VolSurfaceFitMethod::Ssvi;
     /// The quote weighting the fit used.
     QuoteWeighting weighting = QuoteWeighting::Vega;
     std::string forwardsSource; // "request" | "fitted"

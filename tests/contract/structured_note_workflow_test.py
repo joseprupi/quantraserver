@@ -62,7 +62,7 @@ def test_workflow_script_runs_end_to_end(client, data_dir, tmp_path):
     out_dir = tmp_path / "bodies"
     proc = subprocess.run(
         [sys.executable, str(SCRIPT), "--url", client.base_url, "--paths", str(PATHS),
-         "--out-dir", str(out_dir), "--flat", "--closes",
+         "--out-dir", str(out_dir), "--method", "SviPerExpiry", "--flat", "--closes",
          "--sheet-ndx", str(data_dir / "vol_surface" / "synthetic_scotia_ndx_sheet.json"),
          "--sheet-rty", str(data_dir / "vol_surface" / "synthetic_scotia_rty_sheet.json"),
          "--note", str(data_dir / "structured_note" /

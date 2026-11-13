@@ -3046,7 +3046,7 @@
               },
         "method" : {
                 "$ref" : "#/definitions/quantra_enums_VolSurfaceFitMethod",
-                "description" : "Fit method; default Andreasen-Huge."
+                "description" : "Fit method; default Ssvi (eSSVI: free of static arbitrage by\nconstruction, analytic local vol, no further field required)."
               },
         "output_grid" : {
                 "$ref" : "#/definitions/quantra_VolSurfaceOutputGrid",

@@ -105,13 +105,14 @@ class CalibrateVolSurfaceRequest(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         return o == 0
 
-    # Fit method; default Andreasen-Huge.
+    # Fit method; default Ssvi (eSSVI: free of static arbitrage by
+    # construction, analytic local vol, no further field required).
     # CalibrateVolSurfaceRequest
     def Method(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return 2
 
     # Sampling grid of the returned surface; defaults documented on the
     # table.
@@ -238,7 +239,7 @@ def StartForwardsVector(builder, numElems):
     return CalibrateVolSurfaceRequestStartForwardsVector(builder, numElems)
 
 def CalibrateVolSurfaceRequestAddMethod(builder, method):
-    builder.PrependInt8Slot(5, method, 0)
+    builder.PrependInt8Slot(5, method, 2)
 
 def AddMethod(builder, method):
     CalibrateVolSurfaceRequestAddMethod(builder, method)
@@ -293,7 +294,7 @@ class CalibrateVolSurfaceRequestT(object):
         self.discountingCurve = None  # type: str
         self.filter = None  # type: Optional[QuoteFilterT]
         self.forwards = None  # type: List[ImpliedForwardExpiryT]
-        self.method = 0  # type: int
+        self.method = 2  # type: int
         self.outputGrid = None  # type: Optional[VolSurfaceOutputGridT]
         self.volSurfaceId = None  # type: str
         self.svi = None  # type: Optional[SviFitOptionsT]

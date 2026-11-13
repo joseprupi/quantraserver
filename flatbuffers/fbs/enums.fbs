@@ -321,7 +321,7 @@ enum CallabilityType : byte {
 /// Fit method of `/calibrate-vol-surface`: Andreasen-Huge local-vol
 /// interpolation (arbitrage-free by construction, QuantLib
 /// AndreasenHugeVolatilityInterpl), one SVI slice per expiry with
-/// butterfly and calendar checks, or eSSVI slices.
+/// butterfly and calendar checks, or eSSVI slices (the default).
 enum VolSurfaceFitMethod : byte {
     AndreasenHuge = 0,
     SviPerExpiry = 1,
