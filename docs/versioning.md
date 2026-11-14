@@ -26,6 +26,48 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.17.0-commodities.1 (November 2026) — commodity swaps (preview)
+
+Preview build from the `commodities` branch: the image is published only as
+`0.17.0-commodities.1`; `latest` and `0.16` stay on 0.16.11.
+
+### Commodity swaps: `POST /price-commodity-swap` (preview)
+
+A new endpoint prices commodity swaps: two legs, one paid and one received,
+each a fixed price or the average over each period's pricing days of a
+futures contract (a nearby month rolled before its last trading date) or of
+a spot price (forward prices by date), plus a spread. It is a **preview**:
+the request and response formats may still change before the release that
+makes them stable.
+
+- **Market data**, new `pricing.commodity` block: `contracts` (delivery
+  months with last trading dates and today's prices, past settlements, a
+  pricing calendar and the contract's own `pricing_holidays`) and
+  `spot_prices` (forward prices by date read `Linear`, `BackwardFlat` or
+  `ForwardFlat`, optional flat extrapolation, past published prices, a
+  pricing calendar and own holidays). The prices are supplied by the
+  caller; no curve is built from quotes.
+- **The swap**: periods generated (calendar months, quarters, half-years,
+  years or one period, cut to the start and end dates) or listed; quantity
+  per period or per pricing day, one value or one per period; fixed price
+  one value or one per period; payment a number of business days after the
+  period's last day; one discounting curve per leg.
+- **Response**: NPV, the fair fixed price (fixed against floating) or the
+  fair spread on `leg2` (floating against floating), the leg NPVs, optional
+  flows (averages split into fixings and today's prices) with optional
+  per-day observations, and the delta of the NPV to every input price read
+  from today's market data.
+- **Not in the preview**: units and currencies (quantities are in the unit
+  of the price; the discounting curve decides the currency), curve
+  construction from quotes, common pricing days between two floating legs,
+  rounding of averages, options. Flows paid on or before the valuation date
+  are not valued.
+
+Described in `docs/http-api.md` ("Commodity swaps"); synthetic examples in
+`examples/data/commodity_swap/`. Every example is checked in the gate
+against an independent reference implementation of the averaging and
+discounting.
+
 ## Version 0.16.11 (November 2026) — eSSVI as the default fit method, one quote weighting option, safe defaults for supplied grids, digitals and barriers refused on a smile, 30 s gateway deadline, curves read by date under a simulation
 
 `v0.16.11` is described change by change; each change has its own part

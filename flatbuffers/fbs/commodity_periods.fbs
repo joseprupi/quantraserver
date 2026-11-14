@@ -1,0 +1,37 @@
+include "enums.fbs";
+
+namespace quantra;
+
+/// One calculation period. Both dates are included.
+table CommodityPeriod {
+    /// First day of the period, included (YYYY-MM-DD). Required.
+    start_date:string (required);
+    /// Last day of the period, included (YYYY-MM-DD). On or after
+    /// `start_date` (400 otherwise). Required.
+    end_date:string (required);
+}
+
+/// The calculation periods of a commodity leg, in one of two forms; exactly
+/// one is given (400 otherwise, including a mix of the two):
+///   generated: `start_date`, `end_date` and `frequency` all present, no
+///     `periods`;
+///   explicit: only `periods`.
+/// Dates are never adjusted for weekends or holidays: a period's pricing
+/// days are read inside it from the pricing calendar.
+/// Generated periods are calendar months, quarters, half-years or years
+/// (`frequency` Monthly, Quarterly, Semiannual, Annual), the first period
+/// cut to start at `start_date` and the last cut to end at `end_date`.
+/// Example: 2026-11-15 to 2027-03-31 Monthly gives 15-30 November, December,
+/// January, February and March. `Once` gives one period from `start_date` to
+/// `end_date`. Any other frequency is a 400.
+table CommodityPeriods {
+    /// Generated form: first day of the first period, included (YYYY-MM-DD).
+    start_date:string;
+    /// Generated form: last day of the last period, included (YYYY-MM-DD).
+    end_date:string;
+    /// Generated form: Monthly, Quarterly, Semiannual, Annual or Once.
+    frequency:enums.Frequency = null;
+    /// Explicit form: the periods in ascending order. They must not overlap;
+    /// gaps between them are allowed.
+    periods:[CommodityPeriod];
+}

@@ -7579,6 +7579,405 @@ def api_npv(response: dict, list_key: str) -> float:
 
 
 # =============================================================================
+# Commodity swaps (/price-commodity-swap)
+# =============================================================================
+#
+# An independent re-implementation of the commodity swap arithmetic, written
+# from the schema documentation (flatbuffers/fbs/commodity.fbs,
+# commodity_periods.fbs, commodity_swap.fbs, commodity_swap_response.fbs and
+# the CommodityQuantityBasis / CommodityPriceSource enums). QuantLib-Python is
+# used for dates, calendars and the discount curve only: QuantLib has no
+# commodity swap the reference could call, so the periods, pricing days,
+# contract choice, fixings, spot interpolation, averages, amounts, fair values
+# and deltas are plain Python.
+
+_COMMODITY_CONVENTIONS = {
+    "Following": ql.Following,
+    "ModifiedFollowing": ql.ModifiedFollowing,
+    "Preceding": ql.Preceding,
+    "ModifiedPreceding": ql.ModifiedPreceding,
+    "Unadjusted": ql.Unadjusted,
+    "HalfMonthModifiedFollowing": ql.HalfMonthModifiedFollowing,
+    "Nearest": ql.Nearest,
+}
+
+# Months per generated period; the periods are calendar-aligned blocks
+# (quarters start in January, April, July, October; half-years in January
+# and July; years in January).
+_COMMODITY_PERIOD_MONTHS = {"Monthly": 1, "Quarterly": 3, "Semiannual": 6, "Annual": 12}
+
+
+def _commodity_month_end(year: int, month: int) -> ql.Date:
+    return ql.Date.endOfMonth(ql.Date(1, month, year))
+
+
+def commodity_periods_ql(periods: dict) -> list:
+    """The leg's calculation periods as (first day, last day) pairs, both
+    included: the explicit list as given, or the generated calendar blocks
+    cut to [start_date, end_date] (one period with `Once`)."""
+    if periods.get("periods"):
+        out = [(parse_date(p["start_date"]), parse_date(p["end_date"]))
+               for p in periods["periods"]]
+        for i, (s, e) in enumerate(out):
+            if e < s:
+                raise ValueError(f"periods[{i}]: end before start")
+            if i and s <= out[i - 1][1]:
+                raise ValueError(f"periods[{i}]: overlaps the previous period")
+        return out
+    start = parse_date(periods["start_date"])
+    end = parse_date(periods["end_date"])
+    frequency = periods["frequency"]
+    if frequency == "Once":
+        return [(start, end)]
+    months = _COMMODITY_PERIOD_MONTHS[frequency]
+    out = []
+    current = start
+    while current <= end:
+        first_month = ((int(current.month()) - 1) // months) * months + 1
+        last_month = first_month + months - 1
+        block_end = _commodity_month_end(current.year(), last_month)
+        last = block_end if block_end < end else end
+        out.append((current, last))
+        current = last + 1
+    return out
+
+
+class _CommodityPricingCalendar:
+    """Pricing days of one contract or spot price: business days of its
+    pricing calendar (the request's calendar_overrides are already applied to
+    the QuantLib calendar by the wrapper around every *_ql entry point) minus
+    the object's own pricing_holidays."""
+
+    def __init__(self, spec: dict):
+        self._calendar = _calendar_from_enum(spec["pricing_calendar"])
+        self._holidays = {parse_date(d).serialNumber()
+                          for d in spec.get("pricing_holidays") or []}
+
+    def is_pricing_day(self, d: ql.Date) -> bool:
+        return self._calendar.isBusinessDay(d) and d.serialNumber() not in self._holidays
+
+    def days(self, first: ql.Date, last: ql.Date) -> list:
+        out = []
+        d = first
+        while d <= last:
+            if self.is_pricing_day(d):
+                out.append(d)
+            d = d + 1
+        return out
+
+    def back(self, d: ql.Date, n: int) -> ql.Date:
+        """The pricing day n pricing days before d (d itself for n = 0)."""
+        for _ in range(n):
+            d = d - 1
+            while not self.is_pricing_day(d):
+                d = d - 1
+        return d
+
+
+def _commodity_spot_weights(points: list, d: ql.Date, interpolation: str,
+                            extrapolate_flat: bool, spot_id: str) -> list:
+    """The forward price of a spot assessment on day d as weights on its
+    points: [(point index, weight)], so the price is the weighted sum and the
+    weights are the price's sensitivity to each point.
+
+    Linear: straight line in calendar days between the two points around d.
+    BackwardFlat: the price of the next point (d in (x_i, x_i+1] reads
+    x_i+1). ForwardFlat: the price of the previous point (d in [x_i, x_i+1)
+    reads x_i). On a point date every rule reads that point. Outside the
+    points: the first / last price held flat with extrapolate_flat, else an
+    error."""
+    serials = [parse_date(p["date"]).serialNumber() for p in points]
+    x = d.serialNumber()
+    if x < serials[0] or x > serials[-1]:
+        if not extrapolate_flat:
+            raise ValueError(f"spot price {spot_id}: {d.ISO()} is outside the points "
+                             "and extrapolate_flat is false")
+        return [(0, 1.0)] if x < serials[0] else [(len(serials) - 1, 1.0)]
+    for i, s in enumerate(serials):
+        if s == x:
+            return [(i, 1.0)]
+    i = bisect.bisect_right(serials, x) - 1      # serials[i] < x < serials[i + 1]
+    if interpolation == "Linear":
+        w = (x - serials[i]) / float(serials[i + 1] - serials[i])
+        return [(i, 1.0 - w), (i + 1, w)]
+    if interpolation == "BackwardFlat":
+        return [(i + 1, 1.0)]
+    if interpolation == "ForwardFlat":
+        return [(i, 1.0)]
+    raise ValueError(f"spot price {spot_id}: interpolation {interpolation} is not allowed")
+
+
+class _CommodityFutures:
+    """One futures contract: its months (with last trading dates and today's
+    prices), its pricing days and the settlements of past days."""
+
+    def __init__(self, spec: dict):
+        self.id = spec["id"]
+        self.calendar = _CommodityPricingCalendar(spec)
+        self.months = spec["months"]
+        self.fixings = {(f["month"], parse_date(f["date"]).serialNumber()): f["value"]
+                        for f in spec.get("fixings") or []}
+
+    def month_read(self, d: ql.Date, nearby: int, roll: int) -> int:
+        """Index of the month read on pricing day d: the front month is the
+        first month still read on d, a month being read up to and including
+        the pricing day `roll` pricing days before its last trading date;
+        `nearby` counts on from it through the listed months."""
+        front = None
+        for i, m in enumerate(self.months):
+            last_read = self.calendar.back(parse_date(m["last_trade_date"]), roll)
+            if d <= last_read:
+                front = i
+                break
+        if front is None or front + nearby - 1 >= len(self.months):
+            raise ValueError(f"contract {self.id}: no month to read on {d.ISO()}")
+        return front + nearby - 1
+
+
+def _commodity_observe(day: ql.Date, as_of: ql.Date, fixing, today):
+    """The day's price and its source: a fixing before the valuation date
+    (required), on the valuation date the fixing when given, otherwise
+    today's market data. `fixing` is the fixing or None; `today` a callable
+    giving today's price."""
+    if day < as_of:
+        if fixing is None:
+            raise ValueError(f"missing fixing on {day.ISO()}")
+        return fixing, "Fixing"
+    if day == as_of and fixing is not None:
+        return fixing, "Fixing"
+    return today(), "Curve"
+
+
+def commodity_swap_ql(request: dict, index: int = 0) -> dict:
+    """Price swap `index` of a PriceCommoditySwapRequest. Per period of a leg
+    (s = -1 for Pay, +1 for Receive):
+
+      pricing days = the period's days that are pricing days of the leg's
+                     contract / spot price (fixed leg with PerPricingDay:
+                     those of the floating leg's period with the same first
+                     and last day)
+      day price    = futures: the nearby month after the roll rule;
+                     spot: the forward price interpolated on the points;
+                     a fixing before the valuation date, on it when given
+      average      = mean of the day prices; price = fixed price or
+                     average + spread
+      quantity     = Q (PerPeriod) or Q x pricing days (PerPricingDay)
+      amount       = s x quantity x price
+      payment date = payment_calendar.advance(last day, payment_lag business
+                     days, payment_convention)
+      PV           = amount x DF(payment date), periods paid on or before
+                     the valuation date left out
+      legs[i].npv  = sum of PVs, npv = legs[0].npv + legs[1].npv
+      fair fixed price = -NPV(floating leg) / (s_f x sum quantity x DF) over
+                         the fixed leg's flows
+      fair spread  = spread_2 - npv / (s_2 x sum quantity x DF) over leg 2
+      delta(price) = sum over the days reading it of
+                     s x quantity x weight / pricing days x DF
+
+    Returns the response row as a dict shaped like the wire JSON (every
+    flow and observation, whatever the include flags). Errors raise
+    ValueError."""
+    pricing = request["pricing"]
+    flat = _reference_pricing_view(request)
+    as_of = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = as_of
+    commodity = pricing.get("commodity") or {}
+    contracts = {c["id"]: c for c in commodity.get("contracts") or []}
+    spots = {s["id"]: s for s in commodity.get("spot_prices") or []}
+    swap = request["swaps"][index]["commodity_swap"]
+    legs = [swap["leg1"], swap["leg2"]]
+    if legs[0]["pay_receive"] == legs[1]["pay_receive"]:
+        raise ValueError("CommoditySwap: pay_receive must be opposite on the two legs")
+
+    curves = {}
+
+    def discount(curve_id, d):
+        if curve_id not in curves:
+            curve_json = next(c for c in flat["curves"] if c["id"] == curve_id)
+            curves[curve_id] = build_curve_from_json(curve_json, as_of, request)
+        return curves[curve_id].discount(d)
+
+    def per_period(container, single, many, n):
+        if (single in container) == bool(container.get(many)):
+            raise ValueError(f"exactly one of {single} and {many}")
+        if single in container:
+            return [float(container[single])] * n
+        if len(container[many]) != n:
+            raise ValueError(f"{many}: {len(container[many])} values for {n} periods")
+        return [float(v) for v in container[many]]
+
+    # Periods, pricing days and observations of the floating legs.
+    views = []
+    for leg in legs:
+        periods = commodity_periods_ql(leg["periods"])
+        kind = leg["price_type"]
+        view = {"leg": leg, "periods": periods, "kind": kind,
+                "sign": -1.0 if leg["pay_receive"] == "Pay" else 1.0,
+                "quantities": per_period(leg["quantity"], "value", "values", len(periods)),
+                "basis": leg["quantity"]["basis"]}
+        if kind == "CommodityFixedPrice":
+            view["prices"] = per_period(leg["price"], "price", "prices", len(periods))
+        elif kind == "FuturesFloatingPrice":
+            view["source"] = _CommodityFutures(contracts[leg["price"]["contract_id"]])
+            view["calendar"] = view["source"].calendar
+        elif kind == "SpotFloatingPrice":
+            spec = spots[leg["price"]["spot_id"]]
+            if spec["interpolation"] not in ("Linear", "BackwardFlat", "ForwardFlat"):
+                raise ValueError(f"spot price {spec['id']}: interpolation")
+            view["source"] = spec
+            view["calendar"] = _CommodityPricingCalendar(spec)
+        else:
+            raise ValueError(f"unknown price_type {kind}")
+        views.append(view)
+
+    deltas = collections.OrderedDict()   # key -> [delta, sort key, wire dict]
+    out_legs = []
+    for li, view in enumerate(views):
+        leg = view["leg"]
+        other = views[1 - li]
+        pay_cal = _calendar_from_enum(leg["payment_calendar"])
+        convention = _COMMODITY_CONVENTIONS[leg["payment_convention"]]
+        flows = []
+        for k, (first, last) in enumerate(view["periods"]):
+            payment = pay_cal.advance(last, ql.Period(int(leg["payment_lag"]), ql.Days),
+                                      convention)
+            if payment <= as_of:
+                continue        # paid on or before the valuation date: not valued
+            flow = {"start_date": first.ISO(), "end_date": last.ISO(),
+                    "payment_date": payment.ISO()}
+            df = discount(leg["discounting_curve"], payment)
+            day_reads = []      # per pricing day: (date, price, source, month, weights)
+            if view["kind"] == "CommodityFixedPrice":
+                price = view["prices"][k]
+                flow["price"] = price
+                days = []
+                if view["basis"] == "PerPricingDay":
+                    match = [j for j, p in enumerate(other["periods"])
+                             if p == (first, last)] if other["kind"] != "CommodityFixedPrice" else []
+                    if not match:
+                        raise ValueError("a fixed leg quantity per pricing day needs a "
+                                         "floating leg period with the same days")
+                    days = other["calendar"].days(first, last)
+                flow["pricing_days"] = len(days)
+                flow["realised_days"] = 0
+            else:
+                days = view["calendar"].days(first, last)
+                if not days:
+                    raise ValueError(f"period {first.ISO()}..{last.ISO()} has no pricing days")
+                spread = float(leg["price"].get("spread", 0.0))
+                if view["kind"] == "FuturesFloatingPrice":
+                    fut = view["source"]
+                    nearby = int(leg["price"]["nearby"])
+                    roll = int(leg["price"]["roll_days_before_expiry"])
+                    for d in days:
+                        m = fut.months[fut.month_read(d, nearby, roll)]
+                        month = m["month"]
+
+                        def today(m=m, d=d):
+                            if m.get("price") is None:
+                                raise ValueError(f"month {m['month']} has no price "
+                                                 f"(read on {d.ISO()})")
+                            return float(m["price"])
+                        p, src = _commodity_observe(
+                            d, as_of, fut.fixings.get((month, d.serialNumber())), today)
+                        key = ("F", fut.id, month)
+                        day_reads.append((d, p, src, month,
+                                          [(key, 1.0, month)] if src == "Curve" else []))
+                else:
+                    spec = view["source"]
+                    points = spec["points"]
+                    fixings = {parse_date(f["date"]).serialNumber(): f["value"]
+                               for f in spec.get("fixings") or []}
+                    for d in days:
+                        weights = _commodity_spot_weights(
+                            points, d, spec["interpolation"],
+                            bool(spec.get("extrapolate_flat", False)), spec["id"])
+
+                        def today(weights=weights):
+                            return sum(w * float(points[i]["price"]) for i, w in weights)
+                        p, src = _commodity_observe(d, as_of, fixings.get(d.serialNumber()),
+                                                    today)
+                        refs = [(("S", spec["id"], points[i]["date"]), w, None)
+                                for i, w in weights] if src == "Curve" else []
+                        day_reads.append((d, p, src, None, refs))
+                n = len(day_reads)
+                average = sum(r[1] for r in day_reads) / n
+                realised = [r[1] for r in day_reads if r[2] == "Fixing"]
+                expected = [r[1] for r in day_reads if r[2] == "Curve"]
+                flow["pricing_days"] = n
+                flow["realised_days"] = len(realised)
+                flow["average"] = average
+                if realised:
+                    flow["realised_average"] = sum(realised) / len(realised)
+                if expected:
+                    flow["expected_average"] = sum(expected) / len(expected)
+                flow["spread"] = spread
+                price = average + spread
+                flow["observations"] = [
+                    dict({"date": r[0].ISO()}, **({"contract_month": r[3]} if r[3] else {}),
+                         price=r[1], source=r[2]) for r in day_reads]
+            quantity = view["quantities"][k]
+            if view["basis"] == "PerPricingDay":
+                quantity *= flow["pricing_days"]
+            amount = view["sign"] * quantity * price
+            flow["quantity"] = quantity
+            flow["amount"] = amount
+            flow["discount"] = df
+            flow["present_value"] = amount * df
+            flow["_annuity"] = view["sign"] * quantity * df
+            for d, p, src, month, refs in day_reads:
+                for key, w, _ in refs:
+                    if key not in deltas:
+                        if key[0] == "F":
+                            wire = {"contract_id": key[1], "month": key[2]}
+                        else:
+                            wire = {"spot_id": key[1], "date": key[2]}
+                        deltas[key] = [0.0, wire]
+                    deltas[key][0] += view["sign"] * quantity * w / len(day_reads) * df
+            flows.append(flow)
+        out_legs.append({"npv": sum(f["present_value"] for f in flows), "flows": flows})
+
+    row = {"npv": out_legs[0]["npv"] + out_legs[1]["npv"]}
+    fixed = [i for i, v in enumerate(views) if v["kind"] == "CommodityFixedPrice"]
+    if len(fixed) == 1:
+        f = fixed[0]
+        annuity = sum(fl["_annuity"] for fl in out_legs[f]["flows"])
+        row["fair_fixed_price"] = -out_legs[1 - f]["npv"] / annuity
+    elif not fixed:
+        annuity = sum(fl["_annuity"] for fl in out_legs[1]["flows"])
+        row["fair_spread"] = float(legs[1]["price"].get("spread", 0.0)) - row["npv"] / annuity
+    for leg in out_legs:
+        for fl in leg["flows"]:
+            del fl["_annuity"]
+    row["legs"] = out_legs
+    futures_keys = sorted((k for k in deltas if k[0] == "F"), key=lambda k: (k[1], k[2]))
+    spot_keys = sorted((k for k in deltas if k[0] == "S"), key=lambda k: (k[1], k[2]))
+    row["deltas"] = [dict(deltas[k][1], delta=deltas[k][0]) for k in futures_keys + spot_keys]
+    return row
+
+
+def price_commodity_swap_ql(request: dict) -> dict:
+    """Functional-catalog reference for /price-commodity-swap
+    (compare="fields"): for every swap of the request its npv, its fair
+    fixed price or fair spread and both legs' NPVs, keyed by their dotted
+    response paths (swaps.1.legs.0.npv). Every flow field, observation and
+    delta of the same examples is compared with commodity_swap_ql by
+    tests/contract/commodity_swap_test.py, with the dates, contract months
+    and sources as exact strings."""
+    out = {}
+    for i in range(len(request["swaps"])):
+        row = commodity_swap_ql(request, i)
+        prefix = f"swaps.{i}"
+        out[f"{prefix}.npv"] = row["npv"]
+        for name in ("fair_fixed_price", "fair_spread"):
+            if name in row:
+                out[f"{prefix}.{name}"] = row[name]
+        for j, leg in enumerate(row["legs"]):
+            out[f"{prefix}.legs.{j}.npv"] = leg["npv"]
+    return out
+
+
+# =============================================================================
 # Per-request calendar holiday overrides (applied centrally to every *_ql
 # reference entry point)
 # =============================================================================

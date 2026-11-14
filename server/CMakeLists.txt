@@ -7,6 +7,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/src/evaluators
     ${CMAKE_SOURCE_DIR}/src/market
     ${CMAKE_SOURCE_DIR}/src/mc
+    ${CMAKE_SOURCE_DIR}/src/commodities
     ${CMAKE_SOURCE_DIR}/src/domain
     ${CMAKE_SOURCE_DIR}/src/common
 )

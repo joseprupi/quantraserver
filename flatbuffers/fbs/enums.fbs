@@ -599,3 +599,21 @@ enum CorrelationShrinkage : byte {
     LedoitWolf = 1,
     Fixed = 2
 }
+
+/// How `CommodityQuantity` is read. PerPeriod: the quantity is the amount
+/// delivered over the whole calculation period. PerPricingDay: the quantity
+/// is the amount for each pricing day of the period, so the period's amount
+/// is the quantity times its number of pricing days.
+enum CommodityQuantityBasis : byte {
+    PerPeriod = 0,
+    PerPricingDay = 1
+}
+
+/// Where a commodity price used in a flow came from. Fixing: a published
+/// price on or before the valuation date, taken from the request's fixings.
+/// Curve: a price read from today's market data (a futures price or a spot
+/// forward price).
+enum CommodityPriceSource : byte {
+    Fixing = 0,
+    Curve = 1
+}

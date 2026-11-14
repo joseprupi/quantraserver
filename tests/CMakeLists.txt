@@ -32,6 +32,7 @@ include_directories(
    ${CMAKE_SOURCE_DIR}/src/mc
    ${CMAKE_SOURCE_DIR}/src/domain
    ${CMAKE_SOURCE_DIR}/src/common
+   ${CMAKE_SOURCE_DIR}/src/commodities
    ${CMAKE_SOURCE_DIR}/flatbuffers/fbs
    ${CMAKE_SOURCE_DIR}/flatbuffers/cpp
    ${CMAKE_SOURCE_DIR}/clients/cpp

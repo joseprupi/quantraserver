@@ -1067,6 +1067,297 @@ both exchanges reported in USD and in EUR, the same struck at its fair rate
 the collateral curve's 5Y basis pillar) and with the final exchange only,
 and USD 4.10% fixed vs EUR Euribor 3M received, reported in EUR.
 
+## Commodity swaps
+
+**Preview.** `POST /price-commodity-swap` is a preview: its request and
+response formats may still change before the release that makes them
+stable.
+
+The endpoint prices commodity swaps with two legs, one paid and one
+received. Each leg is a fixed price, or the average over each period's
+pricing days of a futures contract (a chosen nearby month, rolled before its
+last trading date) or of a spot price (a published price with forward prices
+by date), plus a spread. The prices are supplied by the caller: the engine
+builds no commodity curve from quotes. The discounting curve is an ordinary
+`pricing.rates.curves` curve.
+
+### Market data: `pricing.commodity`
+
+```json
+"commodity": {
+  "contracts": [
+    { "id": "SYN_CL", "pricing_calendar": "WeekendsOnly",
+      "pricing_holidays": ["2026-11-26", "2026-12-25"],
+      "months": [ { "month": "2026-12", "last_trade_date": "2026-11-20", "price": 60.0 },
+                  { "month": "2027-01", "last_trade_date": "2026-12-21", "price": 60.4 } ],
+      "fixings": [ { "month": "2026-12", "date": "2026-11-12", "value": 60.0 } ] } ],
+  "spot_prices": [
+    { "id": "SYN_SPOT", "pricing_calendar": "WeekendsOnly", "pricing_holidays": ["2026-11-26"],
+      "interpolation": "Linear", "extrapolate_flat": true,
+      "points": [ { "date": "2026-11-15", "price": 59.5 }, { "date": "2026-12-15", "price": 59.75 } ],
+      "fixings": [ { "date": "2026-11-12", "value": 59.8 } ] } ]
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `contracts[].id` | Id a futures leg references (`contract_id`). Unique (a duplicate is a `400`). |
+| `contracts[].pricing_calendar` | Calendar of the contract's pricing days (the days it settles). `pricing.calendar_overrides` apply to it. Presence-required. |
+| `contracts[].pricing_holidays` | Dates that are not pricing days of this contract, on top of the calendar and its overrides. They change nothing else in the request, so two contracts on the same named calendar can have different exchange holidays. Optional. |
+| `contracts[].months` | The delivery months in ascending order: `month` (`YYYY-MM`, the delivery month), `last_trade_date` (ascending too) and `price`, today's price of that month. A price is needed only for a month read on or after the valuation date. `nearby` counts through this list, so a month left out makes the next one the nearby month. Required, non-empty. |
+| `contracts[].fixings` | Past settlements: `month`, `date`, `value` (presence-required). One per month and date. |
+| `spot_prices[].id` | Id a spot leg references (`spot_id`). Unique. |
+| `spot_prices[].pricing_calendar`, `pricing_holidays` | As for a contract: the days the price is published. |
+| `spot_prices[].interpolation` | How the forward prices are read between their dates: `Linear` (straight line in calendar days), `BackwardFlat` (a day reads the next point on or after it), `ForwardFlat` (a day reads the last point on or before it). On a point's date every rule reads that point. `LogLinear` and `LogCubic` are a `400`: prices can be zero or negative. Presence-required. |
+| `spot_prices[].extrapolate_flat` | When `true`, a day before the first point reads the first price and a day after the last point the last price. When `false` (the default), such a day is a `400`. |
+| `spot_prices[].points` | Forward prices by date (`date`, `price`), ascending dates. Required, non-empty. |
+| `spot_prices[].fixings` | Past published prices: `date`, `value` (presence-required). One per date. |
+
+There are no units and no currency anywhere in the request. A quantity is in
+the unit the price is quoted in (barrels for a price per barrel), and an
+amount is in the currency of the prices supplied; the caller chooses the
+`discounting_curve` that matches that currency.
+
+### The swap
+
+```json
+"swaps": [ { "commodity_swap": { "leg1": { ... }, "leg2": { ... } } } ],
+"include_flows": true,
+"include_observations": false
+```
+
+| Leg field | Meaning |
+| --- | --- |
+| `pay_receive` | `Pay` or `Receive`. The two legs must be opposite. Presence-required. |
+| `periods` | The calculation periods, generated or explicit (below). Required. |
+| `quantity` | `value` (one quantity for every period) or `values` (one per period, as many as there are periods), and `basis`: `PerPeriod` (the quantity of the whole period) or `PerPricingDay` (the quantity of each pricing day, so the period's quantity is the value times its number of pricing days). Quantities are finite and `>= 0`. `basis` is presence-required. |
+| `price_type` / `price` | `CommodityFixedPrice` with `price` (every period) or `prices` (one per period); `FuturesFloatingPrice` with `contract_id`, `nearby` (`1` = front month, `2` = the next one; presence-required, `>= 1`), `roll_days_before_expiry` (presence-required, `>= 0`) and `spread` (default 0); `SpotFloatingPrice` with `spot_id` and `spread` (default 0). The spread is added to each period's average, in price units. |
+| `payment_calendar`, `payment_lag`, `payment_convention` | The payment date: `payment_lag` business days of `payment_calendar` after the period's last day, adjusted with `payment_convention` (`payment_calendar.advance(last day, payment_lag days, payment_convention)`). Presence-required; `payment_lag >= 0`. |
+| `discounting_curve` | Id of a `pricing.rates.curves` curve; every payment of the leg is discounted on it. Required. |
+
+`include_flows` lists every leg's flows; `include_observations` lists, in
+every floating flow, one observation per pricing day. `include_observations`
+without `include_flows` is a `400`.
+
+**Periods.** Both days of a period are included. Exactly one of two forms is
+given:
+
+- *generated*: `start_date`, `end_date` and `frequency`. `Monthly`,
+  `Quarterly`, `Semiannual` and `Annual` give calendar months, quarters
+  (January to March, April to June, ...), half-years (January to June, July
+  to December) and years, the first one cut to start on `start_date` and the
+  last one cut to end on `end_date`. `Once` gives one period from
+  `start_date` to `end_date`. Any other frequency is a `400`. Example:
+  `2026-11-15` to `2027-03-31` `Monthly` gives 15 to 30 November, December,
+  January, February and March.
+- *explicit*: `periods`, a list of `{start_date, end_date}` in ascending
+  order. They must not overlap; gaps between them are allowed.
+
+Period dates are never moved for weekends or holidays: the pricing days are
+the days inside the period that are pricing days of the leg's contract or
+spot price. A floating period not yet paid without a pricing day is a
+`400`.
+
+A fixed leg with `PerPricingDay` has no calendar of its own: it counts the
+pricing days of the floating leg's period with the same first and last day.
+Against another fixed leg it is a `400`, and so is a period not yet paid
+without such a floating period.
+
+**Which futures month is read.** On each pricing day the front month is the
+first listed month that is still read on that day: a month is read up to
+and including the pricing day `roll_days_before_expiry` pricing days before
+its last trading date (with `0`, up to and including the last trading date
+itself). `nearby` then counts on from the front month through the listed
+months. Worked example with the December month last traded on Friday 20
+November and the January month after it:
+
+| Pricing day | roll 0, nearby 1 | roll 2, nearby 1 | roll 0, nearby 2 |
+| --- | --- | --- | --- |
+| Wed 18 Nov | 2026-12 | 2026-12 | 2027-01 |
+| Thu 19 Nov | 2026-12 | 2027-01 | 2027-01 |
+| Fri 20 Nov | 2026-12 | 2027-01 | 2027-01 |
+| Mon 23 Nov | 2027-01 | 2027-01 | 2027-02 |
+
+The pricing days counted back are the contract's (its calendar, the
+overrides and its own `pricing_holidays`). A day that needs a month after
+the last listed one is a `400`.
+
+**Fixings and the valuation date.** A pricing day before the valuation date
+reads its fixing: the contract's settlement of the month read on that day,
+or the spot price's published price. A missing fixing is a `400` naming the
+day (and the month). On the valuation date the fixing is used when given,
+otherwise today's price. After it, a futures day reads the month's `price`
+(a month without one is a `400`) and a spot day the forward price
+interpolated on the points.
+
+**Flows already paid.** A period whose payment date is on or before the
+valuation date is not valued: it has no flow and none of its prices are
+read (its fixings are not needed). It still counts for `values` and
+`prices`, which give one entry for every period.
+
+### Response
+
+One row per swap, in request order. Per period of a leg, with `s = -1` for
+`Pay` and `+1` for `Receive`:
+
+```
+average       = mean of the prices of the period's pricing days   (floating legs)
+price         = the fixed price, or average + spread
+quantity      = value (PerPeriod) or value x pricing days (PerPricingDay)
+amount        = s x quantity x price
+present_value = amount x DF(payment date)
+legs[i].npv   = sum of the leg's present values
+npv           = legs[0].npv + legs[1].npv
+```
+
+Each leg averages over its own pricing days; the average is arithmetic,
+with every pricing day weighted equally.
+
+| Field | Meaning |
+| --- | --- |
+| `npv` | Total present value, in the currency of the prices supplied, positive in favour of the party whose `pay_receive` sides were given. |
+| `fair_fixed_price` | Fixed leg against a floating leg only: the single fixed price, the same for every period, that zeroes `npv` with the floating leg unchanged: `-npv(floating leg) / (s_fixed x sum of quantity x DF)` over the fixed leg's flows. Absent otherwise. |
+| `fair_spread` | Floating leg against a floating leg only: the spread on `leg2` that zeroes `npv`: `spread_2 - npv / (s_2 x sum of quantity x DF)` over `leg2`'s flows. Absent otherwise. |
+| `legs[i].npv` | Signed present value of the leg. `legs[0]` is `leg1`. |
+| `legs[i].flows[]` | With `include_flows`: one flow per period not yet paid, in period order: `start_date`, `end_date`, `payment_date`, `pricing_days`, `realised_days` (pricing days read from a fixing), `quantity` (after the basis), `amount`, `discount`, `present_value`. A floating flow adds `average` (before the spread), `realised_average` (of the fixing days; absent when there are none), `expected_average` (of the days read from today's prices; absent when there are none) and `spread`. A fixed flow adds `price`; its `pricing_days` is the count used by `PerPricingDay` (0 with `PerPeriod`). |
+| `flows[].observations[]` | With `include_observations`, on floating flows: one per pricing day, `date`, `contract_month` (futures only), `price` and `source` (`Fixing` or `Curve`, a price read from today's market data). |
+| `deltas[]` | Always present: the change of `npv` per unit change of each input price read from today's market data, discounted (an amount in the currency of the prices, today). Futures prices are named by `contract_id` and `month`, spot forward prices by `spot_id` and the point's `date`; futures come first, in contract and month order, then spot points in id and date order. Fixings carry no delta. With `Linear`, a day between two points moves both of them by its weights. |
+
+For a futures month, `delta = sum over the days reading it of s x quantity
+/ pricing days x DF(payment date)`, summed over both legs: the npv is linear
+in the input prices, so the delta is exact, and repricing with a price moved
+by `h` moves `npv` by `delta x h`.
+
+### Limits of the preview
+
+- No units and no currency on the request: quantities are in the unit of the
+  price and the discounting curve decides the currency. There is no unit
+  conversion and no FX averaging.
+- The prices are supplied by the caller: futures prices per delivery month
+  and spot forward prices per date. The engine does not build a curve from
+  swap or futures quotes.
+- Each floating leg averages over its own pricing days (no common pricing
+  between two floating legs), arithmetically, with no rounding of the
+  average.
+- Contract months and last trading dates are listed by the caller; there
+  are no expiry rules and no shipped exchange holiday tables
+  (`pricing_holidays` carries them).
+- Flows paid on or before the valuation date are not valued.
+
+### Rejected requests
+
+Each is a `400` naming the swap (`swaps[1].commodity_swap...`) and the
+field or the day: an empty `swaps`;
+`include_observations` without `include_flows`; both legs `Pay` or both
+`Receive`; a missing `pay_receive`, `payment_calendar`, `payment_lag`,
+`payment_convention`, `quantity.basis`, `nearby` or
+`roll_days_before_expiry`; both period forms, neither, or a generated form
+missing `start_date`, `end_date` or `frequency`; a frequency other than
+`Monthly`, `Quarterly`, `Semiannual`, `Annual` or `Once`; a period ending
+before it starts; explicit periods that overlap or are not ascending; both
+or neither of `value` / `values` or of `price` / `prices`; a `values` or
+`prices` count other than the number of periods; a negative or non-finite
+quantity; a non-finite price or spread; a negative `payment_lag`; `nearby`
+below 1; a negative `roll_days_before_expiry`; a floating period with no
+pricing day (periods not yet paid); a fixed leg with `PerPricingDay` and no
+floating period with the same dates (periods not yet paid); a pricing day
+that needs a month after the last listed one; a month read on or after
+the valuation date without a `price`; a missing fixing for a pricing day
+before the valuation date; a spot day outside the points with
+`extrapolate_flat` false; a `LogLinear` or `LogCubic` spot interpolation;
+a missing `pricing_calendar`; months or last trading dates not ascending;
+spot points not ascending; two fixings for the same day (and
+month); a fixing without `value`; a duplicate contract or spot id. An
+unknown `contract_id`, `spot_id` or `discounting_curve` is a `404` naming
+the swap and the field (`swaps[1].commodity_swap.leg2.price.contract_id:
+commodity contract not found: ...`). Results that overflow (an amount, NPV,
+fair value or delta that is not finite) are a `400`.
+
+### A complete request and its response
+
+Synthetic data: two monthly periods, 10,000 per month, 60.50 paid fixed
+against the front futures month, valued on 13 November 2026 (before any
+pricing day), three discount factors
+(`examples/data/commodity_swap/synthetic_two_month_fixed_vs_front_month.json`).
+
+```json
+{
+  "pricing": {
+    "as_of_date": "2026-11-13",
+    "rates": { "curves": [ {
+      "id": "USD_OIS", "reference_date": "2026-11-13", "day_counter": "Actual365Fixed",
+      "interpolator": "LogLinear", "bootstrap_trait": "InterpolatedDiscount",
+      "points": [
+          {"point_type": "DiscountFactorPoint", "point": {"date": "2026-11-13", "discount_factor": 1.0}},
+          {"point_type": "DiscountFactorPoint", "point": {"date": "2027-02-13", "discount_factor": 0.99}},
+          {"point_type": "DiscountFactorPoint", "point": {"date": "2027-05-13", "discount_factor": 0.98}} ] } ] },
+    "commodity": { "contracts": [ {
+      "id": "SYN_CL", "pricing_calendar": "WeekendsOnly",
+      "pricing_holidays": ["2026-12-25", "2027-01-01", "2027-01-18"],
+      "months": [
+          {"month": "2027-01", "last_trade_date": "2026-12-21", "price": 60.0},
+          {"month": "2027-02", "last_trade_date": "2027-01-20", "price": 61.0},
+          {"month": "2027-03", "last_trade_date": "2027-02-22", "price": 62.0} ] } ] }
+  },
+  "swaps": [ { "commodity_swap": {
+      "leg1": {
+        "pay_receive": "Pay",
+        "periods": {"start_date": "2026-12-01", "end_date": "2027-01-31", "frequency": "Monthly"},
+        "quantity": {"value": 10000.0, "basis": "PerPeriod"},
+        "price_type": "CommodityFixedPrice",
+        "price": {"price": 60.5},
+        "payment_calendar": "UnitedStatesSettlement",
+        "payment_lag": 5,
+        "payment_convention": "Following",
+        "discounting_curve": "USD_OIS" },
+      "leg2": {
+        "pay_receive": "Receive",
+        "periods": {"start_date": "2026-12-01", "end_date": "2027-01-31", "frequency": "Monthly"},
+        "quantity": {"value": 10000.0, "basis": "PerPeriod"},
+        "price_type": "FuturesFloatingPrice",
+        "price": {"contract_id": "SYN_CL", "nearby": 1, "roll_days_before_expiry": 0, "spread": 0.0},
+        "payment_calendar": "UnitedStatesSettlement",
+        "payment_lag": 5,
+        "payment_convention": "Following",
+        "discounting_curve": "USD_OIS" } } } ],
+  "include_flows": true,
+  "include_observations": false
+}
+```
+
+Response:
+
+```json
+{
+  "swaps": [ {
+    "npv": 6797.792438447243,
+    "fair_fixed_price": 60.84249831865,
+    "legs": [
+      { "npv": -1200783.8290919738,
+        "flows": [
+          {"start_date": "2026-12-01", "end_date": "2026-12-31", "payment_date": "2027-01-08", "pricing_days": 0, "realised_days": 0, "price": 60.5, "quantity": 10000.0, "amount": -605000.0, "discount": 0.993901078652, "present_value": -601310.1525842748},
+          {"start_date": "2027-01-01", "end_date": "2027-01-31", "payment_date": "2027-02-05", "pricing_days": 0, "realised_days": 0, "price": 60.5, "quantity": 10000.0, "amount": -605000.0, "discount": 0.990865581004, "present_value": -599473.6765076991} ] },
+      { "npv": 1207581.621530421,
+        "flows": [
+          {"start_date": "2026-12-01", "end_date": "2026-12-31", "payment_date": "2027-01-08", "pricing_days": 22, "realised_days": 0, "average": 60.318181818182, "expected_average": 60.318181818182, "spread": 0.0, "quantity": 10000.0, "amount": 603181.8181818182, "discount": 0.993901078652, "present_value": 599503.059713999},
+          {"start_date": "2027-01-01", "end_date": "2027-01-31", "payment_date": "2027-02-05", "pricing_days": 19, "realised_days": 0, "average": 61.368421052632, "expected_average": 61.368421052632, "spread": 0.0, "quantity": 10000.0, "amount": 613684.2105263158, "discount": 0.990865581004, "present_value": 608078.5618164222} ] } ],
+    "deltas": [
+        {"contract_id": "SYN_CL", "month": "2027-01", "delta": 6776.598263534275},
+        {"contract_id": "SYN_CL", "month": "2027-02", "delta": 9420.51092932663},
+        {"contract_id": "SYN_CL", "month": "2027-03", "delta": 3650.557403700647} ] } ]
+}
+```
+
+December reads the January month up to its last trading date (21
+December, 15 pricing days at 60.00) and the February month after it (7 days
+at 61.00); 25 December is one of the contract's own holidays. January
+reads the February month to 20 January and the March month after it; 1 and
+18 January are own holidays.
+
+Worked examples, each checked against an independent reference
+implementation in the gate, are in `examples/data/commodity_swap/` (see its
+README).
+
 ## Caps, floors and collars
 
 `POST /price-cap-floor` prices caps, floors and collars on an IBOR leg

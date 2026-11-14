@@ -96,6 +96,14 @@ PricingRegistry PricingRegistryBuilder::build(
     reg.correlations = correlationBuilder.build(pricing->correlations(), reg.quoteRegistry);
 
     // ==========================================================================
+    // Parse commodity domain (optional) — futures contracts and spot prices,
+    // independent of the curves. Their pricing calendars come from the shared
+    // calendar factory, so pricing.calendar_overrides (applied before the
+    // registry is built) hold for them.
+    // ==========================================================================
+    reg.commodity = BuildCommodityRegistry(pricing->commodity());
+
+    // ==========================================================================
     // Parse Curves (dependency-aware via CurveBootstrapper)
     // ==========================================================================
     if (!rates || !rates->curves()) {

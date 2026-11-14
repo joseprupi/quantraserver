@@ -36,6 +36,7 @@ from quantra.PriceBasisSwapRequest import PriceBasisSwapRequestT
 from quantra.PriceFRARequest import PriceFRARequestT
 from quantra.PriceFxForwardRequest import PriceFxForwardRequestT
 from quantra.PriceCrossCurrencySwapRequest import PriceCrossCurrencySwapRequestT
+from quantra.PriceCommoditySwapRequest import PriceCommoditySwapRequestT
 from quantra.PriceStructuredNoteRequest import PriceStructuredNoteRequestT
 from quantra.PriceCapFloorRequest import PriceCapFloorRequestT
 from quantra.PriceSwaptionRequest import PriceSwaptionRequestT
@@ -62,6 +63,7 @@ from quantra.PriceBasisSwapResponse import PriceBasisSwapResponse
 from quantra.PriceFRAResponse import PriceFRAResponse
 from quantra.PriceFxForwardResponse import PriceFxForwardResponse
 from quantra.PriceCrossCurrencySwapResponse import PriceCrossCurrencySwapResponse
+from quantra.PriceCommoditySwapResponse import PriceCommoditySwapResponse
 from quantra.PriceStructuredNoteResponse import PriceStructuredNoteResponse
 from quantra.PriceCapFloorResponse import PriceCapFloorResponse
 from quantra.PriceSwaptionResponse import PriceSwaptionResponse
@@ -96,6 +98,7 @@ class Client:
         'fra': '/quantra.QuantraServer/PriceFRA',
         'fx_forward': '/quantra.QuantraServer/PriceFxForward',
         'cross_currency_swap': '/quantra.QuantraServer/PriceCrossCurrencySwap',
+        'commodity_swap': '/quantra.QuantraServer/PriceCommoditySwap',
         'structured_note': '/quantra.QuantraServer/PriceStructuredNote',
         'cap_floor': '/quantra.QuantraServer/PriceCapFloor',
         'swaption': '/quantra.QuantraServer/PriceSwaption',
@@ -262,6 +265,20 @@ class Client:
             'cross_currency_swap',
             request,
             PriceCrossCurrencySwapResponse
+        )
+    
+    def price_commodity_swaps(
+        self,
+        request: PriceCommoditySwapRequestT
+    ) -> PriceCommoditySwapResponse:
+        """Price commodity swaps: two legs, one paid and one received, each a
+        fixed price or the average over each period's pricing days of a
+        futures contract or a spot price (pricing.commodity), discounted on a
+        pricing.rates curve."""
+        return self._call(
+            'commodity_swap',
+            request,
+            PriceCommoditySwapResponse
         )
     
     def price_structured_notes(
@@ -480,6 +497,25 @@ from quantra.PriceFxForward import PriceFxForwardT
 from quantra.CrossCurrencySwap import CrossCurrencySwapT
 from quantra.PriceCrossCurrencySwap import PriceCrossCurrencySwapT
 
+# Commodity swap (fixed / futures / spot legs; commodity market data)
+from quantra.CommodityMarketData import CommodityMarketDataT
+from quantra.CommodityContractSpec import CommodityContractSpecT
+from quantra.CommodityContractMonth import CommodityContractMonthT
+from quantra.CommodityContractFixing import CommodityContractFixingT
+from quantra.CommoditySpotSpec import CommoditySpotSpecT
+from quantra.CommoditySpotPoint import CommoditySpotPointT
+from quantra.CommoditySpotFixing import CommoditySpotFixingT
+from quantra.CommodityPeriods import CommodityPeriodsT
+from quantra.CommodityPeriod import CommodityPeriodT
+from quantra.CommodityQuantity import CommodityQuantityT
+from quantra.CommodityFixedPrice import CommodityFixedPriceT
+from quantra.FuturesFloatingPrice import FuturesFloatingPriceT
+from quantra.SpotFloatingPrice import SpotFloatingPriceT
+from quantra.CommoditySwapLeg import CommoditySwapLegT
+from quantra.CommoditySwap import CommoditySwapT
+from quantra.PriceCommoditySwap import PriceCommoditySwapT
+from quantra.CommodityLegPrice import CommodityLegPrice  # Union type discriminator
+
 # Structured note (basket autocallables; correlation market data)
 from quantra.StructuredNote import StructuredNoteT
 from quantra.BasketUnderlying import BasketUnderlyingT
@@ -524,6 +560,8 @@ from quantra.enums.PayReceive import PayReceive
 from quantra.enums.FRAType import FRAType
 from quantra.enums.FxDirection import FxDirection
 from quantra.enums.SwapFlowKind import SwapFlowKind
+from quantra.enums.CommodityQuantityBasis import CommodityQuantityBasis
+from quantra.enums.CommodityPriceSource import CommodityPriceSource
 from quantra.enums.CapFloorType import CapFloorType
 from quantra.enums.ExerciseType import ExerciseType
 from quantra.enums.SettlementType import SettlementType
@@ -550,6 +588,7 @@ __all__ = [
     'PriceFRARequestT',
     'PriceFxForwardRequestT',
     'PriceCrossCurrencySwapRequestT',
+    'PriceCommoditySwapRequestT',
     'PriceStructuredNoteRequestT',
     'PriceCapFloorRequestT',
     'PriceSwaptionRequestT',
@@ -566,6 +605,7 @@ __all__ = [
     'PriceFRAResponse',
     'PriceFxForwardResponse',
     'PriceCrossCurrencySwapResponse',
+    'PriceCommoditySwapResponse',
     'PriceStructuredNoteResponse',
     'PriceCapFloorResponse',
     'PriceSwaptionResponse',
@@ -649,6 +689,25 @@ __all__ = [
     'PriceFxForwardT',
     'CrossCurrencySwapT',
     'PriceCrossCurrencySwapT',
+    'CommodityMarketDataT',
+    'CommodityContractSpecT',
+    'CommodityContractMonthT',
+    'CommodityContractFixingT',
+    'CommoditySpotSpecT',
+    'CommoditySpotPointT',
+    'CommoditySpotFixingT',
+    'CommodityPeriodsT',
+    'CommodityPeriodT',
+    'CommodityQuantityT',
+    'CommodityFixedPriceT',
+    'FuturesFloatingPriceT',
+    'SpotFloatingPriceT',
+    'CommoditySwapLegT',
+    'CommoditySwapT',
+    'PriceCommoditySwapT',
+    'CommodityLegPrice',
+    'CommodityQuantityBasis',
+    'CommodityPriceSource',
     'StructuredNoteT',
     'BasketUnderlyingT',
     'QuantoSpecT',

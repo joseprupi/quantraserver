@@ -800,6 +800,15 @@ int main(int argc, char** argv) {
                     });
             });
 
+        CROW_ROUTE(app, "/price-commodity-swap")
+            .methods("POST"_method)([&](const crow::request& req) {
+                return respond(
+                    "/price-commodity-swap", req,
+                    [&](const std::string& body, const std::string& request_id) {
+                        return client.PriceCommoditySwapJSON(body, request_id);
+                    });
+            });
+
         CROW_ROUTE(app, "/price-structured-note")
             .methods("POST"_method)([&](const crow::request& req) {
                 return respond(
@@ -877,6 +886,7 @@ int main(int argc, char** argv) {
                   << "  POST /price-callable-fixed-rate-bond\n"
                   << "  POST /price-fx-forward\n"
                   << "  POST /price-cross-currency-swap\n"
+                  << "  POST /price-commodity-swap\n"
                   << "  POST /price-structured-note\n"
                   << "  GET  /status\n"
                   << "  GET  /meta\n"

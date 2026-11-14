@@ -19,6 +19,7 @@
 #include "calendar_holidays_request_generated.h"
 #include "calendar_holidays_response_generated.h"
 #include "cds_response_generated.h"
+#include "commodity_swap_response_generated.h"
 #include "cross_currency_swap_response_generated.h"
 #include "fixed_rate_bond_response_generated.h"
 #include "fx_forward_response_generated.h"
@@ -28,6 +29,7 @@
 #include "ois_swap_response_generated.h"
 #include "price_basis_swap_request_generated.h"
 #include "price_cds_request_generated.h"
+#include "price_commodity_swap_request_generated.h"
 #include "price_cross_currency_swap_request_generated.h"
 #include "price_fixed_rate_bond_request_generated.h"
 #include "price_fx_forward_request_generated.h"
@@ -871,6 +873,99 @@ TEST_F(ServerClientTest, CrossCurrencySwap_RoundTrip) {
     EXPECT_EQ(l1r->flows()->Get(5)->kind().value(), quantra::enums::SwapFlowKind_NotionalExchange);
     EXPECT_DOUBLE_EQ(l1r->flows()->Get(5)->amount(), -eurNotional);
     std::cout << "  npv (USD): " << r->npv() << ", fair rate: " << r->fair_rate().value()
+              << std::endl;
+}
+
+TEST_F(ServerClientTest, CommoditySwap_RoundTrip) {
+    std::cout << "\n=== Server-Client: Commodity Swap ===" << std::endl;
+    flatbuffers::grpc::MessageBuilder b;
+    const double quantity = 1000.0, fixedPrice = 70.0;
+
+    auto ts = buildCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    auto indices = buildIndicesVector(b);
+    auto rates = quantra::CreateRatesMarketData(b, indices, 0, curves, 0);
+
+    // One contract on weekdays: the 2025-03 month is the front month up to
+    // its last trading date (20 Feb), then the 2025-04 month.
+    std::vector<flatbuffers::Offset<quantra::CommodityContractMonth>> months{
+        quantra::CreateCommodityContractMonthDirect(b, "2025-03", "2025-02-20", 70.0),
+        quantra::CreateCommodityContractMonthDirect(b, "2025-04", "2025-03-20", 72.0)};
+    std::vector<flatbuffers::Offset<quantra::CommodityContractSpec>> contracts{
+        quantra::CreateCommodityContractSpecDirect(
+            b, "SYN_C", quantra::enums::Calendar_WeekendsOnly, nullptr, &months, nullptr)};
+    auto commodity = quantra::CreateCommodityMarketDataDirect(b, &contracts, nullptr);
+    auto asof = b.CreateString("2025-01-15");
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    pb.add_rates(rates);
+    pb.add_commodity(commodity);
+    auto pricing = pb.Finish();
+
+    // One period, February 2025: 20 pricing days, 14 on the 2025-03 month
+    // (3-20 Feb) and 6 on the 2025-04 month (21-28 Feb).
+    auto leg = [&](quantra::enums::PayReceive side, quantra::CommodityLegPrice type,
+                   flatbuffers::Offset<void> price) {
+        auto periods = quantra::CreateCommodityPeriodsDirect(
+            b, "2025-02-01", "2025-02-28", quantra::enums::Frequency_Once, nullptr);
+        auto qty = quantra::CreateCommodityQuantity(
+            b, quantity, 0, quantra::enums::CommodityQuantityBasis_PerPeriod);
+        return quantra::CreateCommoditySwapLegDirect(
+            b, side, periods, qty, type, price, quantra::enums::Calendar_WeekendsOnly, 5,
+            quantra::enums::BusinessDayConvention_Following, "discount");
+    };
+    auto fixed = quantra::CreateCommodityFixedPrice(b, fixedPrice, 0);
+    auto floating = quantra::CreateFuturesFloatingPriceDirect(b, "SYN_C", 1, 0, 0.0);
+    auto leg1 =
+        leg(quantra::enums::PayReceive_Pay, quantra::CommodityLegPrice_CommodityFixedPrice,
+            fixed.Union());
+    auto leg2 =
+        leg(quantra::enums::PayReceive_Receive, quantra::CommodityLegPrice_FuturesFloatingPrice,
+            floating.Union());
+    auto swap = quantra::CreateCommoditySwap(b, leg1, leg2);
+    std::vector<flatbuffers::Offset<quantra::PriceCommoditySwap>> entries{
+        quantra::CreatePriceCommoditySwap(b, swap)};
+    b.Finish(quantra::CreatePriceCommoditySwapRequestDirect(b, pricing, &entries, true, false));
+    auto request = b.ReleaseMessage<quantra::PriceCommoditySwapRequest>();
+    ASSERT_TRUE(request.Verify());
+
+    grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+    flatbuffers::grpc::Message<quantra::PriceCommoditySwapResponse> response;
+    auto status = stub_->PriceCommoditySwap(&context, request, &response);
+    ASSERT_TRUE(status.ok()) << "gRPC failed: " << status.error_message();
+    ASSERT_EQ(response.GetRoot()->swaps()->size(), 1u);
+    auto r = response.GetRoot()->swaps()->Get(0);
+    ASSERT_EQ(r->legs()->size(), 2u);
+    const auto* fixedLeg = r->legs()->Get(0);
+    const auto* floatLeg = r->legs()->Get(1);
+    ASSERT_TRUE(fixedLeg->flows() && floatLeg->flows());
+    ASSERT_EQ(floatLeg->flows()->size(), 1u);
+    const auto* flow = floatLeg->flows()->Get(0);
+    const double average = (14 * 70.0 + 6 * 72.0) / 20.0;
+    EXPECT_EQ(flow->pricing_days(), 20);
+    EXPECT_EQ(flow->realised_days(), 0);
+    ASSERT_TRUE(flow->average().has_value());
+    EXPECT_NEAR(flow->average().value(), average, 1e-12);
+    EXPECT_FALSE(flow->realised_average().has_value());
+    EXPECT_FALSE(flow->price().has_value());
+    EXPECT_FALSE(flow->observations());
+    EXPECT_EQ(flow->payment_date()->str(), "2025-03-07");
+    const double df = flow->discount();
+    EXPECT_GT(df, 0.0);
+    EXPECT_LT(df, 1.0);
+    EXPECT_NEAR(r->npv(), quantity * (average - fixedPrice) * df, 1e-8);
+    EXPECT_NEAR(r->npv(), fixedLeg->npv() + floatLeg->npv(), 1e-8);
+    ASSERT_TRUE(r->fair_fixed_price().has_value());
+    EXPECT_NEAR(r->fair_fixed_price().value(), average, 1e-10);
+    EXPECT_FALSE(r->fair_spread().has_value());
+    ASSERT_TRUE(r->deltas());
+    ASSERT_EQ(r->deltas()->size(), 2u);
+    EXPECT_EQ(r->deltas()->Get(0)->month()->str(), "2025-03");
+    EXPECT_NEAR(r->deltas()->Get(0)->delta(), quantity * 14.0 / 20.0 * df, 1e-8);
+    EXPECT_EQ(r->deltas()->Get(1)->month()->str(), "2025-04");
+    EXPECT_NEAR(r->deltas()->Get(1)->delta(), quantity * 6.0 / 20.0 * df, 1e-8);
+    std::cout << "  npv: " << r->npv() << ", fair fixed price: " << r->fair_fixed_price().value()
               << std::endl;
 }
 

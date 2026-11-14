@@ -110,6 +110,13 @@ CASES = [
          "cross_currency_swap/xccy_eur_fixed_vs_usd_sofr_5y_payer_usd.json", "swaps"),
     Case("xccy_usd_sofr_vs_eur_estr_5y", "cross_currency_swap",
          "cross_currency_swap/xccy_usd_sofr_vs_eur_estr_minus15bp_5y_both_exchanges.json", "swaps"),
+    # Commodity swaps: futures and spot prices, fixings and pricing holidays
+    # are request data (never cached); the discount curve is given as dated
+    # discount factors. Three swaps (front month roll 0 and roll 2, spot)
+    # with every flow and observation listed: a cached curve or any state
+    # kept between requests would show in the flows.
+    Case("commodity_swap_benchmark", "commodity_swap",
+         "commodity_swap/synthetic_benchmark_fixed_vs_futures_and_spot.json", "swaps"),
 ]
 
 # The product whose log we probe to prove the cache engaged. Any cacheable row

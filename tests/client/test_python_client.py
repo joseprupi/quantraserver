@@ -31,6 +31,7 @@ from quantra_client.client import (
     PriceFRARequestT,
     PriceFxForwardRequestT,
     PriceCrossCurrencySwapRequestT,
+    PriceCommoditySwapRequestT,
     PriceCapFloorRequestT,
     PriceSwaptionRequestT,
     PriceCDSRequestT,
@@ -83,6 +84,18 @@ from quantra_client.client import (
     SwapLegT,
     CrossCurrencySwapT,
     PriceCrossCurrencySwapT,
+    CommodityMarketDataT,
+    CommodityContractSpecT,
+    CommodityContractMonthT,
+    CommodityPeriodsT,
+    CommodityQuantityT,
+    CommodityFixedPriceT,
+    FuturesFloatingPriceT,
+    CommoditySwapLegT,
+    CommoditySwapT,
+    PriceCommoditySwapT,
+    CommodityLegPrice,
+    CommodityQuantityBasis,
     PayReceive,
     SwapFlowKind,
     CapFloorT,
@@ -1596,6 +1609,101 @@ def test_cross_currency_swap(client: Client, curve_handle: ql.YieldTermStructure
     return passed, ql_npv, q_npv
 
 
+def test_commodity_swap(client: Client, curve_handle: ql.YieldTermStructureHandle):
+    """
+    Compare a one-period commodity swap: closed form on the QuantLib curve vs Quantra
+
+    Pay 70.00 fixed vs receive the average of a futures contract over
+    February 2025 (1,000 per period, synthetic prices): on weekdays the
+    2025-03 month (70.00) is read up to its last trading date, 20 Feb (14
+    days), then the 2025-04 month (72.00, 6 days), so the average is 70.60;
+    both legs pay 5 weekdays after 28 Feb (7 Mar 2025). NPV = 1,000 * (70.60
+    - 70.00) * DF(7 Mar 2025) on the shared flat 3% curve.
+    """
+    print("\n" + "=" * 60)
+    print("Commodity Swap")
+    print("=" * 60)
+
+    quantity = 1000.0
+    fixed_price = 70.0
+    average = (14 * 70.0 + 6 * 72.0) / 20.0
+
+    # --- QuantLib ---
+    payment = ql.Date(7, ql.March, 2025)
+    ql_npv = quantity * (average - fixed_price) * curve_handle.discount(payment)
+
+    # --- Quantra ---
+    def month(name, last_trade, price):
+        m = CommodityContractMonthT()
+        m.month = name
+        m.lastTradeDate = last_trade
+        m.price = price
+        return m
+
+    contract = CommodityContractSpecT()
+    contract.id = "SYN_C"
+    contract.pricingCalendar = Calendar.WeekendsOnly
+    contract.months = [month("2025-03", "2025-02-20", 70.0), month("2025-04", "2025-03-20", 72.0)]
+    commodity = CommodityMarketDataT()
+    commodity.contracts = [contract]
+
+    def leg(side, price_type, price):
+        periods = CommodityPeriodsT()
+        periods.startDate = "2025-02-01"
+        periods.endDate = "2025-02-28"
+        periods.frequency = Frequency.Once
+        qty = CommodityQuantityT()
+        qty.value = quantity
+        qty.basis = CommodityQuantityBasis.PerPeriod
+        out = CommoditySwapLegT()
+        out.payReceive = side
+        out.periods = periods
+        out.quantity = qty
+        out.priceType = price_type
+        out.price = price
+        out.paymentCalendar = Calendar.WeekendsOnly
+        out.paymentLag = 5
+        out.paymentConvention = BusinessDayConvention.Following
+        out.discountingCurve = "discount"
+        return out
+
+    fixed = CommodityFixedPriceT()
+    fixed.price = fixed_price
+    floating = FuturesFloatingPriceT()
+    floating.contractId = "SYN_C"
+    floating.nearby = 1
+    floating.rollDaysBeforeExpiry = 0
+    swap = CommoditySwapT()
+    swap.leg1 = leg(PayReceive.Pay, CommodityLegPrice.CommodityFixedPrice, fixed)
+    swap.leg2 = leg(PayReceive.Receive, CommodityLegPrice.FuturesFloatingPrice, floating)
+    price_swap = PriceCommoditySwapT()
+    price_swap.commoditySwap = swap
+
+    request = PriceCommoditySwapRequestT()
+    request.pricing = build_quantra_pricing([build_quantra_curve("discount")],
+                                            indices=[build_index_def_eur6m()])
+    request.pricing.commodity = commodity
+    request.swaps = [price_swap]
+
+    response = client.price_commodity_swaps(request)
+    result = response.Swaps(0)
+    q_npv = result.Npv()
+    q_fair = result.FairFixedPrice()
+
+    # --- Compare ---
+    npv_diff = abs(ql_npv - q_npv)
+    print(f"  QuantLib NPV:       {ql_npv:>12.6f}")
+    print(f"  Quantra NPV:        {q_npv:>12.6f}")
+    print(f"  NPV Difference:     {npv_diff:>12.9f}")
+    print(f"  Fair fixed price:   {q_fair:>12.8f}  (average {average:.8f})")
+
+    passed = (npv_diff < 1e-6 and q_fair is not None and abs(q_fair - average) < 1e-10
+              and result.LegsLength() == 2 and result.DeltasLength() == 2)
+    print(f"  Result:             {'✓ PASS' if passed else '✗ FAIL'}")
+
+    return passed, ql_npv, q_npv
+
+
 # =============================================================================
 # Main
 # =============================================================================
@@ -1620,6 +1728,7 @@ def main():
         ("FRA", lambda: test_fra(client, curve_handle)),
         ("FX Forward", lambda: test_fx_forward(client, curve_handle)),
         ("Cross-Currency Swap", lambda: test_cross_currency_swap(client, curve_handle)),
+        ("Commodity Swap", lambda: test_commodity_swap(client, curve_handle)),
         ("Cap", lambda: test_cap(client, curve_handle)),
         ("Swaption", lambda: test_swaption(client, curve_handle)),
         ("CDS", lambda: test_cds(client, curve_handle)),

@@ -1,5 +1,6 @@
 #include "date_convert.h"
 
+#include <cctype>
 #include <regex>
 #include <sstream>
 
@@ -37,4 +38,17 @@ std::string DateToIso(const QuantLib::Date& date) {
     std::ostringstream os;
     os << QuantLib::io::iso_date(date);
     return os.str();
+}
+
+bool IsYearMonth(const std::string& s) {
+    if (s.size() != 7 || s[4] != '-') {
+        return false;
+    }
+    for (std::size_t i = 0; i < 7; ++i) {
+        if (i != 4 && !std::isdigit(static_cast<unsigned char>(s[i]))) {
+            return false;
+        }
+    }
+    const int month = std::stoi(s.substr(5, 2));
+    return month >= 1 && month <= 12;
 }

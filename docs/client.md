@@ -58,6 +58,7 @@ Pricing:
 - equity options
 - FX forwards
 - cross-currency swaps
+- commodity swaps (preview)
 
 Utility:
 

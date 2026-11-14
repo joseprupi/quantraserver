@@ -60,6 +60,8 @@ include "../fbs/calibrate_correlation_request.fbs";
 include "../fbs/calibrate_correlation_response.fbs";
 include "../fbs/validate_vol_surface_request.fbs";
 include "../fbs/validate_vol_surface_response.fbs";
+include "../fbs/price_commodity_swap_request.fbs";
+include "../fbs/commodity_swap_response.fbs";
 include "../fbs/meta_request.fbs";
 include "../fbs/meta_response.fbs";
 
@@ -97,5 +99,6 @@ rpc_service QuantraServer {
   CalibrateVolSurface(CalibrateVolSurfaceRequest):CalibrateVolSurfaceResponse;
   CalibrateCorrelation(CalibrateCorrelationRequest):CalibrateCorrelationResponse;
   ValidateVolSurface(ValidateVolSurfaceRequest):ValidateVolSurfaceResponse;
+  PriceCommoditySwap(PriceCommoditySwapRequest):PriceCommoditySwapResponse;
   Meta(MetaRequest):MetaResponse;
 }

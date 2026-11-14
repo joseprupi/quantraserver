@@ -12,6 +12,7 @@ include "inflation.fbs";
 include "calendar_override.fbs";
 include "fx.fbs";
 include "correlation.fbs";
+include "commodity.fbs";
 
 namespace quantra;
 
@@ -106,4 +107,8 @@ table Pricing {
     /// semi-definite) on every request that carries the block, whether or
     /// not a product references a matrix. Used by: structured notes.
     correlations:CorrelationMarketData;
+
+    /// Commodity futures contracts and spot price assessments, referenced by
+    /// id from commodity swap legs. Optional. Used by: commodity swaps.
+    commodity:CommodityMarketData;
 }

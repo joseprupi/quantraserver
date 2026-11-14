@@ -10,15 +10,17 @@
  * the validated plain value for the caller to lift into a domain struct.
  *
  * This is the home for reusable request-field validation: single-field presence
- * (scalars / enums / ints / bools), the `Period` sub-table, and the per-period
- * notionals vector. It is FlatBuffers-aware on purpose and must only ever be
- * included from decode/market and decode/products, never from the FlatBuffers-free evaluators.
+ * (scalars / enums / ints / bools), non-empty strings, ISO dates, the `Period`
+ * sub-table, and the per-period notionals vector. It is FlatBuffers-aware on
+ * purpose and must only ever be included from decode/market and
+ * decode/products, never from the FlatBuffers-free evaluators.
  *
- * Not covered here (they need a different check than single-field presence):
- * string identity fields, which also reject an empty string; and the
- * `price | rate | quote_id` "exactly one of" rule. Those keep their own guards.
+ * Not covered here: the `price | rate | quote_id` "exactly one of" rule, which
+ * keeps its own guards. Some older mappers keep file-local string and date
+ * guards of their own.
  */
 
+#include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
 
@@ -87,6 +89,18 @@ template <typename T> inline T requireEnum(flatbuffers::Optional<T> v, const std
 }
 
 /**
+ * Require an optional scalar to be present, with no rule on its value (the
+ * value rules belong to whoever consumes it).
+ */
+template <typename T>
+inline T requireScalarPresent(flatbuffers::Optional<T> v, const std::string& name) {
+    if (!v.has_value()) {
+        QUANTRA_INVALID_ARGUMENT(name + " is required");
+    }
+    return v.value();
+}
+
+/**
  * Require an optional integer convention (fixing_days / settlement_days /
  * spot_days / cash_settlement_days) to be present — a bare int would silently
  * default to 0.
@@ -137,6 +151,33 @@ inline bool requireBool(flatbuffers::Optional<bool> v, const std::string& name) 
         QUANTRA_INVALID_ARGUMENT(name + " is required");
     }
     return v.value();
+}
+
+/**
+ * Require a string field to be present and non-empty (ids, contract months).
+ */
+inline std::string requireNonEmptyString(
+    const flatbuffers::String* value, const std::string& name) {
+    if (value == nullptr || value->str().empty()) {
+        QUANTRA_INVALID_ARGUMENT(name + " is required");
+    }
+    return value->str();
+}
+
+/**
+ * Require a date field to be present and a valid YYYY-MM-DD date; a bad date
+ * is a 400 naming the field once (`<name>: Invalid date '...'`).
+ */
+inline QuantLib::Date requireIsoDate(const flatbuffers::String* value, const std::string& name) {
+    if (value == nullptr) {
+        QUANTRA_INVALID_ARGUMENT(name + " is required");
+    }
+    try {
+        return DateToQL(value->str());
+    } catch (const QuantraInvalidArgument& e) {
+        QUANTRA_INVALID_ARGUMENT(name + ": " + e.what());
+    }
+    return QuantLib::Date(); // unreachable
 }
 
 // ---------------------------------------------------------------------------

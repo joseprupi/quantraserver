@@ -1,0 +1,112 @@
+include "enums.fbs";
+
+namespace quantra;
+
+/// One delivery month of a futures contract with its last trading date and
+/// today's price.
+table CommodityContractMonth {
+    /// Delivery month, "YYYY-MM" (e.g. "2027-02"). Required.
+    month:string (required);
+    /// Last trading date of this contract month (YYYY-MM-DD). The contract
+    /// is read as the nearby contract up to and including this date,
+    /// shifted by the leg's `roll_days_before_expiry`. Required.
+    last_trade_date:string (required);
+    /// Today's futures price of this month. Needed only for months read
+    /// after the valuation date; absent for months whose pricing days are all
+    /// in the past.
+    price:double = null;
+}
+
+/// A past daily settlement of one contract month.
+table CommodityContractFixing {
+    /// Delivery month the settlement belongs to, "YYYY-MM". Required.
+    month:string (required);
+    /// Settlement date (YYYY-MM-DD). Required.
+    date:string (required);
+    /// Settlement price, as quoted. Presence-required: an omitted value is a
+    /// 400, never a silent 0.
+    value:double = null;
+}
+
+/// A futures contract and its delivery months. Registered once per request,
+/// referenced by id from `FuturesFloatingPrice.contract_id`.
+table CommodityContractSpec {
+    /// Unique identifier (e.g. "NYMEX_CL"). Required.
+    id:string (required);
+    /// Calendar of the contract's pricing days: the days the contract
+    /// settles. Adjusted by `pricing.calendar_overrides`. Presence-required.
+    pricing_calendar:enums.Calendar = null;
+    /// Dates (YYYY-MM-DD) that are not pricing days of this contract,
+    /// applied on top of `pricing_calendar` and of
+    /// `pricing.calendar_overrides`. They affect no other use of that
+    /// calendar in the request. This is how an exchange's own holidays are
+    /// given when the named calendar differs from the exchange's.
+    pricing_holidays:[string];
+    /// The delivery months in ascending order, with last trading dates and
+    /// today's prices. `FuturesFloatingPrice.nearby` counts through this
+    /// list, so a missing month makes a later month the nearby one.
+    /// Required.
+    months:[CommodityContractMonth] (required);
+    /// Past settlements of the contract's months. A pricing day before the
+    /// valuation date needs a fixing (a missing one is a 400); on the
+    /// valuation date the fixing is used when given, otherwise today's
+    /// price.
+    fixings:[CommodityContractFixing];
+}
+
+/// A past published price of a spot assessment.
+table CommoditySpotFixing {
+    /// Publication date (YYYY-MM-DD). Required.
+    date:string (required);
+    /// Published price, as quoted. Presence-required: an omitted value is a
+    /// 400, never a silent 0.
+    value:double = null;
+}
+
+/// One forward price of a spot assessment.
+table CommoditySpotPoint {
+    /// Date the price applies to (YYYY-MM-DD). Required.
+    date:string (required);
+    /// Forward price for that date, as quoted.
+    /// Presence-required.
+    price:double = null;
+}
+
+/// A spot price assessment (for example a published daily price) with its
+/// forward prices by date. Registered once per request, referenced by id
+/// from `SpotFloatingPrice.spot_id`.
+table CommoditySpotSpec {
+    /// Unique identifier. Required.
+    id:string (required);
+    /// Calendar of the pricing days: the days the price is published.
+    /// Adjusted by `pricing.calendar_overrides`. Presence-required.
+    pricing_calendar:enums.Calendar = null;
+    /// Dates (YYYY-MM-DD) that are not pricing days of this spot price,
+    /// applied on top of `pricing_calendar` and of
+    /// `pricing.calendar_overrides`. They affect no other use of that
+    /// calendar in the request. This is how an exchange's own holidays are
+    /// given when the named calendar differs from the exchange's.
+    pricing_holidays:[string];
+    /// How the forward prices are interpolated between dates: Linear,
+    /// BackwardFlat or ForwardFlat. LogLinear and LogCubic are a 400
+    /// (prices can be zero or negative). Presence-required.
+    interpolation:enums.Interpolator = null;
+    /// When false, a pricing day before the first point or after the last
+    /// point is a 400; when true the first price is held flat before the
+    /// first point and the last price after the last point.
+    extrapolate_flat:bool = false;
+    /// Forward prices by date, in ascending date order. Required.
+    points:[CommoditySpotPoint] (required);
+    /// Past published prices. A pricing day before the valuation date needs
+    /// a fixing (a missing one is a 400); on the valuation date the fixing
+    /// is used when given, otherwise today's price.
+    fixings:[CommoditySpotFixing];
+}
+
+/// Commodity market data grouped under the shared Pricing context.
+table CommodityMarketData {
+    /// Futures contracts referenced by commodity swap legs.
+    contracts:[CommodityContractSpec];
+    /// Spot price assessments referenced by commodity swap legs.
+    spot_prices:[CommoditySpotSpec];
+}

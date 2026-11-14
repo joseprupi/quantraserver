@@ -2310,6 +2310,74 @@ inline const char *EnumNameCorrelationShrinkage(CorrelationShrinkage e) {
   return EnumNamesCorrelationShrinkage()[index];
 }
 
+/// How `CommodityQuantity` is read. PerPeriod: the quantity is the amount
+/// delivered over the whole calculation period. PerPricingDay: the quantity
+/// is the amount for each pricing day of the period, so the period's amount
+/// is the quantity times its number of pricing days.
+enum CommodityQuantityBasis : int8_t {
+  CommodityQuantityBasis_PerPeriod = 0,
+  CommodityQuantityBasis_PerPricingDay = 1,
+  CommodityQuantityBasis_MIN = CommodityQuantityBasis_PerPeriod,
+  CommodityQuantityBasis_MAX = CommodityQuantityBasis_PerPricingDay
+};
+
+inline const CommodityQuantityBasis (&EnumValuesCommodityQuantityBasis())[2] {
+  static const CommodityQuantityBasis values[] = {
+    CommodityQuantityBasis_PerPeriod,
+    CommodityQuantityBasis_PerPricingDay
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCommodityQuantityBasis() {
+  static const char * const names[3] = {
+    "PerPeriod",
+    "PerPricingDay",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCommodityQuantityBasis(CommodityQuantityBasis e) {
+  if (::flatbuffers::IsOutRange(e, CommodityQuantityBasis_PerPeriod, CommodityQuantityBasis_PerPricingDay)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCommodityQuantityBasis()[index];
+}
+
+/// Where a commodity price used in a flow came from. Fixing: a published
+/// price on or before the valuation date, taken from the request's fixings.
+/// Curve: a price read from today's market data (a futures price or a spot
+/// forward price).
+enum CommodityPriceSource : int8_t {
+  CommodityPriceSource_Fixing = 0,
+  CommodityPriceSource_Curve = 1,
+  CommodityPriceSource_MIN = CommodityPriceSource_Fixing,
+  CommodityPriceSource_MAX = CommodityPriceSource_Curve
+};
+
+inline const CommodityPriceSource (&EnumValuesCommodityPriceSource())[2] {
+  static const CommodityPriceSource values[] = {
+    CommodityPriceSource_Fixing,
+    CommodityPriceSource_Curve
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCommodityPriceSource() {
+  static const char * const names[3] = {
+    "Fixing",
+    "Curve",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCommodityPriceSource(CommodityPriceSource e) {
+  if (::flatbuffers::IsOutRange(e, CommodityPriceSource_Fixing, CommodityPriceSource_Curve)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCommodityPriceSource()[index];
+}
+
 }  // namespace enums
 }  // namespace quantra
 

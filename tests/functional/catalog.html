@@ -1481,6 +1481,84 @@
 </tr>
 </tbody>
 </table>
+<h2>Commodities</h2>
+<table>
+<thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib value</th></tr></thead>
+<tbody>
+<tr>
+<td><div class="title">Synthetic 12-month swap, 61.00 fixed vs front-month futures (roll 0, roll 2) and vs a spot price</div><div class="desc">Three swaps on one synthetic market (as-of 2026-11-13): 10,000 per month from November 2026 to October 2027, 61.00 paid fixed against the front futures month read to its last trading date, against the front month rolled two pricing days before it, and against a spot price interpolated linearly between monthly forward points. Pricing calendar WeekendsOnly plus nine own pricing_holidays, nine past fixings in the first period, payment five US business days after each period end, dated discount factors. The request of the contract test&#x27;s pinned reference values.</div></td>
+<td><code>commodity swap</code> <code>fixed vs futures</code> <code>fixed vs spot</code> <code>roll_days_before_expiry</code> <code>past fixings</code> <code>pricing_holidays</code> <code>fair fixed price</code> <code>deltas</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_benchmark_fixed_vs_futures_and_spot.json">synthetic_benchmark_fixed_vs_futures_and_spot.json</a></td>
+<td class="npv">npv=36038.8, fair_fixed_price=61.3066, npv=-7.16904e+06, npv=7.20508e+06, npv=38048.1, fair_fixed_price=61.3237, npv=-7.16904e+06, npv=7.20709e+06, npv=-15486.2, fair_fixed_price=60.8682, npv=-7.16904e+06, npv=7.15356e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic five-month swap, 60.50 fixed received vs the front futures month, first month partly elapsed</div><div class="desc">Receive 60.50 fixed, pay the average of the front futures month on 5,000 per calendar month from November 2026 to March 2027. On the valuation date (13 November) nine pricing days of November are fixings, the rest read today&#x27;s prices; the contract rolls on each month&#x27;s last trading date. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>fixed received</code> <code>monthly periods</code> <code>partly elapsed period</code> <code>realised / expected average</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_fixed_vs_front_month_monthly_partly_elapsed.json">synthetic_fixed_vs_front_month_monthly_partly_elapsed.json</a></td>
+<td class="npv">npv=-5537.77, fair_fixed_price=60.7236, npv=1.49862e+06, npv=-1.50416e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic swap from 16 November, front month rolled two pricing days before its last trading date</div><div class="desc">Monthly periods from 16 November 2026 to April 2027: the first period is the balance of November (16-30). The floating leg reads the front month until two pricing days before its last trading date (18 November for the December month, last traded 20 November) and the next month from the following pricing day. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>roll_days_before_expiry 2</code> <code>balance-of-month first period</code> <code>generated periods cut to the start date</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_fixed_vs_front_month_roll2_mid_month_start.json">synthetic_fixed_vs_front_month_roll2_mid_month_start.json</a></td>
+<td class="npv">npv=-5811.01, fair_fixed_price=60.9021, npv=-3.62043e+06, npv=3.61462e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic six-month swap on the second nearby futures month</div><div class="desc">Pay 61.00 fixed against the average of the second nearby month (nearby 2: the month after the front month) from December 2026 to May 2027, roll 0. Every pricing day reads today&#x27;s prices. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>nearby 2</code> <code>monthly periods</code> <code>futures deltas by month</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_fixed_vs_second_nearby_monthly.json">synthetic_fixed_vs_second_nearby_monthly.json</a></td>
+<td class="npv">npv=16715.2, fair_fixed_price=61.2826, npv=-3.60842e+06, npv=3.62513e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic swaps on spot prices: BackwardFlat monthly prices, ForwardFlat mid-month prices, Linear</div><div class="desc">Three swaps paying 60.00 fixed against a spot price from November 2026 to March 2027. BackwardFlat: one price per month on its last day, a day reads the next point on or after it (the October point is never read; extrapolate_flat false). ForwardFlat: points on the 15th, a day reads the last point on or before it, the valuation day held flat before the first point. Linear: straight line in days between points. Past days read the spot fixings. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>spot price</code> <code>BackwardFlat</code> <code>ForwardFlat</code> <code>Linear</code> <code>extrapolate_flat</code> <code>spot deltas by point</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_fixed_vs_spot_backward_forward_flat_and_linear.json">synthetic_fixed_vs_spot_backward_forward_flat_and_linear.json</a></td>
+<td class="npv">npv=21699.4, fair_fixed_price=60.438, npv=-2.97248e+06, npv=2.99418e+06, npv=18624.3, fair_fixed_price=60.3759, npv=-2.97248e+06, npv=2.9911e+06, npv=-211.389, fair_fixed_price=59.9957, npv=-2.97248e+06, npv=2.97227e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic floating vs floating swap: front futures month received vs spot price + 0.25 paid</div><div class="desc">Receive the front futures month, pay the spot price plus 0.25, 10,000 per month from January to June 2027. Each leg averages over its own pricing days. Reports fair_spread, the spread on leg 2 that zeroes the NPV, and deltas to both the futures months and the spot points. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>float vs float</code> <code>spread</code> <code>fair spread</code> <code>futures and spot deltas</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_futures_vs_spot_plus_spread.json">synthetic_futures_vs_spot_plus_spread.json</a></td>
+<td class="npv">npv=23978.5, fair_spread=0.656696, npv=3.61313e+06, npv=-3.58915e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic swap on explicit periods with per-period quantities and prices, quantity per pricing day</div><div class="desc">Four explicit periods (December, January, 1-15 March, 16 March-30 April; February left out) with one quantity per pricing day for each period (1,000 / 1,200 / 800 / 1,500) and one fixed price per period (60.00 / 60.50 / 61.00 / 61.25) against the front futures month. The fixed leg counts the pricing days of the floating leg&#x27;s period with the same dates. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>explicit periods</code> <code>gap between periods</code> <code>PerPricingDay</code> <code>per-period quantities</code> <code>per-period fixed prices</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_explicit_periods_per_pricing_day.json">synthetic_explicit_periods_per_pricing_day.json</a></td>
+<td class="npv">npv=26573.4, fair_fixed_price=61.0546, npv=-6.18223e+06, npv=6.20881e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic quarterly swap from 15 January to 30 September 2027</div><div class="desc">Quarterly periods (calendar quarters, the first cut to start on 15 January): 30,000 per quarter, 61.25 fixed against the front futures month, paid two US business days after each quarter end, ModifiedFollowing. Each quarter averages over 51 to 64 pricing days across three or four contract months. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>quarterly periods</code> <code>payment lag 2</code> <code>ModifiedFollowing</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_fixed_vs_front_month_quarterly.json">synthetic_fixed_vs_front_month_quarterly.json</a></td>
+<td class="npv">npv=20944.6, fair_fixed_price=61.4887, npv=-5.3743e+06, npv=5.39524e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic swap priced on two contracts that differ only by two own pricing holidays</div><div class="desc">The same December 2026-January 2027 swap (1,000 per pricing day, 60.50 fixed vs the front month) on a contract and on a copy with 24 and 31 December added to pricing_holidays: the copy&#x27;s December has 20 pricing days instead of 22, which changes the quantity, the average and the NPV. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>pricing_holidays</code> <code>pricing-day count</code> <code>PerPricingDay</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_own_pricing_holidays.json">synthetic_own_pricing_holidays.json</a></td>
+<td class="npv">npv=5746.55, fair_fixed_price=60.6412, npv=-2.46182e+06, npv=2.46757e+06, npv=5349, fair_fixed_price=60.6382, npv=-2.34156e+06, npv=2.34691e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic swap with a holiday added to the pricing calendar through calendar_overrides</div><div class="desc">pricing.calendar_overrides adds 4 January 2027 to WeekendsOnly, the contract&#x27;s pricing calendar: January has 18 pricing days (the contract&#x27;s own holidays 1 and 18 January and the override). 1,000 per pricing day, 60.50 fixed vs the front month. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>calendar_overrides</code> <code>pricing calendar</code> <code>PerPricingDay</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_pricing_calendar_override.json">synthetic_pricing_calendar_override.json</a></td>
+<td class="npv">npv=15822.1, fair_fixed_price=60.9323, npv=-2.2145e+06, npv=2.23032e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic swap whose first two periods are paid on or before the valuation date</div><div class="desc">Explicit periods October, 1-6 November, 7-30 November and December 2026, paid four US business days after each period end: October is paid on 5 November and 1-6 November on the valuation date (13 November), so both are left out (no flow, no price read: October has no fixings in the request). One quantity per period is still given for all four periods. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>flows paid before the valuation date</code> <code>flow paid on the valuation date</code> <code>per-period quantities</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_flows_paid_before_valuation_dropped.json">synthetic_flows_paid_before_valuation_dropped.json</a></td>
+<td class="npv">npv=6521.09, fair_fixed_price=60.3639, npv=-1.07529e+06, npv=1.08181e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic two-month swap, the documentation example</div><div class="desc">The complete request of the commodity swap section of docs/http-api.md: December 2026 and January 2027, 10,000 per month, 60.50 fixed paid against the front futures month, three discount factors, three contract months. Flows without observations. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>documentation example</code> <code>flows without observations</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_two_month_fixed_vs_front_month.json">synthetic_two_month_fixed_vs_front_month.json</a></td>
+<td class="npv">npv=6797.79, fair_fixed_price=60.8425, npv=-1.20078e+06, npv=1.20758e+06</td>
+</tr>
+</tbody>
+</table>
 <h2>Structured Notes</h2>
 <table>
 <thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib value</th></tr></thead>
@@ -1553,6 +1631,6 @@
 </tr>
 </tbody>
 </table>
-<footer>238 cases across 16 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<footer>250 cases across 17 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

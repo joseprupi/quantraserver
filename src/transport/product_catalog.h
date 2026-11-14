@@ -58,7 +58,8 @@ struct ProductCatalogEntry {
     X(CalibrateImpliedForwards, "calibrate_implied_forwards", "calibrate-implied-forwards", "calibrate_implied_forwards_request.fbs", "calibrate_implied_forwards_response.fbs") \
     X(CalibrateVolSurface, "calibrate_vol_surface", "calibrate-vol-surface", "calibrate_vol_surface_request.fbs", "calibrate_vol_surface_response.fbs") \
     X(CalibrateCorrelation, "calibrate_correlation", "calibrate-correlation", "calibrate_correlation_request.fbs", "calibrate_correlation_response.fbs") \
-    X(ValidateVolSurface, "validate_vol_surface", "validate-vol-surface", "validate_vol_surface_request.fbs", "validate_vol_surface_response.fbs")
+    X(ValidateVolSurface, "validate_vol_surface", "validate-vol-surface", "validate_vol_surface_request.fbs", "validate_vol_surface_response.fbs") \
+    X(CommoditySwap, "commodity_swap", "price-commodity-swap", "price_commodity_swap_request.fbs", "commodity_swap_response.fbs")
 // clang-format on
 
 enum class ProductType {
