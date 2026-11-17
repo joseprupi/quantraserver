@@ -233,6 +233,14 @@
       "type" : "string",
       "enum": ["None", "LedoitWolf", "Fixed"]
     },
+    "quantra_enums_CommodityQuantityBasis" : {
+      "type" : "string",
+      "enum": ["PerPeriod", "PerPricingDay"]
+    },
+    "quantra_enums_CommodityPriceSource" : {
+      "type" : "string",
+      "enum": ["Fixing", "Curve"]
+    },
     "quantra_Flow" : {
       "type" : "string",
       "enum": ["NONE", "FlowInterest", "FlowPastInterest", "FlowNotional"]
@@ -2612,6 +2620,157 @@
       },
       "additionalProperties" : false
     },
+    "quantra_CommodityContractMonth" : {
+      "type" : "object",
+      "description" : "One delivery month of a futures contract with its last trading date and\ntoday's price.",
+      "properties" : {
+        "month" : {
+                "type" : "string",
+                "description" : "Delivery month, \"YYYY-MM\" (e.g. \"2027-02\"). Required."
+              },
+        "last_trade_date" : {
+                "type" : "string",
+                "description" : "Last trading date of this contract month (YYYY-MM-DD). The contract\nis read as the nearby contract up to and including this date,\nshifted by the leg's `roll_days_before_expiry`. Required."
+              },
+        "price" : {
+                "type" : "number",
+                "description" : "Today's futures price of this month. Needed only for months read\nafter the valuation date; absent for months whose pricing days are all\nin the past."
+              }
+      },
+      "required" : ["month", "last_trade_date"],
+      "additionalProperties" : false
+    },
+    "quantra_CommodityContractFixing" : {
+      "type" : "object",
+      "description" : "A past daily settlement of one contract month.",
+      "properties" : {
+        "month" : {
+                "type" : "string",
+                "description" : "Delivery month the settlement belongs to, \"YYYY-MM\". Required."
+              },
+        "date" : {
+                "type" : "string",
+                "description" : "Settlement date (YYYY-MM-DD). Required."
+              },
+        "value" : {
+                "type" : "number",
+                "description" : "Settlement price, as quoted. Presence-required: an omitted value is a\n400, never a silent 0."
+              }
+      },
+      "required" : ["month", "date"],
+      "additionalProperties" : false
+    },
+    "quantra_CommodityContractSpec" : {
+      "type" : "object",
+      "description" : "A futures contract and its delivery months. Registered once per request,\nreferenced by id from `FuturesFloatingPrice.contract_id`.",
+      "properties" : {
+        "id" : {
+                "type" : "string",
+                "description" : "Unique identifier (e.g. \"NYMEX_CL\"). Required."
+              },
+        "pricing_calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Calendar of the contract's pricing days: the days the contract\nsettles. Adjusted by `pricing.calendar_overrides`. Presence-required."
+              },
+        "pricing_holidays" : {
+                "type" : "array", "items" : {"type" : "string"},
+                "description" : "Dates (YYYY-MM-DD) that are not pricing days of this contract,\napplied on top of `pricing_calendar` and of\n`pricing.calendar_overrides`. They affect no other use of that\ncalendar in the request. This is how an exchange's own holidays are\ngiven when the named calendar differs from the exchange's."
+              },
+        "months" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityContractMonth"},
+                "description" : "The delivery months in ascending order, with last trading dates and\ntoday's prices. `FuturesFloatingPrice.nearby` counts through this\nlist, so a missing month makes a later month the nearby one.\nRequired."
+              },
+        "fixings" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityContractFixing"},
+                "description" : "Past settlements of the contract's months. A pricing day before the\nvaluation date needs a fixing (a missing one is a 400); on the\nvaluation date the fixing is used when given, otherwise today's\nprice."
+              }
+      },
+      "required" : ["id", "months"],
+      "additionalProperties" : false
+    },
+    "quantra_CommoditySpotFixing" : {
+      "type" : "object",
+      "description" : "A past published price of a spot assessment.",
+      "properties" : {
+        "date" : {
+                "type" : "string",
+                "description" : "Publication date (YYYY-MM-DD). Required."
+              },
+        "value" : {
+                "type" : "number",
+                "description" : "Published price, as quoted. Presence-required: an omitted value is a\n400, never a silent 0."
+              }
+      },
+      "required" : ["date"],
+      "additionalProperties" : false
+    },
+    "quantra_CommoditySpotPoint" : {
+      "type" : "object",
+      "description" : "One forward price of a spot assessment.",
+      "properties" : {
+        "date" : {
+                "type" : "string",
+                "description" : "Date the price applies to (YYYY-MM-DD). Required."
+              },
+        "price" : {
+                "type" : "number",
+                "description" : "Forward price for that date, as quoted.\nPresence-required."
+              }
+      },
+      "required" : ["date"],
+      "additionalProperties" : false
+    },
+    "quantra_CommoditySpotSpec" : {
+      "type" : "object",
+      "description" : "A spot price assessment (for example a published daily price) with its\nforward prices by date. Registered once per request, referenced by id\nfrom `SpotFloatingPrice.spot_id`.",
+      "properties" : {
+        "id" : {
+                "type" : "string",
+                "description" : "Unique identifier. Required."
+              },
+        "pricing_calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Calendar of the pricing days: the days the price is published.\nAdjusted by `pricing.calendar_overrides`. Presence-required."
+              },
+        "pricing_holidays" : {
+                "type" : "array", "items" : {"type" : "string"},
+                "description" : "Dates (YYYY-MM-DD) that are not pricing days of this spot price,\napplied on top of `pricing_calendar` and of\n`pricing.calendar_overrides`. They affect no other use of that\ncalendar in the request. This is how an exchange's own holidays are\ngiven when the named calendar differs from the exchange's."
+              },
+        "interpolation" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator",
+                "description" : "How the forward prices are interpolated between dates: Linear,\nBackwardFlat or ForwardFlat. LogLinear and LogCubic are a 400\n(prices can be zero or negative). Presence-required."
+              },
+        "extrapolate_flat" : {
+                "type" : "boolean",
+                "description" : "When false, a pricing day before the first point or after the last\npoint is a 400; when true the first price is held flat before the\nfirst point and the last price after the last point."
+              },
+        "points" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommoditySpotPoint"},
+                "description" : "Forward prices by date, in ascending date order. Required."
+              },
+        "fixings" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommoditySpotFixing"},
+                "description" : "Past published prices. A pricing day before the valuation date needs\na fixing (a missing one is a 400); on the valuation date the fixing\nis used when given, otherwise today's price."
+              }
+      },
+      "required" : ["id", "points"],
+      "additionalProperties" : false
+    },
+    "quantra_CommodityMarketData" : {
+      "type" : "object",
+      "description" : "Commodity market data grouped under the shared Pricing context.",
+      "properties" : {
+        "contracts" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityContractSpec"},
+                "description" : "Futures contracts referenced by commodity swap legs."
+              },
+        "spot_prices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommoditySpotSpec"},
+                "description" : "Spot price assessments referenced by commodity swap legs."
+              }
+      },
+      "additionalProperties" : false
+    },
     "quantra_RatesMarketData" : {
       "type" : "object",
       "description" : "Rates market data shared across interest-rate products.",
@@ -2754,6 +2913,10 @@
         "correlations" : {
                 "$ref" : "#/definitions/quantra_CorrelationMarketData",
                 "description" : "Correlation matrices between basket underlyings, referenced by id\nfrom basket products (`StructuredNote.correlation_id`). Optional;\nvalidated (symmetric, unit diagonal, |rho| <= 1, positive\nsemi-definite) on every request that carries the block, whether or\nnot a product references a matrix. Used by: structured notes."
+              },
+        "commodity" : {
+                "$ref" : "#/definitions/quantra_CommodityMarketData",
+                "description" : "Commodity futures contracts and spot price assessments, referenced by\nid from commodity swap legs. Optional. Used by: commodity swaps."
               }
       },
       "required" : ["as_of_date"],

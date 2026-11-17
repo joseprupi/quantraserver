@@ -1,0 +1,108 @@
+include "enums.fbs";
+
+namespace quantra;
+
+/// One price observed on a pricing day of a floating flow.
+table CommodityObservation {
+    /// Pricing day (YYYY-MM-DD).
+    date:string;
+    /// Delivery month of the contract read, "YYYY-MM". Absent for a price
+    /// read from a spot assessment.
+    contract_month:string;
+    /// The price observed.
+    price:double;
+    /// Whether the price is a past fixing or read from today's market data.
+    source:enums.CommodityPriceSource;
+}
+
+/// One calculation period of a commodity swap leg.
+table CommodityFlow {
+    /// First day of the period (YYYY-MM-DD).
+    start_date:string;
+    /// Last day of the period, included (YYYY-MM-DD).
+    end_date:string;
+    /// Payment date (YYYY-MM-DD).
+    payment_date:string;
+    /// Number of pricing days in the period.
+    pricing_days:int;
+    /// Pricing days whose price is a fixing.
+    realised_days:int;
+    /// Average price of the period, floating leg only (before the spread
+    /// is added).
+    average:double = null;
+    /// Average of the realised days' prices. Absent when there are none.
+    realised_average:double = null;
+    /// Average of the days read from today's market data. Absent when there
+    /// are none.
+    expected_average:double = null;
+    /// Floating leg only: the spread added to the average, repeated on every
+    /// flow so each row is self-contained.
+    spread:double = null;
+    /// Fixed price of the period, fixed leg only.
+    price:double = null;
+    /// Quantity of the period, in the price unit of the contract or spot price.
+    quantity:double;
+    /// Signed payment amount, quantity times price, in the currency of the
+    /// prices supplied: positive when received, negative when paid.
+    amount:double;
+    /// Discount factor from the payment date.
+    discount:double;
+    /// Present value of the amount: amount * discount.
+    present_value:double;
+    /// One entry per pricing day; only with `include_observations`.
+    observations:[CommodityObservation];
+}
+
+/// Result of one commodity swap leg.
+table CommoditySwapLegResult {
+    /// Signed present value of the leg: the sum of its
+    /// flows' present values.
+    npv:double;
+    /// The leg's periods in payment order; only with `include_flows`.
+    flows:[CommodityFlow];
+}
+
+/// Sensitivity of the swap's NPV to one input price.
+table CommodityPriceDelta {
+    /// Contract id of a futures price. Absent on a spot price.
+    contract_id:string;
+    /// Delivery month of the futures price, "YYYY-MM". Absent on a spot
+    /// price.
+    month:string;
+    /// Spot id of a spot forward price. Absent on a futures price.
+    spot_id:string;
+    /// Date of the spot forward price (YYYY-MM-DD). Absent on a futures
+    /// price.
+    date:string;
+    /// Change of the swap's NPV per unit change of this price.
+    delta:double;
+}
+
+/// Commodity swap pricing result, as of the valuation date. Each flow's
+/// `amount` is the leg's sign (-1 for `Pay`, +1 for `Receive`) times the
+/// period's quantity times its price (the fixed price, or the average plus
+/// the spread); `present_value` is the amount times `discount`;
+/// `legs[i].npv` is the sum of the leg's present values and
+/// `npv = legs[0].npv + legs[1].npv`.
+table CommoditySwapResponse {
+    /// Total present value, in the currency of the prices supplied, positive
+    /// in favour of the reported party.
+    npv:double;
+    /// The fixed price that zeroes `npv`, the floating leg held fixed.
+    /// Present only for a fixed leg against a floating leg.
+    fair_fixed_price:double = null;
+    /// The spread on the second floating leg that zeroes `npv`. Present only
+    /// for a floating leg against a floating leg.
+    fair_spread:double = null;
+    /// One result per leg, in request order (`leg1` then `leg2`).
+    legs:[CommoditySwapLegResult] (required);
+    /// Sensitivities of `npv` to each input price used.
+    deltas:[CommodityPriceDelta];
+}
+
+/// Response wrapper for multiple commodity swaps, in request order.
+table PriceCommoditySwapResponse {
+    swaps:[CommoditySwapResponse] (required);
+}
+
+root_type PriceCommoditySwapResponse;

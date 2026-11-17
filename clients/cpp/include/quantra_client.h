@@ -50,6 +50,7 @@
 #include "callable_fixed_rate_bond_response_generated.h"
 #include "cap_floor_response_generated.h"
 #include "cds_response_generated.h"
+#include "commodity_swap_response_generated.h"
 #include "cross_currency_swap_response_generated.h"
 #include "equity_option_response_generated.h"
 #include "fixed_rate_bond_response_generated.h"
@@ -170,6 +171,8 @@ public:
     JsonResponse PriceFxForwardJSON(const std::string& json, const std::string& request_id = "");
     JsonResponse PriceCrossCurrencySwapJSON(
         const std::string& json, const std::string& request_id = "");
+    JsonResponse PriceCommoditySwapJSON(
+        const std::string& json, const std::string& request_id = "");
     JsonResponse PriceStructuredNoteJSON(
         const std::string& json, const std::string& request_id = "");
     JsonResponse PriceCapFloorJSON(const std::string& json, const std::string& request_id = "");
@@ -246,6 +249,10 @@ public:
     grpc::Status PriceCrossCurrencySwap(
         const Message<PriceCrossCurrencySwapRequest>& request,
         Message<PriceCrossCurrencySwapResponse>* response);
+
+    grpc::Status PriceCommoditySwap(
+        const Message<PriceCommoditySwapRequest>& request,
+        Message<PriceCommoditySwapResponse>* response);
 
     grpc::Status PriceStructuredNote(
         const Message<PriceStructuredNoteRequest>& request,

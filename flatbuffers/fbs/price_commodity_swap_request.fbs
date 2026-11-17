@@ -1,0 +1,26 @@
+include "pricing.fbs";
+include "commodity_swap.fbs";
+
+namespace quantra;
+
+/// One commodity swap to price. Per-swap pricing options would be added
+/// here.
+table PriceCommoditySwap {
+    /// The swap. Required.
+    commodity_swap:CommoditySwap (required);
+}
+
+/// Request to price one or more commodity swaps against one market.
+table PriceCommoditySwapRequest {
+    /// Market data: `commodity` for prices, `rates.curves` for discounting.
+    pricing:Pricing (required);
+    /// The swaps to price; results come back in request order. Required.
+    swaps:[PriceCommoditySwap] (required);
+    /// When true every response leg lists its flows.
+    include_flows:bool = false;
+    /// When true every flow lists its observations, one per pricing day.
+    /// Needs `include_flows`: true without it is a 400.
+    include_observations:bool = false;
+}
+
+root_type PriceCommoditySwapRequest;

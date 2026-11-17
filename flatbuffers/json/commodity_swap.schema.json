@@ -1,0 +1,422 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "quantra_enums_DayCounter" : {
+      "type" : "string",
+      "enum": ["Actual360", "Actual365Fixed", "Actual365NoLeap", "ActualActual", "ActualActualISMA", "ActualActualBond", "ActualActualISDA", "ActualActualHistorical", "ActualActual365", "ActualActualAFB", "ActualActualEuro", "Business252", "One", "Simple", "Thirty360"]
+    },
+    "quantra_enums_Interpolator" : {
+      "type" : "string",
+      "enum": ["BackwardFlat", "ForwardFlat", "Linear", "LogCubic", "LogLinear"]
+    },
+    "quantra_enums_SurfaceInterpolator2D" : {
+      "type" : "string",
+      "enum": ["Bilinear", "Bicubic", "CubicStrikeLinearTime", "CubicStrikeLinearTimeForwardMoneyness"]
+    },
+    "quantra_enums_SviTimeInterpolation" : {
+      "type" : "string",
+      "enum": ["LinearTotalVariance", "LinearTotalVarianceForwardMoneyness"]
+    },
+    "quantra_enums_LocalVolTimeExtrapolation" : {
+      "type" : "string",
+      "enum": ["FlatImpliedVol", "FlatLocalVol"]
+    },
+    "quantra_enums_LocalVolStrikeRange" : {
+      "type" : "string",
+      "enum": ["Global", "PerExpiry"]
+    },
+    "quantra_enums_BootstrapTrait" : {
+      "type" : "string",
+      "enum": ["Discount", "FwdRate", "InterpolatedDiscount", "InterpolatedFwd", "InterpolatedZero", "ZeroRate"]
+    },
+    "quantra_enums_TimeUnit" : {
+      "type" : "string",
+      "enum": ["Days", "Hours", "Microseconds", "Milliseconds", "Minutes", "Months", "Seconds", "Weeks", "Years"]
+    },
+    "quantra_enums_Calendar" : {
+      "type" : "string",
+      "enum": ["Argentina", "Australia", "BespokeCalendar", "Brazil", "Canada", "China", "CzechRepublic", "Denmark", "Finland", "Germany", "HongKong", "Hungary", "Iceland", "India", "Indonesia", "Israel", "Italy", "Japan", "Mexico", "NewZealand", "Norway", "NullCalendar", "Poland", "Romania", "Russia", "SaudiArabia", "Singapore", "Slovakia", "SouthAfrica", "SouthKorea", "Sweden", "Switzerland", "TARGET", "Taiwan", "Turkey", "Ukraine", "UnitedKingdom", "UnitedStates", "UnitedStatesGovernmentBond", "UnitedStatesNERC", "UnitedStatesNYSE", "UnitedStatesSettlement", "WeekendsOnly"]
+    },
+    "quantra_enums_BusinessDayConvention" : {
+      "type" : "string",
+      "enum": ["Following", "HalfMonthModifiedFollowing", "ModifiedFollowing", "ModifiedPreceding", "Nearest", "Preceding", "Unadjusted"]
+    },
+    "quantra_enums_Frequency" : {
+      "type" : "string",
+      "enum": ["Annual", "Bimonthly", "Biweekly", "Daily", "EveryFourthMonth", "EveryFourthWeek", "Monthly", "NoFrequency", "Once", "OtherFrequency", "Quarterly", "Semiannual", "Weekly"]
+    },
+    "quantra_enums_DateGenerationRule" : {
+      "type" : "string",
+      "enum": ["Backward", "CDS", "Forward", "OldCDS", "ThirdWednesday", "Twentieth", "TwentiethIMM", "Zero"]
+    },
+    "quantra_enums_CdsEngineType" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsHelperModel" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsQuoteType" : {
+      "type" : "string",
+      "enum": ["ParSpread", "Upfront"]
+    },
+    "quantra_enums_CdsIsdaNumericalFix" : {
+      "type" : "string",
+      "enum": ["None", "Taylor"]
+    },
+    "quantra_enums_CdsIsdaAccrualBias" : {
+      "type" : "string",
+      "enum": ["HalfDayBias", "NoBias"]
+    },
+    "quantra_enums_CdsIsdaForwardsInCouponPeriod" : {
+      "type" : "string",
+      "enum": ["Flat", "Piecewise"]
+    },
+    "quantra_enums_Compounding" : {
+      "type" : "string",
+      "enum": ["Compounded", "Continuous", "Simple", "SimpleThenCompounded"]
+    },
+    "quantra_enums_RateAveragingType" : {
+      "type" : "string",
+      "enum": ["Compound", "Simple"]
+    },
+    "quantra_enums_SwapType" : {
+      "type" : "string",
+      "enum": ["Payer", "Receiver"]
+    },
+    "quantra_enums_PayReceive" : {
+      "type" : "string",
+      "enum": ["Pay", "Receive"]
+    },
+    "quantra_enums_FRAType" : {
+      "type" : "string",
+      "enum": ["Long", "Short"]
+    },
+    "quantra_enums_CapFloorType" : {
+      "type" : "string",
+      "enum": ["Cap", "Floor", "Collar"]
+    },
+    "quantra_enums_CallabilityType" : {
+      "type" : "string",
+      "enum": ["Call", "Put"]
+    },
+    "quantra_enums_VolSurfaceFitMethod" : {
+      "type" : "string",
+      "enum": ["AndreasenHuge", "SviPerExpiry", "Ssvi"]
+    },
+    "quantra_enums_QuoteWeighting" : {
+      "type" : "string",
+      "enum": ["Uniform", "Vega", "BidAsk"]
+    },
+    "quantra_enums_ExerciseType" : {
+      "type" : "string",
+      "enum": ["European", "Bermudan", "American"]
+    },
+    "quantra_enums_SettlementType" : {
+      "type" : "string",
+      "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_SettlementMethod" : {
+      "type" : "string",
+      "enum": ["PhysicalOTC", "PhysicalCleared", "CollateralizedCashPrice", "ParYieldCurve"]
+    },
+    "quantra_enums_ProtectionSide" : {
+      "type" : "string",
+      "enum": ["Buyer", "Seller"]
+    },
+    "quantra_enums_VolatilityType" : {
+      "type" : "string",
+      "enum": ["Normal", "Lognormal", "ShiftedLognormal"]
+    },
+    "quantra_enums_VolSurfaceShape" : {
+      "type" : "string",
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate", "SviSlices", "SsviSlices"]
+    },
+    "quantra_enums_YoYInflationCapFloorEngineType" : {
+      "type" : "string",
+      "enum": ["Black", "UnitDisplacedBlack", "Bachelier"]
+    },
+    "quantra_enums_SwaptionVolKind" : {
+      "type" : "string",
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SabrParams", "SabrCalibrate"]
+    },
+    "quantra_enums_SwaptionStrikeKind" : {
+      "type" : "string",
+      "enum": ["Absolute", "SpreadFromATM"]
+    },
+    "quantra_enums_InflationCurveKind" : {
+      "type" : "string",
+      "enum": ["ZeroInflation", "YoYInflation"]
+    },
+    "quantra_enums_InflationCurveMeasure" : {
+      "type" : "string",
+      "enum": ["ZeroRate", "YoYRate"]
+    },
+    "quantra_enums_CPIInterpolationType" : {
+      "type" : "string",
+      "enum": ["AsIndex", "Flat", "Linear"]
+    },
+    "quantra_enums_BondPriceType" : {
+      "type" : "string",
+      "enum": ["Clean", "Dirty"]
+    },
+    "quantra_enums_IrModelType" : {
+      "type" : "string",
+      "enum": ["Black", "ShiftedBlack", "Bachelier", "HullWhiteLattice"]
+    },
+    "quantra_enums_ModelParamMode" : {
+      "type" : "string",
+      "enum": ["Explicit", "Calibrate"]
+    },
+    "quantra_enums_CmsPricerType" : {
+      "type" : "string",
+      "enum": ["LinearTsr", "HaganAnalytic", "HaganNumeric"]
+    },
+    "quantra_enums_CmsYieldCurveModel" : {
+      "type" : "string",
+      "enum": ["Standard", "ExactYield", "ParallelShifts", "NonParallelShifts"]
+    },
+    "quantra_enums_EquityModelType" : {
+      "type" : "string",
+      "enum": ["BlackScholesAnalytic", "BinomialCRR"]
+    },
+    "quantra_enums_EquityOptionType" : {
+      "type" : "string",
+      "enum": ["Call", "Put"]
+    },
+    "quantra_enums_EquitySettlementType" : {
+      "type" : "string",
+      "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_EquityBarrierType" : {
+      "type" : "string",
+      "enum": ["DownIn", "UpIn", "DownOut", "UpOut"]
+    },
+    "quantra_enums_EquityBarrierMonitoring" : {
+      "type" : "string",
+      "enum": ["Continuous", "Discrete"]
+    },
+    "quantra_enums_FxDirection" : {
+      "type" : "string",
+      "enum": ["BuyBase", "SellBase"]
+    },
+    "quantra_enums_SwapFlowKind" : {
+      "type" : "string",
+      "enum": ["Coupon", "NotionalExchange"]
+    },
+    "quantra_enums_BasketPerformanceRule" : {
+      "type" : "string",
+      "enum": ["WorstOf", "BestOf", "Average"]
+    },
+    "quantra_enums_CapitalBarrierMonitoring" : {
+      "type" : "string",
+      "enum": ["European", "DailyClose"]
+    },
+    "quantra_enums_RandomSequence" : {
+      "type" : "string",
+      "enum": ["Sobol", "PseudoRandom"]
+    },
+    "quantra_enums_StructuredNoteStatus" : {
+      "type" : "string",
+      "enum": ["Alive", "Called", "Matured"]
+    },
+    "quantra_enums_ReturnType" : {
+      "type" : "string",
+      "enum": ["Log", "Simple"]
+    },
+    "quantra_enums_ReturnFrequency" : {
+      "type" : "string",
+      "enum": ["Daily", "Weekly"]
+    },
+    "quantra_enums_CorrelationShrinkage" : {
+      "type" : "string",
+      "enum": ["None", "LedoitWolf", "Fixed"]
+    },
+    "quantra_enums_CommodityQuantityBasis" : {
+      "type" : "string",
+      "enum": ["PerPeriod", "PerPricingDay"]
+    },
+    "quantra_enums_CommodityPriceSource" : {
+      "type" : "string",
+      "enum": ["Fixing", "Curve"]
+    },
+    "quantra_CommodityLegPrice" : {
+      "type" : "string",
+      "enum": ["NONE", "CommodityFixedPrice", "FuturesFloatingPrice", "SpotFloatingPrice"]
+    },
+    "quantra_CommodityPeriod" : {
+      "type" : "object",
+      "description" : "One calculation period. Both dates are included.",
+      "properties" : {
+        "start_date" : {
+                "type" : "string",
+                "description" : "First day of the period, included (YYYY-MM-DD). Required."
+              },
+        "end_date" : {
+                "type" : "string",
+                "description" : "Last day of the period, included (YYYY-MM-DD). On or after\n`start_date` (400 otherwise). Required."
+              }
+      },
+      "required" : ["start_date", "end_date"],
+      "additionalProperties" : false
+    },
+    "quantra_CommodityPeriods" : {
+      "type" : "object",
+      "description" : "The calculation periods of a commodity leg, in one of two forms; exactly\none is given (400 otherwise, including a mix of the two):\ngenerated: `start_date`, `end_date` and `frequency` all present, no\n`periods`;\nexplicit: only `periods`.\nDates are never adjusted for weekends or holidays: a period's pricing\ndays are read inside it from the pricing calendar.\nGenerated periods are calendar months, quarters, half-years or years\n(`frequency` Monthly, Quarterly, Semiannual, Annual), the first period\ncut to start at `start_date` and the last cut to end at `end_date`.\nExample: 2026-11-15 to 2027-03-31 Monthly gives 15-30 November, December,\nJanuary, February and March. `Once` gives one period from `start_date` to\n`end_date`. Any other frequency is a 400.",
+      "properties" : {
+        "start_date" : {
+                "type" : "string",
+                "description" : "Generated form: first day of the first period, included (YYYY-MM-DD)."
+              },
+        "end_date" : {
+                "type" : "string",
+                "description" : "Generated form: last day of the last period, included (YYYY-MM-DD)."
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency",
+                "description" : "Generated form: Monthly, Quarterly, Semiannual, Annual or Once."
+              },
+        "periods" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityPeriod"},
+                "description" : "Explicit form: the periods in ascending order. They must not overlap;\ngaps between them are allowed."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CommodityQuantity" : {
+      "type" : "object",
+      "description" : "Quantity delivered by a commodity swap leg. The quantity is in the price\nunit of the contract or spot price it is priced against.",
+      "properties" : {
+        "value" : {
+                "type" : "number",
+                "description" : "One quantity for every period. Exactly one of `value` and `values`\nis given."
+              },
+        "values" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "One quantity per period, in period order. The count must equal the\nnumber of periods (400 otherwise)."
+              },
+        "basis" : {
+                "$ref" : "#/definitions/quantra_enums_CommodityQuantityBasis",
+                "description" : "Whether the quantity is per period or per pricing day.\nPresence-required."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CommodityFixedPrice" : {
+      "type" : "object",
+      "description" : "Fixed price of a commodity swap leg.",
+      "properties" : {
+        "price" : {
+                "type" : "number",
+                "description" : "One price for every period, per unit of the quantity. Exactly one of\n`price` and `prices` is given."
+              },
+        "prices" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "One price per period, in period order. The count must equal the\nnumber of periods (400 otherwise)."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FuturesFloatingPrice" : {
+      "type" : "object",
+      "description" : "Floating price from a futures contract: the average, over the period's\npricing days, of the nearby contract's price.",
+      "properties" : {
+        "contract_id" : {
+                "type" : "string",
+                "description" : "Id of a `pricing.commodity.contracts` entry. Required."
+              },
+        "nearby" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Which contract is read: 1 is the front month, 2 the next one.\nPresence-required."
+              },
+        "roll_days_before_expiry" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "A pricing day rolls to the next contract this many pricing days\nbefore the last trading date: 0 reads the front month on its last\ntrading date. Presence-required."
+              },
+        "spread" : {
+                "type" : "number",
+                "description" : "Added to each period's average, in price units. Defaults to 0."
+              }
+      },
+      "required" : ["contract_id"],
+      "additionalProperties" : false
+    },
+    "quantra_SpotFloatingPrice" : {
+      "type" : "object",
+      "description" : "Floating price from a spot assessment: the average, over the period's\npricing days, of the published price.",
+      "properties" : {
+        "spot_id" : {
+                "type" : "string",
+                "description" : "Id of a `pricing.commodity.spot_prices` entry. Required."
+              },
+        "spread" : {
+                "type" : "number",
+                "description" : "Added to each period's average, in price units. Defaults to 0."
+              }
+      },
+      "required" : ["spot_id"],
+      "additionalProperties" : false
+    },
+    "quantra_CommoditySwapLeg" : {
+      "type" : "object",
+      "description" : "One leg of a commodity swap.",
+      "properties" : {
+        "pay_receive" : {
+                "$ref" : "#/definitions/quantra_enums_PayReceive",
+                "description" : "Pay or receive this leg. The two legs must be opposite (400\notherwise). Presence-required."
+              },
+        "periods" : {
+                "$ref" : "#/definitions/quantra_CommodityPeriods",
+                "description" : "Calculation periods, generated or explicit (see `CommodityPeriods`).\nRequired."
+              },
+        "quantity" : {
+                "$ref" : "#/definitions/quantra_CommodityQuantity",
+                "description" : "Quantity of the leg, per period or per pricing day. Required."
+              },
+        "price_type" : {
+                "$ref" : "#/definitions/quantra_CommodityLegPrice"
+              },
+        "price" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_CommodityFixedPrice" },{ "$ref" : "#/definitions/quantra_FuturesFloatingPrice" },{ "$ref" : "#/definitions/quantra_SpotFloatingPrice" }],
+                "description" : "Fixed price or floating price definition. Required."
+              },
+        "payment_calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Calendar for the payment date. Presence-required."
+              },
+        "payment_lag" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Business days of `payment_calendar` after the period's end date to\nits payment date. Presence-required."
+              },
+        "payment_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Business day convention of the payment date. Presence-required."
+              },
+        "discounting_curve" : {
+                "type" : "string",
+                "description" : "Id of a `pricing.rates.curves` curve the leg's payments are\ndiscounted on. Required. It decides the discounting; the caller is\nresponsible for it matching the currency of the prices supplied."
+              }
+      },
+      "required" : ["periods", "quantity", "price", "discounting_curve"],
+      "additionalProperties" : false
+    },
+    "quantra_CommoditySwap" : {
+      "type" : "object",
+      "description" : "Commodity swap: two legs, one paid and one received (`pay_receive`),\neach a fixed price or a floating price on futures or a spot assessment.",
+      "properties" : {
+        "leg1" : {
+                "$ref" : "#/definitions/quantra_CommoditySwapLeg",
+                "description" : "First leg. Required. Reported as `legs[0]`."
+              },
+        "leg2" : {
+                "$ref" : "#/definitions/quantra_CommoditySwapLeg",
+                "description" : "Second leg. Required. Reported as `legs[1]`."
+              }
+      },
+      "required" : ["leg1", "leg2"],
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/quantra_CommoditySwap"
+}

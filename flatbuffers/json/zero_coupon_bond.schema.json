@@ -233,6 +233,14 @@
       "type" : "string",
       "enum": ["None", "LedoitWolf", "Fixed"]
     },
+    "quantra_enums_CommodityQuantityBasis" : {
+      "type" : "string",
+      "enum": ["PerPeriod", "PerPricingDay"]
+    },
+    "quantra_enums_CommodityPriceSource" : {
+      "type" : "string",
+      "enum": ["Fixing", "Curve"]
+    },
     "quantra_ZeroCouponBond" : {
       "type" : "object",
       "description" : "Zero-coupon bond instrument. Pays a single redemption cashflow at maturity\nand carries no periodic coupons, so it needs no schedule.",

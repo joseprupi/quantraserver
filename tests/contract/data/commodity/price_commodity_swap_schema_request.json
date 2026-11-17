@@ -1,0 +1,120 @@
+{
+  "pricing": {
+    "as_of_date": "2026-11-13",
+    "rates": {
+      "curves": [
+        {
+          "id": "USD_FLAT",
+          "reference_date": "2026-11-13",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {"point_type": "ZeroRatePoint", "point": {"zero_rate": 0.04, "calendar": "UnitedStates", "business_day_convention": "Following", "compounding": "Continuous", "frequency": "Annual", "date": "2026-11-13"}},
+            {"point_type": "ZeroRatePoint", "point": {"zero_rate": 0.04, "calendar": "UnitedStates", "business_day_convention": "Following", "compounding": "Continuous", "frequency": "Annual", "tenor": {"n": 2, "unit": "Years"}}}
+          ]
+        }
+      ]
+    },
+    "commodity": {
+      "contracts": [
+        {
+          "id": "NYMEX_CL",
+          "pricing_calendar": "UnitedStatesNYSE",
+          "pricing_holidays": ["2026-12-24"],
+          "months": [
+            {"month": "2026-12", "last_trade_date": "2026-11-20", "price": 60.00},
+            {"month": "2027-01", "last_trade_date": "2026-12-17", "price": 60.20}
+          ],
+          "fixings": [
+            {"month": "2026-12", "date": "2026-11-12", "value": 59.90}
+          ]
+        }
+      ],
+      "spot_prices": [
+        {
+          "id": "SPOT_X",
+          "pricing_calendar": "UnitedStates",
+          "pricing_holidays": ["2026-12-24"],
+          "interpolation": "Linear",
+          "extrapolate_flat": true,
+          "points": [
+            {"date": "2026-11-13", "price": 3.10},
+            {"date": "2027-10-29", "price": 3.50}
+          ],
+          "fixings": [
+            {"date": "2026-11-12", "value": 3.05}
+          ]
+        }
+      ]
+    }
+  },
+  "swaps": [
+    {
+      "commodity_swap": {
+        "leg1": {
+          "pay_receive": "Pay",
+          "periods": {"start_date": "2026-11-01", "end_date": "2027-10-31", "frequency": "Monthly"},
+          "quantity": {"value": 10000.0, "basis": "PerPeriod"},
+          "price_type": "CommodityFixedPrice",
+          "price": {"price": 61.00},
+          "payment_calendar": "UnitedStates",
+          "payment_lag": 5,
+          "payment_convention": "Following",
+          "discounting_curve": "USD_FLAT"
+        },
+        "leg2": {
+          "pay_receive": "Receive",
+          "periods": {"start_date": "2026-11-01", "end_date": "2027-10-31", "frequency": "Monthly"},
+          "quantity": {"value": 10000.0, "basis": "PerPeriod"},
+          "price_type": "FuturesFloatingPrice",
+          "price": {"contract_id": "NYMEX_CL", "nearby": 1, "roll_days_before_expiry": 0, "spread": 0.25},
+          "payment_calendar": "UnitedStates",
+          "payment_lag": 5,
+          "payment_convention": "Following",
+          "discounting_curve": "USD_FLAT"
+        }
+      }
+    },
+    {
+      "commodity_swap": {
+        "leg1": {
+          "pay_receive": "Receive",
+          "periods": {
+            "periods": [
+              {"start_date": "2026-11-01", "end_date": "2026-11-30"},
+              {"start_date": "2026-12-01", "end_date": "2026-12-31"},
+              {"start_date": "2027-01-01", "end_date": "2027-01-31"}
+            ]
+          },
+          "quantity": {"values": [500.0, 600.0, 700.0], "basis": "PerPricingDay"},
+          "price_type": "SpotFloatingPrice",
+          "price": {"spot_id": "SPOT_X"},
+          "payment_calendar": "UnitedStates",
+          "payment_lag": 2,
+          "payment_convention": "ModifiedFollowing",
+          "discounting_curve": "USD_FLAT"
+        },
+        "leg2": {
+          "pay_receive": "Pay",
+          "periods": {
+            "periods": [
+              {"start_date": "2026-11-01", "end_date": "2026-11-30"},
+              {"start_date": "2026-12-01", "end_date": "2026-12-31"},
+              {"start_date": "2027-01-01", "end_date": "2027-01-31"}
+            ]
+          },
+          "quantity": {"values": [500.0, 600.0, 700.0], "basis": "PerPricingDay"},
+          "price_type": "CommodityFixedPrice",
+          "price": {"prices": [3.20, 3.30, 3.40]},
+          "payment_calendar": "UnitedStates",
+          "payment_lag": 2,
+          "payment_convention": "ModifiedFollowing",
+          "discounting_curve": "USD_FLAT"
+        }
+      }
+    }
+  ],
+  "include_flows": true,
+  "include_observations": true
+}

@@ -189,8 +189,21 @@ class Pricing(object):
             return obj
         return None
 
+    # Commodity futures contracts and spot price assessments, referenced by
+    # id from commodity swap legs. Optional. Used by: commodity swaps.
+    # Pricing
+    def Commodity(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.CommodityMarketData import CommodityMarketData
+            obj = CommodityMarketData()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
 def PricingStart(builder):
-    builder.StartObject(12)
+    builder.StartObject(13)
 
 def Start(builder):
     PricingStart(builder)
@@ -279,6 +292,12 @@ def PricingAddCorrelations(builder, correlations):
 def AddCorrelations(builder, correlations):
     PricingAddCorrelations(builder, correlations)
 
+def PricingAddCommodity(builder, commodity):
+    builder.PrependUOffsetTRelativeSlot(12, flatbuffers.number_types.UOffsetTFlags.py_type(commodity), 0)
+
+def AddCommodity(builder, commodity):
+    PricingAddCommodity(builder, commodity)
+
 def PricingEnd(builder):
     return builder.EndObject()
 
@@ -306,6 +325,7 @@ class PricingT(object):
         self.calendarOverrides = None  # type: List[CalendarOverrideT]
         self.fx = None  # type: Optional[FxMarketDataT]
         self.correlations = None  # type: Optional[CorrelationMarketDataT]
+        self.commodity = None  # type: Optional[CommodityMarketDataT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -362,6 +382,8 @@ class PricingT(object):
             self.fx = FxMarketDataT.InitFromObj(pricing.Fx())
         if pricing.Correlations() is not None:
             self.correlations = CorrelationMarketDataT.InitFromObj(pricing.Correlations())
+        if pricing.Commodity() is not None:
+            self.commodity = CommodityMarketDataT.InitFromObj(pricing.Commodity())
 
     # PricingT
     def Pack(self, builder):
@@ -401,6 +423,8 @@ class PricingT(object):
             fx = self.fx.Pack(builder)
         if self.correlations is not None:
             correlations = self.correlations.Pack(builder)
+        if self.commodity is not None:
+            commodity = self.commodity.Pack(builder)
         PricingStart(builder)
         if self.asOfDate is not None:
             PricingAddAsOfDate(builder, asOfDate)
@@ -426,5 +450,7 @@ class PricingT(object):
             PricingAddFx(builder, fx)
         if self.correlations is not None:
             PricingAddCorrelations(builder, correlations)
+        if self.commodity is not None:
+            PricingAddCommodity(builder, commodity)
         pricing = PricingEnd(builder)
         return pricing

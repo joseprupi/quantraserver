@@ -32,6 +32,7 @@ The folders state the pipeline every request goes through:
 | `evaluators/` | per-product `*_evaluator.{h,cpp}` — the QuantLib pricing/compute | **no — boundary-enforced** |
 | `market/` | shared market-data assembly: `pricing_registry(+builder)`, `curve_bootstrapper`, `curve_cache`, the `*_registry` files, `sabr_calibrate_cache`, `swaption_vol_runtime`/`_diagnostics`/`_model_calibration`, `grid_utils` | yes |
 | `domain/` | plain C++ types, no QuantLib pricing logic: `*_domain.h`, `enums_domain.{h,cpp}`, `pricing_context.h`, `eval_date_guard.h`, `swaption_rebump.h` | no |
+| `commodities/` | plain C++ pricing library for commodity swaps (periods, pricing days, futures contracts, spot prices, observations, `PriceCommoditySwap`), called by the commodity swap evaluator | no |
 | `common/` | `enum_convert.{h,cpp}` (FB enum ↔ QuantLib), `date_convert.{h,cpp}` (date helpers), `error.{h,cpp}` | no |
 
 ## Request flow

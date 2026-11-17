@@ -34,7 +34,9 @@ info:
     \ | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount\
     \ curves |\n| Cross-Currency Swap | `/price-cross-currency-swap` | Price cross-currency\
     \ swaps (two SwapLeg entries in two currencies, fixed / IBOR / overnight coupons,\
-    \ principal exchanges) |\n| Structured Note | `/price-structured-note` | Price\
+    \ principal exchanges) |\n| Commodity Swap | `/price-commodity-swap` | Price commodity\
+    \ swaps (fixed price against the average of a futures contract or a spot price,\
+    \ or two floating legs) |\n| Structured Note | `/price-structured-note` | Price\
     \ structured notes on equity-index baskets (autocallables, Phoenix / Athena coupons,\
     \ capital barriers) by Monte Carlo |\n| Calibrate Implied Forwards | `/calibrate-implied-forwards`\
     \ | Implied forwards, funding and dividend yields per expiry from listed-option\
@@ -53,7 +55,7 @@ info:
     \n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond\
     \ \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/bonds/fixed_rate_bond_request.json\n\
     ```\n"
-  version: 0.16.11
+  version: 0.17.0-commodities.1
   contact:
     name: Quantra API Support
     url: https://github.com/joseprupi/quantraserver
@@ -72,6 +74,8 @@ tags:
 - name: FX
   description: FX forwards and cross-currency swaps priced off FX spots and per-currency
     discount curves
+- name: Commodities
+  description: Commodity swaps priced off futures contracts and spot price assessments
 - name: Curves
   description: Yield curve bootstrapping and rate extraction
 - name: Inflation
@@ -1426,6 +1430,61 @@ paths:
                   error:
                     type: string
                     description: Error message
+  /price-commodity-swap:
+    post:
+      summary: Price Commodity Swap
+      description: 'Calculate the NPV, the fair fixed price (a fixed leg against a
+        floating leg) or the fair spread on leg2 (two floating legs), each leg''s
+        NPV, optional per-period flows with optional per-day observations, and the
+        sensitivity of the NPV to every futures or spot forward price read from today''s
+        market data, for commodity swaps: two legs, one paid and one received, each
+        a fixed price or the average over each calculation period''s pricing days
+        of a futures contract (nearby contract with a roll a given number of pricing
+        days before the last trading date) or of a spot price assessment (forward
+        prices interpolated by date), plus a spread. Periods are generated (calendar
+        months, quarters, half-years, years or one period) or explicit; quantities
+        are per period or per pricing day. Pricing days are the business days of the
+        contract''s or spot price''s pricing calendar (after pricing.calendar_overrides)
+        minus its own pricing_holidays. Past pricing days read the request''s fixings
+        (a missing one is a 400 naming the day and the month); later days read today''s
+        prices from pricing.commodity. Each period pays its quantity times its price
+        on the payment calendar after the payment lag, discounted on a pricing.rates
+        curve; a period paid on or before the valuation date is left out.'
+      tags:
+      - Commodities
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/quantra_PriceCommoditySwapRequest'
+      responses:
+        '200':
+          description: Successful pricing response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/quantra_PriceCommoditySwapResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
   /health:
     get:
       summary: Health Check
@@ -1887,6 +1946,16 @@ components:
       - None
       - LedoitWolf
       - Fixed
+    quantra_enums_CommodityQuantityBasis:
+      type: string
+      enum:
+      - PerPeriod
+      - PerPricingDay
+    quantra_enums_CommodityPriceSource:
+      type: string
+      enum:
+      - Fixing
+      - Curve
     quantra_Flow:
       type: string
       enum:
@@ -5093,6 +5162,212 @@ components:
           items:
             $ref: '#/components/schemas/quantra_CorrelationMatrixSpec'
       additionalProperties: false
+    quantra_CommodityContractMonth:
+      type: object
+      description: 'One delivery month of a futures contract with its last trading
+        date and
+
+        today''s price.'
+      properties:
+        month:
+          type: string
+          description: Delivery month, "YYYY-MM" (e.g. "2027-02"). Required.
+        last_trade_date:
+          type: string
+          description: 'Last trading date of this contract month (YYYY-MM-DD). The
+            contract
+
+            is read as the nearby contract up to and including this date,
+
+            shifted by the leg''s `roll_days_before_expiry`. Required.'
+        price:
+          type: number
+          description: 'Today''s futures price of this month. Needed only for months
+            read
+
+            after the valuation date; absent for months whose pricing days are all
+
+            in the past.'
+      required:
+      - month
+      - last_trade_date
+      additionalProperties: false
+    quantra_CommodityContractFixing:
+      type: object
+      description: A past daily settlement of one contract month.
+      properties:
+        month:
+          type: string
+          description: Delivery month the settlement belongs to, "YYYY-MM". Required.
+        date:
+          type: string
+          description: Settlement date (YYYY-MM-DD). Required.
+        value:
+          type: number
+          description: 'Settlement price, as quoted. Presence-required: an omitted
+            value is a
+
+            400, never a silent 0.'
+      required:
+      - month
+      - date
+      additionalProperties: false
+    quantra_CommodityContractSpec:
+      type: object
+      description: 'A futures contract and its delivery months. Registered once per
+        request,
+
+        referenced by id from `FuturesFloatingPrice.contract_id`.'
+      properties:
+        id:
+          type: string
+          description: Unique identifier (e.g. "NYMEX_CL"). Required.
+        pricing_calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        pricing_holidays:
+          type: array
+          description: 'Dates (YYYY-MM-DD) that are not pricing days of this contract,
+
+            applied on top of `pricing_calendar` and of
+
+            `pricing.calendar_overrides`. They affect no other use of that
+
+            calendar in the request. This is how an exchange''s own holidays are
+
+            given when the named calendar differs from the exchange''s.'
+          items:
+            type: string
+        months:
+          type: array
+          description: 'The delivery months in ascending order, with last trading
+            dates and
+
+            today''s prices. `FuturesFloatingPrice.nearby` counts through this
+
+            list, so a missing month makes a later month the nearby one.
+
+            Required.'
+          items:
+            $ref: '#/components/schemas/quantra_CommodityContractMonth'
+        fixings:
+          type: array
+          description: 'Past settlements of the contract''s months. A pricing day
+            before the
+
+            valuation date needs a fixing (a missing one is a 400); on the
+
+            valuation date the fixing is used when given, otherwise today''s
+
+            price.'
+          items:
+            $ref: '#/components/schemas/quantra_CommodityContractFixing'
+      required:
+      - id
+      - months
+      additionalProperties: false
+    quantra_CommoditySpotFixing:
+      type: object
+      description: A past published price of a spot assessment.
+      properties:
+        date:
+          type: string
+          description: Publication date (YYYY-MM-DD). Required.
+        value:
+          type: number
+          description: 'Published price, as quoted. Presence-required: an omitted
+            value is a
+
+            400, never a silent 0.'
+      required:
+      - date
+      additionalProperties: false
+    quantra_CommoditySpotPoint:
+      type: object
+      description: One forward price of a spot assessment.
+      properties:
+        date:
+          type: string
+          description: Date the price applies to (YYYY-MM-DD). Required.
+        price:
+          type: number
+          description: 'Forward price for that date, as quoted.
+
+            Presence-required.'
+      required:
+      - date
+      additionalProperties: false
+    quantra_CommoditySpotSpec:
+      type: object
+      description: 'A spot price assessment (for example a published daily price)
+        with its
+
+        forward prices by date. Registered once per request, referenced by id
+
+        from `SpotFloatingPrice.spot_id`.'
+      properties:
+        id:
+          type: string
+          description: Unique identifier. Required.
+        pricing_calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        pricing_holidays:
+          type: array
+          description: 'Dates (YYYY-MM-DD) that are not pricing days of this spot
+            price,
+
+            applied on top of `pricing_calendar` and of
+
+            `pricing.calendar_overrides`. They affect no other use of that
+
+            calendar in the request. This is how an exchange''s own holidays are
+
+            given when the named calendar differs from the exchange''s.'
+          items:
+            type: string
+        interpolation:
+          $ref: '#/components/schemas/quantra_enums_Interpolator'
+        extrapolate_flat:
+          type: boolean
+          description: 'When false, a pricing day before the first point or after
+            the last
+
+            point is a 400; when true the first price is held flat before the
+
+            first point and the last price after the last point.'
+        points:
+          type: array
+          description: Forward prices by date, in ascending date order. Required.
+          items:
+            $ref: '#/components/schemas/quantra_CommoditySpotPoint'
+        fixings:
+          type: array
+          description: 'Past published prices. A pricing day before the valuation
+            date needs
+
+            a fixing (a missing one is a 400); on the valuation date the fixing
+
+            is used when given, otherwise today''s price.'
+          items:
+            $ref: '#/components/schemas/quantra_CommoditySpotFixing'
+      required:
+      - id
+      - points
+      additionalProperties: false
+    quantra_CommodityMarketData:
+      type: object
+      description: Commodity market data grouped under the shared Pricing context.
+      properties:
+        contracts:
+          type: array
+          description: Futures contracts referenced by commodity swap legs.
+          items:
+            $ref: '#/components/schemas/quantra_CommodityContractSpec'
+        spot_prices:
+          type: array
+          description: Spot price assessments referenced by commodity swap legs.
+          items:
+            $ref: '#/components/schemas/quantra_CommoditySpotSpec'
+      additionalProperties: false
     quantra_RatesMarketData:
       type: object
       description: Rates market data shared across interest-rate products.
@@ -5247,6 +5522,8 @@ components:
           $ref: '#/components/schemas/quantra_FxMarketData'
         correlations:
           $ref: '#/components/schemas/quantra_CorrelationMarketData'
+        commodity:
+          $ref: '#/components/schemas/quantra_CommodityMarketData'
       required:
       - as_of_date
       additionalProperties: false
@@ -7245,6 +7522,410 @@ components:
       required:
       - cds_list
       additionalProperties: false
+    quantra_CommodityLegPrice:
+      type: string
+      enum:
+      - NONE
+      - CommodityFixedPrice
+      - FuturesFloatingPrice
+      - SpotFloatingPrice
+    quantra_CommodityPeriod:
+      type: object
+      description: One calculation period. Both dates are included.
+      properties:
+        start_date:
+          type: string
+          description: First day of the period, included (YYYY-MM-DD). Required.
+        end_date:
+          type: string
+          description: 'Last day of the period, included (YYYY-MM-DD). On or after
+
+            `start_date` (400 otherwise). Required.'
+      required:
+      - start_date
+      - end_date
+      additionalProperties: false
+    quantra_CommodityPeriods:
+      type: object
+      description: 'The calculation periods of a commodity leg, in one of two forms;
+        exactly
+
+        one is given (400 otherwise, including a mix of the two):
+
+        generated: `start_date`, `end_date` and `frequency` all present, no
+
+        `periods`;
+
+        explicit: only `periods`.
+
+        Dates are never adjusted for weekends or holidays: a period''s pricing
+
+        days are read inside it from the pricing calendar.
+
+        Generated periods are calendar months, quarters, half-years or years
+
+        (`frequency` Monthly, Quarterly, Semiannual, Annual), the first period
+
+        cut to start at `start_date` and the last cut to end at `end_date`.
+
+        Example: 2026-11-15 to 2027-03-31 Monthly gives 15-30 November, December,
+
+        January, February and March. `Once` gives one period from `start_date` to
+
+        `end_date`. Any other frequency is a 400.'
+      properties:
+        start_date:
+          type: string
+          description: 'Generated form: first day of the first period, included (YYYY-MM-DD).'
+        end_date:
+          type: string
+          description: 'Generated form: last day of the last period, included (YYYY-MM-DD).'
+        frequency:
+          $ref: '#/components/schemas/quantra_enums_Frequency'
+        periods:
+          type: array
+          description: 'Explicit form: the periods in ascending order. They must not
+            overlap;
+
+            gaps between them are allowed.'
+          items:
+            $ref: '#/components/schemas/quantra_CommodityPeriod'
+      additionalProperties: false
+    quantra_CommodityQuantity:
+      type: object
+      description: 'Quantity delivered by a commodity swap leg. The quantity is in
+        the price
+
+        unit of the contract or spot price it is priced against.'
+      properties:
+        value:
+          type: number
+          description: 'One quantity for every period. Exactly one of `value` and
+            `values`
+
+            is given.'
+        values:
+          type: array
+          description: 'One quantity per period, in period order. The count must equal
+            the
+
+            number of periods (400 otherwise).'
+          items:
+            type: number
+        basis:
+          $ref: '#/components/schemas/quantra_enums_CommodityQuantityBasis'
+      additionalProperties: false
+    quantra_CommodityFixedPrice:
+      type: object
+      description: Fixed price of a commodity swap leg.
+      properties:
+        price:
+          type: number
+          description: 'One price for every period, per unit of the quantity. Exactly
+            one of
+
+            `price` and `prices` is given.'
+        prices:
+          type: array
+          description: 'One price per period, in period order. The count must equal
+            the
+
+            number of periods (400 otherwise).'
+          items:
+            type: number
+      additionalProperties: false
+    quantra_FuturesFloatingPrice:
+      type: object
+      description: 'Floating price from a futures contract: the average, over the
+        period''s
+
+        pricing days, of the nearby contract''s price.'
+      properties:
+        contract_id:
+          type: string
+          description: Id of a `pricing.commodity.contracts` entry. Required.
+        nearby:
+          type: integer
+          description: 'Which contract is read: 1 is the front month, 2 the next one.
+
+            Presence-required.'
+          minimum: -2147483648
+          maximum: 2147483647
+        roll_days_before_expiry:
+          type: integer
+          description: 'A pricing day rolls to the next contract this many pricing
+            days
+
+            before the last trading date: 0 reads the front month on its last
+
+            trading date. Presence-required.'
+          minimum: -2147483648
+          maximum: 2147483647
+        spread:
+          type: number
+          description: Added to each period's average, in price units. Defaults to
+            0.
+      required:
+      - contract_id
+      additionalProperties: false
+    quantra_SpotFloatingPrice:
+      type: object
+      description: 'Floating price from a spot assessment: the average, over the period''s
+
+        pricing days, of the published price.'
+      properties:
+        spot_id:
+          type: string
+          description: Id of a `pricing.commodity.spot_prices` entry. Required.
+        spread:
+          type: number
+          description: Added to each period's average, in price units. Defaults to
+            0.
+      required:
+      - spot_id
+      additionalProperties: false
+    quantra_CommoditySwapLeg:
+      type: object
+      description: One leg of a commodity swap.
+      properties:
+        pay_receive:
+          $ref: '#/components/schemas/quantra_enums_PayReceive'
+        periods:
+          $ref: '#/components/schemas/quantra_CommodityPeriods'
+        quantity:
+          $ref: '#/components/schemas/quantra_CommodityQuantity'
+        price_type:
+          $ref: '#/components/schemas/quantra_CommodityLegPrice'
+        price:
+          description: Fixed price or floating price definition. Required.
+          anyOf:
+          - $ref: '#/components/schemas/quantra_CommodityFixedPrice'
+          - $ref: '#/components/schemas/quantra_FuturesFloatingPrice'
+          - $ref: '#/components/schemas/quantra_SpotFloatingPrice'
+        payment_calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        payment_lag:
+          type: integer
+          description: 'Business days of `payment_calendar` after the period''s end
+            date to
+
+            its payment date. Presence-required.'
+          minimum: -2147483648
+          maximum: 2147483647
+        payment_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+        discounting_curve:
+          type: string
+          description: 'Id of a `pricing.rates.curves` curve the leg''s payments are
+
+            discounted on. Required. It decides the discounting; the caller is
+
+            responsible for it matching the currency of the prices supplied.'
+      required:
+      - periods
+      - quantity
+      - price
+      - discounting_curve
+      additionalProperties: false
+    quantra_CommoditySwap:
+      type: object
+      description: 'Commodity swap: two legs, one paid and one received (`pay_receive`),
+
+        each a fixed price or a floating price on futures or a spot assessment.'
+      properties:
+        leg1:
+          $ref: '#/components/schemas/quantra_CommoditySwapLeg'
+        leg2:
+          $ref: '#/components/schemas/quantra_CommoditySwapLeg'
+      required:
+      - leg1
+      - leg2
+      additionalProperties: false
+    quantra_CommodityObservation:
+      type: object
+      description: One price observed on a pricing day of a floating flow.
+      properties:
+        date:
+          type: string
+          description: Pricing day (YYYY-MM-DD).
+        contract_month:
+          type: string
+          description: 'Delivery month of the contract read, "YYYY-MM". Absent for
+            a price
+
+            read from a spot assessment.'
+        price:
+          type: number
+          description: The price observed.
+        source:
+          $ref: '#/components/schemas/quantra_enums_CommodityPriceSource'
+      additionalProperties: false
+    quantra_CommodityFlow:
+      type: object
+      description: One calculation period of a commodity swap leg.
+      properties:
+        start_date:
+          type: string
+          description: First day of the period (YYYY-MM-DD).
+        end_date:
+          type: string
+          description: Last day of the period, included (YYYY-MM-DD).
+        payment_date:
+          type: string
+          description: Payment date (YYYY-MM-DD).
+        pricing_days:
+          type: integer
+          description: Number of pricing days in the period.
+          minimum: -2147483648
+          maximum: 2147483647
+        realised_days:
+          type: integer
+          description: Pricing days whose price is a fixing.
+          minimum: -2147483648
+          maximum: 2147483647
+        average:
+          type: number
+          description: 'Average price of the period, floating leg only (before the
+            spread
+
+            is added).'
+        realised_average:
+          type: number
+          description: Average of the realised days' prices. Absent when there are
+            none.
+        expected_average:
+          type: number
+          description: 'Average of the days read from today''s market data. Absent
+            when there
+
+            are none.'
+        spread:
+          type: number
+          description: 'Floating leg only: the spread added to the average, repeated
+            on every
+
+            flow so each row is self-contained.'
+        price:
+          type: number
+          description: Fixed price of the period, fixed leg only.
+        quantity:
+          type: number
+          description: Quantity of the period, in the price unit of the contract or
+            spot price.
+        amount:
+          type: number
+          description: 'Signed payment amount, quantity times price, in the currency
+            of the
+
+            prices supplied: positive when received, negative when paid.'
+        discount:
+          type: number
+          description: Discount factor from the payment date.
+        present_value:
+          type: number
+          description: 'Present value of the amount: amount * discount.'
+        observations:
+          type: array
+          description: One entry per pricing day; only with `include_observations`.
+          items:
+            $ref: '#/components/schemas/quantra_CommodityObservation'
+      additionalProperties: false
+    quantra_CommoditySwapLegResult:
+      type: object
+      description: Result of one commodity swap leg.
+      properties:
+        npv:
+          type: number
+          description: 'Signed present value of the leg: the sum of its
+
+            flows'' present values.'
+        flows:
+          type: array
+          description: The leg's periods in payment order; only with `include_flows`.
+          items:
+            $ref: '#/components/schemas/quantra_CommodityFlow'
+      additionalProperties: false
+    quantra_CommodityPriceDelta:
+      type: object
+      description: Sensitivity of the swap's NPV to one input price.
+      properties:
+        contract_id:
+          type: string
+          description: Contract id of a futures price. Absent on a spot price.
+        month:
+          type: string
+          description: 'Delivery month of the futures price, "YYYY-MM". Absent on
+            a spot
+
+            price.'
+        spot_id:
+          type: string
+          description: Spot id of a spot forward price. Absent on a futures price.
+        date:
+          type: string
+          description: 'Date of the spot forward price (YYYY-MM-DD). Absent on a futures
+
+            price.'
+        delta:
+          type: number
+          description: Change of the swap's NPV per unit change of this price.
+      additionalProperties: false
+    quantra_CommoditySwapResponse:
+      type: object
+      description: 'Commodity swap pricing result, as of the valuation date. Each
+        flow''s
+
+        `amount` is the leg''s sign (-1 for `Pay`, +1 for `Receive`) times the
+
+        period''s quantity times its price (the fixed price, or the average plus
+
+        the spread); `present_value` is the amount times `discount`;
+
+        `legs[i].npv` is the sum of the leg''s present values and
+
+        `npv = legs[0].npv + legs[1].npv`.'
+      properties:
+        npv:
+          type: number
+          description: 'Total present value, in the currency of the prices supplied,
+            positive
+
+            in favour of the reported party.'
+        fair_fixed_price:
+          type: number
+          description: 'The fixed price that zeroes `npv`, the floating leg held fixed.
+
+            Present only for a fixed leg against a floating leg.'
+        fair_spread:
+          type: number
+          description: 'The spread on the second floating leg that zeroes `npv`. Present
+            only
+
+            for a floating leg against a floating leg.'
+        legs:
+          type: array
+          description: One result per leg, in request order (`leg1` then `leg2`).
+          items:
+            $ref: '#/components/schemas/quantra_CommoditySwapLegResult'
+        deltas:
+          type: array
+          description: Sensitivities of `npv` to each input price used.
+          items:
+            $ref: '#/components/schemas/quantra_CommodityPriceDelta'
+      required:
+      - legs
+      additionalProperties: false
+    quantra_PriceCommoditySwapResponse:
+      type: object
+      description: Response wrapper for multiple commodity swaps, in request order.
+      properties:
+        swaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_CommoditySwapResponse'
+      required:
+      - swaps
+      additionalProperties: false
     quantra_CrossCurrencySwap:
       type: object
       description: 'Cross-currency swap: two `SwapLeg`s in two different currencies
@@ -8086,6 +8767,42 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_PriceCDS'
+      additionalProperties: false
+    quantra_PriceCommoditySwap:
+      type: object
+      description: 'One commodity swap to price. Per-swap pricing options would be
+        added
+
+        here.'
+      properties:
+        commodity_swap:
+          $ref: '#/components/schemas/quantra_CommoditySwap'
+      required:
+      - commodity_swap
+      additionalProperties: false
+    quantra_PriceCommoditySwapRequest:
+      type: object
+      description: Request to price one or more commodity swaps against one market.
+      properties:
+        pricing:
+          $ref: '#/components/schemas/quantra_Pricing'
+        swaps:
+          type: array
+          description: The swaps to price; results come back in request order. Required.
+          items:
+            $ref: '#/components/schemas/quantra_PriceCommoditySwap'
+        include_flows:
+          type: boolean
+          description: When true every response leg lists its flows.
+        include_observations:
+          type: boolean
+          description: 'When true every flow lists its observations, one per pricing
+            day.
+
+            Needs `include_flows`: true without it is a 400.'
+      required:
+      - pricing
+      - swaps
       additionalProperties: false
     quantra_PriceCrossCurrencySwap:
       type: object

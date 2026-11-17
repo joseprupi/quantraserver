@@ -79,6 +79,7 @@ Quantra provides a high-performance JSON HTTP API for pricing financial instrume
 | Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |
 | FX Forward | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount curves |
 | Cross-Currency Swap | `/price-cross-currency-swap` | Price cross-currency swaps (two SwapLeg entries in two currencies, fixed / IBOR / overnight coupons, principal exchanges) |
+| Commodity Swap | `/price-commodity-swap` | Price commodity swaps (fixed price against the average of a futures contract or a spot price, or two floating legs) |
 | Structured Note | `/price-structured-note` | Price structured notes on equity-index baskets (autocallables, Phoenix / Athena coupons, capital barriers) by Monte Carlo |
 | Calibrate Implied Forwards | `/calibrate-implied-forwards` | Implied forwards, funding and dividend yields per expiry from listed-option quotes (put-call parity fit), with a ready-to-use dividend curve |
 | Calibrate Vol Surface | `/calibrate-vol-surface` | Black implied-vol surface from listed-option quotes (Andreasen-Huge, SVI per expiry or eSSVI), as ready-to-paste payloads with one arbitrage-free flag each |
@@ -234,6 +235,11 @@ ENDPOINT_METADATA = {
         "summary": "Price Cross-Currency Swap",
         "description": "Calculate the NPV in a reporting currency, each leg's NPV in its own currency and in the reporting currency, the fair fixed rate (exactly one fixed leg) or the fair spread on leg2 (no fixed leg), and optional per-leg flows (coupons and notional exchanges) for cross-currency swaps: two SwapLeg entries in two currencies, each paying or receiving fixed, IBOR or compounded/averaged overnight coupons (FixedCoupons / IborCoupons / OvernightCoupons), discounted on its own curve, with initial and/or final principal exchanges, converted at the as-of exchange rate implied by an FX spot (pricing.fx.spots) and the two discount curves. QuantLib leg cash-flow primitives only (the same leg builder as the single-currency swap endpoints); no currency is inferred from curve or index ids.",
         "tags": ["FX"]
+    },
+    "commodity_swap": {
+        "summary": "Price Commodity Swap",
+        "description": "Calculate the NPV, the fair fixed price (a fixed leg against a floating leg) or the fair spread on leg2 (two floating legs), each leg's NPV, optional per-period flows with optional per-day observations, and the sensitivity of the NPV to every futures or spot forward price read from today's market data, for commodity swaps: two legs, one paid and one received, each a fixed price or the average over each calculation period's pricing days of a futures contract (nearby contract with a roll a given number of pricing days before the last trading date) or of a spot price assessment (forward prices interpolated by date), plus a spread. Periods are generated (calendar months, quarters, half-years, years or one period) or explicit; quantities are per period or per pricing day. Pricing days are the business days of the contract's or spot price's pricing calendar (after pricing.calendar_overrides) minus its own pricing_holidays. Past pricing days read the request's fixings (a missing one is a 400 naming the day and the month); later days read today's prices from pricing.commodity. Each period pays its quantity times its price on the payment calendar after the payment lag, discounted on a pricing.rates curve; a period paid on or before the valuation date is left out.",
+        "tags": ["Commodities"]
     },
     "structured_note": {
         "summary": "Price Structured Note",
@@ -609,6 +615,7 @@ def generate_openapi() -> Dict[str, Any]:
             {"name": "Credit Derivatives", "description": "Credit default swaps"},
             {"name": "Equity Derivatives", "description": "Equity option and structured-note (basket autocallable) pricing"},
             {"name": "FX", "description": "FX forwards and cross-currency swaps priced off FX spots and per-currency discount curves"},
+            {"name": "Commodities", "description": "Commodity swaps priced off futures contracts and spot price assessments"},
             {"name": "Curves", "description": "Yield curve bootstrapping and rate extraction"},
             {"name": "Inflation", "description": "Inflation curve bootstrap and sampling"},
             {"name": "Volatility", "description": "Volatility surface creation and sampling"},
