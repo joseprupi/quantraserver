@@ -137,7 +137,7 @@ JsonResponse JsonResponse::ServerError(const std::string& error) {
     return {false, 500, R"({"error": ")" + JsonEscape(error) + R"("})"};
 }
 
-JsonResponse JsonResponse::GrpcError(const grpc::Status& status) {
+JsonResponse JsonResponse::GrpcError(const grpc::Status& status, const std::string& extra) {
     auto codeName = [](grpc::StatusCode code) -> const char* {
         switch (code) {
             case grpc::StatusCode::OK: return "OK";
@@ -174,7 +174,13 @@ JsonResponse JsonResponse::GrpcError(const grpc::Status& status) {
     std::string code_name = codeName(status.error_code());
     oss << R"({"error": ")" << JsonEscape(error_text) << R"(", "code": )" << status.error_code()
         << R"(, "code_name": ")" << JsonEscape(code_name) << R"(", "message": ")"
-        << JsonEscape(details) << R"("})";
+        << JsonEscape(details) << R"(")";
+    // Structured details (a JSON object from the engine) only when present:
+    // every other error body is unchanged.
+    if (!extra.empty()) {
+        oss << R"(, "details": )" << extra;
+    }
+    oss << "}";
     return {false, GrpcToHttpStatus(status), oss.str()};
 }
 
@@ -241,7 +247,7 @@ public:
                         << " Ensure json_server points to the correct sync_server binary/version."
                         << std::endl;
                 }
-                return JsonResponse::GrpcError(status);
+                return JsonResponse::GrpcError(status, QuantraClient::ErrorDetails(context));
             }
 
             if (!response.data()) {
@@ -393,6 +399,13 @@ JsonResponse QuantraClient::PriceCommoditySwapJSON(
     const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<PriceCommoditySwapRequest, PriceCommoditySwapResponse>(
         ProductType::CommoditySwap, json, &QuantraServer::Stub::PriceCommoditySwap, request_id);
+}
+
+JsonResponse QuantraClient::BuildCommodityCurvesJSON(
+    const std::string& json, const std::string& request_id) {
+    return impl_->CallJSON<BuildCommodityCurvesRequest, BuildCommodityCurvesResponse>(
+        ProductType::BuildCommodityCurves, json, &QuantraServer::Stub::BuildCommodityCurves,
+        request_id);
 }
 
 JsonResponse QuantraClient::PriceStructuredNoteJSON(
@@ -616,6 +629,28 @@ grpc::Status QuantraClient::PriceCommoditySwap(
     grpc::ClientContext context;
     SetDefaultDeadline(context);
     return impl_->GetStub()->PriceCommoditySwap(&context, request, response);
+}
+
+grpc::Status QuantraClient::BuildCommodityCurves(
+    const Message<BuildCommodityCurvesRequest>& request,
+    Message<BuildCommodityCurvesResponse>* response,
+    std::string* error_details) {
+    grpc::ClientContext context;
+    SetDefaultDeadline(context);
+    auto status = impl_->GetStub()->BuildCommodityCurves(&context, request, response);
+    if (error_details != nullptr) {
+        *error_details = status.ok() ? std::string() : ErrorDetails(context);
+    }
+    return status;
+}
+
+std::string QuantraClient::ErrorDetails(const grpc::ClientContext& context) {
+    const auto& trailers = context.GetServerTrailingMetadata();
+    const auto it = trailers.find("quantra-error-details-bin");
+    if (it == trailers.end()) {
+        return std::string();
+    }
+    return std::string(it->second.data(), it->second.size());
 }
 
 grpc::Status QuantraClient::PriceStructuredNote(

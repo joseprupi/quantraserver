@@ -32,7 +32,7 @@ The folders state the pipeline every request goes through:
 | `evaluators/` | per-product `*_evaluator.{h,cpp}` — the QuantLib pricing/compute | **no — boundary-enforced** |
 | `market/` | shared market-data assembly: `pricing_registry(+builder)`, `curve_bootstrapper`, `curve_cache`, the `*_registry` files, `sabr_calibrate_cache`, `swaption_vol_runtime`/`_diagnostics`/`_model_calibration`, `grid_utils` | yes |
 | `domain/` | plain C++ types, no QuantLib pricing logic: `*_domain.h`, `enums_domain.{h,cpp}`, `pricing_context.h`, `eval_date_guard.h`, `swaption_rebump.h` | no |
-| `commodities/` | plain C++ pricing library for commodity swaps (periods, pricing days, futures contracts, spot prices, observations, `PriceCommoditySwap`), called by the commodity swap evaluator | no |
+| `commodities/` | plain C++ pricing library for commodity swaps (periods, pricing days, futures contracts, spot prices, observations, `PriceCommoditySwap`) and for building a futures contract from futures prices and average-price quotes (`BuildCommodityCurve`, `BuildFuturesCurve`, the small linear algebra of `commodity_linear_system`), called by the commodity swap and commodity curve build evaluators | no |
 | `common/` | `enum_convert.{h,cpp}` (FB enum ↔ QuantLib), `date_convert.{h,cpp}` (date helpers), `error.{h,cpp}` | no |
 
 ## Request flow
@@ -45,7 +45,9 @@ For a pricing request, `ProductEndpoint<Req, Resp, Mapper, Evaluator>::request()
 3. `PricingRegistryBuilder{}.build(req->pricing())` — assemble market data
    (curves, indices, vol surfaces, models, credit curves) into a `PricingRegistry`,
    plus a `PricingContext`. Uses `decode/market/` and `market/`. Skipped for endpoints
-   with no `pricing` block (e.g. calendars).
+   with no `pricing` block (e.g. calendars), and when a mapper's
+   `needsPricingRegistry(inputs)` returns false (the commodity curve build
+   needs a curve only when an average quote names a discounting curve).
 4. `evaluator_.evaluate(inputs, reg, ctx)` — **pure QuantLib**, returns a plain
    `Result`. No FlatBuffers here.
 5. `mapper_.toResponse(builder, result)` — plain `Result` → FlatBuffers response.

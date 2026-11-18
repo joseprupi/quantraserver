@@ -82,11 +82,26 @@ class QuantraError : public std::exception {
 public:
     // Add more detail to the exception
     QuantraError(const std::string& message = "");
+    /// `details`: a JSON object (text) with structured data about the error,
+    /// for a program to act on; empty when there is none. `path`: the request
+    /// field the error is about, as the raising code composed it (e.g.
+    /// `curves[0].average_quotes[1].price`); empty when the raising code had
+    /// none. The path is data for the endpoint that raised the error: it is
+    /// sent to the caller only inside `details`, by the endpoints that choose
+    /// to (today the commodity curve build).
+    QuantraError(
+        const std::string& message, const std::string& details, const std::string& path = "");
     ~QuantraError() throw() {}
     const char* what() const throw() { return message_->c_str(); }
+    /// The JSON object given at construction, or an empty string.
+    const std::string& details() const { return *details_; }
+    /// The request field the error is about, or an empty string.
+    const std::string& path() const { return *path_; }
 
 private:
     std::shared_ptr<std::string> message_;
+    std::shared_ptr<std::string> details_;
+    std::shared_ptr<std::string> path_;
 };
 
 // Client-error subclasses. Handlers throw these (via the macros below) when
@@ -94,10 +109,22 @@ private:
 // CallDataGeneric translates them to gRPC INVALID_ARGUMENT (HTTP 400) and
 // NOT_FOUND (HTTP 404) respectively. Existing handlers that throw the base
 // QuantraError continue to surface as ABORTED (HTTP 500), unchanged.
+//
+// An invalid argument may carry `details`, a JSON object: CallDataGeneric
+// sends it in the trailing metadata key kQuantraErrorDetailsKey and the JSON
+// gateway returns it as the `details` field of the error body. Without
+// details the error body is unchanged.
 class QuantraInvalidArgument : public QuantraError {
 public:
     explicit QuantraInvalidArgument(const std::string& message = "") : QuantraError(message) {}
+    QuantraInvalidArgument(
+        const std::string& message, const std::string& details, const std::string& path = "")
+        : QuantraError(message, details, path) {}
 };
+
+/// gRPC trailing metadata key of an error's details (a JSON object, UTF-8).
+/// Binary (`-bin`) so any byte passes unchanged.
+inline constexpr const char* kQuantraErrorDetailsKey = "quantra-error-details-bin";
 
 class QuantraNotFound : public QuantraError {
 public:
@@ -133,6 +160,13 @@ inline void QUANTRA_INVALID_ARGUMENT(std::string message) {
     msg_stream << message;
     throw QuantraInvalidArgument(msg_stream.str());
 };
+
+/// An invalid argument about the request field `path` (kept on the error as
+/// data, see QuantraError::path); the message is `message`, unchanged.
+[[noreturn]] inline void QuantraInvalidArgumentAt(
+    const std::string& path, const std::string& message) {
+    throw QuantraInvalidArgument(message, std::string(), path);
+}
 
 inline void QUANTRA_NOT_FOUND(std::string message) {
     std::ostringstream msg_stream;

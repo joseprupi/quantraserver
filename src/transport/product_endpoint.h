@@ -62,6 +62,22 @@ struct has_build_error_hook<
     std::void_t<decltype(std::declval<const Mapper&>().onRegistryBuildError(
         std::declval<Inputs&>(), std::declval<const std::string&>()))>> : std::true_type {};
 
+/// Detects a Mapper with a `bool needsPricingRegistry(const Inputs&) const`
+/// hook. Such an endpoint builds the market-data registry (which requires
+/// `pricing.rates.curves`) only when the decoded request needs it; otherwise
+/// it reads from `pricing` only what its mapper decodes itself (e.g. the
+/// valuation date) and the evaluator receives a default-constructed registry
+/// and context. Calendar overrides apply either way.
+template <class Mapper, class Inputs, class = void>
+struct has_registry_need_hook : std::false_type {};
+
+template <class Mapper, class Inputs>
+struct has_registry_need_hook<
+    Mapper,
+    Inputs,
+    std::void_t<decltype(std::declval<const Mapper&>().needsPricingRegistry(
+        std::declval<const Inputs&>()))>> : std::true_type {};
+
 } // namespace detail
 
 /**
@@ -125,8 +141,14 @@ public:
         budget.check();
         PricingRegistry reg;
         PricingContext ctx;
+        [[maybe_unused]] bool buildRegistry = true;
+        if constexpr (detail::has_registry_need_hook<Mapper, decltype(inputs)>::value) {
+            buildRegistry = mapper_.needsPricingRegistry(inputs);
+        }
         if constexpr (detail::has_pricing<Req>::value) {
-            if constexpr (detail::has_build_error_hook<Mapper, decltype(inputs)>::value) {
+            if (!buildRegistry) {
+                // The mapper decoded everything it reads from `pricing`.
+            } else if constexpr (detail::has_build_error_hook<Mapper, decltype(inputs)>::value) {
                 // List/query endpoint: a registry-build failure becomes a
                 // per-item error on every query (the evaluator then emits them),
                 // so the response stays a per-item list at HTTP 200.

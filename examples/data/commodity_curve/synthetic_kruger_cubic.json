@@ -1,0 +1,88 @@
+{
+  "pricing": {
+    "as_of_date": "2026-11-13"
+  },
+  "curves": [
+    {
+      "contract": {
+        "id": "SYN_CL",
+        "pricing_calendar": "WeekendsOnly",
+        "pricing_holidays": [
+          "2026-11-26",
+          "2026-12-25",
+          "2027-01-01",
+          "2027-01-18",
+          "2027-02-15",
+          "2027-03-26",
+          "2027-05-31",
+          "2027-07-05",
+          "2027-09-06"
+        ],
+        "months": [
+          {
+            "month": "2026-11",
+            "last_trade_date": "2026-10-20"
+          },
+          {
+            "month": "2026-12",
+            "last_trade_date": "2026-11-20",
+            "price": 60.0
+          },
+          {
+            "month": "2027-01",
+            "last_trade_date": "2026-12-21",
+            "price": 60.4
+          },
+          {
+            "month": "2027-02",
+            "last_trade_date": "2027-01-20"
+          },
+          {
+            "month": "2027-03",
+            "last_trade_date": "2027-02-22",
+            "price": 61.0
+          },
+          {
+            "month": "2027-04",
+            "last_trade_date": "2027-03-22"
+          },
+          {
+            "month": "2027-05",
+            "last_trade_date": "2027-04-20"
+          },
+          {
+            "month": "2027-06",
+            "last_trade_date": "2027-05-20",
+            "price": 61.5
+          },
+          {
+            "month": "2027-07",
+            "last_trade_date": "2027-06-22"
+          },
+          {
+            "month": "2027-08",
+            "last_trade_date": "2027-07-20"
+          },
+          {
+            "month": "2027-09",
+            "last_trade_date": "2027-08-20"
+          },
+          {
+            "month": "2027-10",
+            "last_trade_date": "2027-09-21"
+          },
+          {
+            "month": "2027-11",
+            "last_trade_date": "2027-10-20"
+          },
+          {
+            "month": "2027-12",
+            "last_trade_date": "2027-11-19",
+            "price": 62.1
+          }
+        ]
+      },
+      "interpolation": "KrugerCubic"
+    }
+  ]
+}

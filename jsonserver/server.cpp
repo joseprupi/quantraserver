@@ -809,6 +809,15 @@ int main(int argc, char** argv) {
                     });
             });
 
+        CROW_ROUTE(app, "/build-commodity-curves")
+            .methods("POST"_method)([&](const crow::request& req) {
+                return respond(
+                    "/build-commodity-curves", req,
+                    [&](const std::string& body, const std::string& request_id) {
+                        return client.BuildCommodityCurvesJSON(body, request_id);
+                    });
+            });
+
         CROW_ROUTE(app, "/price-structured-note")
             .methods("POST"_method)([&](const crow::request& req) {
                 return respond(
@@ -887,6 +896,7 @@ int main(int argc, char** argv) {
                   << "  POST /price-fx-forward\n"
                   << "  POST /price-cross-currency-swap\n"
                   << "  POST /price-commodity-swap\n"
+                  << "  POST /build-commodity-curves\n"
                   << "  POST /price-structured-note\n"
                   << "  GET  /status\n"
                   << "  GET  /meta\n"

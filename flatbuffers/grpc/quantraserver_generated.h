@@ -18,6 +18,8 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 #include "bootstrap_curves_response_generated.h"
 #include "bootstrap_inflation_curves_request_generated.h"
 #include "bootstrap_inflation_curves_response_generated.h"
+#include "build_commodity_curves_request_generated.h"
+#include "build_commodity_curves_response_generated.h"
 #include "calendar_advance_request_generated.h"
 #include "calendar_advance_response_generated.h"
 #include "calendar_business_days_request_generated.h"

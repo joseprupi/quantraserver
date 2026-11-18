@@ -8,6 +8,7 @@
 #include "basis_swap_handler.h"
 #include "bootstrap_curves_handler.h"
 #include "bootstrap_inflation_curves_handler.h"
+#include "build_commodity_curves_handler.h"
 #include "calendar_advance_handler.h"
 #include "calendar_business_days_handler.h"
 #include "calendar_holidays_handler.h"

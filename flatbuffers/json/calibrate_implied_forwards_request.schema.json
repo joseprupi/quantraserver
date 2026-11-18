@@ -241,6 +241,26 @@
       "type" : "string",
       "enum": ["Fixing", "Curve"]
     },
+    "quantra_enums_CommodityCurveInterpolation" : {
+      "type" : "string",
+      "enum": ["Linear", "LogLinear", "BackwardFlat", "ForwardFlat", "KrugerCubic", "NaturalCubic"]
+    },
+    "quantra_enums_CommodityCurveRule" : {
+      "type" : "string",
+      "enum": ["Flat", "Smooth"]
+    },
+    "quantra_enums_CommodityCurveStatus" : {
+      "type" : "string",
+      "enum": ["Unique", "Underdetermined"]
+    },
+    "quantra_enums_CommodityMonthSource" : {
+      "type" : "string",
+      "enum": ["Quoted", "Solved", "Assumed", "Interpolated", "Extrapolated"]
+    },
+    "quantra_enums_CommodityQuoteStatus" : {
+      "type" : "string",
+      "enum": ["Used", "Redundant"]
+    },
     "quantra_Flow" : {
       "type" : "string",
       "enum": ["NONE", "FlowInterest", "FlowPastInterest", "FlowNotional"]

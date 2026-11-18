@@ -37,6 +37,7 @@ from quantra.PriceFRARequest import PriceFRARequestT
 from quantra.PriceFxForwardRequest import PriceFxForwardRequestT
 from quantra.PriceCrossCurrencySwapRequest import PriceCrossCurrencySwapRequestT
 from quantra.PriceCommoditySwapRequest import PriceCommoditySwapRequestT
+from quantra.BuildCommodityCurvesRequest import BuildCommodityCurvesRequestT
 from quantra.PriceStructuredNoteRequest import PriceStructuredNoteRequestT
 from quantra.PriceCapFloorRequest import PriceCapFloorRequestT
 from quantra.PriceSwaptionRequest import PriceSwaptionRequestT
@@ -64,6 +65,7 @@ from quantra.PriceFRAResponse import PriceFRAResponse
 from quantra.PriceFxForwardResponse import PriceFxForwardResponse
 from quantra.PriceCrossCurrencySwapResponse import PriceCrossCurrencySwapResponse
 from quantra.PriceCommoditySwapResponse import PriceCommoditySwapResponse
+from quantra.BuildCommodityCurvesResponse import BuildCommodityCurvesResponse
 from quantra.PriceStructuredNoteResponse import PriceStructuredNoteResponse
 from quantra.PriceCapFloorResponse import PriceCapFloorResponse
 from quantra.PriceSwaptionResponse import PriceSwaptionResponse
@@ -99,6 +101,7 @@ class Client:
         'fx_forward': '/quantra.QuantraServer/PriceFxForward',
         'cross_currency_swap': '/quantra.QuantraServer/PriceCrossCurrencySwap',
         'commodity_swap': '/quantra.QuantraServer/PriceCommoditySwap',
+        'build_commodity_curves': '/quantra.QuantraServer/BuildCommodityCurves',
         'structured_note': '/quantra.QuantraServer/PriceStructuredNote',
         'cap_floor': '/quantra.QuantraServer/PriceCapFloor',
         'swaption': '/quantra.QuantraServer/PriceSwaption',
@@ -281,6 +284,20 @@ class Client:
             PriceCommoditySwapResponse
         )
     
+    def build_commodity_curves(
+        self,
+        request: BuildCommodityCurvesRequestT
+    ) -> BuildCommodityCurvesResponse:
+        """Complete futures contracts whose months are only partly priced:
+        every live month without a price is interpolated from the quoted live
+        months (preview). Each result contract pastes into
+        pricing.commodity.contracts of a commodity swap request."""
+        return self._call(
+            'build_commodity_curves',
+            request,
+            BuildCommodityCurvesResponse
+        )
+    
     def price_structured_notes(
         self,
         request: PriceStructuredNoteRequestT
@@ -401,15 +418,41 @@ class Client:
         try:
             response_bytes = unary_call(request_bytes)
         except grpc.RpcError as e:
-            raise QuantraError(f"gRPC error: {e.code()} - {e.details()}") from e
+            raise QuantraError(f"gRPC error: {e.code()} - {e.details()}",
+                               code=e.code(), details=_error_details(e)) from e
         
         # 3. Deserialize: Return the Reader (not unpacked - more efficient)
         return response_class.GetRootAs(response_bytes, 0)
 
 
 class QuantraError(Exception):
-    """Exception raised for Quantra client errors."""
-    pass
+    """Exception raised for Quantra client errors.
+
+    `code`: the gRPC status code (None when the error is not a gRPC one).
+    `details`: the error's structured details as a dict (for example the
+    reason of a refused commodity curve build), None when the engine sent
+    none."""
+
+    def __init__(self, message, code=None, details=None):
+        super().__init__(message)
+        self.code = code
+        self.details = details
+
+
+def _error_details(error):
+    """The structured details the engine sends in the trailing metadata key
+    'quantra-error-details-bin' (a JSON object), or None."""
+    import json
+    try:
+        trailers = error.trailing_metadata() or ()
+    except Exception:
+        return None
+    for key, value in trailers:
+        if key == "quantra-error-details-bin":
+            if isinstance(value, bytes):
+                value = value.decode("utf-8")
+            return json.loads(value)
+    return None
 
 
 # =============================================================================
@@ -514,6 +557,8 @@ from quantra.SpotFloatingPrice import SpotFloatingPriceT
 from quantra.CommoditySwapLeg import CommoditySwapLegT
 from quantra.CommoditySwap import CommoditySwapT
 from quantra.PriceCommoditySwap import PriceCommoditySwapT
+from quantra.CommodityCurveBuild import CommodityCurveBuildT
+from quantra.CommodityAverageQuote import CommodityAverageQuoteT
 from quantra.CommodityLegPrice import CommodityLegPrice  # Union type discriminator
 
 # Structured note (basket autocallables; correlation market data)
@@ -552,6 +597,11 @@ from quantra.enums.Frequency import Frequency
 from quantra.enums.TimeUnit import TimeUnit
 from quantra.enums.DateGenerationRule import DateGenerationRule
 from quantra.enums.Interpolator import Interpolator
+from quantra.enums.CommodityCurveInterpolation import CommodityCurveInterpolation
+from quantra.enums.CommodityCurveRule import CommodityCurveRule
+from quantra.enums.CommodityCurveStatus import CommodityCurveStatus
+from quantra.enums.CommodityMonthSource import CommodityMonthSource
+from quantra.enums.CommodityQuoteStatus import CommodityQuoteStatus
 from quantra.enums.BootstrapTrait import BootstrapTrait
 from quantra.enums.Compounding import Compounding
 from quantra.enums.RateAveragingType import RateAveragingType
@@ -589,6 +639,7 @@ __all__ = [
     'PriceFxForwardRequestT',
     'PriceCrossCurrencySwapRequestT',
     'PriceCommoditySwapRequestT',
+    'BuildCommodityCurvesRequestT',
     'PriceStructuredNoteRequestT',
     'PriceCapFloorRequestT',
     'PriceSwaptionRequestT',
@@ -606,6 +657,7 @@ __all__ = [
     'PriceFxForwardResponse',
     'PriceCrossCurrencySwapResponse',
     'PriceCommoditySwapResponse',
+    'BuildCommodityCurvesResponse',
     'PriceStructuredNoteResponse',
     'PriceCapFloorResponse',
     'PriceSwaptionResponse',
@@ -705,6 +757,8 @@ __all__ = [
     'CommoditySwapLegT',
     'CommoditySwapT',
     'PriceCommoditySwapT',
+    'CommodityCurveBuildT',
+    'CommodityAverageQuoteT',
     'CommodityLegPrice',
     'CommodityQuantityBasis',
     'CommodityPriceSource',
@@ -737,6 +791,11 @@ __all__ = [
     'TimeUnit',
     'DateGenerationRule',
     'Interpolator',
+    'CommodityCurveInterpolation',
+    'CommodityCurveRule',
+    'CommodityCurveStatus',
+    'CommodityMonthSource',
+    'CommodityQuoteStatus',
     'BootstrapTrait',
     'Compounding',
     'RateAveragingType',

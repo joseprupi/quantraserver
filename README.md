@@ -49,7 +49,12 @@ pricers: implied forwards and dividends from listed option quotes
 validation against the quotes (`/validate-vol-surface`: fit, local-vol
 arbitrage scan, Monte Carlo repricing) and a correlation matrix from price
 histories (`/calibrate-correlation`, aligned returns, Ledoit-Wolf shrinkage,
-eigenvalue floor).
+eigenvalue floor). For commodity swaps, `/build-commodity-curves` (preview)
+builds a futures contract's month prices from futures prices and
+average-price quotes (one linear system, `Flat` or `Smooth` when the quotes
+leave months open, a report with each quote repriced and the sensitivity of
+each month to each quote), then fills the untouched months (`Linear`,
+`LogLinear`, `BackwardFlat`, `ForwardFlat`, `KrugerCubic` or `NaturalCubic`).
 
 Features that apply across products:
 
@@ -252,7 +257,8 @@ upgrade shipped in a release is documented in `docs/quantlib-upgrades/`
 - `examples/data/`: example JSON requests, one folder per product family
   (`structured_note/` holds the two factsheet transcriptions with placeholder
   market data and their README; `commodity_swap/` holds synthetic commodity
-  swap requests and a README listing them)
+  swap requests and a README listing them; `commodity_curve/` synthetic
+  futures contracts to complete with `/build-commodity-curves`)
 - `examples/structured_note_workflow/`: a structured note priced at three levels
   of market data, with a script that runs the option quotes → forwards → vol
   surface → note chain

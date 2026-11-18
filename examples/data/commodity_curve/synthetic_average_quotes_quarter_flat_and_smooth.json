@@ -1,0 +1,138 @@
+{
+  "pricing": {
+    "as_of_date": "2026-11-13",
+    "rates": {
+      "curves": [
+        {
+          "id": "USD_OIS",
+          "reference_date": "2026-11-13",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "bootstrap_trait": "InterpolatedDiscount",
+          "points": [
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2026-11-13",
+                "discount_factor": 1.0
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-02-13",
+                "discount_factor": 0.99
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-05-13",
+                "discount_factor": 0.98
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "curves": [
+    {
+      "contract": {
+        "id": "SYN_Q",
+        "pricing_calendar": "WeekendsOnly",
+        "months": [
+          {
+            "month": "2027-01",
+            "last_trade_date": "2027-01-29"
+          },
+          {
+            "month": "2027-02",
+            "last_trade_date": "2027-02-26"
+          },
+          {
+            "month": "2027-03",
+            "last_trade_date": "2027-03-31"
+          }
+        ]
+      },
+      "average_quotes": [
+        {
+          "price": 50.0,
+          "periods": {
+            "start_date": "2027-01-01",
+            "end_date": "2027-01-31",
+            "frequency": "Once"
+          },
+          "nearby": 1,
+          "roll_days_before_expiry": 0
+        },
+        {
+          "price": 53.0,
+          "periods": {
+            "start_date": "2027-01-01",
+            "end_date": "2027-03-31",
+            "frequency": "Monthly"
+          },
+          "nearby": 1,
+          "roll_days_before_expiry": 0,
+          "quantity_basis": "PerPeriod",
+          "payment_calendar": "UnitedStatesSettlement",
+          "payment_lag": 5,
+          "payment_convention": "Following",
+          "discounting_curve": "USD_OIS"
+        }
+      ],
+      "rule": "Flat"
+    },
+    {
+      "contract": {
+        "id": "SYN_Q",
+        "pricing_calendar": "WeekendsOnly",
+        "months": [
+          {
+            "month": "2027-01",
+            "last_trade_date": "2027-01-29"
+          },
+          {
+            "month": "2027-02",
+            "last_trade_date": "2027-02-26"
+          },
+          {
+            "month": "2027-03",
+            "last_trade_date": "2027-03-31"
+          }
+        ]
+      },
+      "average_quotes": [
+        {
+          "price": 50.0,
+          "periods": {
+            "start_date": "2027-01-01",
+            "end_date": "2027-01-31",
+            "frequency": "Once"
+          },
+          "nearby": 1,
+          "roll_days_before_expiry": 0
+        },
+        {
+          "price": 53.0,
+          "periods": {
+            "start_date": "2027-01-01",
+            "end_date": "2027-03-31",
+            "frequency": "Monthly"
+          },
+          "nearby": 1,
+          "roll_days_before_expiry": 0,
+          "quantity_basis": "PerPeriod",
+          "payment_calendar": "UnitedStatesSettlement",
+          "payment_lag": 5,
+          "payment_convention": "Following",
+          "discounting_curve": "USD_OIS"
+        }
+      ],
+      "rule": "Smooth"
+    }
+  ],
+  "include_details": true
+}

@@ -34,6 +34,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace quantra {
 
@@ -54,6 +55,28 @@ struct CommodityRegistry {
 
 /// Parse `pricing.commodity`; a null block yields an empty registry.
 CommodityRegistry BuildCommodityRegistry(const quantra::CommodityMarketData* commodity);
+
+/// One `CommodityContractSpec` decoded (presence, dates, calendar) and not
+/// yet validated: the FuturesContract constructor owns the value rules.
+struct CommodityContractData {
+    std::string id;
+    commodities::PricingCalendar calendar;
+    std::vector<commodities::ContractMonth> months;
+    std::vector<commodities::ContractFixing> fixings;
+};
+
+/// Decode one contract; `base` is its path in the request
+/// (`pricing.commodity.contracts[0]`, `curves[1].contract`), messages name
+/// `<base> ('<id>').<field>`. Used by the registry and by the commodity
+/// curve build.
+CommodityContractData DecodeCommodityContract(
+    const quantra::CommodityContractSpec* spec, const std::string& base);
+
+/// A present interpolation enum as a commodity price interpolation:
+/// Linear, BackwardFlat or ForwardFlat; any other value is a 400 naming
+/// `field` and the accepted values. Presence is the caller's.
+commodities::SpotInterpolation DecodeCommodityInterpolation(
+    quantra::enums::Interpolator value, const std::string& field);
 
 } // namespace quantra
 

@@ -38,6 +38,12 @@
 
 namespace quantra {
 
+/// A `CommodityPeriods` table (generated or explicit form) as periods;
+/// presence and form are checked here, the periods' own rules by the
+/// library. Messages name `field` (e.g. `swaps[0].commodity_swap.leg1.periods`).
+std::vector<commodities::CommodityPeriod> DecodeCommodityPeriods(
+    const quantra::CommodityPeriods* periods, const std::string& field);
+
 class CommoditySwapMapper {
 public:
     CommoditySwapInputs toInputs(const quantra::PriceCommoditySwapRequest* req) const;

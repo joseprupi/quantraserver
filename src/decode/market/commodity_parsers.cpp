@@ -37,68 +37,9 @@ commodities::PricingCalendar parsePricingCalendar(
 
 std::shared_ptr<const commodities::FuturesContract> parseContract(
     const quantra::CommodityContractSpec* spec, const std::string& base) {
-    if (!spec) {
-        QUANTRA_INVALID_ARGUMENT(base + " is null");
-    }
-    const std::string id = requireNonEmptyString(spec->id(), base + ".id");
-    const std::string named = base + " ('" + id + "')";
-    auto calendar = parsePricingCalendar(spec->pricing_calendar(), spec->pricing_holidays(), named);
-
-    const auto* months = spec->months();
-    if (!months) {
-        QUANTRA_INVALID_ARGUMENT(named + ".months is required");
-    }
-    std::vector<commodities::ContractMonth> parsedMonths;
-    parsedMonths.reserve(months->size());
-    for (flatbuffers::uoffset_t i = 0; i < months->size(); ++i) {
-        const auto* m = months->Get(i);
-        const std::string field = at(named + ".months", i);
-        if (!m) {
-            QUANTRA_INVALID_ARGUMENT(field + " is null");
-        }
-        commodities::ContractMonth month;
-        month.month = requireNonEmptyString(m->month(), field + ".month");
-        month.lastTradeDate = requireIsoDate(m->last_trade_date(), field + ".last_trade_date");
-        if (m->price().has_value()) {
-            month.price = requireScalarPresent(m->price(), field + ".price");
-        }
-        parsedMonths.push_back(std::move(month));
-    }
-
-    std::vector<commodities::ContractFixing> fixings;
-    if (const auto* list = spec->fixings()) {
-        fixings.reserve(list->size());
-        for (flatbuffers::uoffset_t i = 0; i < list->size(); ++i) {
-            const auto* f = list->Get(i);
-            const std::string field = at(named + ".fixings", i);
-            if (!f) {
-                QUANTRA_INVALID_ARGUMENT(field + " is null");
-            }
-            commodities::ContractFixing fixing;
-            fixing.month = requireNonEmptyString(f->month(), field + ".month");
-            fixing.date = requireIsoDate(f->date(), field + ".date");
-            fixing.value = requireScalarPresent(f->value(), field + ".value");
-            fixings.push_back(std::move(fixing));
-        }
-    }
+    auto data = DecodeCommodityContract(spec, base);
     return std::make_shared<const commodities::FuturesContract>(
-        id, std::move(calendar), std::move(parsedMonths), fixings);
-}
-
-commodities::SpotInterpolation parseInterpolation(
-    flatbuffers::Optional<quantra::enums::Interpolator> value, const std::string& field) {
-    switch (requireEnum(value, field)) {
-        case quantra::enums::Interpolator_Linear: return commodities::SpotInterpolation::Linear;
-        case quantra::enums::Interpolator_BackwardFlat:
-            return commodities::SpotInterpolation::BackwardFlat;
-        case quantra::enums::Interpolator_ForwardFlat:
-            return commodities::SpotInterpolation::ForwardFlat;
-        default: break;
-    }
-    QUANTRA_INVALID_ARGUMENT(
-        field + " must be Linear, BackwardFlat or ForwardFlat (LogLinear and LogCubic are " +
-        "refused: prices can be zero or negative)");
-    return commodities::SpotInterpolation::Linear; // unreachable
+        std::move(data.id), std::move(data.calendar), std::move(data.months), data.fixings);
 }
 
 std::shared_ptr<const commodities::SpotPrice> parseSpot(
@@ -109,7 +50,9 @@ std::shared_ptr<const commodities::SpotPrice> parseSpot(
     const std::string id = requireNonEmptyString(spec->id(), base + ".id");
     const std::string named = base + " ('" + id + "')";
     auto calendar = parsePricingCalendar(spec->pricing_calendar(), spec->pricing_holidays(), named);
-    const auto interpolation = parseInterpolation(spec->interpolation(), named + ".interpolation");
+    const std::string interpolationField = named + ".interpolation";
+    const auto interpolation = DecodeCommodityInterpolation(
+        requireEnum(spec->interpolation(), interpolationField), interpolationField);
 
     const auto* points = spec->points();
     if (!points) {
@@ -150,6 +93,72 @@ std::shared_ptr<const commodities::SpotPrice> parseSpot(
 }
 
 } // namespace
+
+CommodityContractData DecodeCommodityContract(
+    const quantra::CommodityContractSpec* spec, const std::string& base) {
+    if (!spec) {
+        QuantraInvalidArgumentAt(base, base + " is null");
+    }
+    const std::string id = requireNonEmptyString(spec->id(), base + ".id");
+    const std::string named = base + " ('" + id + "')";
+    auto calendar = parsePricingCalendar(spec->pricing_calendar(), spec->pricing_holidays(), named);
+
+    const auto* months = spec->months();
+    if (!months) {
+        QuantraInvalidArgumentAt(named + ".months", named + ".months is required");
+    }
+    std::vector<commodities::ContractMonth> parsedMonths;
+    parsedMonths.reserve(months->size());
+    for (flatbuffers::uoffset_t i = 0; i < months->size(); ++i) {
+        const auto* m = months->Get(i);
+        const std::string field = at(named + ".months", i);
+        if (!m) {
+            QuantraInvalidArgumentAt(field, field + " is null");
+        }
+        commodities::ContractMonth month;
+        month.month = requireNonEmptyString(m->month(), field + ".month");
+        month.lastTradeDate = requireIsoDate(m->last_trade_date(), field + ".last_trade_date");
+        if (m->price().has_value()) {
+            month.price = requireScalarPresent(m->price(), field + ".price");
+        }
+        parsedMonths.push_back(std::move(month));
+    }
+
+    std::vector<commodities::ContractFixing> fixings;
+    if (const auto* list = spec->fixings()) {
+        fixings.reserve(list->size());
+        for (flatbuffers::uoffset_t i = 0; i < list->size(); ++i) {
+            const auto* f = list->Get(i);
+            const std::string field = at(named + ".fixings", i);
+            if (!f) {
+                QuantraInvalidArgumentAt(field, field + " is null");
+            }
+            commodities::ContractFixing fixing;
+            fixing.month = requireNonEmptyString(f->month(), field + ".month");
+            fixing.date = requireIsoDate(f->date(), field + ".date");
+            fixing.value = requireScalarPresent(f->value(), field + ".value");
+            fixings.push_back(std::move(fixing));
+        }
+    }
+    return CommodityContractData{
+        id, std::move(calendar), std::move(parsedMonths), std::move(fixings)};
+}
+
+commodities::SpotInterpolation DecodeCommodityInterpolation(
+    quantra::enums::Interpolator value, const std::string& field) {
+    switch (value) {
+        case quantra::enums::Interpolator_Linear: return commodities::SpotInterpolation::Linear;
+        case quantra::enums::Interpolator_BackwardFlat:
+            return commodities::SpotInterpolation::BackwardFlat;
+        case quantra::enums::Interpolator_ForwardFlat:
+            return commodities::SpotInterpolation::ForwardFlat;
+        default: break;
+    }
+    QUANTRA_INVALID_ARGUMENT(
+        field + " must be Linear, BackwardFlat or ForwardFlat (LogLinear and LogCubic are " +
+        "refused: prices can be zero or negative)");
+    return commodities::SpotInterpolation::Linear; // unreachable
+}
 
 std::shared_ptr<const commodities::FuturesContract> CommodityRegistry::contract(
     const std::string& id, const std::string& field) const {

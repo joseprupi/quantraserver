@@ -48,6 +48,7 @@ static const char* QuantraServer_method_names[] = {
   "/quantra.QuantraServer/CalibrateCorrelation",
   "/quantra.QuantraServer/ValidateVolSurface",
   "/quantra.QuantraServer/PriceCommoditySwap",
+  "/quantra.QuantraServer/BuildCommodityCurves",
   "/quantra.QuantraServer/Meta",
 };
 
@@ -89,7 +90,8 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   , rpcmethod_CalibrateCorrelation_(QuantraServer_method_names[29], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_ValidateVolSurface_(QuantraServer_method_names[30], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_PriceCommoditySwap_(QuantraServer_method_names[31], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_Meta_(QuantraServer_method_names[32], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_BuildCommodityCurves_(QuantraServer_method_names[32], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_Meta_(QuantraServer_method_names[33], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
   
 ::grpc::Status QuantraServer::Stub::PriceFixedRateBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, flatbuffers::grpc::Message<PriceFixedRateBondResponse>* response) {
@@ -476,6 +478,18 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceCommoditySwapResponse>>::Create(channel_.get(), cq, rpcmethod_PriceCommoditySwap_, context, request, false);
 }
 
+::grpc::Status QuantraServer::Stub::BuildCommodityCurves(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BuildCommodityCurvesRequest>& request, flatbuffers::grpc::Message<BuildCommodityCurvesResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_BuildCommodityCurves_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BuildCommodityCurvesResponse>>* QuantraServer::Stub::AsyncBuildCommodityCurvesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BuildCommodityCurvesRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<BuildCommodityCurvesResponse>>::Create(channel_.get(), cq, rpcmethod_BuildCommodityCurves_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BuildCommodityCurvesResponse>>* QuantraServer::Stub::PrepareAsyncBuildCommodityCurvesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BuildCommodityCurvesRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<BuildCommodityCurvesResponse>>::Create(channel_.get(), cq, rpcmethod_BuildCommodityCurves_, context, request, false);
+}
+
 ::grpc::Status QuantraServer::Stub::Meta(::grpc::ClientContext* context, const flatbuffers::grpc::Message<MetaRequest>& request, flatbuffers::grpc::Message<MetaResponse>* response) {
   return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_Meta_, context, request, response);
 }
@@ -652,6 +666,11 @@ QuantraServer::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       QuantraServer_method_names[32],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<BuildCommodityCurvesRequest>, flatbuffers::grpc::Message<BuildCommodityCurvesResponse>>(
+          std::mem_fn(&QuantraServer::Service::BuildCommodityCurves), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[33],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<MetaRequest>, flatbuffers::grpc::Message<MetaResponse>>(
           std::mem_fn(&QuantraServer::Service::Meta), this)));
 }
@@ -784,6 +803,10 @@ QuantraServer::Service::~Service() {
 }
 
 ::grpc::Status QuantraServer::Service::PriceCommoditySwap(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceCommoditySwapRequest>* /*request*/, flatbuffers::grpc::Message<PriceCommoditySwapResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::BuildCommodityCurves(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<BuildCommodityCurvesRequest>* /*request*/, flatbuffers::grpc::Message<BuildCommodityCurvesResponse>* /*response*/) {
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 

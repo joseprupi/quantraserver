@@ -1,0 +1,565 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "quantra_enums_DayCounter" : {
+      "type" : "string",
+      "enum": ["Actual360", "Actual365Fixed", "Actual365NoLeap", "ActualActual", "ActualActualISMA", "ActualActualBond", "ActualActualISDA", "ActualActualHistorical", "ActualActual365", "ActualActualAFB", "ActualActualEuro", "Business252", "One", "Simple", "Thirty360"]
+    },
+    "quantra_enums_Interpolator" : {
+      "type" : "string",
+      "enum": ["BackwardFlat", "ForwardFlat", "Linear", "LogCubic", "LogLinear"]
+    },
+    "quantra_enums_SurfaceInterpolator2D" : {
+      "type" : "string",
+      "enum": ["Bilinear", "Bicubic", "CubicStrikeLinearTime", "CubicStrikeLinearTimeForwardMoneyness"]
+    },
+    "quantra_enums_SviTimeInterpolation" : {
+      "type" : "string",
+      "enum": ["LinearTotalVariance", "LinearTotalVarianceForwardMoneyness"]
+    },
+    "quantra_enums_LocalVolTimeExtrapolation" : {
+      "type" : "string",
+      "enum": ["FlatImpliedVol", "FlatLocalVol"]
+    },
+    "quantra_enums_LocalVolStrikeRange" : {
+      "type" : "string",
+      "enum": ["Global", "PerExpiry"]
+    },
+    "quantra_enums_BootstrapTrait" : {
+      "type" : "string",
+      "enum": ["Discount", "FwdRate", "InterpolatedDiscount", "InterpolatedFwd", "InterpolatedZero", "ZeroRate"]
+    },
+    "quantra_enums_TimeUnit" : {
+      "type" : "string",
+      "enum": ["Days", "Hours", "Microseconds", "Milliseconds", "Minutes", "Months", "Seconds", "Weeks", "Years"]
+    },
+    "quantra_enums_Calendar" : {
+      "type" : "string",
+      "enum": ["Argentina", "Australia", "BespokeCalendar", "Brazil", "Canada", "China", "CzechRepublic", "Denmark", "Finland", "Germany", "HongKong", "Hungary", "Iceland", "India", "Indonesia", "Israel", "Italy", "Japan", "Mexico", "NewZealand", "Norway", "NullCalendar", "Poland", "Romania", "Russia", "SaudiArabia", "Singapore", "Slovakia", "SouthAfrica", "SouthKorea", "Sweden", "Switzerland", "TARGET", "Taiwan", "Turkey", "Ukraine", "UnitedKingdom", "UnitedStates", "UnitedStatesGovernmentBond", "UnitedStatesNERC", "UnitedStatesNYSE", "UnitedStatesSettlement", "WeekendsOnly"]
+    },
+    "quantra_enums_BusinessDayConvention" : {
+      "type" : "string",
+      "enum": ["Following", "HalfMonthModifiedFollowing", "ModifiedFollowing", "ModifiedPreceding", "Nearest", "Preceding", "Unadjusted"]
+    },
+    "quantra_enums_Frequency" : {
+      "type" : "string",
+      "enum": ["Annual", "Bimonthly", "Biweekly", "Daily", "EveryFourthMonth", "EveryFourthWeek", "Monthly", "NoFrequency", "Once", "OtherFrequency", "Quarterly", "Semiannual", "Weekly"]
+    },
+    "quantra_enums_DateGenerationRule" : {
+      "type" : "string",
+      "enum": ["Backward", "CDS", "Forward", "OldCDS", "ThirdWednesday", "Twentieth", "TwentiethIMM", "Zero"]
+    },
+    "quantra_enums_CdsEngineType" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsHelperModel" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsQuoteType" : {
+      "type" : "string",
+      "enum": ["ParSpread", "Upfront"]
+    },
+    "quantra_enums_CdsIsdaNumericalFix" : {
+      "type" : "string",
+      "enum": ["None", "Taylor"]
+    },
+    "quantra_enums_CdsIsdaAccrualBias" : {
+      "type" : "string",
+      "enum": ["HalfDayBias", "NoBias"]
+    },
+    "quantra_enums_CdsIsdaForwardsInCouponPeriod" : {
+      "type" : "string",
+      "enum": ["Flat", "Piecewise"]
+    },
+    "quantra_enums_Compounding" : {
+      "type" : "string",
+      "enum": ["Compounded", "Continuous", "Simple", "SimpleThenCompounded"]
+    },
+    "quantra_enums_RateAveragingType" : {
+      "type" : "string",
+      "enum": ["Compound", "Simple"]
+    },
+    "quantra_enums_SwapType" : {
+      "type" : "string",
+      "enum": ["Payer", "Receiver"]
+    },
+    "quantra_enums_PayReceive" : {
+      "type" : "string",
+      "enum": ["Pay", "Receive"]
+    },
+    "quantra_enums_FRAType" : {
+      "type" : "string",
+      "enum": ["Long", "Short"]
+    },
+    "quantra_enums_CapFloorType" : {
+      "type" : "string",
+      "enum": ["Cap", "Floor", "Collar"]
+    },
+    "quantra_enums_CallabilityType" : {
+      "type" : "string",
+      "enum": ["Call", "Put"]
+    },
+    "quantra_enums_VolSurfaceFitMethod" : {
+      "type" : "string",
+      "enum": ["AndreasenHuge", "SviPerExpiry", "Ssvi"]
+    },
+    "quantra_enums_QuoteWeighting" : {
+      "type" : "string",
+      "enum": ["Uniform", "Vega", "BidAsk"]
+    },
+    "quantra_enums_ExerciseType" : {
+      "type" : "string",
+      "enum": ["European", "Bermudan", "American"]
+    },
+    "quantra_enums_SettlementType" : {
+      "type" : "string",
+      "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_SettlementMethod" : {
+      "type" : "string",
+      "enum": ["PhysicalOTC", "PhysicalCleared", "CollateralizedCashPrice", "ParYieldCurve"]
+    },
+    "quantra_enums_ProtectionSide" : {
+      "type" : "string",
+      "enum": ["Buyer", "Seller"]
+    },
+    "quantra_enums_VolatilityType" : {
+      "type" : "string",
+      "enum": ["Normal", "Lognormal", "ShiftedLognormal"]
+    },
+    "quantra_enums_VolSurfaceShape" : {
+      "type" : "string",
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate", "SviSlices", "SsviSlices"]
+    },
+    "quantra_enums_YoYInflationCapFloorEngineType" : {
+      "type" : "string",
+      "enum": ["Black", "UnitDisplacedBlack", "Bachelier"]
+    },
+    "quantra_enums_SwaptionVolKind" : {
+      "type" : "string",
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SabrParams", "SabrCalibrate"]
+    },
+    "quantra_enums_SwaptionStrikeKind" : {
+      "type" : "string",
+      "enum": ["Absolute", "SpreadFromATM"]
+    },
+    "quantra_enums_InflationCurveKind" : {
+      "type" : "string",
+      "enum": ["ZeroInflation", "YoYInflation"]
+    },
+    "quantra_enums_InflationCurveMeasure" : {
+      "type" : "string",
+      "enum": ["ZeroRate", "YoYRate"]
+    },
+    "quantra_enums_CPIInterpolationType" : {
+      "type" : "string",
+      "enum": ["AsIndex", "Flat", "Linear"]
+    },
+    "quantra_enums_BondPriceType" : {
+      "type" : "string",
+      "enum": ["Clean", "Dirty"]
+    },
+    "quantra_enums_IrModelType" : {
+      "type" : "string",
+      "enum": ["Black", "ShiftedBlack", "Bachelier", "HullWhiteLattice"]
+    },
+    "quantra_enums_ModelParamMode" : {
+      "type" : "string",
+      "enum": ["Explicit", "Calibrate"]
+    },
+    "quantra_enums_CmsPricerType" : {
+      "type" : "string",
+      "enum": ["LinearTsr", "HaganAnalytic", "HaganNumeric"]
+    },
+    "quantra_enums_CmsYieldCurveModel" : {
+      "type" : "string",
+      "enum": ["Standard", "ExactYield", "ParallelShifts", "NonParallelShifts"]
+    },
+    "quantra_enums_EquityModelType" : {
+      "type" : "string",
+      "enum": ["BlackScholesAnalytic", "BinomialCRR"]
+    },
+    "quantra_enums_EquityOptionType" : {
+      "type" : "string",
+      "enum": ["Call", "Put"]
+    },
+    "quantra_enums_EquitySettlementType" : {
+      "type" : "string",
+      "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_EquityBarrierType" : {
+      "type" : "string",
+      "enum": ["DownIn", "UpIn", "DownOut", "UpOut"]
+    },
+    "quantra_enums_EquityBarrierMonitoring" : {
+      "type" : "string",
+      "enum": ["Continuous", "Discrete"]
+    },
+    "quantra_enums_FxDirection" : {
+      "type" : "string",
+      "enum": ["BuyBase", "SellBase"]
+    },
+    "quantra_enums_SwapFlowKind" : {
+      "type" : "string",
+      "enum": ["Coupon", "NotionalExchange"]
+    },
+    "quantra_enums_BasketPerformanceRule" : {
+      "type" : "string",
+      "enum": ["WorstOf", "BestOf", "Average"]
+    },
+    "quantra_enums_CapitalBarrierMonitoring" : {
+      "type" : "string",
+      "enum": ["European", "DailyClose"]
+    },
+    "quantra_enums_RandomSequence" : {
+      "type" : "string",
+      "enum": ["Sobol", "PseudoRandom"]
+    },
+    "quantra_enums_StructuredNoteStatus" : {
+      "type" : "string",
+      "enum": ["Alive", "Called", "Matured"]
+    },
+    "quantra_enums_ReturnType" : {
+      "type" : "string",
+      "enum": ["Log", "Simple"]
+    },
+    "quantra_enums_ReturnFrequency" : {
+      "type" : "string",
+      "enum": ["Daily", "Weekly"]
+    },
+    "quantra_enums_CorrelationShrinkage" : {
+      "type" : "string",
+      "enum": ["None", "LedoitWolf", "Fixed"]
+    },
+    "quantra_enums_CommodityQuantityBasis" : {
+      "type" : "string",
+      "enum": ["PerPeriod", "PerPricingDay"]
+    },
+    "quantra_enums_CommodityPriceSource" : {
+      "type" : "string",
+      "enum": ["Fixing", "Curve"]
+    },
+    "quantra_enums_CommodityCurveInterpolation" : {
+      "type" : "string",
+      "enum": ["Linear", "LogLinear", "BackwardFlat", "ForwardFlat", "KrugerCubic", "NaturalCubic"]
+    },
+    "quantra_enums_CommodityCurveRule" : {
+      "type" : "string",
+      "enum": ["Flat", "Smooth"]
+    },
+    "quantra_enums_CommodityCurveStatus" : {
+      "type" : "string",
+      "enum": ["Unique", "Underdetermined"]
+    },
+    "quantra_enums_CommodityMonthSource" : {
+      "type" : "string",
+      "enum": ["Quoted", "Solved", "Assumed", "Interpolated", "Extrapolated"]
+    },
+    "quantra_enums_CommodityQuoteStatus" : {
+      "type" : "string",
+      "enum": ["Used", "Redundant"]
+    },
+    "quantra_CommodityContractMonth" : {
+      "type" : "object",
+      "description" : "One delivery month of a futures contract with its last trading date and\ntoday's price.",
+      "properties" : {
+        "month" : {
+                "type" : "string",
+                "description" : "Delivery month, \"YYYY-MM\" (e.g. \"2027-02\"). Required."
+              },
+        "last_trade_date" : {
+                "type" : "string",
+                "description" : "Last trading date of this contract month (YYYY-MM-DD). The contract\nis read as the nearby contract up to and including this date,\nshifted by the leg's `roll_days_before_expiry`. Required."
+              },
+        "price" : {
+                "type" : "number",
+                "description" : "Today's futures price of this month. Needed only for months read\nafter the valuation date; absent for months whose pricing days are all\nin the past."
+              }
+      },
+      "required" : ["month", "last_trade_date"],
+      "additionalProperties" : false
+    },
+    "quantra_CommodityContractFixing" : {
+      "type" : "object",
+      "description" : "A past daily settlement of one contract month.",
+      "properties" : {
+        "month" : {
+                "type" : "string",
+                "description" : "Delivery month the settlement belongs to, \"YYYY-MM\". Required."
+              },
+        "date" : {
+                "type" : "string",
+                "description" : "Settlement date (YYYY-MM-DD). Required."
+              },
+        "value" : {
+                "type" : "number",
+                "description" : "Settlement price, as quoted. Presence-required: an omitted value is a\n400, never a silent 0."
+              }
+      },
+      "required" : ["month", "date"],
+      "additionalProperties" : false
+    },
+    "quantra_CommodityContractSpec" : {
+      "type" : "object",
+      "description" : "A futures contract and its delivery months. Registered once per request,\nreferenced by id from `FuturesFloatingPrice.contract_id`.",
+      "properties" : {
+        "id" : {
+                "type" : "string",
+                "description" : "Unique identifier (e.g. \"NYMEX_CL\"). Required."
+              },
+        "pricing_calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Calendar of the contract's pricing days: the days the contract\nsettles. Adjusted by `pricing.calendar_overrides`. Presence-required."
+              },
+        "pricing_holidays" : {
+                "type" : "array", "items" : {"type" : "string"},
+                "description" : "Dates (YYYY-MM-DD) that are not pricing days of this contract,\napplied on top of `pricing_calendar` and of\n`pricing.calendar_overrides`. They affect no other use of that\ncalendar in the request. This is how an exchange's own holidays are\ngiven when the named calendar differs from the exchange's."
+              },
+        "months" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityContractMonth"},
+                "description" : "The delivery months in ascending order, with last trading dates and\ntoday's prices. `FuturesFloatingPrice.nearby` counts through this\nlist, so a missing month makes a later month the nearby one.\nRequired."
+              },
+        "fixings" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityContractFixing"},
+                "description" : "Past settlements of the contract's months. A pricing day before the\nvaluation date needs a fixing (a missing one is a 400); on the\nvaluation date the fixing is used when given, otherwise today's\nprice."
+              }
+      },
+      "required" : ["id", "months"],
+      "additionalProperties" : false
+    },
+    "quantra_CommoditySpotFixing" : {
+      "type" : "object",
+      "description" : "A past published price of a spot assessment.",
+      "properties" : {
+        "date" : {
+                "type" : "string",
+                "description" : "Publication date (YYYY-MM-DD). Required."
+              },
+        "value" : {
+                "type" : "number",
+                "description" : "Published price, as quoted. Presence-required: an omitted value is a\n400, never a silent 0."
+              }
+      },
+      "required" : ["date"],
+      "additionalProperties" : false
+    },
+    "quantra_CommoditySpotPoint" : {
+      "type" : "object",
+      "description" : "One forward price of a spot assessment.",
+      "properties" : {
+        "date" : {
+                "type" : "string",
+                "description" : "Date the price applies to (YYYY-MM-DD). Required."
+              },
+        "price" : {
+                "type" : "number",
+                "description" : "Forward price for that date, as quoted.\nPresence-required."
+              }
+      },
+      "required" : ["date"],
+      "additionalProperties" : false
+    },
+    "quantra_CommoditySpotSpec" : {
+      "type" : "object",
+      "description" : "A spot price assessment (for example a published daily price) with its\nforward prices by date. Registered once per request, referenced by id\nfrom `SpotFloatingPrice.spot_id`.",
+      "properties" : {
+        "id" : {
+                "type" : "string",
+                "description" : "Unique identifier. Required."
+              },
+        "pricing_calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Calendar of the pricing days: the days the price is published.\nAdjusted by `pricing.calendar_overrides`. Presence-required."
+              },
+        "pricing_holidays" : {
+                "type" : "array", "items" : {"type" : "string"},
+                "description" : "Dates (YYYY-MM-DD) that are not pricing days of this spot price,\napplied on top of `pricing_calendar` and of\n`pricing.calendar_overrides`. They affect no other use of that\ncalendar in the request. This is how an exchange's own holidays are\ngiven when the named calendar differs from the exchange's."
+              },
+        "interpolation" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator",
+                "description" : "How the forward prices are interpolated between dates: Linear,\nBackwardFlat or ForwardFlat. LogLinear and LogCubic are a 400\n(prices can be zero or negative). Presence-required."
+              },
+        "extrapolate_flat" : {
+                "type" : "boolean",
+                "description" : "When false, a pricing day before the first point or after the last\npoint is a 400; when true the first price is held flat before the\nfirst point and the last price after the last point."
+              },
+        "points" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommoditySpotPoint"},
+                "description" : "Forward prices by date, in ascending date order. Required."
+              },
+        "fixings" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommoditySpotFixing"},
+                "description" : "Past published prices. A pricing day before the valuation date needs\na fixing (a missing one is a 400); on the valuation date the fixing\nis used when given, otherwise today's price."
+              }
+      },
+      "required" : ["id", "points"],
+      "additionalProperties" : false
+    },
+    "quantra_CommodityMarketData" : {
+      "type" : "object",
+      "description" : "Commodity market data grouped under the shared Pricing context.",
+      "properties" : {
+        "contracts" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityContractSpec"},
+                "description" : "Futures contracts referenced by commodity swap legs."
+              },
+        "spot_prices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommoditySpotSpec"},
+                "description" : "Spot price assessments referenced by commodity swap legs."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CommodityQuoteSensitivity" : {
+      "type" : "object",
+      "description" : "The sensitivity of a month price to one input quote: a direct price\n(`month`) or an average quote (`average_quote`, its index).",
+      "properties" : {
+        "month" : {
+                "type" : "string",
+                "description" : "Month of a direct price (\"YYYY-MM\"). Absent for an average quote."
+              },
+        "average_quote" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Index of an average quote in `average_quotes`. Absent for a direct\nprice."
+              },
+        "value" : {
+                "type" : "number",
+                "description" : "d month price / d quote."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CommodityCurveMonth" : {
+      "type" : "object",
+      "description" : "One live month of the built contract.",
+      "properties" : {
+        "month" : {
+                "type" : "string",
+                "description" : "\"YYYY-MM\"."
+              },
+        "price" : {
+                "type" : "number",
+                "description" : "The built price."
+              },
+        "source" : {
+                "$ref" : "#/definitions/quantra_enums_CommodityMonthSource",
+                "description" : "Where the price comes from."
+              },
+        "sensitivities" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityQuoteSensitivity"},
+                "description" : "With `include_details`, Quoted / Solved / Assumed months: one entry\nper input quote (direct prices in month order, then average quotes)."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CommodityQuoteWeight" : {
+      "type" : "object",
+      "description" : "The weight of one month in an average quote's equation.",
+      "properties" : {
+        "month" : {
+                "type" : "string",
+                "description" : "\"YYYY-MM\"."
+              },
+        "weight" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CommodityAverageQuoteResult" : {
+      "type" : "object",
+      "description" : "One average quote after the build.",
+      "properties" : {
+        "repriced" : {
+                "type" : "number",
+                "description" : "The quote's fair fixed price on the built contract, priced as a swap."
+              },
+        "difference" : {
+                "type" : "number",
+                "description" : "repriced - quoted."
+              },
+        "status" : {
+                "$ref" : "#/definitions/quantra_enums_CommodityQuoteStatus"
+              },
+        "weights" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityQuoteWeight"},
+                "description" : "With `include_details`: the quote's equation,\nquoted = constant + sum of weight x month price."
+              },
+        "constant" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CommodityCurveReport" : {
+      "type" : "object",
+      "description" : "How one contract was built.",
+      "properties" : {
+        "status" : {
+                "$ref" : "#/definitions/quantra_enums_CommodityCurveStatus"
+              },
+        "rule" : {
+                "$ref" : "#/definitions/quantra_enums_CommodityCurveRule",
+                "description" : "The rule sent (echo); absent when none was sent."
+              },
+        "unknowns" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Months the quotes touch, equations (direct prices plus average\nquotes) and the number of independent equations."
+              },
+        "equations" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "rank" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "max_repricing_difference" : {
+                "type" : "number",
+                "description" : "Largest |difference| over the average quotes (0 without any)."
+              },
+        "months" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityCurveMonth"},
+                "description" : "Every live month in contract order."
+              },
+        "average_quotes" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityAverageQuoteResult"},
+                "description" : "Every average quote in request order."
+              },
+        "max_sensitivity" : {
+                "type" : "number",
+                "description" : "With `include_details`: the largest absolute sensitivity of a month\nprice to a quote. A large value means a small change of a quote moves\nsome month a lot: the build is fragile."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_BuiltCommodityCurve" : {
+      "type" : "object",
+      "description" : "One built futures contract.",
+      "properties" : {
+        "contract" : {
+                "$ref" : "#/definitions/quantra_CommodityContractSpec",
+                "description" : "The request's contract with every live month priced: quoted months,\nexpired months, fixings, pricing calendar and pricing holidays as\nsent. Pastes unchanged into `pricing.commodity.contracts` of a\n`/price-commodity-swap` request."
+              },
+        "report" : {
+                "$ref" : "#/definitions/quantra_CommodityCurveReport",
+                "description" : "How it was built."
+              }
+      },
+      "required" : ["contract", "report"],
+      "additionalProperties" : false
+    },
+    "quantra_BuildCommodityCurvesResponse" : {
+      "type" : "object",
+      "description" : "Response for all requested contracts, in request order.",
+      "properties" : {
+        "curves" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_BuiltCommodityCurve"}
+              }
+      },
+      "required" : ["curves"],
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/quantra_BuildCommodityCurvesResponse"
+}

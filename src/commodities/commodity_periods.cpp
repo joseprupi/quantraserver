@@ -23,7 +23,7 @@ int monthsPerPeriod(QuantLib::Frequency frequency, const std::string& path) {
     std::ostringstream msg;
     msg << path << ".frequency " << frequency
         << " is not supported (Monthly, Quarterly, Semiannual, Annual or Once)";
-    QUANTRA_INVALID_ARGUMENT(msg.str());
+    QuantraInvalidArgumentAt(path + ".frequency", msg.str());
     return 0;
 }
 
@@ -51,10 +51,11 @@ std::vector<CommodityPeriod> GeneratePeriods(
     const std::string& path) {
     const int months = monthsPerPeriod(frequency, path);
     if (start == QuantLib::Date() || end == QuantLib::Date()) {
-        QUANTRA_INVALID_ARGUMENT(path + ": start_date and end_date are required");
+        QuantraInvalidArgumentAt(path, path + ": start_date and end_date are required");
     }
     if (start > end) {
-        QUANTRA_INVALID_ARGUMENT(
+        QuantraInvalidArgumentAt(
+            path + ".start_date",
             path + ".start_date " + DateToIso(start) + " is after end_date " + DateToIso(end));
     }
     std::vector<CommodityPeriod> out;
@@ -74,24 +75,25 @@ std::vector<CommodityPeriod> GeneratePeriods(
 
 void ValidatePeriods(const std::vector<CommodityPeriod>& periods, const std::string& path) {
     if (periods.empty()) {
-        QUANTRA_INVALID_ARGUMENT(path + ": at least one period is required");
+        QuantraInvalidArgumentAt(path, path + ": at least one period is required");
     }
     for (std::size_t i = 0; i < periods.size(); ++i) {
         const auto& p = periods[i];
         const std::string at = path + "[" + std::to_string(i) + "]";
         if (p.start == QuantLib::Date() || p.end == QuantLib::Date()) {
-            QUANTRA_INVALID_ARGUMENT(at + " needs start_date and end_date");
+            QuantraInvalidArgumentAt(at, at + " needs start_date and end_date");
         }
         if (p.start > p.end) {
-            QUANTRA_INVALID_ARGUMENT(
-                at + ".start_date " + DateToIso(p.start) + " is after end_date " +
-                DateToIso(p.end));
+            QuantraInvalidArgumentAt(
+                at + ".start_date", at + ".start_date " + DateToIso(p.start) +
+                                        " is after end_date " + DateToIso(p.end));
         }
         if (i > 0 && p.start <= periods[i - 1].end) {
-            QUANTRA_INVALID_ARGUMENT(
+            QuantraInvalidArgumentAt(
+                at + ".start_date",
                 at + ".start_date " + DateToIso(p.start) + " is not after the end of " + path +
-                "[" + std::to_string(i - 1) + "] (" + DateToIso(periods[i - 1].end) +
-                "); periods must be ascending and must not overlap");
+                    "[" + std::to_string(i - 1) + "] (" + DateToIso(periods[i - 1].end) +
+                    "); periods must be ascending and must not overlap");
         }
     }
 }
