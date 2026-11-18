@@ -28,6 +28,11 @@ first release that promises wire stability.
 
 ## Unreleased
 
+## Version 0.17.0-commodities.2 (November 2026) — commodity curves (preview)
+
+Preview build from the `commodities` branch: the image is published only as
+`0.17.0-commodities.2`; `latest` and `0.16` stay on 0.16.11.
+
 ### Commodity curves from futures quotes: `POST /build-commodity-curves` (preview)
 
 A new endpoint completes a futures contract whose months are only partly
