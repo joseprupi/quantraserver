@@ -7978,6 +7978,449 @@ def price_commodity_swap_ql(request: dict) -> dict:
 
 
 # =============================================================================
+# Commodity curve build (/build-commodity-curves)
+# =============================================================================
+#
+# An independent implementation of the fill rule, written from the schema
+# documentation (flatbuffers/fbs/build_commodity_curves_request.fbs and the
+# CommodityCurveInterpolation enum): a month is live when its last trading
+# date is on or after the valuation date; a live month without a price takes
+# the price read, on its own last trading date, from the quoted live months
+# placed on their last trading dates (calendar days from the valuation date /
+# 365) with one of six methods. Plain Python (the natural spline solves its
+# own tridiagonal system on second derivatives, the Kruger cubic computes its
+# node slopes and evaluates the Hermite cubic): no part of the engine's code
+# is used.
+
+def _iso_to_date(text: str):
+    import datetime
+    return datetime.date.fromisoformat(text)
+
+
+_CURVE_METHODS = ("Linear", "LogLinear", "BackwardFlat", "ForwardFlat", "KrugerCubic",
+                  "NaturalCubic")
+
+
+def _natural_spline(xs, ys):
+    """Natural cubic spline through (xs, ys): the second derivatives M_i solve
+    h_{i-1} M_{i-1} + 2 (h_{i-1} + h_i) M_i + h_i M_{i+1}
+        = 6 (S_i - S_{i-1}),  M_0 = M_{n-1} = 0,
+    a tridiagonal system solved here by forward elimination and back
+    substitution (plain Python: the test image has no numpy); returns s(x)."""
+    n = len(xs)
+    h = [xs[i + 1] - xs[i] for i in range(n - 1)]
+    slope = [(ys[i + 1] - ys[i]) / h[i] for i in range(n - 1)]
+    m = [0.0] * n
+    if n > 2:
+        # Unknowns M_1 .. M_{n-2}.
+        k = n - 2
+        diag = [2.0 * (h[i - 1] + h[i]) for i in range(1, n - 1)]
+        upper = [h[i] for i in range(1, n - 1)]          # coefficient of M_{i+1}
+        rhs = [6.0 * (slope[i] - slope[i - 1]) for i in range(1, n - 1)]
+        lower = [h[i - 1] for i in range(1, n - 1)]      # coefficient of M_{i-1}
+        for j in range(1, k):
+            w = lower[j] / diag[j - 1]
+            diag[j] -= w * upper[j - 1]
+            rhs[j] -= w * rhs[j - 1]
+        inner = [0.0] * k
+        inner[k - 1] = rhs[k - 1] / diag[k - 1]
+        for j in range(k - 2, -1, -1):
+            inner[j] = (rhs[j] - upper[j] * inner[j + 1]) / diag[j]
+        m[1:n - 1] = inner
+
+    def value(x):
+        k = max(i for i in range(n - 1) if xs[i] <= x)
+        k = min(k, n - 2)
+        hk, u, v = h[k], x - xs[k], xs[k + 1] - x
+        return (m[k] * v ** 3 / (6.0 * hk) + m[k + 1] * u ** 3 / (6.0 * hk)
+                + (ys[k] - m[k] * hk * hk / 6.0) * v / hk
+                + (ys[k + 1] - m[k + 1] * hk * hk / 6.0) * u / hk)
+    return value
+
+
+def _kruger_cubic(xs, ys):
+    """Kruger's constrained cubic: Hermite cubic on each interval with node
+    slopes d_i = 2 / (1/S_{i-1} + 1/S_i) at inner nodes (0 when the two
+    neighbouring slopes have opposite signs or one is 0), at the end nodes
+    d_0 = (3 S_0 - d_1) / 2 and d_{n-1} = (3 S_{n-2} - d_{n-2}) / 2, and the
+    straight line when there are two nodes; returns s(x)."""
+    n = len(xs)
+    h = [xs[i + 1] - xs[i] for i in range(n - 1)]
+    slope = [(ys[i + 1] - ys[i]) / h[i] for i in range(n - 1)]
+    if n == 2:
+        d = [slope[0], slope[0]]
+    else:
+        d = [0.0] * n
+        for i in range(1, n - 1):
+            s0, s1 = slope[i - 1], slope[i]
+            d[i] = 0.0 if s0 * s1 <= 0.0 else 2.0 / (1.0 / s0 + 1.0 / s1)
+        d[0] = (3.0 * slope[0] - d[1]) / 2.0
+        d[n - 1] = (3.0 * slope[n - 2] - d[n - 2]) / 2.0
+
+    def value(x):
+        k = max(i for i in range(n - 1) if xs[i] <= x)
+        k = min(k, n - 2)
+        t = (x - xs[k]) / h[k]
+        h00 = 2 * t ** 3 - 3 * t ** 2 + 1
+        h10 = t ** 3 - 2 * t ** 2 + t
+        h01 = -2 * t ** 3 + 3 * t ** 2
+        h11 = t ** 3 - t ** 2
+        return (h00 * ys[k] + h10 * h[k] * d[k] + h01 * ys[k + 1] + h11 * h[k] * d[k + 1])
+    return value
+
+
+def _commodity_curve_fill(as_of, build: dict, contract: dict):
+    """Fill the live months of `contract` (modified in place) that have no
+    price from the priced live months, with build["interpolation"] and
+    build["extrapolate_flat"]. Returns (filled months, of those the months
+    outside the priced ones). Raises ValueError where the endpoint answers
+    400 (interpolation missing while needed, no priced live month, LogLinear
+    on a price <= 0, a month outside without extrapolate_flat, an unknown
+    method)."""
+    months = contract["months"]
+    live = [m for m in months if _iso_to_date(m["last_trade_date"]) >= as_of]
+    # Axis: calendar days from the valuation date / 365.
+    quotes = [((_iso_to_date(m["last_trade_date"]) - as_of).days / 365.0, float(m["price"]))
+              for m in live if m.get("price") is not None]
+    missing = [m for m in live if m.get("price") is None]
+    if not missing:
+        return [], []
+    rule = build.get("interpolation")
+    if rule is None:
+        raise ValueError("interpolation is required")
+    if rule not in _CURVE_METHODS:
+        raise ValueError(f"interpolation {rule} is not accepted")
+    if not quotes:
+        raise ValueError("no live month has a price")
+    if rule == "LogLinear" and any(p <= 0.0 for _, p in quotes):
+        raise ValueError("LogLinear needs every quoted live price > 0")
+    xs = [q[0] for q in quotes]
+    ys = [q[1] for q in quotes]
+    curve = None
+    if len(quotes) >= 2:
+        if rule == "NaturalCubic":
+            curve = _natural_spline(xs, ys)
+        elif rule == "KrugerCubic":
+            curve = _kruger_cubic(xs, ys)
+    flat = bool(build.get("extrapolate_flat", False))
+    filled = []
+    outside = []
+    for m in missing:
+        t = (_iso_to_date(m["last_trade_date"]) - as_of).days / 365.0
+        if t < xs[0] or t > xs[-1]:
+            if not flat:
+                raise ValueError(f"month {m['month']} is outside the quoted live months")
+            price = ys[0] if t < xs[0] else ys[-1]
+            outside.append(m["month"])
+        else:
+            # Quotes on both sides (a missing month never shares a last
+            # trading date with a quote: the dates are strictly ascending).
+            after = next(k for k, x in enumerate(xs) if x > t)
+            (t0, p0), (t1, p1) = quotes[after - 1], quotes[after]
+            w = (t - t0) / (t1 - t0)
+            if rule == "BackwardFlat":
+                price = p1
+            elif rule == "ForwardFlat":
+                price = p0
+            elif rule == "Linear":
+                price = p0 + (p1 - p0) * w
+            elif rule == "LogLinear":
+                price = math.exp(math.log(p0) + (math.log(p1) - math.log(p0)) * w)
+            else:
+                price = float(curve(t))
+        m["price"] = price
+        filled.append(m["month"])
+    return filled, outside
+
+
+# --- Average-price quotes: one linear system -------------------------------
+#
+# Written from the endpoint's description, independently of the engine: an
+# average quote is the fixed price of a fixed-for-floating average swap worth
+# zero, so, with the swap twin commodity_swap_ql (fixed leg paying 0, every
+# live month at 0), quote = constant + sum weight x price with
+# weight = delta / A, constant = NPV / A, A = sum of quantity x discount over
+# the fixed leg's flows. The system is reduced to row echelon form by
+# Gaussian elimination with partial pivoting (one equation at a time: direct
+# prices in month order, then the quotes); Smooth solves the KKT system
+# [[2 D'D, C'], [C, 0]] directly.
+
+_FLAT_CURVE_ID = "__undiscounted__"
+
+
+def _curve_build_quote_request(as_of_iso, contract, quote, fixed_price, curves):
+    """A one-swap PriceCommoditySwapRequest for an average quote."""
+    several = len(commodity_periods_ql(quote["periods"])) > 1
+    curve_id = quote.get("discounting_curve")
+    pay = {"payment_calendar": quote.get("payment_calendar", "NullCalendar"),
+           "payment_lag": quote.get("payment_lag", 1),
+           "payment_convention": quote.get("payment_convention", "Following"),
+           "discounting_curve": curve_id or _FLAT_CURVE_ID}
+    if several:
+        for field in ("quantity_basis", "payment_calendar", "payment_lag",
+                      "payment_convention", "discounting_curve"):
+            if field not in quote:
+                raise ValueError(f"{field} is required for a quote of several periods")
+    quantity = {"value": 1.0, "basis": quote.get("quantity_basis", "PerPeriod")}
+    leg1 = dict(pay, pay_receive="Pay", periods=quote["periods"], quantity=quantity,
+                price_type="CommodityFixedPrice", price={"price": fixed_price})
+    leg2 = dict(pay, pay_receive="Receive", periods=quote["periods"], quantity=quantity,
+                price_type="FuturesFloatingPrice",
+                price={"contract_id": contract["id"], "nearby": quote["nearby"],
+                       "roll_days_before_expiry": quote["roll_days_before_expiry"]})
+    flat = {"id": _FLAT_CURVE_ID, "reference_date": as_of_iso,
+            "day_counter": "Actual365Fixed", "interpolator": "LogLinear",
+            "bootstrap_trait": "InterpolatedDiscount",
+            "points": [{"point_type": "DiscountFactorPoint",
+                        "point": {"date": as_of_iso, "discount_factor": 1.0}},
+                       {"point_type": "DiscountFactorPoint",
+                        "point": {"date": "2199-12-31", "discount_factor": 1.0}}]}
+    return {"pricing": {"as_of_date": as_of_iso,
+                        "rates": {"curves": list(curves) + [flat]},
+                        "commodity": {"contracts": [contract]}},
+            "swaps": [{"commodity_swap": {"leg1": leg1, "leg2": leg2}}]}
+
+
+def _curve_build_quote_equation(as_of_iso, contract_zero, quote, curves):
+    row = commodity_swap_ql(
+        _curve_build_quote_request(as_of_iso, contract_zero, quote, 0.0, curves))
+    annuity = sum(f["quantity"] * f["discount"] for f in row["legs"][0]["flows"])
+    weights = {d["month"]: d["delta"] / annuity for d in row["deltas"]
+               if d["delta"] != 0.0} if annuity > 0 else {}
+    if not weights:
+        raise ValueError("the quote reads no live month")
+    return weights, row["legs"][1]["npv"] / annuity
+
+
+class _Echelon:
+    """Reduced row echelon form built one equation at a time."""
+
+    def __init__(self, n):
+        self.n = n
+        self.rows = []      # (row, rhs, pivot column), pivot entry 1, eliminated elsewhere
+
+    def add(self, row, rhs, tolerance=1e-9):
+        r, b = list(row), rhs
+        scale = max((abs(v) for v in row), default=0.0)
+        for v, beta, pc in self.rows:
+            f = r[pc]
+            if f != 0.0:
+                r = [a - f * c for a, c in zip(r, v)]
+                b -= f * beta
+        largest = max(range(self.n), key=lambda c: abs(r[c])) if self.n else None
+        if self.n == 0 or abs(r[largest]) <= tolerance * scale:
+            return False, rhs - b       # dependent: the implied right-hand side
+        pivot = r[largest]
+        r = [a / pivot for a in r]
+        b /= pivot
+        new_rows = []
+        for v, beta, pc in self.rows:
+            f = v[largest]
+            if f != 0.0:
+                v = [a - f * c for a, c in zip(v, r)]
+                beta -= f * b
+            new_rows.append((v, beta, pc))
+        self.rows = new_rows + [(r, b, largest)]
+        return True, None
+
+    def determined(self, c, tolerance=1e-9):
+        """Column c is fixed by the equations: a pivot whose row has no
+        weight on a free column."""
+        pivots = {pc for _, _, pc in self.rows}
+        for v, _, pc in self.rows:
+            if pc == c:
+                return all(abs(v[k]) <= tolerance for k in range(self.n) if k not in pivots)
+        return False
+
+
+def _gauss_solve(a, b):
+    n = len(b)
+    a = [list(r) for r in a]
+    b = list(b)
+    scale = max((abs(v) for r in a for v in r), default=0.0)
+    for c in range(n):
+        p = max(range(c, n), key=lambda r: abs(a[r][c]))
+        if abs(a[p][c]) <= 1e-12 * scale:
+            raise ValueError("singular system")
+        a[c], a[p] = a[p], a[c]
+        b[c], b[p] = b[p], b[c]
+        for r in range(c + 1, n):
+            f = a[r][c] / a[c][c]
+            for k in range(c, n):
+                a[r][k] -= f * a[c][k]
+            b[r] -= f * b[c]
+    x = [0.0] * n
+    for c in range(n - 1, -1, -1):
+        x[c] = (b[c] - sum(a[c][k] * x[k] for k in range(c + 1, n))) / a[c][c]
+    return x
+
+
+def commodity_curve_build_ql(request: dict, index: int = 0) -> dict:
+    """The response row `curves[index]` the build gives for the request:
+    {"contract": the contract with every live month priced,
+     "report": {"status", "rule" (when sent), "unknowns", "equations",
+                "rank", "months": [{"month", "price", "source"}],
+                "average_quotes": [{"repriced", "difference", "status",
+                                    "weights", "constant"}]}}.
+    Raises ValueError where the endpoint answers 400: a conflict (the
+    message carries the implied value), an underdetermined system without a
+    rule, Flat or Smooth without one exact solution, a quote reading no live
+    month, and every error of the fill."""
+    as_of_iso = request["pricing"]["as_of_date"]
+    as_of = _iso_to_date(as_of_iso)
+    curves = (request["pricing"].get("rates") or {}).get("curves") or []
+    build = request["curves"][index]
+    contract = json.loads(json.dumps(build["contract"]))  # deep copy, echoed as sent
+    months = contract["months"]
+    live = [m for m in months if _iso_to_date(m["last_trade_date"]) >= as_of]
+    quotes = build.get("average_quotes") or []
+
+    zero = json.loads(json.dumps(contract))
+    for m in zero["months"]:
+        if _iso_to_date(m["last_trade_date"]) >= as_of:
+            m["price"] = 0.0
+    equations = [_curve_build_quote_equation(as_of_iso, zero, q, curves) for q in quotes]
+
+    unknowns = [m["month"] for m in live
+                if m.get("price") is not None or any(m["month"] in w for w, _ in equations)]
+    col = {name: c for c, name in enumerate(unknowns)}
+    n = len(unknowns)
+    rows, rhs, quoted, names = [], [], [], []
+    for m in live:
+        if m.get("price") is not None:
+            row = [0.0] * n
+            row[col[m["month"]]] = 1.0
+            rows.append(row)
+            rhs.append(float(m["price"]))
+            quoted.append(float(m["price"]))
+            names.append(m["month"])
+    direct = len(rows)
+    for k, (weights, constant) in enumerate(equations):
+        row = [0.0] * n
+        for month, w in weights.items():
+            row[col[month]] = w
+        rows.append(row)
+        rhs.append(float(quotes[k]["price"]) - constant)
+        quoted.append(float(quotes[k]["price"]))
+        names.append(f"average_quotes[{k}]")
+
+    statuses = ["Used"] * len(quotes)
+    ech = _Echelon(n)
+    for e, row in enumerate(rows):
+        independent, implied = ech.add(row, rhs[e])
+        if independent:
+            continue
+        k = e - direct
+        implied_quote = implied + equations[k][1]
+        gap = quoted[e] - implied_quote
+        if abs(gap) <= 1e-8 * max(1.0, abs(quoted[e])):
+            statuses[k] = "Redundant"
+            continue
+        raise ValueError(f"conflict on average_quotes[{k}]: implied {implied_quote}, "
+                         f"quoted {quoted[e]}, gap {gap}")
+    rank = len(ech.rows)
+    determined = [ech.determined(c) for c in range(n)]
+    rule = build.get("rule")
+    if rank == n:
+        status = "Unique"
+        x = [0.0] * n
+        for v, beta, pc in ech.rows:
+            x[pc] = beta
+    else:
+        status = "Underdetermined"
+        if rule is None:
+            raise ValueError("rule is required: the quotes do not determine " +
+                             ", ".join(unknowns[c] for c in range(n) if not determined[c]))
+        if rule == "Flat":
+            signatures = {}
+            group = []
+            for c in range(n):
+                sig = tuple(e for e in range(len(rows)) if rows[e][c] != 0.0)
+                group.append(signatures.setdefault(sig, len(signatures)))
+            g = len(signatures)
+            red = _Echelon(g)
+            for e, row in enumerate(rows):
+                reduced = [0.0] * g
+                for c in range(n):
+                    reduced[group[c]] += row[c]
+                independent, implied = red.add(reduced, rhs[e])
+                if not independent and abs(rhs[e] - implied) > 1e-8 * max(1.0, abs(quoted[e])):
+                    raise ValueError(f"rule Flat cannot reprice {names[e]}")
+            if len(red.rows) < g:
+                raise ValueError("rule Flat leaves months undetermined")
+            y = [0.0] * g
+            for v, beta, pc in red.rows:
+                y[pc] = beta
+            x = [y[group[c]] for c in range(n)]
+        else:
+            cons = [(v, beta) for v, beta, _ in ech.rows]
+            r = len(cons)
+            kkt = [[0.0] * (n + r) for _ in range(n + r)]
+            for i in range(1, n - 1):        # 2 D'D
+                d = {i - 1: 1.0, i: -2.0, i + 1: 1.0}
+                for a, da in d.items():
+                    for b2, db in d.items():
+                        kkt[a][b2] += 2.0 * da * db
+            for j, (v, beta) in enumerate(cons):
+                for c in range(n):
+                    kkt[n + j][c] = v[c]
+                    kkt[c][n + j] = v[c]
+            try:
+                sol = _gauss_solve(kkt, [0.0] * n + [beta for _, beta in cons])
+            except ValueError:
+                raise ValueError("rule Smooth has no unique solution")
+            x = sol[:n]
+
+    for c, name in enumerate(unknowns):
+        m = next(mm for mm in months if mm["month"] == name)
+        m["price"] = x[c]
+    filled, outside = _commodity_curve_fill(as_of, build, contract)
+
+    month_rows = []
+    for m in live:
+        name = m["month"]
+        if name in col:
+            original = next(mm for mm in build["contract"]["months"] if mm["month"] == name)
+            source = ("Quoted" if original.get("price") is not None
+                      else "Solved" if determined[col[name]] else "Assumed")
+        else:
+            source = "Extrapolated" if name in outside else "Interpolated"
+        month_rows.append({"month": name, "price": m["price"], "source": source})
+
+    quote_rows = []
+    for k, q in enumerate(quotes):
+        priced = commodity_swap_ql(
+            _curve_build_quote_request(as_of_iso, contract, q, float(q["price"]), curves))
+        repriced = priced["fair_fixed_price"]
+        quote_rows.append({"repriced": repriced, "difference": repriced - float(q["price"]),
+                           "status": statuses[k],
+                           "weights": [{"month": mo, "weight": w}
+                                       for mo, w in sorted(equations[k][0].items())],
+                           "constant": equations[k][1]})
+    report = {"status": status, "unknowns": n, "equations": len(rows), "rank": rank,
+              "months": month_rows, "average_quotes": quote_rows}
+    if rule is not None:
+        report["rule"] = rule
+    return {"contract": contract, "report": report}
+
+
+def build_commodity_curves_ql(request: dict) -> dict:
+    """Functional-catalog reference for /build-commodity-curves
+    (compare="fields"): the price of every priced month of every returned
+    contract, keyed by its dotted response path
+    (curves.0.contract.months.3.price). The echo of every other field, the
+    absent prices and the report are compared by
+    tests/contract/commodity_curve_build_test.py."""
+    out = {}
+    for i in range(len(request["curves"])):
+        row = commodity_curve_build_ql(request, i)
+        for j, m in enumerate(row["contract"]["months"]):
+            if m.get("price") is not None:
+                out[f"curves.{i}.contract.months.{j}.price"] = m["price"]
+    return out
+
+
+# =============================================================================
 # Per-request calendar holiday overrides (applied centrally to every *_ql
 # reference entry point)
 # =============================================================================

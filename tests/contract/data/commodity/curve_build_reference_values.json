@@ -1,0 +1,204 @@
+{
+ "monthly_strip": {
+  "as_of": "2026-11-13",
+  "direct_month_prices": {
+   "2027-01": 60.4
+  },
+  "average_quotes": [
+   {
+    "calendar_month_averaged": "2026-12",
+    "price": 60.495454545455,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-01",
+    "price": 60.810526315789,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-02",
+    "price": 61.042105263158,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-03",
+    "price": 61.254545454545,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-04",
+    "price": 61.436363636364,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-05",
+    "price": 61.53,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-06",
+    "price": 61.627272727273,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-07",
+    "price": 61.738095238095,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-08",
+    "price": 61.831818181818,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-09",
+    "price": 61.933333333333,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-10",
+    "price": 62.033333333333,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   }
+  ],
+  "expected_month_prices": {
+   "2027-01": 60.4,
+   "2027-02": 60.70000000000145,
+   "2027-03": 60.999999999996184,
+   "2027-04": 61.200000000014924,
+   "2027-05": 61.39999999995851,
+   "2027-06": 61.50000000007368,
+   "2027-07": 61.5999999998281,
+   "2027-08": 61.700000000459305,
+   "2027-09": 61.79999999925302,
+   "2027-10": 61.9000000016,
+   "2027-11": 61.99999999679902,
+   "2027-12": 62.10000000640091
+  },
+  "note": "Contract: the swap reference contract SYN_CL of price_commodity_swap_benchmark_request.json with every month price removed except 2027-01. Each average quote is the plain average of the front month over the pricing days of one calendar month, paid once. Months 2026-12 and 2028-01 are not touched by any quote: with extrapolate_flat they take 60.4 and the 2027-12 value. Independent reference values.",
+  "swap_npv_first_benchmark_swap_on_built_contract": 37235.686976
+ },
+ "monthly_strip_rounded_to_cents": {
+  "as_of": "2026-11-13",
+  "direct_month_prices": {
+   "2027-01": 60.4
+  },
+  "average_quotes": [
+   {
+    "calendar_month_averaged": "2026-12",
+    "price": 60.5,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-01",
+    "price": 60.81,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-02",
+    "price": 61.04,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-03",
+    "price": 61.25,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-04",
+    "price": 61.44,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-05",
+    "price": 61.53,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-06",
+    "price": 61.63,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-07",
+    "price": 61.74,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-08",
+    "price": 61.83,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-09",
+    "price": 61.93,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   },
+   {
+    "calendar_month_averaged": "2027-10",
+    "price": 62.03,
+    "nearby": 1,
+    "roll_days_before_expiry": 0,
+    "single_period": true
+   }
+  ],
+  "expected_month_prices": {
+   "2027-01": 60.4,
+   "2027-02": 60.714285714285744,
+   "2027-03": 60.97408163265304,
+   "2027-04": 61.28719387755119,
+   "2027-05": 61.150816326530126,
+   "2027-06": 61.946071428572225,
+   "2027-07": 60.55916666666489,
+   "2027-08": 64.48555555556027,
+   "2027-09": 57.27847222221457,
+   "2027-10": 71.58327380954026,
+   "2027-11": 42.623452380919474,
+   "2027-12": 100.84309523816101
+  },
+  "note": "Contract: the swap reference contract SYN_CL of price_commodity_swap_benchmark_request.json with every month price removed except 2027-01. Each average quote is the plain average of the front month over the pricing days of one calendar month, paid once. Months 2026-12 and 2028-01 are not touched by any quote: with extrapolate_flat they take 60.4 and the 2027-12 value. Independent reference values.",
+  "swap_npv_first_benchmark_swap_on_built_contract": 37209.05495
+ }
+}

@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.join(PROJECT_ROOT, 'clients', 'python'))
 import QuantLib as ql
 from quantra_client.client import (
     Client,
+    QuantraError,
     # Request types
     PriceFixedRateBondRequestT,
     PriceVanillaSwapRequestT,
@@ -32,6 +33,7 @@ from quantra_client.client import (
     PriceFxForwardRequestT,
     PriceCrossCurrencySwapRequestT,
     PriceCommoditySwapRequestT,
+    BuildCommodityCurvesRequestT,
     PriceCapFloorRequestT,
     PriceSwaptionRequestT,
     PriceCDSRequestT,
@@ -94,6 +96,8 @@ from quantra_client.client import (
     CommoditySwapLegT,
     CommoditySwapT,
     PriceCommoditySwapT,
+    CommodityCurveBuildT,
+    CommodityAverageQuoteT,
     CommodityLegPrice,
     CommodityQuantityBasis,
     PayReceive,
@@ -117,6 +121,8 @@ from quantra_client.client import (
     TimeUnit,
     DateGenerationRule,
     Interpolator,
+    CommodityCurveInterpolation,
+    CommodityMonthSource,
     BootstrapTrait,
     Compounding,
     RateAveragingType,
@@ -1704,6 +1710,161 @@ def test_commodity_swap(client: Client, curve_handle: ql.YieldTermStructureHandl
     return passed, ql_npv, q_npv
 
 
+def test_commodity_curve_build(client: Client):
+    """
+    Complete a three-month futures contract whose middle month has no price
+
+    Synthetic months 2025-03 (last traded 20 Feb, 70.00), 2025-04 (20 Mar,
+    no price) and 2025-05 (21 Apr, 73.00) as of 15 Jan 2025, filled Linear:
+    28 of 60 calendar days between the quotes -> 70 + 3 * 28 / 60 = 71.40.
+    """
+    print("\n" + "=" * 60)
+    print("Commodity Curve Build")
+    print("=" * 60)
+
+    expected = 70.0 + 3.0 * 28.0 / 60.0
+
+    def month(name, last_trade, price=None):
+        m = CommodityContractMonthT()
+        m.month = name
+        m.lastTradeDate = last_trade
+        m.price = price
+        return m
+
+    contract = CommodityContractSpecT()
+    contract.id = "SYN_C"
+    contract.pricingCalendar = Calendar.WeekendsOnly
+    contract.months = [month("2025-03", "2025-02-20", 70.0), month("2025-04", "2025-03-20"),
+                       month("2025-05", "2025-04-21", 73.0)]
+    build = CommodityCurveBuildT()
+    build.contract = contract
+    build.interpolation = CommodityCurveInterpolation.Linear
+
+    request = BuildCommodityCurvesRequestT()
+    pricing = PricingT()
+    pricing.asOfDate = EVAL_DATE_STR
+    request.pricing = pricing
+    request.curves = [build]
+
+    response = client.build_commodity_curves(request)
+    curve = response.Curves(0)
+    built = curve.Contract()
+    prices = [built.Months(i).Price() for i in range(built.MonthsLength())]
+    report = curve.Report()
+    filled = [report.Months(i).Month().decode() for i in range(report.MonthsLength())
+              if report.Months(i).Source() == CommodityMonthSource.Interpolated]
+    print(f"  Prices:             {prices}")
+    print(f"  Filled months:      {filled}")
+
+    passed = (built.MonthsLength() == 3 and prices[0] == 70.0 and prices[2] == 73.0
+              and abs(prices[1] - expected) < 1e-12 and filled == ["2025-04"])
+    print(f"  Result:             {'✓ PASS' if passed else '✗ FAIL'}")
+    return passed, expected, prices[1]
+
+
+def test_commodity_curve_build_refusal(client: Client):
+    """
+    A refused build carries structured details on the client's error
+
+    The middle month has no price and no interpolation is given: the engine
+    refuses with reason InterpolationRequired and the month, read here from
+    QuantraError.details (sent in the trailing metadata).
+    """
+    print("\n" + "=" * 60)
+    print("Commodity Curve Build Refusal")
+    print("=" * 60)
+
+    def month(name, last_trade, price=None):
+        m = CommodityContractMonthT()
+        m.month = name
+        m.lastTradeDate = last_trade
+        m.price = price
+        return m
+
+    contract = CommodityContractSpecT()
+    contract.id = "SYN_C"
+    contract.pricingCalendar = Calendar.WeekendsOnly
+    contract.months = [month("2025-03", "2025-02-20", 70.0), month("2025-04", "2025-03-20"),
+                       month("2025-05", "2025-04-21", 73.0)]
+    build = CommodityCurveBuildT()
+    build.contract = contract
+    request = BuildCommodityCurvesRequestT()
+    pricing = PricingT()
+    pricing.asOfDate = EVAL_DATE_STR
+    request.pricing = pricing
+    request.curves = [build]
+
+    details = None
+    try:
+        client.build_commodity_curves(request)
+    except QuantraError as e:
+        details = e.details
+        print(f"  Error:              {e}")
+    print(f"  Details:            {details}")
+    expected = {"reason": "InterpolationRequired", "curve": 0,
+                "path": "curves[0].interpolation", "months": ["2025-04"]}
+    passed = details == expected
+    print(f"  Result:             {'✓ PASS' if passed else '✗ FAIL'}")
+    return passed, 0.0, 0.0
+
+
+def test_commodity_curve_build_conflict(client: Client):
+    """
+    A conflicting quote, read from the gRPC error itself
+
+    Two one-month average quotes on March 2025 (the March contract month is
+    read for the whole month): 70 and 71. The second conflicts with the
+    first; QuantraError.details carries the implied value, the quoted value,
+    the gap and the quote it depends on.
+    """
+    print("\n" + "=" * 60)
+    print("Commodity Curve Build Conflict")
+    print("=" * 60)
+
+    month = CommodityContractMonthT()
+    month.month = "2025-03"
+    month.lastTradeDate = "2025-03-31"
+    contract = CommodityContractSpecT()
+    contract.id = "SYN_C"
+    contract.pricingCalendar = Calendar.WeekendsOnly
+    contract.months = [month]
+
+    def quote(price):
+        periods = CommodityPeriodsT()
+        periods.startDate = "2025-03-01"
+        periods.endDate = "2025-03-31"
+        periods.frequency = Frequency.Once
+        q = CommodityAverageQuoteT()
+        q.price = price
+        q.periods = periods
+        q.nearby = 1
+        q.rollDaysBeforeExpiry = 0
+        return q
+
+    build = CommodityCurveBuildT()
+    build.contract = contract
+    build.averageQuotes = [quote(70.0), quote(71.0)]
+    request = BuildCommodityCurvesRequestT()
+    pricing = PricingT()
+    pricing.asOfDate = EVAL_DATE_STR
+    request.pricing = pricing
+    request.curves = [build]
+
+    details = None
+    try:
+        client.build_commodity_curves(request)
+    except QuantraError as e:
+        details = e.details
+    print(f"  Details:            {details}")
+    passed = (details is not None and details["reason"] == "QuoteConflict"
+              and details["average_quote"] == 1 and details["implied_value"] == 70.0
+              and details["quoted_value"] == 71.0 and details["gap"] == 1.0
+              and details["depends_on"] == [{"average_quote": 0}]
+              and details["path"] == "curves[0].average_quotes[1]")
+    print(f"  Result:             {'✓ PASS' if passed else '✗ FAIL'}")
+    return passed, 0.0, 0.0
+
+
 # =============================================================================
 # Main
 # =============================================================================
@@ -1729,6 +1890,9 @@ def main():
         ("FX Forward", lambda: test_fx_forward(client, curve_handle)),
         ("Cross-Currency Swap", lambda: test_cross_currency_swap(client, curve_handle)),
         ("Commodity Swap", lambda: test_commodity_swap(client, curve_handle)),
+        ("Commodity Curve Build", lambda: test_commodity_curve_build(client)),
+        ("Commodity Curve Build Refusal", lambda: test_commodity_curve_build_refusal(client)),
+        ("Commodity Curve Build Conflict", lambda: test_commodity_curve_build_conflict(client)),
         ("Cap", lambda: test_cap(client, curve_handle)),
         ("Swaption", lambda: test_swaption(client, curve_handle)),
         ("CDS", lambda: test_cds(client, curve_handle)),

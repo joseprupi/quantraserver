@@ -213,6 +213,11 @@ public:
                           << " type=" << typeid(Message).name() << " peer=" << ctx_.peer()
                           << " error=" << e.what() << " request_id=" << request_id << std::endl;
                 status_ = FINISH;
+                // Structured details, when the error carries them, travel in
+                // the trailing metadata; the status itself is unchanged.
+                if (!e.details().empty()) {
+                    ctx_.AddTrailingMetadata(kQuantraErrorDetailsKey, e.details());
+                }
                 auto status = grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, e.what());
                 responder_.FinishWithError(status, this);
             } catch (QuantraNotImplemented& e) {

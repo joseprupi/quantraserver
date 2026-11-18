@@ -78,6 +78,11 @@ public:
     std::size_t selectMonth(
         const QuantLib::Date& day, int nearby, const std::vector<QuantLib::Date>& rollDates) const;
 
+    /// The same contract (calendar, last trading dates, fixings) with month
+    /// i's price replaced by prices[i] (one entry per month; an absent entry
+    /// leaves the month without a price). Prices must be finite.
+    FuturesContract withPrices(const std::vector<std::optional<double>>& prices) const;
+
     /// The settlement of `month` on `date`, when given.
     std::optional<double> fixing(const std::string& month, const QuantLib::Date& date) const;
 

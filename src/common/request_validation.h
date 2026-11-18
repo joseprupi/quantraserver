@@ -49,10 +49,10 @@ namespace quantra {
  */
 inline double requireFinite(flatbuffers::Optional<double> v, const std::string& name) {
     if (!v.has_value()) {
-        QUANTRA_INVALID_ARGUMENT(name + " is required");
+        QuantraInvalidArgumentAt(name, name + " is required");
     }
     if (!std::isfinite(v.value())) {
-        QUANTRA_INVALID_ARGUMENT(name + " must be finite");
+        QuantraInvalidArgumentAt(name, name + " must be finite");
     }
     return v.value();
 }
@@ -64,13 +64,13 @@ inline double requireFinite(flatbuffers::Optional<double> v, const std::string& 
  */
 inline double requirePositive(flatbuffers::Optional<double> v, const std::string& name) {
     if (!v.has_value()) {
-        QUANTRA_INVALID_ARGUMENT(name + " is required");
+        QuantraInvalidArgumentAt(name, name + " is required");
     }
     if (!std::isfinite(v.value())) {
-        QUANTRA_INVALID_ARGUMENT(name + " must be finite");
+        QuantraInvalidArgumentAt(name, name + " must be finite");
     }
     if (!(v.value() > 0.0)) {
-        QUANTRA_INVALID_ARGUMENT(name + " must be positive");
+        QuantraInvalidArgumentAt(name, name + " must be positive");
     }
     return v.value();
 }
@@ -83,7 +83,7 @@ inline double requirePositive(flatbuffers::Optional<double> v, const std::string
  */
 template <typename T> inline T requireEnum(flatbuffers::Optional<T> v, const std::string& name) {
     if (!v.has_value()) {
-        QUANTRA_INVALID_ARGUMENT(name + " is required");
+        QuantraInvalidArgumentAt(name, name + " is required");
     }
     return v.value();
 }
@@ -95,7 +95,7 @@ template <typename T> inline T requireEnum(flatbuffers::Optional<T> v, const std
 template <typename T>
 inline T requireScalarPresent(flatbuffers::Optional<T> v, const std::string& name) {
     if (!v.has_value()) {
-        QUANTRA_INVALID_ARGUMENT(name + " is required");
+        QuantraInvalidArgumentAt(name, name + " is required");
     }
     return v.value();
 }
@@ -107,7 +107,7 @@ inline T requireScalarPresent(flatbuffers::Optional<T> v, const std::string& nam
  */
 inline int requireInt(flatbuffers::Optional<int> v, const std::string& name) {
     if (!v.has_value()) {
-        QUANTRA_INVALID_ARGUMENT(name + " is required");
+        QuantraInvalidArgumentAt(name, name + " is required");
     }
     return v.value();
 }
@@ -120,10 +120,10 @@ inline int requireInt(flatbuffers::Optional<int> v, const std::string& name) {
  */
 inline int requireNonNegativeInt(flatbuffers::Optional<int> v, const std::string& name) {
     if (!v.has_value()) {
-        QUANTRA_INVALID_ARGUMENT(name + " is required");
+        QuantraInvalidArgumentAt(name, name + " is required");
     }
     if (v.value() < 0) {
-        QUANTRA_INVALID_ARGUMENT(name + " must be non-negative");
+        QuantraInvalidArgumentAt(name, name + " must be non-negative");
     }
     return v.value();
 }
@@ -136,7 +136,7 @@ inline int requireNonNegativeInt(flatbuffers::Optional<int> v, const std::string
  */
 inline int requireNonNegative(int v, const std::string& name) {
     if (v < 0) {
-        QUANTRA_INVALID_ARGUMENT(name + " must be non-negative");
+        QuantraInvalidArgumentAt(name, name + " must be non-negative");
     }
     return v;
 }
@@ -148,7 +148,7 @@ inline int requireNonNegative(int v, const std::string& name) {
  */
 inline bool requireBool(flatbuffers::Optional<bool> v, const std::string& name) {
     if (!v.has_value()) {
-        QUANTRA_INVALID_ARGUMENT(name + " is required");
+        QuantraInvalidArgumentAt(name, name + " is required");
     }
     return v.value();
 }
@@ -159,7 +159,7 @@ inline bool requireBool(flatbuffers::Optional<bool> v, const std::string& name) 
 inline std::string requireNonEmptyString(
     const flatbuffers::String* value, const std::string& name) {
     if (value == nullptr || value->str().empty()) {
-        QUANTRA_INVALID_ARGUMENT(name + " is required");
+        QuantraInvalidArgumentAt(name, name + " is required");
     }
     return value->str();
 }
@@ -170,12 +170,12 @@ inline std::string requireNonEmptyString(
  */
 inline QuantLib::Date requireIsoDate(const flatbuffers::String* value, const std::string& name) {
     if (value == nullptr) {
-        QUANTRA_INVALID_ARGUMENT(name + " is required");
+        QuantraInvalidArgumentAt(name, name + " is required");
     }
     try {
         return DateToQL(value->str());
     } catch (const QuantraInvalidArgument& e) {
-        QUANTRA_INVALID_ARGUMENT(name + ": " + e.what());
+        QuantraInvalidArgumentAt(name, name + ": " + e.what());
     }
     return QuantLib::Date(); // unreachable
 }
@@ -191,13 +191,13 @@ inline QuantLib::Date requireIsoDate(const flatbuffers::String* value, const std
  */
 inline QuantLib::Period requirePeriod(const quantra::Period* p, const std::string& name) {
     if (p == nullptr) {
-        QUANTRA_INVALID_ARGUMENT(name + " is required");
+        QuantraInvalidArgumentAt(name, name + " is required");
     }
     if (!p->n().has_value()) {
-        QUANTRA_INVALID_ARGUMENT(name + ".n is required");
+        QuantraInvalidArgumentAt(name + ".n", name + ".n is required");
     }
     if (!p->unit().has_value()) {
-        QUANTRA_INVALID_ARGUMENT(name + ".unit is required");
+        QuantraInvalidArgumentAt(name + ".unit", name + ".unit is required");
     }
     return QuantLib::Period(p->n().value(), TimeUnitToQL(p->unit().value()));
 }

@@ -15,13 +15,16 @@ namespace {
 
 namespace cm = quantra::commodities;
 
+} // namespace
+
 /// Exactly one form: generated (start_date + end_date + frequency, no
 /// periods) or explicit (periods only). The periods' own rules (order,
 /// overlaps, a supported frequency) belong to the library.
-std::vector<cm::CommodityPeriod> decodePeriods(
+std::vector<commodities::CommodityPeriod> DecodeCommodityPeriods(
     const quantra::CommodityPeriods* periods, const std::string& field) {
+    namespace cm = quantra::commodities;
     if (!periods) {
-        QUANTRA_INVALID_ARGUMENT(field + " is required");
+        QuantraInvalidArgumentAt(field, field + " is required");
     }
     const bool hasStart = periods->start_date() != nullptr;
     const bool hasEnd = periods->end_date() != nullptr;
@@ -29,20 +32,23 @@ std::vector<cm::CommodityPeriod> decodePeriods(
     const bool hasList = periods->periods() != nullptr;
     const bool anyGenerated = hasStart || hasEnd || hasFrequency;
     if (hasList && anyGenerated) {
-        QUANTRA_INVALID_ARGUMENT(
-            field + ": give either start_date, end_date and frequency (generated) or periods "
-                    "(explicit), not both");
+        QuantraInvalidArgumentAt(
+            field, field +
+                       ": give either start_date, end_date and frequency (generated) or periods "
+                       "(explicit), not both");
     }
     if (!hasList && !(hasStart && hasEnd && hasFrequency)) {
         if (!anyGenerated) {
-            QUANTRA_INVALID_ARGUMENT(
+            QuantraInvalidArgumentAt(
+                field,
                 field + ": give either start_date, end_date and frequency (generated) or periods "
                         "(explicit)");
         }
         const std::string missing = !hasStart ? "start_date" : !hasEnd ? "end_date" : "frequency";
-        QUANTRA_INVALID_ARGUMENT(
+        QuantraInvalidArgumentAt(
+            field + "." + missing,
             field + "." + missing +
-            " is required: generated periods need start_date, end_date and frequency");
+                " is required: generated periods need start_date, end_date and frequency");
     }
 
     if (!hasList) {
@@ -57,7 +63,7 @@ std::vector<cm::CommodityPeriod> decodePeriods(
         const auto* p = list->Get(i);
         const std::string at = field + ".periods[" + std::to_string(i) + "]";
         if (!p) {
-            QUANTRA_INVALID_ARGUMENT(at + " is null");
+            QuantraInvalidArgumentAt(at, at + " is null");
         }
         const QuantLib::Date start = requireIsoDate(p->start_date(), at + ".start_date");
         const QuantLib::Date end = requireIsoDate(p->end_date(), at + ".end_date");
@@ -65,6 +71,10 @@ std::vector<cm::CommodityPeriod> decodePeriods(
     }
     return out;
 }
+
+namespace {
+
+namespace cm = quantra::commodities;
 
 /// A per-period list given on the wire. Present with no entry is refused
 /// here: the library cannot tell it from an absent list.
@@ -120,7 +130,7 @@ CommoditySwapLegSpec decodeLeg(const quantra::CommoditySwapLeg* leg, const std::
         requireEnum(leg->pay_receive(), name + ".pay_receive") == quantra::enums::PayReceive_Pay
             ? cm::PayReceive::Pay
             : cm::PayReceive::Receive;
-    out.periods = decodePeriods(leg->periods(), name + ".periods");
+    out.periods = DecodeCommodityPeriods(leg->periods(), name + ".periods");
     out.quantity = decodeQuantity(leg->quantity(), name + ".quantity");
 
     const std::string priceField = name + ".price";

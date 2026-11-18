@@ -241,6 +241,26 @@
       "type" : "string",
       "enum": ["Fixing", "Curve"]
     },
+    "quantra_enums_CommodityCurveInterpolation" : {
+      "type" : "string",
+      "enum": ["Linear", "LogLinear", "BackwardFlat", "ForwardFlat", "KrugerCubic", "NaturalCubic"]
+    },
+    "quantra_enums_CommodityCurveRule" : {
+      "type" : "string",
+      "enum": ["Flat", "Smooth"]
+    },
+    "quantra_enums_CommodityCurveStatus" : {
+      "type" : "string",
+      "enum": ["Unique", "Underdetermined"]
+    },
+    "quantra_enums_CommodityMonthSource" : {
+      "type" : "string",
+      "enum": ["Quoted", "Solved", "Assumed", "Interpolated", "Extrapolated"]
+    },
+    "quantra_enums_CommodityQuoteStatus" : {
+      "type" : "string",
+      "enum": ["Used", "Redundant"]
+    },
     "quantra_FxForward" : {
       "type" : "object",
       "description" : "Outright FX forward: at `maturity_date` one party delivers `base_notional`\nunits of `base_currency` against `base_notional x forward_rate` units of\n`quote_currency`. Priced off the FX spot and the two discount curves named\non the PriceFxForward wrapper; the engine never infers a currency from a\ncurve or index id.\n\nSign convention: `direction` is the side of the party whose NPV is\nreported and a positive NPV is in favour of that party. A BuyBase forward\nis worth more when the fair forward rises above `forward_rate`.",

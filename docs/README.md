@@ -9,7 +9,8 @@ This directory is the canonical home for project documentation.
 - `configuration.md`: every environment variable the runtime reads
 - `http-api.md`: request rules, HTTP status codes, error body, headers,
   per-request calendar holiday overrides, and the per-product sections (FX
-  forwards, swap legs, cross-currency swaps, commodity swaps (preview),
+  forwards, swap legs, cross-currency swaps, commodity swaps and commodity
+  curves from futures quotes (preview),
   structured notes with their
   Greeks and diagnostic blocks, implied forwards and dividends from option
   quotes, the volatility surface from option quotes)

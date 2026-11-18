@@ -39,6 +39,7 @@
 #include "basis_swap_response_generated.h"
 #include "bootstrap_curves_response_generated.h"
 #include "bootstrap_inflation_curves_response_generated.h"
+#include "build_commodity_curves_response_generated.h"
 #include "calendar_advance_response_generated.h"
 #include "calendar_business_days_response_generated.h"
 #include "calendar_holidays_response_generated.h"
@@ -118,7 +119,10 @@ struct JsonResponse {
     static JsonResponse Success(const std::string& json);
     static JsonResponse BadRequest(const std::string& error);
     static JsonResponse ServerError(const std::string& error);
-    static JsonResponse GrpcError(const grpc::Status& status);
+    /// `details`: the error's structured details (a JSON object from the
+    /// trailing metadata key "quantra-error-details-bin"); when not empty
+    /// the body gains a `details` field.
+    static JsonResponse GrpcError(const grpc::Status& status, const std::string& details = "");
 };
 
 // =============================================================================
@@ -172,6 +176,8 @@ public:
     JsonResponse PriceCrossCurrencySwapJSON(
         const std::string& json, const std::string& request_id = "");
     JsonResponse PriceCommoditySwapJSON(
+        const std::string& json, const std::string& request_id = "");
+    JsonResponse BuildCommodityCurvesJSON(
         const std::string& json, const std::string& request_id = "");
     JsonResponse PriceStructuredNoteJSON(
         const std::string& json, const std::string& request_id = "");
@@ -253,6 +259,17 @@ public:
     grpc::Status PriceCommoditySwap(
         const Message<PriceCommoditySwapRequest>& request,
         Message<PriceCommoditySwapResponse>* response);
+
+    /// On a refused build, `error_details` (when given) receives the
+    /// error's structured details, a JSON object (empty when none).
+    grpc::Status BuildCommodityCurves(
+        const Message<BuildCommodityCurvesRequest>& request,
+        Message<BuildCommodityCurvesResponse>* response,
+        std::string* error_details = nullptr);
+
+    /// The structured details of a failed call (JSON object text from the
+    /// trailing metadata key "quantra-error-details-bin"), or "".
+    static std::string ErrorDetails(const grpc::ClientContext& context);
 
     grpc::Status PriceStructuredNote(
         const Message<PriceStructuredNoteRequest>& request,

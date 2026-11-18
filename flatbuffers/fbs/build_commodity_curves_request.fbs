@@ -1,0 +1,98 @@
+include "enums.fbs";
+include "pricing.fbs";
+include "commodity.fbs";
+include "commodity_periods.fbs";
+
+namespace quantra;
+
+/// An average-price quote: the fixed price of a fixed-for-floating average
+/// swap on the contract (fixed paid, the average of the `nearby` contract
+/// month over each period's pricing days received) that is worth zero. It
+/// is one equation on the prices of the months it reads:
+/// quote = constant + sum of weight x month price, where the constant is the
+/// part already fixed (fixings) and the weights are the pricing days reading
+/// each month, times the period's quantity and discount factor, divided by
+/// the sum of quantity x discount factor over the periods still to be paid.
+table CommodityAverageQuote {
+    /// The quoted fixed price. Presence-required.
+    price:double = null;
+    /// The quote's calculation periods, as on a swap leg (generated or
+    /// explicit). One period (a month, or a quarter settled once) or several
+    /// (a quarter or a calendar year settled per month). Required.
+    periods:CommodityPeriods (required);
+    /// The contract month averaged, as on `FuturesFloatingPrice`: 1 = front
+    /// month. Presence-required, >= 1.
+    nearby:int = null;
+    /// Roll this many pricing days before the last trading date, as on
+    /// `FuturesFloatingPrice`. Presence-required, >= 0.
+    roll_days_before_expiry:int = null;
+    /// PerPeriod (each period weighs the same) or PerPricingDay (each period
+    /// weighs its pricing days). Required with more than one period; one
+    /// period: optional (it changes nothing).
+    quantity_basis:enums.CommodityQuantityBasis = null;
+    /// Payment of each period, as on a swap leg: `payment_lag` business days
+    /// of `payment_calendar` after the period's last day, adjusted with
+    /// `payment_convention`. Required with more than one period; one period:
+    /// optional (the discount factor cancels), used when given.
+    payment_calendar:enums.Calendar = null;
+    payment_lag:int = null;
+    payment_convention:enums.BusinessDayConvention = null;
+    /// Id of a `pricing.rates.curves` curve discounting the payments (404
+    /// when unknown). Required with more than one period; one period:
+    /// optional.
+    discounting_curve:string;
+}
+
+/// One futures contract to build: the months that have a price are futures
+/// quotes, the average quotes are equations on the months they read, and
+/// the live months no quote touches are filled.
+table CommodityCurveBuild {
+    /// The contract as `pricing.commodity.contracts[]` of a swap request
+    /// takes it. A month with a `price` is a quote and is returned
+    /// unchanged. A live month (last trading date on or after the valuation
+    /// date) without a price is solved from the average quotes when one of
+    /// them reads it, otherwise filled with `interpolation`. A month whose
+    /// last trading date is before the valuation date is returned as sent
+    /// (it is read through fixings). Fixings, pricing calendar and pricing
+    /// holidays are returned unchanged. Required.
+    contract:CommodityContractSpec (required);
+    /// How a live month no quote touches is filled from the determined
+    /// months (quoted, solved or assumed): Linear, LogLinear, BackwardFlat,
+    /// ForwardFlat, KrugerCubic or NaturalCubic (see
+    /// `CommodityCurveInterpolation`), on the axis of their last trading
+    /// dates in calendar days from the valuation date / 365. Required as soon
+    /// as such a month exists.
+    interpolation:enums.CommodityCurveInterpolation = null;
+    /// When false, a live month no quote touches before the first determined
+    /// month or after the last one is a 400 naming the month; when true it
+    /// takes the price of the nearest determined month, whatever the method
+    /// (a method is never continued beyond the determined months).
+    extrapolate_flat:bool = false;
+    /// Average-price quotes, solved together with the month prices as one
+    /// linear system. Optional.
+    average_quotes:[CommodityAverageQuote];
+    /// Required when the quotes do not determine every month they touch
+    /// (400 listing those months otherwise): Flat or Smooth. When they do,
+    /// it is validated and echoed and changes nothing.
+    rule:enums.CommodityCurveRule = null;
+}
+
+/// Request to build one or more futures contracts from futures prices and
+/// average-price quotes. Each result is the contract with every live month
+/// priced, ready to paste into `pricing.commodity.contracts` of a
+/// `/price-commodity-swap` request, and a report of the build.
+table BuildCommodityCurvesRequest {
+    /// `as_of_date` (the valuation date that decides which months are live),
+    /// `calendar_overrides`, and `rates.curves` when an average quote names a
+    /// `discounting_curve` (then required) are read. `commodity` is a 400:
+    /// the contracts to build are given under `curves`.
+    pricing:Pricing (required);
+    /// The contracts to build; results come back in request order.
+    /// Required, non-empty.
+    curves:[CommodityCurveBuild] (required);
+    /// When true every report adds the weights of each average quote and
+    /// the sensitivity of each determined month to each input quote.
+    include_details:bool = false;
+}
+
+root_type BuildCommodityCurvesRequest;

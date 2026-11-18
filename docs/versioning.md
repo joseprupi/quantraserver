@@ -26,6 +26,62 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Unreleased
+
+### Commodity curves from futures quotes: `POST /build-commodity-curves` (preview)
+
+A new endpoint completes a futures contract whose months are only partly
+priced, so that a strip with gaps (illiquid back months) can be used by
+`/price-commodity-swap`. It is a **preview**: the request and response
+formats may still change.
+
+- **Request**: `pricing.as_of_date` (the valuation date; no curve is
+  needed, `pricing.commodity` is a `400`) and `curves`, each a contract in
+  the shape of `pricing.commodity.contracts[]` with an `interpolation`
+  (a new `CommodityCurveInterpolation`: `Linear`, `LogLinear`,
+  `BackwardFlat`, `ForwardFlat`, `KrugerCubic` or `NaturalCubic`) and
+  `extrapolate_flat`.
+- **Rule**: a month is live when its last trading date is on or after the
+  valuation date. A live month with a price is a quote and is returned
+  unchanged; a live month without one is read from the quoted live months,
+  placed on their last trading dates (calendar days from the valuation date
+  / 365, Actual/365 Fixed): straight lines in price or log price, the next
+  or previous quote, or a cubic through all the quotes (`KrugerCubic`
+  limits overshoot, `NaturalCubic` is the smooth natural spline). A month
+  before the first or after the last quote is a `400` naming it, unless
+  `extrapolate_flat` (nearest quote; no method is continued). Expired months, fixings, the
+  pricing calendar and the pricing holidays are returned as sent.
+- **Average-price quotes**: `average_quotes` (the fixed price of an average
+  swap over one or several periods: a month, a quarter, a year, settled once
+  or per month) are equations on the months they read, with weights taken
+  from the swap pricer (pricing days, quantities, discounting, fixings).
+  Direct prices and quotes are solved as one linear system: a redundant
+  quote that agrees is flagged, a conflicting one is a `400` with the
+  implied value and the gap; when the quotes leave months open a `rule`
+  (`Flat` or `Smooth`) is required.
+- **Response**: per build, in request order, the complete contract (paste it
+  into `pricing.commodity.contracts` as is) and a `report`: status, counts,
+  every live month's price and source (`Quoted`, `Solved`, `Assumed`,
+  `Interpolated`, `Extrapolated`), every quote repriced on the built
+  contract, and with `include_details` the weights and the sensitivity of
+  each month to each quote, whose largest value (`max_sensitivity`) shows a
+  fragile build.
+- **Refused builds carry details**: a `400` of this endpoint keeps `error`,
+  `code`, `code_name` and `message` and adds a `details` object (`reason`,
+  `curve`, `path`, and per reason the quote, the months, the implied and
+  quoted values and the gap, the inputs a conflicting quote depends on, the
+  rule). gRPC callers read the same object from the trailing metadata key
+  `quantra-error-details-bin`; the C++ client exposes it with
+  `QuantraClient::ErrorDetails`, the Python client on `QuantraError.details`.
+  Other endpoints' error bodies are unchanged.
+- **Not in this step**: basis quotes, spot price curves, spreads on quotes,
+  quotes inside the swap request.
+
+Described in `docs/http-api.md` ("Commodity curves from futures quotes");
+synthetic examples in `examples/data/commodity_curve/`, each checked in the
+gate against an independent implementation of the fill rule. The swap
+request and its prices are unchanged.
+
 ## Version 0.17.0-commodities.1 (November 2026) — commodity swaps (preview)
 
 Preview build from the `commodities` branch: the image is published only as

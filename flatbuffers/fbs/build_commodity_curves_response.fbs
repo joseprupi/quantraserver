@@ -1,0 +1,89 @@
+include "enums.fbs";
+include "commodity.fbs";
+
+namespace quantra;
+
+/// The sensitivity of a month price to one input quote: a direct price
+/// (`month`) or an average quote (`average_quote`, its index).
+table CommodityQuoteSensitivity {
+    /// Month of a direct price ("YYYY-MM"). Absent for an average quote.
+    month:string;
+    /// Index of an average quote in `average_quotes`. Absent for a direct
+    /// price.
+    average_quote:int = null;
+    /// d month price / d quote.
+    value:double;
+}
+
+/// One live month of the built contract.
+table CommodityCurveMonth {
+    /// "YYYY-MM".
+    month:string;
+    /// The built price.
+    price:double;
+    /// Where the price comes from.
+    source:enums.CommodityMonthSource;
+    /// With `include_details`, Quoted / Solved / Assumed months: one entry
+    /// per input quote (direct prices in month order, then average quotes).
+    sensitivities:[CommodityQuoteSensitivity];
+}
+
+/// The weight of one month in an average quote's equation.
+table CommodityQuoteWeight {
+    /// "YYYY-MM".
+    month:string;
+    weight:double;
+}
+
+/// One average quote after the build.
+table CommodityAverageQuoteResult {
+    /// The quote's fair fixed price on the built contract, priced as a swap.
+    repriced:double;
+    /// repriced - quoted.
+    difference:double;
+    status:enums.CommodityQuoteStatus;
+    /// With `include_details`: the quote's equation,
+    /// quoted = constant + sum of weight x month price.
+    weights:[CommodityQuoteWeight];
+    constant:double = null;
+}
+
+/// How one contract was built.
+table CommodityCurveReport {
+    status:enums.CommodityCurveStatus;
+    /// The rule sent (echo); absent when none was sent.
+    rule:enums.CommodityCurveRule = null;
+    /// Months the quotes touch, equations (direct prices plus average
+    /// quotes) and the number of independent equations.
+    unknowns:int;
+    equations:int;
+    rank:int;
+    /// Largest |difference| over the average quotes (0 without any).
+    max_repricing_difference:double;
+    /// Every live month in contract order.
+    months:[CommodityCurveMonth];
+    /// Every average quote in request order.
+    average_quotes:[CommodityAverageQuoteResult];
+    /// With `include_details`: the largest absolute sensitivity of a month
+    /// price to a quote. A large value means a small change of a quote moves
+    /// some month a lot: the build is fragile.
+    max_sensitivity:double = null;
+}
+
+/// One built futures contract.
+table BuiltCommodityCurve {
+    /// The request's contract with every live month priced: quoted months,
+    /// expired months, fixings, pricing calendar and pricing holidays as
+    /// sent. Pastes unchanged into `pricing.commodity.contracts` of a
+    /// `/price-commodity-swap` request.
+    contract:CommodityContractSpec (required);
+    /// How it was built.
+    report:CommodityCurveReport (required);
+}
+
+/// Response for all requested contracts, in request order.
+table BuildCommodityCurvesResponse {
+    curves:[BuiltCommodityCurve] (required);
+}
+
+root_type BuildCommodityCurvesResponse;
