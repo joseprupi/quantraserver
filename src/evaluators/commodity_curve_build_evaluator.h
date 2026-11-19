@@ -35,10 +35,15 @@
 
 namespace quantra {
 
-/// One decoded `CommodityCurveBuild`.
+/// One decoded `CommodityCurveBuild`: a contract or a spot price.
 struct CommodityCurveBuildSpec {
     /// The contract as decoded (presence and wire form checked, values not).
-    CommodityContractData contract;
+    /// Exactly one of `contract` and `spot` is set.
+    std::optional<CommodityContractData> contract;
+    /// The spot price as decoded, point prices optional.
+    std::optional<CommoditySpotData> spot;
+    /// Spot builds: the wire value of the spot's interpolation, opaque here.
+    std::int8_t spotInterpolationWire = 0;
     /// Absent when the request does not give it; required by the library
     /// only when a live month has no price.
     std::optional<commodities::CurveInterpolation> interpolation;
@@ -54,6 +59,10 @@ struct CommodityCurveBuildSpec {
     std::vector<commodities::AverageQuote> averageQuotes;
     std::vector<std::optional<std::string>> discountingCurveIds;
     std::optional<commodities::CurveRule> rule;
+    /// Contract builds: the basis to another entry (its `base` contract id
+    /// in `baseId`; the base contract is resolved by the evaluator).
+    std::optional<commodities::BasisInputs> basis;
+    std::string baseId;
 };
 
 struct CommodityCurveBuildInputs {
@@ -63,12 +72,20 @@ struct CommodityCurveBuildInputs {
     bool includeDetails = false;
 };
 
-/// One completed contract, with what the response echoes.
+/// One completed contract or spot price, with what the response echoes.
 struct BuiltCommodityCurveResult {
+    /// A spot price (points, spot fields) rather than a contract (months).
+    bool isSpot = false;
     std::string id;
     std::int8_t pricingCalendarWire = 0;
     std::optional<std::vector<std::string>> pricingHolidays;
     std::vector<commodities::ContractMonth> months;
+    /// Spot: the built points, the interpolation's wire value,
+    /// extrapolate_flat and the fixings as sent.
+    std::vector<commodities::SpotNode> points;
+    std::int8_t spotInterpolationWire = 0;
+    bool extrapolateFlat = false;
+    std::vector<commodities::SpotFixing> spotFixings;
     bool fixingsGiven = false;
     std::vector<commodities::ContractFixing> fixings;
     commodities::CurveBuildReport report;

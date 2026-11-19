@@ -37,16 +37,33 @@ commodities::CurveInterpolation decodeInterpolation(
 commodities::AverageQuote decodeQuote(
     const quantra::CommodityAverageQuote* q,
     const std::string& path,
-    std::optional<std::string>& curveId) {
+    std::optional<std::string>& curveId,
+    bool spot) {
     if (q == nullptr) {
         QuantraInvalidArgumentAt(path, path + " is null");
     }
     commodities::AverageQuote out;
     out.price = requireScalarPresent(q->price(), path + ".price");
     out.periods = DecodeCommodityPeriods(q->periods(), path + ".periods");
-    out.nearby = requireInt(q->nearby(), path + ".nearby");
-    out.rollDaysBeforeExpiry =
-        requireInt(q->roll_days_before_expiry(), path + ".roll_days_before_expiry");
+    if (spot) {
+        // A spot price has no contract months to choose from.
+        for (const auto& [given, name] :
+             {std::make_pair(q->nearby().has_value(), std::string("nearby")),
+              std::make_pair(
+                  q->roll_days_before_expiry().has_value(),
+                  std::string("roll_days_before_expiry"))}) {
+            if (given) {
+                QuantraInvalidArgumentAt(
+                    path + "." + name, path + "." + name +
+                                           " is not used by a spot price build (it chooses a "
+                                           "contract month); leave it out");
+            }
+        }
+    } else {
+        out.nearby = requireInt(q->nearby(), path + ".nearby");
+        out.rollDaysBeforeExpiry =
+            requireInt(q->roll_days_before_expiry(), path + ".roll_days_before_expiry");
+    }
     if (q->quantity_basis().has_value()) {
         switch (q->quantity_basis().value()) {
             case quantra::enums::CommodityQuantityBasis_PerPeriod:
@@ -75,6 +92,44 @@ commodities::AverageQuote decodeQuote(
     return out;
 }
 
+commodities::BasisInputs decodeBasis(
+    const quantra::CommodityCurveBasis* basis, const std::string& path, std::string& baseId) {
+    commodities::BasisInputs out;
+    baseId = requireNonEmptyString(basis->base(), path + ".base");
+    const std::string priceField = path + ".base_price";
+    switch (requireEnum(basis->base_price(), priceField)) {
+        case quantra::enums::CommodityBasisBasePrice_SameMonth:
+            out.basePrice = commodities::BasisBasePrice::SameMonth;
+            break;
+        case quantra::enums::CommodityBasisBasePrice_MonthAverage:
+            out.basePrice = commodities::BasisBasePrice::MonthAverage;
+            break;
+        default:
+            QuantraInvalidArgumentAt(priceField, priceField + " must be SameMonth or MonthAverage");
+    }
+    out.baseMonthOffset = basis->base_month_offset();
+    if (basis->base_nearby().has_value()) {
+        out.baseNearby = basis->base_nearby().value();
+    }
+    if (basis->base_roll_days_before_expiry().has_value()) {
+        out.baseRollDaysBeforeExpiry = basis->base_roll_days_before_expiry().value();
+    }
+    if (const auto* quotes = basis->quotes()) {
+        for (flatbuffers::uoffset_t k = 0; k < quotes->size(); ++k) {
+            const auto* q = quotes->Get(k);
+            const std::string at = path + ".quotes[" + std::to_string(k) + "]";
+            if (q == nullptr) {
+                QuantraInvalidArgumentAt(at, at + " is null");
+            }
+            commodities::BasisQuote quote;
+            quote.month = requireNonEmptyString(q->month(), at + ".month");
+            quote.value = requireScalarPresent(q->value(), at + ".value");
+            out.quotes.push_back(quote);
+        }
+    }
+    return out;
+}
+
 quantra::enums::CommodityMonthSource wireSource(commodities::MonthSource source) {
     switch (source) {
         case commodities::MonthSource::Quoted: return quantra::enums::CommodityMonthSource_Quoted;
@@ -84,35 +139,52 @@ quantra::enums::CommodityMonthSource wireSource(commodities::MonthSource source)
             return quantra::enums::CommodityMonthSource_Interpolated;
         case commodities::MonthSource::Extrapolated:
             return quantra::enums::CommodityMonthSource_Extrapolated;
+        case commodities::MonthSource::Basis: return quantra::enums::CommodityMonthSource_Basis;
     }
     return quantra::enums::CommodityMonthSource_Quoted;
 }
 
+using SensOffset = flatbuffers::Offset<quantra::CommodityQuoteSensitivity>;
+
+flatbuffers::Offset<flatbuffers::Vector<SensOffset>> serializeSensitivities(
+    flatbuffers::grpc::MessageBuilder& builder,
+    const std::vector<commodities::QuoteSensitivity>& sensitivities) {
+    std::vector<SensOffset> rows;
+    for (const auto& s : sensitivities) {
+        flatbuffers::Offset<flatbuffers::String> month = 0;
+        flatbuffers::Offset<flatbuffers::String> date = 0;
+        if (s.month) {
+            month = builder.CreateString(*s.month);
+        }
+        if (s.date) {
+            date = builder.CreateString(*s.date);
+        }
+        quantra::CommodityQuoteSensitivityBuilder sb(builder);
+        if (s.month) {
+            sb.add_month(month);
+        }
+        if (s.averageQuote) {
+            sb.add_average_quote(static_cast<int>(*s.averageQuote));
+        }
+        sb.add_value(s.value);
+        if (s.date) {
+            sb.add_date(date);
+        }
+        rows.push_back(sb.Finish());
+    }
+    return builder.CreateVector(rows);
+}
+
 flatbuffers::Offset<quantra::CommodityCurveReport> serializeReport(
-    flatbuffers::grpc::MessageBuilder& builder, const commodities::CurveBuildReport& report) {
-    using SensOffset = flatbuffers::Offset<quantra::CommodityQuoteSensitivity>;
+    flatbuffers::grpc::MessageBuilder& builder,
+    const commodities::CurveBuildReport& report,
+    bool spot) {
     using WeightOffset = flatbuffers::Offset<quantra::CommodityQuoteWeight>;
     std::vector<flatbuffers::Offset<quantra::CommodityCurveMonth>> months;
     for (const auto& m : report.months) {
         flatbuffers::Offset<flatbuffers::Vector<SensOffset>> sens = 0;
         if (!m.sensitivities.empty()) {
-            std::vector<SensOffset> rows;
-            for (const auto& s : m.sensitivities) {
-                flatbuffers::Offset<flatbuffers::String> month = 0;
-                if (s.month) {
-                    month = builder.CreateString(*s.month);
-                }
-                quantra::CommodityQuoteSensitivityBuilder sb(builder);
-                if (s.month) {
-                    sb.add_month(month);
-                }
-                if (s.averageQuote) {
-                    sb.add_average_quote(static_cast<int>(*s.averageQuote));
-                }
-                sb.add_value(s.value);
-                rows.push_back(sb.Finish());
-            }
-            sens = builder.CreateVector(rows);
+            sens = serializeSensitivities(builder, m.sensitivities);
         }
         auto name = builder.CreateString(m.month);
         quantra::CommodityCurveMonthBuilder mb(builder);
@@ -122,9 +194,39 @@ flatbuffers::Offset<quantra::CommodityCurveReport> serializeReport(
         if (!m.sensitivities.empty()) {
             mb.add_sensitivities(sens);
         }
+        if (m.basePrice) {
+            mb.add_base_price(*m.basePrice);
+        }
+        if (m.basis) {
+            mb.add_basis(*m.basis);
+        }
         months.push_back(mb.Finish());
     }
-    auto monthsVec = builder.CreateVector(months);
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::CommodityCurveMonth>>>
+        monthsVec = 0;
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::CommodityCurvePoint>>>
+        pointsVec = 0;
+    if (spot) {
+        std::vector<flatbuffers::Offset<quantra::CommodityCurvePoint>> points;
+        for (const auto& pt : report.points) {
+            flatbuffers::Offset<flatbuffers::Vector<SensOffset>> sens = 0;
+            if (!pt.sensitivities.empty()) {
+                sens = serializeSensitivities(builder, pt.sensitivities);
+            }
+            auto date = builder.CreateString(DateToIso(pt.date));
+            quantra::CommodityCurvePointBuilder pb(builder);
+            pb.add_date(date);
+            pb.add_price(pt.price);
+            pb.add_source(wireSource(pt.source));
+            if (!pt.sensitivities.empty()) {
+                pb.add_sensitivities(sens);
+            }
+            points.push_back(pb.Finish());
+        }
+        pointsVec = builder.CreateVector(points);
+    } else {
+        monthsVec = builder.CreateVector(months);
+    }
 
     std::vector<flatbuffers::Offset<quantra::CommodityAverageQuoteResult>> quotes;
     for (const auto& q : report.averageQuotes) {
@@ -134,7 +236,9 @@ flatbuffers::Offset<quantra::CommodityCurveReport> serializeReport(
             std::vector<WeightOffset> rows;
             for (const auto& w : q.weights) {
                 rows.push_back(
-                    quantra::CreateCommodityQuoteWeightDirect(builder, w.month.c_str(), w.weight));
+                    quantra::CreateCommodityQuoteWeightDirect(
+                        builder, w.month.empty() ? nullptr : w.month.c_str(), w.weight,
+                        w.date.empty() ? nullptr : w.date.c_str()));
             }
             weights = builder.CreateVector(rows);
         }
@@ -168,10 +272,15 @@ flatbuffers::Offset<quantra::CommodityCurveReport> serializeReport(
     rb.add_equations(report.equations);
     rb.add_rank(report.rank);
     rb.add_max_repricing_difference(report.maxRepricingDifference);
-    rb.add_months(monthsVec);
+    if (!spot) {
+        rb.add_months(monthsVec);
+    }
     rb.add_average_quotes(quotesVec);
     if (report.maxSensitivity) {
         rb.add_max_sensitivity(*report.maxSensitivity);
+    }
+    if (spot) {
+        rb.add_points(pointsVec);
     }
     return rb.Finish();
 }
@@ -211,20 +320,46 @@ CommodityCurveBuildSpec extractBuild(const quantra::CommodityCurveBuild* entry, 
         invalidAt(base, base + " is null", index);
     }
     const auto* spec = entry->contract();
-    if (spec == nullptr) {
-        invalidAt(base + ".contract", base + ".contract is required", index);
+    const auto* spotSpec = entry->spot();
+    if ((spec == nullptr) == (spotSpec == nullptr)) {
+        invalidAt(
+            base,
+            base + ": give exactly one of contract (a futures contract to build) and spot (a "
+                   "spot price to build)",
+            index);
     }
-    CommodityCurveBuildSpec out{withInputDetails(
-        index, std::nullopt, [&] { return DecodeCommodityContract(spec, base + ".contract"); })};
+    CommodityCurveBuildSpec out;
+    const flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>>* holidays = nullptr;
+    if (spec != nullptr) {
+        out.contract = withInputDetails(
+            index, std::nullopt, [&] { return DecodeCommodityContract(spec, base + ".contract"); });
+        // DecodeCommodityContract has checked the calendar is present.
+        out.pricingCalendarWire = static_cast<std::int8_t>(spec->pricing_calendar().value());
+        holidays = spec->pricing_holidays();
+        out.fixingsGiven = spec->fixings() != nullptr;
+    } else {
+        out.spot = withInputDetails(index, std::nullopt, [&] {
+            return DecodeCommoditySpot(spotSpec, base + ".spot", false);
+        });
+        out.pricingCalendarWire = static_cast<std::int8_t>(spotSpec->pricing_calendar().value());
+        out.spotInterpolationWire = static_cast<std::int8_t>(spotSpec->interpolation().value());
+        holidays = spotSpec->pricing_holidays();
+        out.fixingsGiven = spotSpec->fixings() != nullptr;
+        if (entry->interpolation().has_value()) {
+            invalidAt(
+                base + ".interpolation",
+                base + ".interpolation is not used by a spot price build: the points are read "
+                       "with spot.interpolation",
+                index);
+        }
+    }
     if (entry->interpolation().has_value()) {
         out.interpolation = withInputDetails(index, std::nullopt, [&] {
             return decodeInterpolation(entry->interpolation().value(), base + ".interpolation");
         });
     }
     out.extrapolateFlat = entry->extrapolate_flat();
-    // DecodeCommodityContract has checked the calendar is present.
-    out.pricingCalendarWire = static_cast<std::int8_t>(spec->pricing_calendar().value());
-    if (const auto* holidays = spec->pricing_holidays()) {
+    if (holidays != nullptr) {
         std::vector<std::string> sent;
         sent.reserve(holidays->size());
         for (flatbuffers::uoffset_t i = 0; i < holidays->size(); ++i) {
@@ -232,16 +367,27 @@ CommodityCurveBuildSpec extractBuild(const quantra::CommodityCurveBuild* entry, 
         }
         out.pricingHolidays = std::move(sent);
     }
-    out.fixingsGiven = spec->fixings() != nullptr;
     if (const auto* quotes = entry->average_quotes()) {
         for (flatbuffers::uoffset_t k = 0; k < quotes->size(); ++k) {
             std::optional<std::string> curveId;
             out.averageQuotes.push_back(withInputDetails(index, std::size_t(k), [&] {
                 return decodeQuote(
-                    quotes->Get(k), base + ".average_quotes[" + std::to_string(k) + "]", curveId);
+                    quotes->Get(k), base + ".average_quotes[" + std::to_string(k) + "]", curveId,
+                    spotSpec != nullptr);
             }));
             out.discountingCurveIds.push_back(curveId);
         }
+    }
+    if (const auto* basis = entry->basis()) {
+        if (spotSpec != nullptr) {
+            invalidAt(
+                base + ".basis",
+                base + ".basis is not used by a spot price build (basis curves are contract "
+                       "builds)",
+                index);
+        }
+        out.basis = withInputDetails(
+            index, std::nullopt, [&] { return decodeBasis(basis, base + ".basis", out.baseId); });
     }
     if (entry->rule().has_value()) {
         switch (entry->rule().value()) {
@@ -309,6 +455,55 @@ flatbuffers::Offset<quantra::CommodityContractSpec> serializeContract(
     return cb.Finish();
 }
 
+flatbuffers::Offset<quantra::CommoditySpotSpec> serializeSpot(
+    flatbuffers::grpc::MessageBuilder& builder, const BuiltCommodityCurveResult& curve) {
+    std::vector<flatbuffers::Offset<quantra::CommoditySpotPoint>> points;
+    points.reserve(curve.points.size());
+    for (const auto& p : curve.points) {
+        auto date = builder.CreateString(DateToIso(p.date));
+        quantra::CommoditySpotPointBuilder pb(builder);
+        pb.add_date(date);
+        if (p.price) {
+            pb.add_price(*p.price);
+        }
+        points.push_back(pb.Finish());
+    }
+    auto pointsVec = builder.CreateVector(points);
+
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::CommoditySpotFixing>>>
+        fixingsVec = 0;
+    if (curve.fixingsGiven) {
+        std::vector<flatbuffers::Offset<quantra::CommoditySpotFixing>> fixings;
+        fixings.reserve(curve.spotFixings.size());
+        for (const auto& f : curve.spotFixings) {
+            fixings.push_back(
+                quantra::CreateCommoditySpotFixingDirect(
+                    builder, DateToIso(f.date).c_str(), f.value));
+        }
+        fixingsVec = builder.CreateVector(fixings);
+    }
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>>> holidaysVec =
+        0;
+    if (curve.pricingHolidays) {
+        holidaysVec = builder.CreateVectorOfStrings(*curve.pricingHolidays);
+    }
+    auto id = builder.CreateString(curve.id);
+
+    quantra::CommoditySpotSpecBuilder sb(builder);
+    sb.add_id(id);
+    sb.add_pricing_calendar(static_cast<quantra::enums::Calendar>(curve.pricingCalendarWire));
+    if (curve.pricingHolidays) {
+        sb.add_pricing_holidays(holidaysVec);
+    }
+    sb.add_interpolation(static_cast<quantra::enums::Interpolator>(curve.spotInterpolationWire));
+    sb.add_extrapolate_flat(curve.extrapolateFlat);
+    sb.add_points(pointsVec);
+    if (curve.fixingsGiven) {
+        sb.add_fixings(fixingsVec);
+    }
+    return sb.Finish();
+}
+
 } // namespace
 
 bool CommodityCurveBuildMapper::needsPricingRegistry(
@@ -360,10 +555,20 @@ flatbuffers::Offset<quantra::BuildCommodityCurvesResponse> CommodityCurveBuildMa
     std::vector<flatbuffers::Offset<quantra::BuiltCommodityCurve>> rows;
     rows.reserve(result.curves.size());
     for (const auto& curve : result.curves) {
-        auto contract = serializeContract(builder, curve);
-        auto report = serializeReport(builder, curve.report);
+        flatbuffers::Offset<quantra::CommodityContractSpec> contract = 0;
+        flatbuffers::Offset<quantra::CommoditySpotSpec> spot = 0;
+        if (curve.isSpot) {
+            spot = serializeSpot(builder, curve);
+        } else {
+            contract = serializeContract(builder, curve);
+        }
+        auto report = serializeReport(builder, curve.report, curve.isSpot);
         quantra::BuiltCommodityCurveBuilder rb(builder);
-        rb.add_contract(contract);
+        if (curve.isSpot) {
+            rb.add_spot(spot);
+        } else {
+            rb.add_contract(contract);
+        }
         rb.add_report(report);
         rows.push_back(rb.Finish());
     }

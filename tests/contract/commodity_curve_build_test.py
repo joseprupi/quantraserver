@@ -38,7 +38,11 @@ from ql_reference import commodity_curve_build_ql
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLES_DIR = ROOT / "examples" / "data" / "commodity_curve"
-EXAMPLES = sorted(p.name for p in EXAMPLES_DIR.glob("*.json"))
+# Built examples; `refused_*.json` are requests the endpoint refuses (tested
+# on their own).
+EXAMPLES = sorted(p.name for p in EXAMPLES_DIR.glob("*.json")
+                  if not p.name.startswith("refused_"))
+CONTRACT_EXAMPLES = [e for e in EXAMPLES if "_spot_" not in e]
 SWAP_BENCHMARK = (Path(__file__).resolve().parent / "data" / "commodity"
                   / "price_commodity_swap_benchmark_request.json")
 
@@ -108,6 +112,17 @@ def _assert_contract(where, api, ref, tolerance=PRICE_TOLERANCE):
                 f"{at}: {a['price']} vs {r['price']}")
 
 
+def _assert_spot(where, api, ref, tolerance=PRICE_TOLERANCE):
+    """Every field of the returned spot price against the expected one."""
+    assert set(api) == set(ref), f"{where}: fields {sorted(api)} != {sorted(ref)}"
+    for key in ref:
+        if key != "points":
+            assert api[key] == ref[key], f"{where}.{key}: {api[key]!r} != {ref[key]!r}"
+    assert [p["date"] for p in api["points"]] == [p["date"] for p in ref["points"]], where
+    for a, r in zip(api["points"], ref["points"]):
+        assert _close(a["price"], r["price"], tolerance), f"{where} {a['date']}"
+
+
 def _interpolated(row):
     """Months the fill priced (no quote touches them), in contract order."""
     return [m["month"] for m in row["report"]["months"]
@@ -120,11 +135,20 @@ def _assert_report(where, api, ref, tolerance=PRICE_TOLERANCE):
     for key in ("status", "unknowns", "equations", "rank"):
         assert api[key] == ref[key], f"{where}.{key}: {api[key]} != {ref[key]}"
     assert api.get("rule") == ref.get("rule"), f"{where}.rule"
-    assert [m["month"] for m in api["months"]] == [m["month"] for m in ref["months"]], where
-    for a, r in zip(api["months"], ref["months"]):
-        assert a["source"] == r["source"], f"{where} {a['month']}: {a['source']} != {r['source']}"
+    # Contract builds list months, spot builds points.
+    rows, key = ("points", "date") if "points" in ref else ("months", "month")
+    assert ("months" in api) == (rows == "months"), where
+    assert [m[key] for m in api[rows]] == [m[key] for m in ref[rows]], where
+    for a, r in zip(api[rows], ref[rows]):
+        assert a["source"] == r["source"], f"{where} {a[key]}: {a['source']} != {r['source']}"
         assert abs(a["price"] - r["price"]) <= tolerance * max(1.0, abs(r["price"])), (
-            f"{where} {a['month']}: {a['price']} != {r['price']}")
+            f"{where} {a[key]}: {a['price']} != {r['price']}")
+        # Basis builds: the base price and the basis of every month.
+        assert ("base_price" in a) == ("base_price" in r), f"{where} {a[key]}: base_price"
+        for field in ("base_price", "basis"):
+            if field in r:
+                assert abs(a[field] - r[field]) <= tolerance * max(1.0, abs(r[field])), (
+                    f"{where} {a[key]}.{field}: {a[field]} != {r[field]}")
     assert len(api["average_quotes"]) == len(ref["average_quotes"]), where
     for k, (a, r) in enumerate(zip(api["average_quotes"], ref["average_quotes"])):
         assert a["status"] == r["status"], f"{where} average_quotes[{k}].status"
@@ -149,8 +173,11 @@ def test_example_matches_twin(client, example):
         ref = commodity_curve_build_ql(request, i)
         # The ill-conditioned example amplifies rounding: 1e-6 there.
         tolerance = 1e-6 if "fragile" in example else 1e-9
-        _assert_contract(f"{example} curves[{i}].contract", row["contract"], ref["contract"],
-                         tolerance)
+        if "spot" in ref:
+            _assert_spot(f"{example} curves[{i}].spot", row["spot"], ref["spot"], tolerance)
+        else:
+            _assert_contract(f"{example} curves[{i}].contract", row["contract"],
+                             ref["contract"], tolerance)
         _assert_report(f"{example} curves[{i}].report", row["report"], ref["report"],
                        tolerance)
 
@@ -261,7 +288,7 @@ def test_built_examples_paste_into_a_swap_request(client):
                     / "synthetic_two_month_fixed_vs_front_month.json")
     with open(swap_example) as f:
         swap = json.load(f)
-    for example in EXAMPLES:
+    for example in CONTRACT_EXAMPLES:
         request = _load(example)
         as_of = request["pricing"]["as_of_date"]
         for i, row in enumerate(_build(client, request)["curves"]):
@@ -719,8 +746,9 @@ def test_details_weights_reprice_and_sensitivities_match_bumps(client):
     assert all("sensitivities" not in m for m in plain["months"])
 
 
-def _swap_for_quote(as_of, contract, quote, curves):
-    """A swap paying the quote and receiving the average it quotes."""
+def _swap_for_quote(as_of, contract, quote, curves, spot=None):
+    """A swap paying the quote and receiving the average it quotes: on the
+    contract, or on the spot price `spot` (then `contract` is None)."""
     pay = {"payment_calendar": quote.get("payment_calendar", "NullCalendar"),
            "payment_lag": quote.get("payment_lag", 1),
            "payment_convention": quote.get("payment_convention", "Following"),
@@ -732,16 +760,21 @@ def _swap_for_quote(as_of, contract, quote, curves):
                         "point": {"date": as_of, "discount_factor": 1.0}},
                        {"point_type": "DiscountFactorPoint",
                         "point": {"date": "2030-12-31", "discount_factor": 0.9}}]}
+    if spot is None:
+        floating = dict(price_type="FuturesFloatingPrice",
+                        price={"contract_id": contract["id"], "nearby": quote["nearby"],
+                               "roll_days_before_expiry": quote["roll_days_before_expiry"]})
+        commodity = {"contracts": [contract]}
+    else:
+        floating = dict(price_type="SpotFloatingPrice", price={"spot_id": spot["id"]})
+        commodity = {"spot_prices": [spot]}
     return {"pricing": {"as_of_date": as_of, "rates": {"curves": list(curves) + [flat]},
-                        "commodity": {"contracts": [contract]}},
+                        "commodity": commodity},
             "swaps": [{"commodity_swap": {
                 "leg1": dict(pay, pay_receive="Pay", periods=quote["periods"], quantity=quantity,
                              price_type="CommodityFixedPrice", price={"price": quote["price"]}),
                 "leg2": dict(pay, pay_receive="Receive", periods=quote["periods"],
-                             quantity=quantity, price_type="FuturesFloatingPrice",
-                             price={"contract_id": contract["id"], "nearby": quote["nearby"],
-                                    "roll_days_before_expiry":
-                                        quote["roll_days_before_expiry"]})}}]}
+                             quantity=quantity, **floating)}}]}
 
 
 @pytest.mark.parametrize("example", EXAMPLES)
@@ -751,7 +784,7 @@ def test_round_trip_every_quote_prices_to_zero(client, example):
     curves = (request["pricing"].get("rates") or {}).get("curves") or []
     for i, row in enumerate(_build(client, request)["curves"]):
         for k, quote in enumerate(request["curves"][i].get("average_quotes") or []):
-            swap = _swap_for_quote(as_of, row["contract"], quote, curves)
+            swap = _swap_for_quote(as_of, row.get("contract"), quote, curves, row.get("spot"))
             status, text = _post(client, "commodity_swap", swap)
             assert status == 200, text[:400]
             npv = json.loads(text)["swaps"][0]["npv"]
@@ -1047,3 +1080,400 @@ def test_errors_without_a_path_have_no_details(client):
     status, text = _post(client, "commodity_swap", swap)
     assert status == 400 and "nearby is required" in text
     assert set(json.loads(text)) == {"error", "code", "code_name", "message"}
+
+
+# ---------------------------------------------------------------------------
+# spot prices from dated points and average quotes
+# ---------------------------------------------------------------------------
+
+SPOT_STRIP = "synthetic_spot_monthly_strip_three_readings.json"
+SPOT_QUARTER = "synthetic_spot_quarter_flat_and_smooth.json"
+SPOT_REDUNDANT = "synthetic_spot_redundant_quarter_and_flat_tail.json"
+SPOT_REFUSED = "refused_spot_conflicting_quarter.json"
+SPOT_REFERENCES = (Path(__file__).resolve().parent / "data" / "commodity"
+                   / "curve_build_spot_reference_values.json")
+TRUE_STRIP = [60.0, 60.4, 60.8, 61.1, 61.3]
+
+
+def _points(row):
+    return {p["date"]: p for p in row["report"]["points"]}
+
+
+def test_spot_strip_gives_back_the_points_its_quotes_came_from(client):
+    # The quotes are the fair prices on a known strip (60.0 ... 61.3 on the
+    # month ends, on month starts for ForwardFlat); each reading solves it
+    # back, the first point pinned.
+    rows = _build(client, _load(SPOT_STRIP))["curves"]
+    for row in rows:
+        assert "contract" not in row and "months" not in row["report"]
+        report = row["report"]
+        assert report["status"] == "Unique"
+        assert (report["unknowns"], report["equations"], report["rank"]) == (5, 5, 5)
+        prices = [p["price"] for p in row["spot"]["points"]]
+        for got, want in zip(prices, TRUE_STRIP):
+            assert abs(got - want) < 1e-9, (row["spot"]["interpolation"], prices)
+        sources = [p["source"] for p in report["points"]]
+        assert sources == ["Quoted", "Solved", "Solved", "Solved", "Solved"]
+        assert report["max_repricing_difference"] < 1e-9
+        weights = report["average_quotes"][0]["weights"]
+        assert all("month" not in w and "date" in w for w in weights)
+        sens = report["points"][1]["sensitivities"]
+        first = row["spot"]["points"][0]["date"]
+        assert sens[0] == {"date": first, "value": sens[0]["value"]}
+
+
+def test_spot_backward_flat_month_quote_is_its_month_end(client):
+    # BackwardFlat: every December day reads the 31 December point.
+    row = _build(client, _load(SPOT_STRIP))["curves"][1]
+    weights = row["report"]["average_quotes"][0]["weights"]
+    assert weights == [{"date": "2026-12-31", "weight": 1.0}]
+
+
+def test_spot_quarter_needs_a_rule_then_flat_and_smooth(client):
+    request = _load(SPOT_QUARTER)
+    del request["curves"][0]["rule"]
+    details = _refused(client, request, "curves[0].rule is required",
+                       "2027-01-31, 2027-02-28, 2027-03-31", "(4 points, 2 independent quotes)")
+    assert details == {"reason": "RuleRequired", "curve": 0, "path": "curves[0].rule",
+                       "dates": ["2027-01-31", "2027-02-28", "2027-03-31"]}
+    flat, smooth = (_points(r) for r in _build(client, _load(SPOT_QUARTER))["curves"])
+    assert flat["2027-01-31"]["price"] == flat["2027-02-28"]["price"] == \
+        flat["2027-03-31"]["price"]
+    assert [p["source"] for p in flat.values()] == ["Quoted", "Assumed", "Assumed", "Assumed"]
+    # Smooth: second divided differences on the date axis are zero, so the
+    # four points lie on one straight line in time.
+    t = [(datetime.date.fromisoformat(d) - datetime.date(2026, 11, 13)).days / 365.0
+         for d in smooth]
+    p = [v["price"] for v in smooth.values()]
+    slopes = [(p[i + 1] - p[i]) / (t[i + 1] - t[i]) for i in range(3)]
+    assert max(slopes) - min(slopes) < 1e-9
+    assert abs(flat["2027-03-31"]["price"] - smooth["2027-03-31"]["price"]) > 0.01
+
+
+def test_spot_redundant_quote_and_filled_tail(client):
+    row = _build(client, _load(SPOT_REDUNDANT))["curves"][0]
+    report = row["report"]
+    assert [q["status"] for q in report["average_quotes"]] == ["Used"] * 4 + ["Redundant"]
+    points = _points(row)
+    # 15 April lies after the last determined point and no quote reads it:
+    # held at the last price (extrapolate_flat).
+    assert points["2027-04-15"]["source"] == "Extrapolated"
+    assert points["2027-04-15"]["price"] == points["2027-03-31"]["price"]
+
+
+def test_spot_refused_example_is_a_conflict(client):
+    details = _refused(client, _load(SPOT_REFUSED), "curves[0].average_quotes[4]: conflicts")
+    assert details["reason"] == "QuoteConflict" and details["average_quote"] == 4
+    assert abs(details["gap"] - 0.25) < 1e-9
+    assert details["depends_on"] == [{"average_quote": k} for k in range(1, 4)]
+
+
+def _spot_request(points, quotes, interpolation="Linear", extrapolate=False, **extra):
+    build = {"spot": {"id": "SYN_SPOT", "pricing_calendar": "WeekendsOnly",
+                      "interpolation": interpolation, "extrapolate_flat": extrapolate,
+                      "points": points},
+             "average_quotes": quotes}
+    build.update(extra)
+    return {"pricing": {"as_of_date": "2026-11-13"}, "curves": [build]}
+
+
+def _once(start, end, price):
+    return {"price": price,
+            "periods": {"start_date": start, "end_date": end, "frequency": "Once"}}
+
+
+def test_spot_input_errors(client):
+    request = _load(SPOT_STRIP)
+    request["curves"][0]["contract"] = _load("synthetic_linear_gaps.json")["curves"][0]["contract"]
+    details = _refused(client, request, "curves[0]: give exactly one of contract")
+    assert details == {"reason": "InvalidInput", "curve": 0, "path": "curves[0]"}
+    request = _load(SPOT_STRIP)
+    del request["curves"][0]["spot"]
+    _refused(client, request, "curves[0]: give exactly one of contract")
+    request = _load(SPOT_STRIP)
+    request["curves"][1]["average_quotes"][2]["nearby"] = 1
+    details = _refused(client, request, "curves[1].average_quotes[2].nearby is not used by a spot")
+    assert details == {"reason": "InvalidInput", "curve": 1,
+                       "path": "curves[1].average_quotes[2].nearby", "average_quote": 2}
+    request = _load(SPOT_STRIP)
+    request["curves"][0]["interpolation"] = "Linear"
+    details = _refused(client, request, "curves[0].interpolation is not used by a spot")
+    assert details["path"] == "curves[0].interpolation"
+    request = _load(SPOT_STRIP)
+    points = request["curves"][0]["spot"]["points"]
+    points[2]["date"] = points[1]["date"]
+    details = _refused(client, request, "curves[0].spot: commodity spot price 'SYN_SPOT_LINEAR' "
+                                        "points[2]")
+    assert details == {"reason": "InvalidInput", "curve": 0,
+                       "path": "curves[0].spot.points[2].date"}
+
+
+def test_spot_quote_day_outside_the_points(client):
+    # March days lie after the last point and extrapolate_flat is false: the
+    # swap's own sentence, with the quote and the first such day.
+    request = _spot_request([{"date": "2026-11-30", "price": 60.0}, {"date": "2027-02-28"}],
+                            [_once("2027-02-01", "2027-03-31", 60.5)])
+    details = _refused(client, request, "curves[0].average_quotes[0]: commodity spot price "
+                                        "'SYN_SPOT': 2027-03-01 is outside its points")
+    assert details == {"reason": "DateOutsideRange", "curve": 0,
+                       "path": "curves[0].average_quotes[0]", "average_quote": 0,
+                       "date": "2027-03-01"}
+
+
+def test_spot_point_to_fill_outside_and_no_priced_point(client):
+    request = _spot_request([{"date": "2026-11-30", "price": 60.0}, {"date": "2026-12-31"},
+                             {"date": "2027-01-31"}],
+                            [_once("2026-12-01", "2026-12-31", 60.2)])
+    details = _refused(client, request, "curves[0].spot.points[2] (2027-01-31) is after the last "
+                                        "determined point")
+    assert details == {"reason": "DateOutsideRange", "curve": 0,
+                       "path": "curves[0].spot.points[2]", "date": "2027-01-31",
+                       "dates": ["2027-01-31"]}
+    request["curves"][0]["spot"]["extrapolate_flat"] = True
+    row = _build(client, request)["curves"][0]
+    assert _points(row)["2027-01-31"]["source"] == "Extrapolated"
+    request = _spot_request([{"date": "2026-11-30"}, {"date": "2026-12-31"}], [])
+    details = _refused(client, request, "curves[0].spot.points: no point has a price")
+    assert details == {"reason": "NoPricedPoint", "curve": 0, "path": "curves[0].spot.points",
+                       "dates": ["2026-11-30", "2026-12-31"]}
+
+
+def test_spot_interpolated_point(client):
+    # 15 December, between two determined points, read with the spot's own
+    # Linear interpolation: 16 of 31 days from 30 November to 31 December.
+    request = _spot_request([{"date": "2026-11-30", "price": 60.0}, {"date": "2026-12-15"},
+                             {"date": "2026-12-31", "price": 61.0}], [])
+    points = _points(_build(client, request)["curves"][0])
+    assert points["2026-12-15"]["source"] == "Interpolated"
+    assert abs(points["2026-12-15"]["price"] - (60.0 + 15.0 / 31.0)) < 1e-12
+
+
+def test_spot_point_before_the_valuation_date_is_a_node(client):
+    # A point dated before the valuation date is read by a later day that
+    # lies between it and the next point (Linear), so it is solved like any
+    # other point.
+    request = _spot_request([{"date": "2026-10-31", "price": 59.0}, {"date": "2026-12-31"}],
+                            [_once("2026-11-16", "2026-11-30", 59.7)])
+    row = _build(client, request)["curves"][0]
+    assert _points(row)["2026-12-31"]["source"] == "Solved"
+    assert row["report"]["max_repricing_difference"] < 1e-9
+
+
+def test_swap_still_refuses_an_unpriced_spot_point(client):
+    built = _build(client, _load(SPOT_STRIP))["curves"][0]["spot"]
+    del built["points"][2]["price"]
+    quote = _load(SPOT_STRIP)["curves"][0]["average_quotes"][0]
+    swap = _swap_for_quote("2026-11-13", None, quote, [], built)
+    status, text = _post(client, "commodity_swap", swap)
+    assert status == 400 and "points[2].price is required" in text, text[:300]
+
+
+@pytest.mark.parametrize("case", ["spot_avg_linear", "spot_avg_backflat",
+                                  "spot_avg_linear_pinned", "spot_avg_quarter_fills_gap"])
+def test_spot_independent_reference_values(client, case):
+    # Points on the last pricing day of each quote period, the first one held
+    # flat back to the valuation date (extrapolate_flat): the point prices and
+    # two swaps on the built spot price against independent reference values.
+    with open(SPOT_REFERENCES) as f:
+        ref = json.load(f)["cases"][case]
+    row = _build(client, ref["request"])["curves"][0]
+    points = _points(row)
+    for date, price in ref["expected_point_prices"].items():
+        assert abs(points[date]["price"] - price) < 1e-9, (date, points[date], price)
+    assert row["report"]["status"] == "Unique"
+    for swap in ref["swaps"]:
+        request = {"pricing": {"as_of_date": ref["request"]["pricing"]["as_of_date"],
+                               "rates": ref["request"]["pricing"]["rates"],
+                               "commodity": {"spot_prices": [row["spot"]]}},
+                   "swaps": [{"commodity_swap": swap["commodity_swap"]}]}
+        status, text = _post(client, "commodity_swap", request)
+        assert status == 200, text[:400]
+        npv = json.loads(text)["swaps"][0]["npv"]
+        assert abs(npv - swap["npv"]) < 1e-6, (swap["id"], npv, swap["npv"])
+
+
+# ---------------------------------------------------------------------------
+# basis: a contract priced as another contract of the request plus a basis
+# ---------------------------------------------------------------------------
+
+BASIS_REFERENCES = (Path(__file__).resolve().parent / "data" / "commodity"
+                    / "curve_build_basis_reference_values.json")
+
+
+def _basis_case(name):
+    with open(BASIS_REFERENCES) as f:
+        return json.load(f)["cases"][name]
+
+
+@pytest.mark.parametrize("case", ["basis_full", "basis_gaps", "basis_subtract",
+                                  "basis_monthoffset1", "basis_avg_base",
+                                  "basis_avg_nobaseavg"])
+def test_basis_independent_reference_values(client, case):
+    # The basis entry comes first and its base second: the base is built
+    # first whatever the order, and both come back in request order.
+    # basis_monthoffset1: the reference shifts the base month twice for an
+    # offset of 1 (a defect of that implementation); the same base months are
+    # read here with base_month_offset 2. basis_subtract: the reference
+    # subtracts the basis; the request sends the negated values.
+    ref = _basis_case(case)
+    response = _build(client, ref["request"])
+    row, base = response["curves"]
+    assert row["contract"]["id"] == "SYN_BAS" and base["contract"]["id"] == "SYN_CL"
+    months = _months(row)
+    for month, price in ref["expected_month_prices"].items():
+        assert abs(months[month]["price"] - price) < 1e-9, (month, months[month], price)
+        assert abs(months[month]["base_price"] + months[month]["basis"] - price) < 1e-9
+    quoted = {q["month"] for q in ref["request"]["curves"][0]["basis"]["quotes"]}
+    for m in row["report"]["months"]:
+        if m["month"] in quoted:
+            assert m["source"] == "Basis", m
+        else:
+            assert m["source"] in ("Interpolated", "Extrapolated"), m
+    for swap in ref["swaps"]:
+        request = {"pricing": {"as_of_date": ref["request"]["pricing"]["as_of_date"],
+                               "rates": ref["request"]["pricing"]["rates"],
+                               "commodity": {"contracts": [row["contract"]]}},
+                   "swaps": [{"commodity_swap": swap["commodity_swap"]}]}
+        status, text = _post(client, "commodity_swap", request)
+        assert status == 200, text[:400]
+        npv = json.loads(text)["swaps"][0]["npv"]
+        assert abs(npv - swap["npv"]) < 1e-6, (swap["id"], npv, swap["npv"])
+
+
+def test_basis_gaps_fill_the_basis_not_the_price(client):
+    # February has no basis quote: its basis is linear in time between the
+    # January (0.75, 23 Dec) and April (0.78, 24 Mar) quotes, 30 of 91 days.
+    row = _build(client, _basis_case("basis_gaps")["request"])["curves"][0]
+    feb = _months(row)["2027-02"]
+    assert feb["source"] == "Interpolated"
+    assert abs(feb["basis"] - (0.75 + 0.03 * 30 / 91)) < 1e-12
+    assert abs(feb["price"] - (60.7 + feb["basis"])) < 1e-12
+
+
+def test_basis_months_without_basis_have_no_base_fields(client):
+    row = _build(client, _load("synthetic_linear_gaps.json"))["curves"][0]
+    assert all("base_price" not in m and "basis" not in m for m in row["report"]["months"])
+
+
+def test_basis_with_an_average_quote_on_top(client):
+    # A basis quote on two months and a one-month average quote on the
+    # basis contract: the quote is solved on top of the basis prices.
+    ref = _basis_case("basis_full")
+    request = copy.deepcopy(ref["request"])
+    build = request["curves"][0]
+    build["basis"]["quotes"] = [q for q in build["basis"]["quotes"]
+                                if q["month"] in ("2027-01", "2027-03")]
+    build["average_quotes"] = [{"price": 61.5, "periods": {"start_date": "2027-01-01",
+                                                           "end_date": "2027-01-31",
+                                                           "frequency": "Once"},
+                                "nearby": 1, "roll_days_before_expiry": 0}]
+    build["extrapolate_flat"] = True
+    row = _build(client, request)["curves"][0]
+    months = _months(row)
+    assert months["2027-01"]["source"] == "Basis" and months["2027-03"]["source"] == "Basis"
+    assert months["2027-02"]["source"] == "Solved"
+    assert row["report"]["max_repricing_difference"] < 1e-9
+
+
+def _refused_basis(client, request, status, *fragments):
+    text = _assert_status(client, request, status, *fragments)
+    return json.loads(text)["details"]
+
+
+def test_basis_refusals(client):
+    ref = _basis_case("basis_full")
+    # Unknown base: a 404 with details.
+    request = copy.deepcopy(ref["request"])
+    request["curves"][0]["basis"]["base"] = "NO_SUCH"
+    details = _refused_basis(client, request, 404, "curves[0].basis.base: no contract build")
+    assert details == {"reason": "UnknownBase", "curve": 0, "path": "curves[0].basis.base"}
+    # Its own base.
+    request = copy.deepcopy(ref["request"])
+    request["curves"][0]["basis"]["base"] = "SYN_BAS"
+    details = _refused_basis(client, request, 400, "cannot be its own base")
+    assert details["reason"] == "BasisCycle" and details["cycle"] == [0]
+    # A cycle of two.
+    request = copy.deepcopy(ref["request"])
+    request["curves"][1]["basis"] = {"base": "SYN_BAS", "base_price": "SameMonth"}
+    details = _refused_basis(client, request, 400, "the bases form a cycle")
+    assert details["reason"] == "BasisCycle" and sorted(details["cycle"]) == [0, 1]
+    # A month with both a price and a basis quote.
+    request = copy.deepcopy(ref["request"])
+    request["curves"][0]["contract"]["months"][1]["price"] = 61.0
+    details = _refused_basis(client, request, 400, "also has a price")
+    assert details == {"reason": "BasisAndPrice", "curve": 0,
+                       "path": "curves[0].basis.quotes[1]", "month": "2027-01"}
+    # A base month that is not listed.
+    request = copy.deepcopy(ref["request"])
+    request["curves"][0]["basis"]["base_month_offset"] = 4
+    details = _refused_basis(client, request, 400, "curves[0].basis.base: no base price for "
+                                                   "2026-12")
+    assert details == {"reason": "BaseNotDetermined", "curve": 0, "path": "curves[0].basis.base",
+                       "month": "2026-12", "base_curve": 1, "base_month": "2026-08"}
+    # An expired base month without its fixing.
+    request = copy.deepcopy(ref["request"])
+    request["curves"][0]["basis"]["base_month_offset"] = 2
+    request["curves"][1]["contract"]["fixings"] = \
+        request["curves"][1]["contract"]["fixings"][1:]
+    details = _refused_basis(client, request, 400, "expired on 2026-09-22 and has no fixing")
+    assert details["base_month"] == "2026-10" and details["base_curve"] == 1
+    # MonthAverage needs its nearby and roll; SameMonth refuses them.
+    request = copy.deepcopy(ref["request"])
+    request["curves"][0]["basis"]["base_price"] = "MonthAverage"
+    details = _refused_basis(client, request, 400, "basis.base_nearby is required")
+    assert details["path"] == "curves[0].basis.base_nearby"
+    request = copy.deepcopy(ref["request"])
+    request["curves"][0]["basis"]["base_nearby"] = 1
+    details = _refused_basis(client, request, 400, "is not used when base_price is SameMonth")
+    assert details["path"] == "curves[0].basis.base_nearby"
+    # A basis quote on an expired month.
+    request = copy.deepcopy(ref["request"])
+    request["pricing"]["as_of_date"] = "2026-12-01"
+    request["pricing"]["rates"]["curves"][0]["reference_date"] = "2026-12-01"
+    request["pricing"]["rates"]["curves"][0]["points"][0]["point"]["date"] = "2026-12-01"
+    details = _refused_basis(client, request, 400, "expired on 2026-11-24")
+    assert details["reason"] == "BasisOnExpiredMonth" and details["month"] == "2026-12"
+    # A basis on a spot build, and a base that is a spot price.
+    request = _load(SPOT_STRIP)
+    request["curves"][0]["basis"] = {"base": "X", "base_price": "SameMonth"}
+    _refused_basis(client, request, 400, "curves[0].basis is not used by a spot price build")
+    request = copy.deepcopy(ref["request"])
+    request["curves"][0]["basis"]["base"] = "SYN_SPOT_LINEAR"
+    request["curves"].append(_load(SPOT_STRIP)["curves"][0])
+    details = _refused_basis(client, request, 400, "is a spot price build")
+    assert details["reason"] == "BaseNotContract"
+    # A month that is not in the contract.
+    request = copy.deepcopy(ref["request"])
+    request["curves"][0]["basis"]["quotes"][0]["month"] = "2030-01"
+    details = _refused_basis(client, request, 400, "is not a month of the contract")
+    assert details["path"] == "curves[0].basis.quotes[0].month"
+
+
+def test_basis_log_linear_on_a_non_positive_basis(client):
+    # LogLinear reads the log of the basis: a basis <= 0 at a node is the
+    # same 400 as a non-positive price, worded for the basis.
+    request = copy.deepcopy(_basis_case("basis_gaps")["request"])
+    request["curves"][0]["interpolation"] = "LogLinear"
+    request["curves"][0]["basis"]["quotes"][1]["value"] = -0.1
+    details = _refused_basis(client, request, 400, "(2027-04): basis -0.1",
+                             "must be > 0 for interpolation LogLinear (it reads log basis)")
+    assert details["reason"] == "NonPositivePrice"
+
+
+def test_basis_refused_example_is_a_cycle(client):
+    details = _refused(client, _load("refused_basis_cycle.json"), "the bases form a cycle")
+    assert details["reason"] == "BasisCycle" and sorted(details["cycle"]) == [0, 1]
+
+
+def test_basis_month_average_example_reads_the_base_front_month(client):
+    # November 2026: nine fixings (2-12 November) of the December base month,
+    # then 13-20 November at 60.0 and 23-30 November (26th a holiday) on the
+    # January month at 60.4: 9 + 6 + 5 = 20 pricing days.
+    request = _load("synthetic_basis_month_average.json")
+    row = _build(client, request)["curves"][1]
+    nov = _months(row)["2026-11"]
+    fixings = [f["value"] for f in request["curves"][0]["contract"]["fixings"]]
+    expected = (sum(fixings) + 6 * 60.0 + 5 * 60.4) / 20
+    assert abs(nov["base_price"] - expected) < 1e-12
+    assert abs(nov["price"] - (expected + 0.80)) < 1e-12
+    assert nov["source"] == "Basis"

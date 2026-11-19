@@ -71,7 +71,8 @@ class CommodityCurveReport(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Every live month in contract order.
+    # Contract builds: every live month in contract order. Absent for a
+    # spot build.
     # CommodityCurveReport
     def Months(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
@@ -133,8 +134,34 @@ class CommodityCurveReport(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
 
+    # Spot builds: every point in date order.
+    # CommodityCurveReport
+    def Points(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra.CommodityCurvePoint import CommodityCurvePoint
+            obj = CommodityCurvePoint()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # CommodityCurveReport
+    def PointsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # CommodityCurveReport
+    def PointsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        return o == 0
+
 def CommodityCurveReportStart(builder):
-    builder.StartObject(9)
+    builder.StartObject(10)
 
 def Start(builder):
     CommodityCurveReportStart(builder)
@@ -205,6 +232,18 @@ def CommodityCurveReportAddMaxSensitivity(builder, maxSensitivity):
 def AddMaxSensitivity(builder, maxSensitivity):
     CommodityCurveReportAddMaxSensitivity(builder, maxSensitivity)
 
+def CommodityCurveReportAddPoints(builder, points):
+    builder.PrependUOffsetTRelativeSlot(9, flatbuffers.number_types.UOffsetTFlags.py_type(points), 0)
+
+def AddPoints(builder, points):
+    CommodityCurveReportAddPoints(builder, points)
+
+def CommodityCurveReportStartPointsVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartPointsVector(builder, numElems):
+    return CommodityCurveReportStartPointsVector(builder, numElems)
+
 def CommodityCurveReportEnd(builder):
     return builder.EndObject()
 
@@ -229,6 +268,7 @@ class CommodityCurveReportT(object):
         self.months = None  # type: List[CommodityCurveMonthT]
         self.averageQuotes = None  # type: List[CommodityAverageQuoteResultT]
         self.maxSensitivity = None  # type: Optional[float]
+        self.points = None  # type: List[CommodityCurvePointT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -274,6 +314,14 @@ class CommodityCurveReportT(object):
                     commodityAverageQuoteResult_ = CommodityAverageQuoteResultT.InitFromObj(commodityCurveReport.AverageQuotes(i))
                     self.averageQuotes.append(commodityAverageQuoteResult_)
         self.maxSensitivity = commodityCurveReport.MaxSensitivity()
+        if not commodityCurveReport.PointsIsNone():
+            self.points = []
+            for i in range(commodityCurveReport.PointsLength()):
+                if commodityCurveReport.Points(i) is None:
+                    self.points.append(None)
+                else:
+                    commodityCurvePoint_ = CommodityCurvePointT.InitFromObj(commodityCurveReport.Points(i))
+                    self.points.append(commodityCurvePoint_)
 
     # CommodityCurveReportT
     def Pack(self, builder):
@@ -293,6 +341,14 @@ class CommodityCurveReportT(object):
             for i in reversed(range(len(self.averageQuotes))):
                 builder.PrependUOffsetTRelative(averageQuoteslist[i])
             averageQuotes = builder.EndVector()
+        if self.points is not None:
+            pointslist = []
+            for i in range(len(self.points)):
+                pointslist.append(self.points[i].Pack(builder))
+            CommodityCurveReportStartPointsVector(builder, len(self.points))
+            for i in reversed(range(len(self.points))):
+                builder.PrependUOffsetTRelative(pointslist[i])
+            points = builder.EndVector()
         CommodityCurveReportStart(builder)
         CommodityCurveReportAddStatus(builder, self.status)
         CommodityCurveReportAddRule(builder, self.rule)
@@ -305,5 +361,7 @@ class CommodityCurveReportT(object):
         if self.averageQuotes is not None:
             CommodityCurveReportAddAverageQuotes(builder, averageQuotes)
         CommodityCurveReportAddMaxSensitivity(builder, self.maxSensitivity)
+        if self.points is not None:
+            CommodityCurveReportAddPoints(builder, points)
         commodityCurveReport = CommodityCurveReportEnd(builder)
         return commodityCurveReport

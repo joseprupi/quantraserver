@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# The weight of one month in an average quote's equation.
+# The weight of one month (or spot point) in an average quote's equation.
 class CommodityQuoteWeight(object):
     __slots__ = ['_tab']
 
@@ -25,7 +25,7 @@ class CommodityQuoteWeight(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # "YYYY-MM".
+    # "YYYY-MM". Absent for a spot point.
     # CommodityQuoteWeight
     def Month(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -40,8 +40,16 @@ class CommodityQuoteWeight(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # The spot point's date (YYYY-MM-DD). Absent for a month.
+    # CommodityQuoteWeight
+    def Date(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
 def CommodityQuoteWeightStart(builder):
-    builder.StartObject(2)
+    builder.StartObject(3)
 
 def Start(builder):
     CommodityQuoteWeightStart(builder)
@@ -58,6 +66,12 @@ def CommodityQuoteWeightAddWeight(builder, weight):
 def AddWeight(builder, weight):
     CommodityQuoteWeightAddWeight(builder, weight)
 
+def CommodityQuoteWeightAddDate(builder, date):
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(date), 0)
+
+def AddDate(builder, date):
+    CommodityQuoteWeightAddDate(builder, date)
+
 def CommodityQuoteWeightEnd(builder):
     return builder.EndObject()
 
@@ -71,6 +85,7 @@ class CommodityQuoteWeightT(object):
     def __init__(self):
         self.month = None  # type: str
         self.weight = 0.0  # type: float
+        self.date = None  # type: str
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -95,14 +110,19 @@ class CommodityQuoteWeightT(object):
             return
         self.month = commodityQuoteWeight.Month()
         self.weight = commodityQuoteWeight.Weight()
+        self.date = commodityQuoteWeight.Date()
 
     # CommodityQuoteWeightT
     def Pack(self, builder):
         if self.month is not None:
             month = builder.CreateString(self.month)
+        if self.date is not None:
+            date = builder.CreateString(self.date)
         CommodityQuoteWeightStart(builder)
         if self.month is not None:
             CommodityQuoteWeightAddMonth(builder, month)
         CommodityQuoteWeightAddWeight(builder, self.weight)
+        if self.date is not None:
+            CommodityQuoteWeightAddDate(builder, date)
         commodityQuoteWeight = CommodityQuoteWeightEnd(builder)
         return commodityQuoteWeight

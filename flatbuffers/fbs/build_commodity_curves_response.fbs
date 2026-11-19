@@ -13,6 +13,8 @@ table CommodityQuoteSensitivity {
     average_quote:int = null;
     /// d month price / d quote.
     value:double;
+    /// Date of a direct spot point price (YYYY-MM-DD), instead of `month`.
+    date:string;
 }
 
 /// One live month of the built contract.
@@ -26,13 +28,33 @@ table CommodityCurveMonth {
     /// With `include_details`, Quoted / Solved / Assumed months: one entry
     /// per input quote (direct prices in month order, then average quotes).
     sensitivities:[CommodityQuoteSensitivity];
+    /// Basis builds: the month's base price and its basis (price - base
+    /// price). Absent otherwise.
+    base_price:double = null;
+    basis:double = null;
 }
 
-/// The weight of one month in an average quote's equation.
+/// The weight of one month (or spot point) in an average quote's equation.
 table CommodityQuoteWeight {
-    /// "YYYY-MM".
+    /// "YYYY-MM". Absent for a spot point.
     month:string;
     weight:double;
+    /// The spot point's date (YYYY-MM-DD). Absent for a month.
+    date:string;
+}
+
+/// One point of a built spot price.
+table CommodityCurvePoint {
+    /// YYYY-MM-DD.
+    date:string;
+    /// The built price.
+    price:double;
+    /// Where the price comes from.
+    source:enums.CommodityMonthSource;
+    /// With `include_details`, Quoted / Solved / Assumed points: one entry
+    /// per input quote (direct point prices in date order, then average
+    /// quotes).
+    sensitivities:[CommodityQuoteSensitivity];
 }
 
 /// One average quote after the build.
@@ -60,7 +82,8 @@ table CommodityCurveReport {
     rank:int;
     /// Largest |difference| over the average quotes (0 without any).
     max_repricing_difference:double;
-    /// Every live month in contract order.
+    /// Contract builds: every live month in contract order. Absent for a
+    /// spot build.
     months:[CommodityCurveMonth];
     /// Every average quote in request order.
     average_quotes:[CommodityAverageQuoteResult];
@@ -68,6 +91,8 @@ table CommodityCurveReport {
     /// price to a quote. A large value means a small change of a quote moves
     /// some month a lot: the build is fragile.
     max_sensitivity:double = null;
+    /// Spot builds: every point in date order.
+    points:[CommodityCurvePoint];
 }
 
 /// One built futures contract.
@@ -75,10 +100,15 @@ table BuiltCommodityCurve {
     /// The request's contract with every live month priced: quoted months,
     /// expired months, fixings, pricing calendar and pricing holidays as
     /// sent. Pastes unchanged into `pricing.commodity.contracts` of a
-    /// `/price-commodity-swap` request.
-    contract:CommodityContractSpec (required);
+    /// `/price-commodity-swap` request. Present for a contract build.
+    contract:CommodityContractSpec;
     /// How it was built.
     report:CommodityCurveReport (required);
+    /// The request's spot price with every point priced: interpolation,
+    /// extrapolate_flat, fixings, pricing calendar and pricing holidays as
+    /// sent. Pastes unchanged into `pricing.commodity.spot_prices` of a
+    /// `/price-commodity-swap` request. Present for a spot build.
+    spot:CommoditySpotSpec;
 }
 
 /// Response for all requested contracts, in request order.

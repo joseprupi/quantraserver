@@ -44,52 +44,15 @@ std::shared_ptr<const commodities::FuturesContract> parseContract(
 
 std::shared_ptr<const commodities::SpotPrice> parseSpot(
     const quantra::CommoditySpotSpec* spec, const std::string& base) {
-    if (!spec) {
-        QUANTRA_INVALID_ARGUMENT(base + " is null");
-    }
-    const std::string id = requireNonEmptyString(spec->id(), base + ".id");
-    const std::string named = base + " ('" + id + "')";
-    auto calendar = parsePricingCalendar(spec->pricing_calendar(), spec->pricing_holidays(), named);
-    const std::string interpolationField = named + ".interpolation";
-    const auto interpolation = DecodeCommodityInterpolation(
-        requireEnum(spec->interpolation(), interpolationField), interpolationField);
-
-    const auto* points = spec->points();
-    if (!points) {
-        QUANTRA_INVALID_ARGUMENT(named + ".points is required");
-    }
-    std::vector<commodities::SpotPoint> parsedPoints;
-    parsedPoints.reserve(points->size());
-    for (flatbuffers::uoffset_t i = 0; i < points->size(); ++i) {
-        const auto* p = points->Get(i);
-        const std::string field = at(named + ".points", i);
-        if (!p) {
-            QUANTRA_INVALID_ARGUMENT(field + " is null");
-        }
-        commodities::SpotPoint point;
-        point.date = requireIsoDate(p->date(), field + ".date");
-        point.price = requireScalarPresent(p->price(), field + ".price");
-        parsedPoints.push_back(point);
-    }
-
-    std::vector<commodities::SpotFixing> fixings;
-    if (const auto* list = spec->fixings()) {
-        fixings.reserve(list->size());
-        for (flatbuffers::uoffset_t i = 0; i < list->size(); ++i) {
-            const auto* f = list->Get(i);
-            const std::string field = at(named + ".fixings", i);
-            if (!f) {
-                QUANTRA_INVALID_ARGUMENT(field + " is null");
-            }
-            commodities::SpotFixing fixing;
-            fixing.date = requireIsoDate(f->date(), field + ".date");
-            fixing.value = requireScalarPresent(f->value(), field + ".value");
-            fixings.push_back(fixing);
-        }
+    auto data = DecodeCommoditySpot(spec, base, true);
+    std::vector<commodities::SpotPoint> points;
+    points.reserve(data.points.size());
+    for (const auto& p : data.points) {
+        points.push_back({p.date, *p.price});
     }
     return std::make_shared<const commodities::SpotPrice>(
-        id, std::move(calendar), interpolation, spec->extrapolate_flat(), std::move(parsedPoints),
-        fixings);
+        std::move(data.id), std::move(data.calendar), data.interpolation, data.extrapolateFlat,
+        std::move(points), data.fixings);
 }
 
 } // namespace
@@ -142,6 +105,62 @@ CommodityContractData DecodeCommodityContract(
     }
     return CommodityContractData{
         id, std::move(calendar), std::move(parsedMonths), std::move(fixings)};
+}
+
+CommoditySpotData DecodeCommoditySpot(
+    const quantra::CommoditySpotSpec* spec, const std::string& base, bool pricesRequired) {
+    if (!spec) {
+        QuantraInvalidArgumentAt(base, base + " is null");
+    }
+    const std::string id = requireNonEmptyString(spec->id(), base + ".id");
+    const std::string named = base + " ('" + id + "')";
+    auto calendar = parsePricingCalendar(spec->pricing_calendar(), spec->pricing_holidays(), named);
+    const std::string interpolationField = named + ".interpolation";
+    const auto interpolation = DecodeCommodityInterpolation(
+        requireEnum(spec->interpolation(), interpolationField), interpolationField);
+
+    const auto* points = spec->points();
+    if (!points) {
+        QuantraInvalidArgumentAt(named + ".points", named + ".points is required");
+    }
+    std::vector<commodities::SpotNode> parsedPoints;
+    parsedPoints.reserve(points->size());
+    for (flatbuffers::uoffset_t i = 0; i < points->size(); ++i) {
+        const auto* p = points->Get(i);
+        const std::string field = at(named + ".points", i);
+        if (!p) {
+            QuantraInvalidArgumentAt(field, field + " is null");
+        }
+        commodities::SpotNode point;
+        point.date = requireIsoDate(p->date(), field + ".date");
+        if (pricesRequired || p->price().has_value()) {
+            point.price = requireScalarPresent(p->price(), field + ".price");
+        }
+        parsedPoints.push_back(point);
+    }
+
+    std::vector<commodities::SpotFixing> fixings;
+    if (const auto* list = spec->fixings()) {
+        fixings.reserve(list->size());
+        for (flatbuffers::uoffset_t i = 0; i < list->size(); ++i) {
+            const auto* f = list->Get(i);
+            const std::string field = at(named + ".fixings", i);
+            if (!f) {
+                QuantraInvalidArgumentAt(field, field + " is null");
+            }
+            commodities::SpotFixing fixing;
+            fixing.date = requireIsoDate(f->date(), field + ".date");
+            fixing.value = requireScalarPresent(f->value(), field + ".value");
+            fixings.push_back(fixing);
+        }
+    }
+    return CommoditySpotData{
+        id,
+        std::move(calendar),
+        interpolation,
+        spec->extrapolate_flat(),
+        std::move(parsedPoints),
+        std::move(fixings)};
 }
 
 commodities::SpotInterpolation DecodeCommodityInterpolation(

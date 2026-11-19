@@ -129,6 +129,9 @@ inline constexpr const char* kQuantraErrorDetailsKey = "quantra-error-details-bi
 class QuantraNotFound : public QuantraError {
 public:
     explicit QuantraNotFound(const std::string& message = "") : QuantraError(message) {}
+    /// With structured details (sent as for an invalid argument).
+    QuantraNotFound(const std::string& message, const std::string& details)
+        : QuantraError(message, details) {}
 };
 
 // Thrown when a valid request asks for an unsupported/unimplemented feature

@@ -6,9 +6,9 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# One futures contract to build: the months that have a price are futures
-# quotes, the average quotes are equations on the months they read, and
-# the live months no quote touches are filled.
+# One futures contract or spot price to build: the months (points) that
+# have a price are quotes, the average quotes are equations on the months
+# (points) they read, and the ones no quote touches are filled.
 class CommodityCurveBuild(object):
     __slots__ = ['_tab']
 
@@ -34,7 +34,8 @@ class CommodityCurveBuild(object):
     # them reads it, otherwise filled with `interpolation`. A month whose
     # last trading date is before the valuation date is returned as sent
     # (it is read through fixings). Fixings, pricing calendar and pricing
-    # holidays are returned unchanged. Required.
+    # holidays are returned unchanged. Exactly one of `contract` and `spot`
+    # is given (400 otherwise).
     # CommodityCurveBuild
     def Contract(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -107,8 +108,43 @@ class CommodityCurveBuild(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
+    # A spot price to build instead of a contract, as
+    # `pricing.commodity.spot_prices[]` of a swap request takes it. Its
+    # `points` are the nodes, at the dates the caller chose: a point with a
+    # `price` is a quote and is returned unchanged, a point without one is
+    # solved from the average quotes that read it or, when none does, read
+    # from the determined points with the spot's own `interpolation` and
+    # `extrapolate_flat`. The average quotes average the spot price (no
+    # `nearby` / `roll_days_before_expiry`); `interpolation` above is not
+    # given (400). Exactly one of `contract` and `spot`.
+    # CommodityCurveBuild
+    def Spot(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.CommoditySpotSpec import CommoditySpotSpec
+            obj = CommoditySpotSpec()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # Contract builds: the contract is a basis to another contract of the
+    # request. The live months no quote touches are then filled on their
+    # basis (price - base price) with `interpolation` / `extrapolate_flat`,
+    # and the base price is added back.
+    # CommodityCurveBuild
+    def Basis(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.CommodityCurveBasis import CommodityCurveBasis
+            obj = CommodityCurveBasis()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
 def CommodityCurveBuildStart(builder):
-    builder.StartObject(5)
+    builder.StartObject(7)
 
 def Start(builder):
     CommodityCurveBuildStart(builder)
@@ -149,6 +185,18 @@ def CommodityCurveBuildAddRule(builder, rule):
 def AddRule(builder, rule):
     CommodityCurveBuildAddRule(builder, rule)
 
+def CommodityCurveBuildAddSpot(builder, spot):
+    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(spot), 0)
+
+def AddSpot(builder, spot):
+    CommodityCurveBuildAddSpot(builder, spot)
+
+def CommodityCurveBuildAddBasis(builder, basis):
+    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(basis), 0)
+
+def AddBasis(builder, basis):
+    CommodityCurveBuildAddBasis(builder, basis)
+
 def CommodityCurveBuildEnd(builder):
     return builder.EndObject()
 
@@ -169,6 +217,8 @@ class CommodityCurveBuildT(object):
         self.extrapolateFlat = False  # type: bool
         self.averageQuotes = None  # type: List[CommodityAverageQuoteT]
         self.rule = None  # type: Optional[int]
+        self.spot = None  # type: Optional[CommoditySpotSpecT]
+        self.basis = None  # type: Optional[CommodityCurveBasisT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -204,6 +254,10 @@ class CommodityCurveBuildT(object):
                     commodityAverageQuote_ = CommodityAverageQuoteT.InitFromObj(commodityCurveBuild.AverageQuotes(i))
                     self.averageQuotes.append(commodityAverageQuote_)
         self.rule = commodityCurveBuild.Rule()
+        if commodityCurveBuild.Spot() is not None:
+            self.spot = CommoditySpotSpecT.InitFromObj(commodityCurveBuild.Spot())
+        if commodityCurveBuild.Basis() is not None:
+            self.basis = CommodityCurveBasisT.InitFromObj(commodityCurveBuild.Basis())
 
     # CommodityCurveBuildT
     def Pack(self, builder):
@@ -217,6 +271,10 @@ class CommodityCurveBuildT(object):
             for i in reversed(range(len(self.averageQuotes))):
                 builder.PrependUOffsetTRelative(averageQuoteslist[i])
             averageQuotes = builder.EndVector()
+        if self.spot is not None:
+            spot = self.spot.Pack(builder)
+        if self.basis is not None:
+            basis = self.basis.Pack(builder)
         CommodityCurveBuildStart(builder)
         if self.contract is not None:
             CommodityCurveBuildAddContract(builder, contract)
@@ -225,5 +283,9 @@ class CommodityCurveBuildT(object):
         if self.averageQuotes is not None:
             CommodityCurveBuildAddAverageQuotes(builder, averageQuotes)
         CommodityCurveBuildAddRule(builder, self.rule)
+        if self.spot is not None:
+            CommodityCurveBuildAddSpot(builder, spot)
+        if self.basis is not None:
+            CommodityCurveBuildAddBasis(builder, basis)
         commodityCurveBuild = CommodityCurveBuildEnd(builder)
         return commodityCurveBuild

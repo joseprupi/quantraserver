@@ -30,6 +30,10 @@ struct CommodityQuoteWeight;
 struct CommodityQuoteWeightBuilder;
 struct CommodityQuoteWeightT;
 
+struct CommodityCurvePoint;
+struct CommodityCurvePointBuilder;
+struct CommodityCurvePointT;
+
 struct CommodityAverageQuoteResult;
 struct CommodityAverageQuoteResultBuilder;
 struct CommodityAverageQuoteResultT;
@@ -51,6 +55,7 @@ struct CommodityQuoteSensitivityT : public ::flatbuffers::NativeTable {
   std::string month{};
   ::flatbuffers::Optional<int32_t> average_quote = ::flatbuffers::nullopt;
   double value = 0.0;
+  std::string date{};
 };
 
 /// The sensitivity of a month price to one input quote: a direct price
@@ -61,7 +66,8 @@ struct CommodityQuoteSensitivity FLATBUFFERS_FINAL_CLASS : private ::flatbuffers
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_MONTH = 4,
     VT_AVERAGE_QUOTE = 6,
-    VT_VALUE = 8
+    VT_VALUE = 8,
+    VT_DATE = 10
   };
   /// Month of a direct price ("YYYY-MM"). Absent for an average quote.
   const ::flatbuffers::String *month() const {
@@ -76,12 +82,18 @@ struct CommodityQuoteSensitivity FLATBUFFERS_FINAL_CLASS : private ::flatbuffers
   double value() const {
     return GetField<double>(VT_VALUE, 0.0);
   }
+  /// Date of a direct spot point price (YYYY-MM-DD), instead of `month`.
+  const ::flatbuffers::String *date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_DATE);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_MONTH) &&
            verifier.VerifyString(month()) &&
            VerifyField<int32_t>(verifier, VT_AVERAGE_QUOTE, 4) &&
            VerifyField<double>(verifier, VT_VALUE, 8) &&
+           VerifyOffset(verifier, VT_DATE) &&
+           verifier.VerifyString(date()) &&
            verifier.EndTable();
   }
   CommodityQuoteSensitivityT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -102,6 +114,9 @@ struct CommodityQuoteSensitivityBuilder {
   void add_value(double value) {
     fbb_.AddElement<double>(CommodityQuoteSensitivity::VT_VALUE, value, 0.0);
   }
+  void add_date(::flatbuffers::Offset<::flatbuffers::String> date) {
+    fbb_.AddOffset(CommodityQuoteSensitivity::VT_DATE, date);
+  }
   explicit CommodityQuoteSensitivityBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -117,9 +132,11 @@ inline ::flatbuffers::Offset<CommodityQuoteSensitivity> CreateCommodityQuoteSens
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> month = 0,
     ::flatbuffers::Optional<int32_t> average_quote = ::flatbuffers::nullopt,
-    double value = 0.0) {
+    double value = 0.0,
+    ::flatbuffers::Offset<::flatbuffers::String> date = 0) {
   CommodityQuoteSensitivityBuilder builder_(_fbb);
   builder_.add_value(value);
+  builder_.add_date(date);
   if(average_quote) { builder_.add_average_quote(*average_quote); }
   builder_.add_month(month);
   return builder_.Finish();
@@ -129,13 +146,16 @@ inline ::flatbuffers::Offset<CommodityQuoteSensitivity> CreateCommodityQuoteSens
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *month = nullptr,
     ::flatbuffers::Optional<int32_t> average_quote = ::flatbuffers::nullopt,
-    double value = 0.0) {
+    double value = 0.0,
+    const char *date = nullptr) {
   auto month__ = month ? _fbb.CreateString(month) : 0;
+  auto date__ = date ? _fbb.CreateString(date) : 0;
   return quantra::CreateCommodityQuoteSensitivity(
       _fbb,
       month__,
       average_quote,
-      value);
+      value,
+      date__);
 }
 
 ::flatbuffers::Offset<CommodityQuoteSensitivity> CreateCommodityQuoteSensitivity(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityQuoteSensitivityT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -146,6 +166,8 @@ struct CommodityCurveMonthT : public ::flatbuffers::NativeTable {
   double price = 0.0;
   quantra::enums::CommodityMonthSource source = quantra::enums::CommodityMonthSource_Quoted;
   std::vector<std::unique_ptr<quantra::CommodityQuoteSensitivityT>> sensitivities{};
+  ::flatbuffers::Optional<double> base_price = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> basis = ::flatbuffers::nullopt;
   CommodityCurveMonthT() = default;
   CommodityCurveMonthT(const CommodityCurveMonthT &o);
   CommodityCurveMonthT(CommodityCurveMonthT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -160,7 +182,9 @@ struct CommodityCurveMonth FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
     VT_MONTH = 4,
     VT_PRICE = 6,
     VT_SOURCE = 8,
-    VT_SENSITIVITIES = 10
+    VT_SENSITIVITIES = 10,
+    VT_BASE_PRICE = 12,
+    VT_BASIS = 14
   };
   /// "YYYY-MM".
   const ::flatbuffers::String *month() const {
@@ -179,6 +203,14 @@ struct CommodityCurveMonth FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityQuoteSensitivity>> *sensitivities() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityQuoteSensitivity>> *>(VT_SENSITIVITIES);
   }
+  /// Basis builds: the month's base price and its basis (price - base
+  /// price). Absent otherwise.
+  ::flatbuffers::Optional<double> base_price() const {
+    return GetOptional<double, double>(VT_BASE_PRICE);
+  }
+  ::flatbuffers::Optional<double> basis() const {
+    return GetOptional<double, double>(VT_BASIS);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_MONTH) &&
@@ -188,6 +220,8 @@ struct CommodityCurveMonth FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
            VerifyOffset(verifier, VT_SENSITIVITIES) &&
            verifier.VerifyVector(sensitivities()) &&
            verifier.VerifyVectorOfTables(sensitivities()) &&
+           VerifyField<double>(verifier, VT_BASE_PRICE, 8) &&
+           VerifyField<double>(verifier, VT_BASIS, 8) &&
            verifier.EndTable();
   }
   CommodityCurveMonthT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -211,6 +245,12 @@ struct CommodityCurveMonthBuilder {
   void add_sensitivities(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityQuoteSensitivity>>> sensitivities) {
     fbb_.AddOffset(CommodityCurveMonth::VT_SENSITIVITIES, sensitivities);
   }
+  void add_base_price(double base_price) {
+    fbb_.AddElement<double>(CommodityCurveMonth::VT_BASE_PRICE, base_price);
+  }
+  void add_basis(double basis) {
+    fbb_.AddElement<double>(CommodityCurveMonth::VT_BASIS, basis);
+  }
   explicit CommodityCurveMonthBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -227,8 +267,12 @@ inline ::flatbuffers::Offset<CommodityCurveMonth> CreateCommodityCurveMonth(
     ::flatbuffers::Offset<::flatbuffers::String> month = 0,
     double price = 0.0,
     quantra::enums::CommodityMonthSource source = quantra::enums::CommodityMonthSource_Quoted,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityQuoteSensitivity>>> sensitivities = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityQuoteSensitivity>>> sensitivities = 0,
+    ::flatbuffers::Optional<double> base_price = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> basis = ::flatbuffers::nullopt) {
   CommodityCurveMonthBuilder builder_(_fbb);
+  if(basis) { builder_.add_basis(*basis); }
+  if(base_price) { builder_.add_base_price(*base_price); }
   builder_.add_price(price);
   builder_.add_sensitivities(sensitivities);
   builder_.add_month(month);
@@ -241,7 +285,9 @@ inline ::flatbuffers::Offset<CommodityCurveMonth> CreateCommodityCurveMonthDirec
     const char *month = nullptr,
     double price = 0.0,
     quantra::enums::CommodityMonthSource source = quantra::enums::CommodityMonthSource_Quoted,
-    const std::vector<::flatbuffers::Offset<quantra::CommodityQuoteSensitivity>> *sensitivities = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::CommodityQuoteSensitivity>> *sensitivities = nullptr,
+    ::flatbuffers::Optional<double> base_price = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> basis = ::flatbuffers::nullopt) {
   auto month__ = month ? _fbb.CreateString(month) : 0;
   auto sensitivities__ = sensitivities ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityQuoteSensitivity>>(*sensitivities) : 0;
   return quantra::CreateCommodityCurveMonth(
@@ -249,7 +295,9 @@ inline ::flatbuffers::Offset<CommodityCurveMonth> CreateCommodityCurveMonthDirec
       month__,
       price,
       source,
-      sensitivities__);
+      sensitivities__,
+      base_price,
+      basis);
 }
 
 ::flatbuffers::Offset<CommodityCurveMonth> CreateCommodityCurveMonth(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityCurveMonthT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -258,28 +306,36 @@ struct CommodityQuoteWeightT : public ::flatbuffers::NativeTable {
   typedef CommodityQuoteWeight TableType;
   std::string month{};
   double weight = 0.0;
+  std::string date{};
 };
 
-/// The weight of one month in an average quote's equation.
+/// The weight of one month (or spot point) in an average quote's equation.
 struct CommodityQuoteWeight FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CommodityQuoteWeightT NativeTableType;
   typedef CommodityQuoteWeightBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_MONTH = 4,
-    VT_WEIGHT = 6
+    VT_WEIGHT = 6,
+    VT_DATE = 8
   };
-  /// "YYYY-MM".
+  /// "YYYY-MM". Absent for a spot point.
   const ::flatbuffers::String *month() const {
     return GetPointer<const ::flatbuffers::String *>(VT_MONTH);
   }
   double weight() const {
     return GetField<double>(VT_WEIGHT, 0.0);
   }
+  /// The spot point's date (YYYY-MM-DD). Absent for a month.
+  const ::flatbuffers::String *date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_DATE);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_MONTH) &&
            verifier.VerifyString(month()) &&
            VerifyField<double>(verifier, VT_WEIGHT, 8) &&
+           VerifyOffset(verifier, VT_DATE) &&
+           verifier.VerifyString(date()) &&
            verifier.EndTable();
   }
   CommodityQuoteWeightT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -297,6 +353,9 @@ struct CommodityQuoteWeightBuilder {
   void add_weight(double weight) {
     fbb_.AddElement<double>(CommodityQuoteWeight::VT_WEIGHT, weight, 0.0);
   }
+  void add_date(::flatbuffers::Offset<::flatbuffers::String> date) {
+    fbb_.AddOffset(CommodityQuoteWeight::VT_DATE, date);
+  }
   explicit CommodityQuoteWeightBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -311,9 +370,11 @@ struct CommodityQuoteWeightBuilder {
 inline ::flatbuffers::Offset<CommodityQuoteWeight> CreateCommodityQuoteWeight(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> month = 0,
-    double weight = 0.0) {
+    double weight = 0.0,
+    ::flatbuffers::Offset<::flatbuffers::String> date = 0) {
   CommodityQuoteWeightBuilder builder_(_fbb);
   builder_.add_weight(weight);
+  builder_.add_date(date);
   builder_.add_month(month);
   return builder_.Finish();
 }
@@ -321,15 +382,133 @@ inline ::flatbuffers::Offset<CommodityQuoteWeight> CreateCommodityQuoteWeight(
 inline ::flatbuffers::Offset<CommodityQuoteWeight> CreateCommodityQuoteWeightDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *month = nullptr,
-    double weight = 0.0) {
+    double weight = 0.0,
+    const char *date = nullptr) {
   auto month__ = month ? _fbb.CreateString(month) : 0;
+  auto date__ = date ? _fbb.CreateString(date) : 0;
   return quantra::CreateCommodityQuoteWeight(
       _fbb,
       month__,
-      weight);
+      weight,
+      date__);
 }
 
 ::flatbuffers::Offset<CommodityQuoteWeight> CreateCommodityQuoteWeight(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityQuoteWeightT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct CommodityCurvePointT : public ::flatbuffers::NativeTable {
+  typedef CommodityCurvePoint TableType;
+  std::string date{};
+  double price = 0.0;
+  quantra::enums::CommodityMonthSource source = quantra::enums::CommodityMonthSource_Quoted;
+  std::vector<std::unique_ptr<quantra::CommodityQuoteSensitivityT>> sensitivities{};
+  CommodityCurvePointT() = default;
+  CommodityCurvePointT(const CommodityCurvePointT &o);
+  CommodityCurvePointT(CommodityCurvePointT&&) FLATBUFFERS_NOEXCEPT = default;
+  CommodityCurvePointT &operator=(CommodityCurvePointT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// One point of a built spot price.
+struct CommodityCurvePoint FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef CommodityCurvePointT NativeTableType;
+  typedef CommodityCurvePointBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_DATE = 4,
+    VT_PRICE = 6,
+    VT_SOURCE = 8,
+    VT_SENSITIVITIES = 10
+  };
+  /// YYYY-MM-DD.
+  const ::flatbuffers::String *date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_DATE);
+  }
+  /// The built price.
+  double price() const {
+    return GetField<double>(VT_PRICE, 0.0);
+  }
+  /// Where the price comes from.
+  quantra::enums::CommodityMonthSource source() const {
+    return static_cast<quantra::enums::CommodityMonthSource>(GetField<int8_t>(VT_SOURCE, 0));
+  }
+  /// With `include_details`, Quoted / Solved / Assumed points: one entry
+  /// per input quote (direct point prices in date order, then average
+  /// quotes).
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityQuoteSensitivity>> *sensitivities() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityQuoteSensitivity>> *>(VT_SENSITIVITIES);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_DATE) &&
+           verifier.VerifyString(date()) &&
+           VerifyField<double>(verifier, VT_PRICE, 8) &&
+           VerifyField<int8_t>(verifier, VT_SOURCE, 1) &&
+           VerifyOffset(verifier, VT_SENSITIVITIES) &&
+           verifier.VerifyVector(sensitivities()) &&
+           verifier.VerifyVectorOfTables(sensitivities()) &&
+           verifier.EndTable();
+  }
+  CommodityCurvePointT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(CommodityCurvePointT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<CommodityCurvePoint> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityCurvePointT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct CommodityCurvePointBuilder {
+  typedef CommodityCurvePoint Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_date(::flatbuffers::Offset<::flatbuffers::String> date) {
+    fbb_.AddOffset(CommodityCurvePoint::VT_DATE, date);
+  }
+  void add_price(double price) {
+    fbb_.AddElement<double>(CommodityCurvePoint::VT_PRICE, price, 0.0);
+  }
+  void add_source(quantra::enums::CommodityMonthSource source) {
+    fbb_.AddElement<int8_t>(CommodityCurvePoint::VT_SOURCE, static_cast<int8_t>(source), 0);
+  }
+  void add_sensitivities(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityQuoteSensitivity>>> sensitivities) {
+    fbb_.AddOffset(CommodityCurvePoint::VT_SENSITIVITIES, sensitivities);
+  }
+  explicit CommodityCurvePointBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<CommodityCurvePoint> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<CommodityCurvePoint>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<CommodityCurvePoint> CreateCommodityCurvePoint(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> date = 0,
+    double price = 0.0,
+    quantra::enums::CommodityMonthSource source = quantra::enums::CommodityMonthSource_Quoted,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityQuoteSensitivity>>> sensitivities = 0) {
+  CommodityCurvePointBuilder builder_(_fbb);
+  builder_.add_price(price);
+  builder_.add_sensitivities(sensitivities);
+  builder_.add_date(date);
+  builder_.add_source(source);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<CommodityCurvePoint> CreateCommodityCurvePointDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *date = nullptr,
+    double price = 0.0,
+    quantra::enums::CommodityMonthSource source = quantra::enums::CommodityMonthSource_Quoted,
+    const std::vector<::flatbuffers::Offset<quantra::CommodityQuoteSensitivity>> *sensitivities = nullptr) {
+  auto date__ = date ? _fbb.CreateString(date) : 0;
+  auto sensitivities__ = sensitivities ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityQuoteSensitivity>>(*sensitivities) : 0;
+  return quantra::CreateCommodityCurvePoint(
+      _fbb,
+      date__,
+      price,
+      source,
+      sensitivities__);
+}
+
+::flatbuffers::Offset<CommodityCurvePoint> CreateCommodityCurvePoint(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityCurvePointT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 struct CommodityAverageQuoteResultT : public ::flatbuffers::NativeTable {
   typedef CommodityAverageQuoteResult TableType;
@@ -466,6 +645,7 @@ struct CommodityCurveReportT : public ::flatbuffers::NativeTable {
   std::vector<std::unique_ptr<quantra::CommodityCurveMonthT>> months{};
   std::vector<std::unique_ptr<quantra::CommodityAverageQuoteResultT>> average_quotes{};
   ::flatbuffers::Optional<double> max_sensitivity = ::flatbuffers::nullopt;
+  std::vector<std::unique_ptr<quantra::CommodityCurvePointT>> points{};
   CommodityCurveReportT() = default;
   CommodityCurveReportT(const CommodityCurveReportT &o);
   CommodityCurveReportT(CommodityCurveReportT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -485,7 +665,8 @@ struct CommodityCurveReport FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
     VT_MAX_REPRICING_DIFFERENCE = 14,
     VT_MONTHS = 16,
     VT_AVERAGE_QUOTES = 18,
-    VT_MAX_SENSITIVITY = 20
+    VT_MAX_SENSITIVITY = 20,
+    VT_POINTS = 22
   };
   quantra::enums::CommodityCurveStatus status() const {
     return static_cast<quantra::enums::CommodityCurveStatus>(GetField<int8_t>(VT_STATUS, 0));
@@ -509,7 +690,8 @@ struct CommodityCurveReport FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
   double max_repricing_difference() const {
     return GetField<double>(VT_MAX_REPRICING_DIFFERENCE, 0.0);
   }
-  /// Every live month in contract order.
+  /// Contract builds: every live month in contract order. Absent for a
+  /// spot build.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityCurveMonth>> *months() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityCurveMonth>> *>(VT_MONTHS);
   }
@@ -522,6 +704,10 @@ struct CommodityCurveReport FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
   /// some month a lot: the build is fragile.
   ::flatbuffers::Optional<double> max_sensitivity() const {
     return GetOptional<double, double>(VT_MAX_SENSITIVITY);
+  }
+  /// Spot builds: every point in date order.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityCurvePoint>> *points() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityCurvePoint>> *>(VT_POINTS);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -538,6 +724,9 @@ struct CommodityCurveReport FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
            verifier.VerifyVector(average_quotes()) &&
            verifier.VerifyVectorOfTables(average_quotes()) &&
            VerifyField<double>(verifier, VT_MAX_SENSITIVITY, 8) &&
+           VerifyOffset(verifier, VT_POINTS) &&
+           verifier.VerifyVector(points()) &&
+           verifier.VerifyVectorOfTables(points()) &&
            verifier.EndTable();
   }
   CommodityCurveReportT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -576,6 +765,9 @@ struct CommodityCurveReportBuilder {
   void add_max_sensitivity(double max_sensitivity) {
     fbb_.AddElement<double>(CommodityCurveReport::VT_MAX_SENSITIVITY, max_sensitivity);
   }
+  void add_points(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityCurvePoint>>> points) {
+    fbb_.AddOffset(CommodityCurveReport::VT_POINTS, points);
+  }
   explicit CommodityCurveReportBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -597,10 +789,12 @@ inline ::flatbuffers::Offset<CommodityCurveReport> CreateCommodityCurveReport(
     double max_repricing_difference = 0.0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityCurveMonth>>> months = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityAverageQuoteResult>>> average_quotes = 0,
-    ::flatbuffers::Optional<double> max_sensitivity = ::flatbuffers::nullopt) {
+    ::flatbuffers::Optional<double> max_sensitivity = ::flatbuffers::nullopt,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityCurvePoint>>> points = 0) {
   CommodityCurveReportBuilder builder_(_fbb);
   if(max_sensitivity) { builder_.add_max_sensitivity(*max_sensitivity); }
   builder_.add_max_repricing_difference(max_repricing_difference);
+  builder_.add_points(points);
   builder_.add_average_quotes(average_quotes);
   builder_.add_months(months);
   builder_.add_rank(rank);
@@ -621,9 +815,11 @@ inline ::flatbuffers::Offset<CommodityCurveReport> CreateCommodityCurveReportDir
     double max_repricing_difference = 0.0,
     const std::vector<::flatbuffers::Offset<quantra::CommodityCurveMonth>> *months = nullptr,
     const std::vector<::flatbuffers::Offset<quantra::CommodityAverageQuoteResult>> *average_quotes = nullptr,
-    ::flatbuffers::Optional<double> max_sensitivity = ::flatbuffers::nullopt) {
+    ::flatbuffers::Optional<double> max_sensitivity = ::flatbuffers::nullopt,
+    const std::vector<::flatbuffers::Offset<quantra::CommodityCurvePoint>> *points = nullptr) {
   auto months__ = months ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityCurveMonth>>(*months) : 0;
   auto average_quotes__ = average_quotes ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityAverageQuoteResult>>(*average_quotes) : 0;
+  auto points__ = points ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityCurvePoint>>(*points) : 0;
   return quantra::CreateCommodityCurveReport(
       _fbb,
       status,
@@ -634,7 +830,8 @@ inline ::flatbuffers::Offset<CommodityCurveReport> CreateCommodityCurveReportDir
       max_repricing_difference,
       months__,
       average_quotes__,
-      max_sensitivity);
+      max_sensitivity,
+      points__);
 }
 
 ::flatbuffers::Offset<CommodityCurveReport> CreateCommodityCurveReport(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityCurveReportT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -643,6 +840,7 @@ struct BuiltCommodityCurveT : public ::flatbuffers::NativeTable {
   typedef BuiltCommodityCurve TableType;
   std::unique_ptr<quantra::CommodityContractSpecT> contract{};
   std::unique_ptr<quantra::CommodityCurveReportT> report{};
+  std::unique_ptr<quantra::CommoditySpotSpecT> spot{};
   BuiltCommodityCurveT() = default;
   BuiltCommodityCurveT(const BuiltCommodityCurveT &o);
   BuiltCommodityCurveT(BuiltCommodityCurveT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -655,12 +853,13 @@ struct BuiltCommodityCurve FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
   typedef BuiltCommodityCurveBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_CONTRACT = 4,
-    VT_REPORT = 6
+    VT_REPORT = 6,
+    VT_SPOT = 8
   };
   /// The request's contract with every live month priced: quoted months,
   /// expired months, fixings, pricing calendar and pricing holidays as
   /// sent. Pastes unchanged into `pricing.commodity.contracts` of a
-  /// `/price-commodity-swap` request.
+  /// `/price-commodity-swap` request. Present for a contract build.
   const quantra::CommodityContractSpec *contract() const {
     return GetPointer<const quantra::CommodityContractSpec *>(VT_CONTRACT);
   }
@@ -668,12 +867,21 @@ struct BuiltCommodityCurve FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
   const quantra::CommodityCurveReport *report() const {
     return GetPointer<const quantra::CommodityCurveReport *>(VT_REPORT);
   }
+  /// The request's spot price with every point priced: interpolation,
+  /// extrapolate_flat, fixings, pricing calendar and pricing holidays as
+  /// sent. Pastes unchanged into `pricing.commodity.spot_prices` of a
+  /// `/price-commodity-swap` request. Present for a spot build.
+  const quantra::CommoditySpotSpec *spot() const {
+    return GetPointer<const quantra::CommoditySpotSpec *>(VT_SPOT);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyOffsetRequired(verifier, VT_CONTRACT) &&
+           VerifyOffset(verifier, VT_CONTRACT) &&
            verifier.VerifyTable(contract()) &&
            VerifyOffsetRequired(verifier, VT_REPORT) &&
            verifier.VerifyTable(report()) &&
+           VerifyOffset(verifier, VT_SPOT) &&
+           verifier.VerifyTable(spot()) &&
            verifier.EndTable();
   }
   BuiltCommodityCurveT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -691,6 +899,9 @@ struct BuiltCommodityCurveBuilder {
   void add_report(::flatbuffers::Offset<quantra::CommodityCurveReport> report) {
     fbb_.AddOffset(BuiltCommodityCurve::VT_REPORT, report);
   }
+  void add_spot(::flatbuffers::Offset<quantra::CommoditySpotSpec> spot) {
+    fbb_.AddOffset(BuiltCommodityCurve::VT_SPOT, spot);
+  }
   explicit BuiltCommodityCurveBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -698,7 +909,6 @@ struct BuiltCommodityCurveBuilder {
   ::flatbuffers::Offset<BuiltCommodityCurve> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<BuiltCommodityCurve>(end);
-    fbb_.Required(o, BuiltCommodityCurve::VT_CONTRACT);
     fbb_.Required(o, BuiltCommodityCurve::VT_REPORT);
     return o;
   }
@@ -707,8 +917,10 @@ struct BuiltCommodityCurveBuilder {
 inline ::flatbuffers::Offset<BuiltCommodityCurve> CreateBuiltCommodityCurve(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::CommodityContractSpec> contract = 0,
-    ::flatbuffers::Offset<quantra::CommodityCurveReport> report = 0) {
+    ::flatbuffers::Offset<quantra::CommodityCurveReport> report = 0,
+    ::flatbuffers::Offset<quantra::CommoditySpotSpec> spot = 0) {
   BuiltCommodityCurveBuilder builder_(_fbb);
+  builder_.add_spot(spot);
   builder_.add_report(report);
   builder_.add_contract(contract);
   return builder_.Finish();
@@ -797,6 +1009,7 @@ inline void CommodityQuoteSensitivity::UnPackTo(CommodityQuoteSensitivityT *_o, 
   { auto _e = month(); if (_e) _o->month = _e->str(); }
   { auto _e = average_quote(); _o->average_quote = _e; }
   { auto _e = value(); _o->value = _e; }
+  { auto _e = date(); if (_e) _o->date = _e->str(); }
 }
 
 inline ::flatbuffers::Offset<CommodityQuoteSensitivity> CommodityQuoteSensitivity::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityQuoteSensitivityT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -810,17 +1023,21 @@ inline ::flatbuffers::Offset<CommodityQuoteSensitivity> CreateCommodityQuoteSens
   auto _month = _o->month.empty() ? 0 : _fbb.CreateString(_o->month);
   auto _average_quote = _o->average_quote;
   auto _value = _o->value;
+  auto _date = _o->date.empty() ? 0 : _fbb.CreateString(_o->date);
   return quantra::CreateCommodityQuoteSensitivity(
       _fbb,
       _month,
       _average_quote,
-      _value);
+      _value,
+      _date);
 }
 
 inline CommodityCurveMonthT::CommodityCurveMonthT(const CommodityCurveMonthT &o)
       : month(o.month),
         price(o.price),
-        source(o.source) {
+        source(o.source),
+        base_price(o.base_price),
+        basis(o.basis) {
   sensitivities.reserve(o.sensitivities.size());
   for (const auto &sensitivities_ : o.sensitivities) { sensitivities.emplace_back((sensitivities_) ? new quantra::CommodityQuoteSensitivityT(*sensitivities_) : nullptr); }
 }
@@ -830,6 +1047,8 @@ inline CommodityCurveMonthT &CommodityCurveMonthT::operator=(CommodityCurveMonth
   std::swap(price, o.price);
   std::swap(source, o.source);
   std::swap(sensitivities, o.sensitivities);
+  std::swap(base_price, o.base_price);
+  std::swap(basis, o.basis);
   return *this;
 }
 
@@ -846,6 +1065,8 @@ inline void CommodityCurveMonth::UnPackTo(CommodityCurveMonthT *_o, const ::flat
   { auto _e = price(); _o->price = _e; }
   { auto _e = source(); _o->source = _e; }
   { auto _e = sensitivities(); if (_e) { _o->sensitivities.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->sensitivities[_i]) { _e->Get(_i)->UnPackTo(_o->sensitivities[_i].get(), _resolver); } else { _o->sensitivities[_i] = std::unique_ptr<quantra::CommodityQuoteSensitivityT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->sensitivities.resize(0); } }
+  { auto _e = base_price(); _o->base_price = _e; }
+  { auto _e = basis(); _o->basis = _e; }
 }
 
 inline ::flatbuffers::Offset<CommodityCurveMonth> CommodityCurveMonth::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityCurveMonthT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -860,12 +1081,16 @@ inline ::flatbuffers::Offset<CommodityCurveMonth> CreateCommodityCurveMonth(::fl
   auto _price = _o->price;
   auto _source = _o->source;
   auto _sensitivities = _o->sensitivities.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityQuoteSensitivity>> (_o->sensitivities.size(), [](size_t i, _VectorArgs *__va) { return CreateCommodityQuoteSensitivity(*__va->__fbb, __va->__o->sensitivities[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _base_price = _o->base_price;
+  auto _basis = _o->basis;
   return quantra::CreateCommodityCurveMonth(
       _fbb,
       _month,
       _price,
       _source,
-      _sensitivities);
+      _sensitivities,
+      _base_price,
+      _basis);
 }
 
 inline CommodityQuoteWeightT *CommodityQuoteWeight::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
@@ -879,6 +1104,7 @@ inline void CommodityQuoteWeight::UnPackTo(CommodityQuoteWeightT *_o, const ::fl
   (void)_resolver;
   { auto _e = month(); if (_e) _o->month = _e->str(); }
   { auto _e = weight(); _o->weight = _e; }
+  { auto _e = date(); if (_e) _o->date = _e->str(); }
 }
 
 inline ::flatbuffers::Offset<CommodityQuoteWeight> CommodityQuoteWeight::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityQuoteWeightT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -891,10 +1117,63 @@ inline ::flatbuffers::Offset<CommodityQuoteWeight> CreateCommodityQuoteWeight(::
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CommodityQuoteWeightT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _month = _o->month.empty() ? 0 : _fbb.CreateString(_o->month);
   auto _weight = _o->weight;
+  auto _date = _o->date.empty() ? 0 : _fbb.CreateString(_o->date);
   return quantra::CreateCommodityQuoteWeight(
       _fbb,
       _month,
-      _weight);
+      _weight,
+      _date);
+}
+
+inline CommodityCurvePointT::CommodityCurvePointT(const CommodityCurvePointT &o)
+      : date(o.date),
+        price(o.price),
+        source(o.source) {
+  sensitivities.reserve(o.sensitivities.size());
+  for (const auto &sensitivities_ : o.sensitivities) { sensitivities.emplace_back((sensitivities_) ? new quantra::CommodityQuoteSensitivityT(*sensitivities_) : nullptr); }
+}
+
+inline CommodityCurvePointT &CommodityCurvePointT::operator=(CommodityCurvePointT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(date, o.date);
+  std::swap(price, o.price);
+  std::swap(source, o.source);
+  std::swap(sensitivities, o.sensitivities);
+  return *this;
+}
+
+inline CommodityCurvePointT *CommodityCurvePoint::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<CommodityCurvePointT>(new CommodityCurvePointT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void CommodityCurvePoint::UnPackTo(CommodityCurvePointT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = date(); if (_e) _o->date = _e->str(); }
+  { auto _e = price(); _o->price = _e; }
+  { auto _e = source(); _o->source = _e; }
+  { auto _e = sensitivities(); if (_e) { _o->sensitivities.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->sensitivities[_i]) { _e->Get(_i)->UnPackTo(_o->sensitivities[_i].get(), _resolver); } else { _o->sensitivities[_i] = std::unique_ptr<quantra::CommodityQuoteSensitivityT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->sensitivities.resize(0); } }
+}
+
+inline ::flatbuffers::Offset<CommodityCurvePoint> CommodityCurvePoint::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityCurvePointT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateCommodityCurvePoint(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<CommodityCurvePoint> CreateCommodityCurvePoint(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityCurvePointT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CommodityCurvePointT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _date = _o->date.empty() ? 0 : _fbb.CreateString(_o->date);
+  auto _price = _o->price;
+  auto _source = _o->source;
+  auto _sensitivities = _o->sensitivities.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityQuoteSensitivity>> (_o->sensitivities.size(), [](size_t i, _VectorArgs *__va) { return CreateCommodityQuoteSensitivity(*__va->__fbb, __va->__o->sensitivities[i].get(), __va->__rehasher); }, &_va ) : 0;
+  return quantra::CreateCommodityCurvePoint(
+      _fbb,
+      _date,
+      _price,
+      _source,
+      _sensitivities);
 }
 
 inline CommodityAverageQuoteResultT::CommodityAverageQuoteResultT(const CommodityAverageQuoteResultT &o)
@@ -965,6 +1244,8 @@ inline CommodityCurveReportT::CommodityCurveReportT(const CommodityCurveReportT 
   for (const auto &months_ : o.months) { months.emplace_back((months_) ? new quantra::CommodityCurveMonthT(*months_) : nullptr); }
   average_quotes.reserve(o.average_quotes.size());
   for (const auto &average_quotes_ : o.average_quotes) { average_quotes.emplace_back((average_quotes_) ? new quantra::CommodityAverageQuoteResultT(*average_quotes_) : nullptr); }
+  points.reserve(o.points.size());
+  for (const auto &points_ : o.points) { points.emplace_back((points_) ? new quantra::CommodityCurvePointT(*points_) : nullptr); }
 }
 
 inline CommodityCurveReportT &CommodityCurveReportT::operator=(CommodityCurveReportT o) FLATBUFFERS_NOEXCEPT {
@@ -977,6 +1258,7 @@ inline CommodityCurveReportT &CommodityCurveReportT::operator=(CommodityCurveRep
   std::swap(months, o.months);
   std::swap(average_quotes, o.average_quotes);
   std::swap(max_sensitivity, o.max_sensitivity);
+  std::swap(points, o.points);
   return *this;
 }
 
@@ -998,6 +1280,7 @@ inline void CommodityCurveReport::UnPackTo(CommodityCurveReportT *_o, const ::fl
   { auto _e = months(); if (_e) { _o->months.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->months[_i]) { _e->Get(_i)->UnPackTo(_o->months[_i].get(), _resolver); } else { _o->months[_i] = std::unique_ptr<quantra::CommodityCurveMonthT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->months.resize(0); } }
   { auto _e = average_quotes(); if (_e) { _o->average_quotes.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->average_quotes[_i]) { _e->Get(_i)->UnPackTo(_o->average_quotes[_i].get(), _resolver); } else { _o->average_quotes[_i] = std::unique_ptr<quantra::CommodityAverageQuoteResultT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->average_quotes.resize(0); } }
   { auto _e = max_sensitivity(); _o->max_sensitivity = _e; }
+  { auto _e = points(); if (_e) { _o->points.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->points[_i]) { _e->Get(_i)->UnPackTo(_o->points[_i].get(), _resolver); } else { _o->points[_i] = std::unique_ptr<quantra::CommodityCurvePointT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->points.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<CommodityCurveReport> CommodityCurveReport::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityCurveReportT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -1017,6 +1300,7 @@ inline ::flatbuffers::Offset<CommodityCurveReport> CreateCommodityCurveReport(::
   auto _months = _o->months.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityCurveMonth>> (_o->months.size(), [](size_t i, _VectorArgs *__va) { return CreateCommodityCurveMonth(*__va->__fbb, __va->__o->months[i].get(), __va->__rehasher); }, &_va ) : 0;
   auto _average_quotes = _o->average_quotes.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityAverageQuoteResult>> (_o->average_quotes.size(), [](size_t i, _VectorArgs *__va) { return CreateCommodityAverageQuoteResult(*__va->__fbb, __va->__o->average_quotes[i].get(), __va->__rehasher); }, &_va ) : 0;
   auto _max_sensitivity = _o->max_sensitivity;
+  auto _points = _o->points.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityCurvePoint>> (_o->points.size(), [](size_t i, _VectorArgs *__va) { return CreateCommodityCurvePoint(*__va->__fbb, __va->__o->points[i].get(), __va->__rehasher); }, &_va ) : 0;
   return quantra::CreateCommodityCurveReport(
       _fbb,
       _status,
@@ -1027,17 +1311,20 @@ inline ::flatbuffers::Offset<CommodityCurveReport> CreateCommodityCurveReport(::
       _max_repricing_difference,
       _months,
       _average_quotes,
-      _max_sensitivity);
+      _max_sensitivity,
+      _points);
 }
 
 inline BuiltCommodityCurveT::BuiltCommodityCurveT(const BuiltCommodityCurveT &o)
       : contract((o.contract) ? new quantra::CommodityContractSpecT(*o.contract) : nullptr),
-        report((o.report) ? new quantra::CommodityCurveReportT(*o.report) : nullptr) {
+        report((o.report) ? new quantra::CommodityCurveReportT(*o.report) : nullptr),
+        spot((o.spot) ? new quantra::CommoditySpotSpecT(*o.spot) : nullptr) {
 }
 
 inline BuiltCommodityCurveT &BuiltCommodityCurveT::operator=(BuiltCommodityCurveT o) FLATBUFFERS_NOEXCEPT {
   std::swap(contract, o.contract);
   std::swap(report, o.report);
+  std::swap(spot, o.spot);
   return *this;
 }
 
@@ -1052,6 +1339,7 @@ inline void BuiltCommodityCurve::UnPackTo(BuiltCommodityCurveT *_o, const ::flat
   (void)_resolver;
   { auto _e = contract(); if (_e) { if(_o->contract) { _e->UnPackTo(_o->contract.get(), _resolver); } else { _o->contract = std::unique_ptr<quantra::CommodityContractSpecT>(_e->UnPack(_resolver)); } } else if (_o->contract) { _o->contract.reset(); } }
   { auto _e = report(); if (_e) { if(_o->report) { _e->UnPackTo(_o->report.get(), _resolver); } else { _o->report = std::unique_ptr<quantra::CommodityCurveReportT>(_e->UnPack(_resolver)); } } else if (_o->report) { _o->report.reset(); } }
+  { auto _e = spot(); if (_e) { if(_o->spot) { _e->UnPackTo(_o->spot.get(), _resolver); } else { _o->spot = std::unique_ptr<quantra::CommoditySpotSpecT>(_e->UnPack(_resolver)); } } else if (_o->spot) { _o->spot.reset(); } }
 }
 
 inline ::flatbuffers::Offset<BuiltCommodityCurve> BuiltCommodityCurve::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const BuiltCommodityCurveT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -1064,10 +1352,12 @@ inline ::flatbuffers::Offset<BuiltCommodityCurve> CreateBuiltCommodityCurve(::fl
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const BuiltCommodityCurveT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _contract = _o->contract ? CreateCommodityContractSpec(_fbb, _o->contract.get(), _rehasher) : 0;
   auto _report = _o->report ? CreateCommodityCurveReport(_fbb, _o->report.get(), _rehasher) : 0;
+  auto _spot = _o->spot ? CreateCommoditySpotSpec(_fbb, _o->spot.get(), _rehasher) : 0;
   return quantra::CreateBuiltCommodityCurve(
       _fbb,
       _contract,
-      _report);
+      _report,
+      _spot);
 }
 
 inline BuildCommodityCurvesResponseT::BuildCommodityCurvesResponseT(const BuildCommodityCurvesResponseT &o) {

@@ -971,3 +971,253 @@ TEST(CommodityCurveBuildRefusal, WireShape) {
     EXPECT_EQ(e.details(), "{\"reason\": \"RuleRequired\"}");
     EXPECT_TRUE(QuantraInvalidArgument("plain").details().empty());
 }
+
+// ---------------------------------------------------------------------------
+// k. spot prices from dated points and average quotes
+// ---------------------------------------------------------------------------
+
+namespace {
+
+SpotCurveSpec spotSpec(
+    SpotInterpolation interpolation,
+    const std::vector<std::pair<Date, std::optional<double>>>& points,
+    bool extrapolateFlat = false) {
+    SpotCurveSpec spec{"SYN_SPOT",
+                       PricingCalendar(QuantLib::WeekendsOnly(), {}),
+                       interpolation,
+                       extrapolateFlat,
+                       {},
+                       {}};
+    for (const auto& p : points) {
+        spec.points.push_back({p.first, p.second});
+    }
+    return spec;
+}
+
+AverageQuote spotQuote(Date start, Date end, double price) {
+    AverageQuote q;
+    q.price = price;
+    q.periods = {{start, end}};
+    return q;
+}
+
+} // namespace
+
+TEST(CommoditySpotBuild, BackwardFlatMonthQuotesAreTheirMonthEnds) {
+    // Every December day reads the 31 December point, every January day the
+    // 31 January point: each quote is its point.
+    const auto spec = spotSpec(
+        SpotInterpolation::BackwardFlat,
+        {{D(2026, 11, 30), 60.0}, {D(2026, 12, 31), std::nullopt}, {D(2027, 1, 31), std::nullopt}});
+    auto in = withQuotes(
+        {spotQuote(D(2026, 12, 1), D(2026, 12, 31), 60.5),
+         spotQuote(D(2027, 1, 1), D(2027, 1, 31), 61.0)});
+    const auto r = BuildSpotCurve(spec, in, kAsOf);
+    EXPECT_EQ(r.report.status, CurveStatus::Unique);
+    ASSERT_EQ(r.points.size(), 3u);
+    EXPECT_NEAR(*r.points[1].price, 60.5, 1e-12);
+    EXPECT_NEAR(*r.points[2].price, 61.0, 1e-12);
+    EXPECT_EQ(r.report.points[0].source, MonthSource::Quoted);
+    EXPECT_EQ(r.report.points[1].source, MonthSource::Solved);
+    ASSERT_EQ(r.report.averageQuotes[0].weights.size(), 1u);
+    EXPECT_EQ(r.report.averageQuotes[0].weights[0].date, "2026-12-31");
+    EXPECT_TRUE(r.report.averageQuotes[0].weights[0].month.empty());
+    EXPECT_TRUE(r.report.months.empty());
+    EXPECT_LT(r.report.maxRepricingDifference, 1e-10);
+}
+
+TEST(CommoditySpotBuild, LinearChainsThroughThePinnedPoint) {
+    // December days lie between 30 November (pinned) and 31 December: the
+    // quote is a weighted average of the two, and solving it back gives the
+    // point; repricing is exact.
+    const auto spec = spotSpec(
+        SpotInterpolation::Linear, {{D(2026, 11, 30), 60.0}, {D(2026, 12, 31), std::nullopt}});
+    const auto r =
+        BuildSpotCurve(spec, withQuotes({spotQuote(D(2026, 12, 1), D(2026, 12, 31), 60.5)}), kAsOf);
+    const auto& w = r.report.averageQuotes[0].weights;
+    ASSERT_EQ(w.size(), 2u);
+    EXPECT_NEAR(w[0].weight + w[1].weight, 1.0, 1e-14);
+    EXPECT_NEAR(w[0].weight * 60.0 + w[1].weight * *r.points[1].price, 60.5, 1e-10);
+}
+
+TEST(CommoditySpotBuild, SmoothUsesDividedDifferencesOnTheDateAxis) {
+    // One quarter quote over three month-end points, the December point
+    // pinned: Smooth makes the second divided differences zero, so the four
+    // points lie on one line in time even though the gaps differ (31, 28, 31
+    // days).
+    const auto spec = spotSpec(
+        SpotInterpolation::BackwardFlat, {{D(2026, 12, 31), 60.4},
+                                          {D(2027, 1, 31), std::nullopt},
+                                          {D(2027, 2, 28), std::nullopt},
+                                          {D(2027, 3, 31), std::nullopt}});
+    auto in = withQuotes({spotQuote(D(2027, 1, 1), D(2027, 3, 31), 61.0)});
+    in.rule = CurveRule::Smooth;
+    const auto r = BuildSpotCurve(spec, in, kAsOf);
+    std::vector<double> t, p;
+    for (const auto& pt : r.points) {
+        t.push_back(static_cast<double>(pt.date - kAsOf) / 365.0);
+        p.push_back(*pt.price);
+    }
+    const double s0 = (p[1] - p[0]) / (t[1] - t[0]);
+    for (std::size_t i = 1; i + 1 < p.size(); ++i) {
+        EXPECT_NEAR((p[i + 1] - p[i]) / (t[i + 1] - t[i]), s0, 1e-9);
+    }
+    EXPECT_EQ(r.report.status, CurveStatus::Underdetermined);
+    EXPECT_EQ(r.report.points[1].source, MonthSource::Assumed);
+    in.rule.reset();
+    const auto refusal = refusalOf([&] { BuildSpotCurve(spec, in, kAsOf); });
+    EXPECT_EQ(refusal.reason, CurveBuildRefusal::Reason::RuleRequired);
+    EXPECT_EQ(refusal.dates, (std::vector<std::string>{"2027-01-31", "2027-02-28", "2027-03-31"}));
+    EXPECT_TRUE(refusal.months.empty());
+}
+
+TEST(CommoditySpotBuild, RefusalsCarryDates) {
+    // A quote day after the last point without extrapolate_flat.
+    auto spec = spotSpec(
+        SpotInterpolation::Linear, {{D(2026, 11, 30), 60.0}, {D(2027, 2, 28), std::nullopt}});
+    auto r = refusalOf([&] {
+        BuildSpotCurve(spec, withQuotes({spotQuote(D(2027, 2, 1), D(2027, 3, 31), 60.5)}), kAsOf);
+    });
+    EXPECT_EQ(r.reason, CurveBuildRefusal::Reason::DateOutsideRange);
+    EXPECT_EQ(r.averageQuote, std::optional<std::size_t>(0));
+    EXPECT_EQ(r.date, std::optional<std::string>("2027-03-01"));
+    // A point to fill after the last determined one.
+    spec = spotSpec(
+        SpotInterpolation::Linear,
+        {{D(2026, 11, 30), 60.0}, {D(2026, 12, 31), std::nullopt}, {D(2027, 1, 31), std::nullopt}});
+    r = refusalOf([&] {
+        BuildSpotCurve(spec, withQuotes({spotQuote(D(2026, 12, 1), D(2026, 12, 31), 60.2)}), kAsOf);
+    });
+    EXPECT_EQ(r.reason, CurveBuildRefusal::Reason::DateOutsideRange);
+    EXPECT_EQ(r.path, "spot.points[2]");
+    EXPECT_EQ(r.dates, (std::vector<std::string>{"2027-01-31"}));
+    // A conflict names the direct point it depends on by date.
+    spec = spotSpec(
+        SpotInterpolation::BackwardFlat, {{D(2026, 11, 30), 60.0}, {D(2026, 12, 31), 60.5}});
+    r = refusalOf([&] {
+        BuildSpotCurve(
+            spec, withQuotes({spotQuote(D(2026, 12, 1), D(2026, 12, 31), 60.75)}), kAsOf);
+    });
+    EXPECT_EQ(r.reason, CurveBuildRefusal::Reason::QuoteConflict);
+    ASSERT_EQ(r.dependsOn.size(), 1u);
+    EXPECT_EQ(r.dependsOn[0].date, std::optional<std::string>("2026-12-31"));
+    EXPECT_NEAR(*r.gap, 0.25, 1e-12);
+}
+
+// ---------------------------------------------------------------------------
+// l. basis: base price + basis
+// ---------------------------------------------------------------------------
+
+namespace {
+
+/// The base: three live months priced, one expired month with its final
+/// fixing (2026-10, last traded 2026-09-22 at 58.6).
+std::shared_ptr<const FuturesContract> basisBase() {
+    return std::make_shared<const FuturesContract>(
+        "SYN_CL", PricingCalendar(QuantLib::WeekendsOnly(), {}),
+        std::vector<ContractMonth>{
+            M("2026-10", D(2026, 9, 22), std::nullopt), M("2026-12", D(2026, 11, 20), 60.0),
+            M("2027-01", D(2026, 12, 21), 60.4), M("2027-02", D(2027, 1, 20), 60.7),
+            M("2027-03", D(2027, 2, 22), 61.0), M("2027-04", D(2027, 3, 22), 61.2)},
+        std::vector<ContractFixing>{{"2026-10", D(2026, 9, 22), 58.6}});
+}
+
+FuturesContract basisContract() {
+    return contract(
+        {M("2026-12", D(2026, 11, 24), std::nullopt), M("2027-01", D(2026, 12, 23), std::nullopt),
+         M("2027-02", D(2027, 1, 22), std::nullopt), M("2027-03", D(2027, 2, 24), std::nullopt)});
+}
+
+CurveBuildInputs basisInputs(std::vector<BasisQuote> quotes, int offset = 0) {
+    CurveBuildInputs in;
+    BasisInputs b;
+    b.base = basisBase();
+    b.baseCurve = 1;
+    b.baseMonthOffset = offset;
+    b.quotes = std::move(quotes);
+    in.basis = b;
+    in.interpolation = CurveInterpolation::Linear;
+    in.extrapolateFlat = true;
+    return in;
+}
+
+} // namespace
+
+TEST(CommodityBasisBuild, SameMonthAddsTheBasis) {
+    const auto r = BuildCommodityCurve(
+        basisContract(),
+        basisInputs({{"2026-12", 0.8}, {"2027-01", 0.75}, {"2027-02", 0.7}, {"2027-03", 0.72}}),
+        kAsOf);
+    const std::vector<double> want = {60.8, 61.15, 61.4, 61.72};
+    for (std::size_t i = 0; i < want.size(); ++i) {
+        EXPECT_NEAR(*r.months[i].price, want[i], 1e-12);
+        EXPECT_EQ(r.report.months[i].source, MonthSource::Basis);
+        EXPECT_NEAR(*r.report.months[i].basePrice + *r.report.months[i].basis, want[i], 1e-12);
+    }
+}
+
+TEST(CommodityBasisBuild, GapsAreFilledOnTheBasis) {
+    // February: basis linear in time between January (0.75, 23 Dec) and
+    // March (0.72, 24 Feb), 30 of 63 days, then the base 60.7 added back.
+    const auto r = BuildCommodityCurve(
+        basisContract(), basisInputs({{"2027-01", 0.75}, {"2027-03", 0.72}}), kAsOf);
+    EXPECT_NEAR(*r.months[2].price, 60.7 + 0.75 - 0.03 * 30.0 / 63.0, 1e-12);
+    EXPECT_EQ(r.report.months[2].source, MonthSource::Interpolated);
+    // December: before the first quote, held flat on the basis.
+    EXPECT_NEAR(*r.months[0].price, 60.0 + 0.75, 1e-12);
+    EXPECT_EQ(r.report.months[0].source, MonthSource::Extrapolated);
+}
+
+TEST(CommodityBasisBuild, OffsetReadsAnExpiredBaseMonthFromItsFixing) {
+    // December 2026 with an offset of 2 reads the October base month, expired
+    // on 22 September: its final fixing 58.6.
+    const auto r = BuildCommodityCurve(
+        contract({M("2026-12", D(2026, 11, 24), std::nullopt)}), basisInputs({{"2026-12", 0.8}}, 2),
+        kAsOf);
+    EXPECT_NEAR(*r.months[0].price, 58.6 + 0.8, 1e-12);
+    // Every live month needs its base price: January would read November,
+    // which the base does not list.
+    const auto refusal = refusalOf(
+        [&] { BuildCommodityCurve(basisContract(), basisInputs({{"2026-12", 0.8}}, 2), kAsOf); });
+    EXPECT_EQ(refusal.reason, CurveBuildRefusal::Reason::BaseNotDetermined);
+    EXPECT_EQ(refusal.baseMonth, std::optional<std::string>("2026-11"));
+    EXPECT_EQ(refusal.baseCurve, std::optional<std::size_t>(1));
+}
+
+TEST(CommodityBasisBuild, Refusals) {
+    auto withPrice = basisContract().months();
+    withPrice[1].price = 61.0;
+    auto r = refusalOf(
+        [&] { BuildCommodityCurve(contract(withPrice), basisInputs({{"2027-01", 0.75}}), kAsOf); });
+    EXPECT_EQ(r.reason, CurveBuildRefusal::Reason::BasisAndPrice);
+    EXPECT_EQ(r.path, "basis.quotes[0]");
+    r = refusalOf([&] {
+        BuildCommodityCurve(basisContract(), basisInputs({{"2026-12", 0.8}}), D(2026, 12, 1));
+    });
+    EXPECT_EQ(r.reason, CurveBuildRefusal::Reason::BasisOnExpiredMonth);
+    auto average = basisInputs({{"2027-01", 0.75}});
+    average.basis->basePrice = BasisBasePrice::MonthAverage;
+    r = refusalOf([&] { BuildCommodityCurve(basisContract(), average, kAsOf); });
+    EXPECT_EQ(r.reason, CurveBuildRefusal::Reason::InvalidInput);
+    EXPECT_EQ(r.path, "basis.base_nearby");
+    r = refusalOf(
+        [&] { BuildCommodityCurve(basisContract(), basisInputs({{"2030-01", 0.75}}), kAsOf); });
+    EXPECT_EQ(r.path, "basis.quotes[0].month");
+}
+
+TEST(CommodityBasisBuild, MonthAverageUsesTheSwapAverage) {
+    // The base front month, roll 0, averaged over each calendar month.
+    auto in = basisInputs({{"2027-02", 0.7}});
+    in.basis->basePrice = BasisBasePrice::MonthAverage;
+    in.basis->baseNearby = 1;
+    in.basis->baseRollDaysBeforeExpiry = 0;
+    const auto avg = contract(
+        {M("2027-01", D(2027, 1, 29), std::nullopt), M("2027-02", D(2027, 2, 26), std::nullopt)});
+    const auto r = BuildCommodityCurve(avg, in, kAsOf);
+    // February 2027: 20 weekdays, 1-22 February (16 days) on March (61.0),
+    // 23-26 February (4 days) on April (61.2).
+    EXPECT_NEAR(*r.months[1].price, (16 * 61.0 + 4 * 61.2) / 20.0 + 0.7, 1e-12);
+    // January 2027: 21 weekdays, 1-20 January (14 days) on February (60.7),
+    // 21-29 January (7 days) on March (61.0).
+    EXPECT_NEAR(*r.report.months[0].basePrice, (14 * 60.7 + 7 * 61.0) / 21.0, 1e-12);
+}

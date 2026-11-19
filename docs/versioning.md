@@ -28,6 +28,37 @@ first release that promises wire stability.
 
 ## Unreleased
 
+## Version 0.17.0-commodities.3 (November 2026) — commodity curves: spot prices and basis contracts (preview)
+
+Preview build from the `commodities` branch: the image is published only as
+`0.17.0-commodities.3`; `latest` and `0.16` stay on 0.16.11.
+
+### Commodity curves: spot prices and basis contracts (preview)
+
+Additive on `POST /build-commodity-curves`; existing requests and responses
+are unchanged.
+
+- **Spot price builds**: an entry may give `spot` (a `CommoditySpotSpec`)
+  instead of `contract`; exactly one of the two (a `400` otherwise). The
+  points are the nodes, average quotes average the spot read with its own
+  interpolation, `Smooth` uses second divided differences on the date axis,
+  unread points are filled with the spot's interpolation. The response row
+  carries `spot` and the report `points[]{date, price, source,
+  sensitivities}`. `nearby`, `roll_days_before_expiry` and
+  `curves[].interpolation` are a `400` on a spot build.
+- **Basis contracts**: `basis{base, base_price SameMonth|MonthAverage,
+  base_month_offset, base_nearby, base_roll_days_before_expiry, quotes[]}`
+  on a contract entry prices each month as the base price read from another
+  contract entry of the request plus the quoted basis (source `Basis`); the
+  base is built first, gaps are filled on the basis. Report months add
+  `base_price` and `basis`. An unknown base is a `404` that carries
+  `details`.
+- **Refusal details**: new reasons `DateOutsideRange`, `NoPricedPoint`,
+  `UnknownBase`, `BaseNotContract`, `BasisCycle`, `BaseNotDetermined`,
+  `BasisAndPrice`, `BasisOnExpiredMonth`; new fields `date`, `dates`,
+  `base_curve`, `base_month`, `cycle`; `depends_on` entries may be
+  `{"date": ...}`.
+
 ## Version 0.17.0-commodities.2 (November 2026) — commodity curves (preview)
 
 Preview build from the `commodities` branch: the image is published only as

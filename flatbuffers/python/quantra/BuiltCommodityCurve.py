@@ -28,7 +28,7 @@ class BuiltCommodityCurve(object):
     # The request's contract with every live month priced: quoted months,
     # expired months, fixings, pricing calendar and pricing holidays as
     # sent. Pastes unchanged into `pricing.commodity.contracts` of a
-    # `/price-commodity-swap` request.
+    # `/price-commodity-swap` request. Present for a contract build.
     # BuiltCommodityCurve
     def Contract(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -52,8 +52,23 @@ class BuiltCommodityCurve(object):
             return obj
         return None
 
+    # The request's spot price with every point priced: interpolation,
+    # extrapolate_flat, fixings, pricing calendar and pricing holidays as
+    # sent. Pastes unchanged into `pricing.commodity.spot_prices` of a
+    # `/price-commodity-swap` request. Present for a spot build.
+    # BuiltCommodityCurve
+    def Spot(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.CommoditySpotSpec import CommoditySpotSpec
+            obj = CommoditySpotSpec()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
 def BuiltCommodityCurveStart(builder):
-    builder.StartObject(2)
+    builder.StartObject(3)
 
 def Start(builder):
     BuiltCommodityCurveStart(builder)
@@ -69,6 +84,12 @@ def BuiltCommodityCurveAddReport(builder, report):
 
 def AddReport(builder, report):
     BuiltCommodityCurveAddReport(builder, report)
+
+def BuiltCommodityCurveAddSpot(builder, spot):
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(spot), 0)
+
+def AddSpot(builder, spot):
+    BuiltCommodityCurveAddSpot(builder, spot)
 
 def BuiltCommodityCurveEnd(builder):
     return builder.EndObject()
@@ -87,6 +108,7 @@ class BuiltCommodityCurveT(object):
     def __init__(self):
         self.contract = None  # type: Optional[CommodityContractSpecT]
         self.report = None  # type: Optional[CommodityCurveReportT]
+        self.spot = None  # type: Optional[CommoditySpotSpecT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -113,6 +135,8 @@ class BuiltCommodityCurveT(object):
             self.contract = CommodityContractSpecT.InitFromObj(builtCommodityCurve.Contract())
         if builtCommodityCurve.Report() is not None:
             self.report = CommodityCurveReportT.InitFromObj(builtCommodityCurve.Report())
+        if builtCommodityCurve.Spot() is not None:
+            self.spot = CommoditySpotSpecT.InitFromObj(builtCommodityCurve.Spot())
 
     # BuiltCommodityCurveT
     def Pack(self, builder):
@@ -120,10 +144,14 @@ class BuiltCommodityCurveT(object):
             contract = self.contract.Pack(builder)
         if self.report is not None:
             report = self.report.Pack(builder)
+        if self.spot is not None:
+            spot = self.spot.Pack(builder)
         BuiltCommodityCurveStart(builder)
         if self.contract is not None:
             BuiltCommodityCurveAddContract(builder, contract)
         if self.report is not None:
             BuiltCommodityCurveAddReport(builder, report)
+        if self.spot is not None:
+            BuiltCommodityCurveAddSpot(builder, spot)
         builtCommodityCurve = BuiltCommodityCurveEnd(builder)
         return builtCommodityCurve

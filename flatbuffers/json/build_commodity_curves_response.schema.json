@@ -255,7 +255,11 @@
     },
     "quantra_enums_CommodityMonthSource" : {
       "type" : "string",
-      "enum": ["Quoted", "Solved", "Assumed", "Interpolated", "Extrapolated"]
+      "enum": ["Quoted", "Solved", "Assumed", "Interpolated", "Extrapolated", "Basis"]
+    },
+    "quantra_enums_CommodityBasisBasePrice" : {
+      "type" : "string",
+      "enum": ["SameMonth", "MonthAverage"]
     },
     "quantra_enums_CommodityQuoteStatus" : {
       "type" : "string",
@@ -427,6 +431,10 @@
         "value" : {
                 "type" : "number",
                 "description" : "d month price / d quote."
+              },
+        "date" : {
+                "type" : "string",
+                "description" : "Date of a direct spot point price (YYYY-MM-DD), instead of `month`."
               }
       },
       "additionalProperties" : false
@@ -450,20 +458,54 @@
         "sensitivities" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityQuoteSensitivity"},
                 "description" : "With `include_details`, Quoted / Solved / Assumed months: one entry\nper input quote (direct prices in month order, then average quotes)."
+              },
+        "base_price" : {
+                "type" : "number",
+                "description" : "Basis builds: the month's base price and its basis (price - base\nprice). Absent otherwise."
+              },
+        "basis" : {
+                "type" : "number"
               }
       },
       "additionalProperties" : false
     },
     "quantra_CommodityQuoteWeight" : {
       "type" : "object",
-      "description" : "The weight of one month in an average quote's equation.",
+      "description" : "The weight of one month (or spot point) in an average quote's equation.",
       "properties" : {
         "month" : {
                 "type" : "string",
-                "description" : "\"YYYY-MM\"."
+                "description" : "\"YYYY-MM\". Absent for a spot point."
               },
         "weight" : {
                 "type" : "number"
+              },
+        "date" : {
+                "type" : "string",
+                "description" : "The spot point's date (YYYY-MM-DD). Absent for a month."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CommodityCurvePoint" : {
+      "type" : "object",
+      "description" : "One point of a built spot price.",
+      "properties" : {
+        "date" : {
+                "type" : "string",
+                "description" : "YYYY-MM-DD."
+              },
+        "price" : {
+                "type" : "number",
+                "description" : "The built price."
+              },
+        "source" : {
+                "$ref" : "#/definitions/quantra_enums_CommodityMonthSource",
+                "description" : "Where the price comes from."
+              },
+        "sensitivities" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityQuoteSensitivity"},
+                "description" : "With `include_details`, Quoted / Solved / Assumed points: one entry\nper input quote (direct point prices in date order, then average\nquotes)."
               }
       },
       "additionalProperties" : false
@@ -520,7 +562,7 @@
               },
         "months" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityCurveMonth"},
-                "description" : "Every live month in contract order."
+                "description" : "Contract builds: every live month in contract order. Absent for a\nspot build."
               },
         "average_quotes" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityAverageQuoteResult"},
@@ -529,6 +571,10 @@
         "max_sensitivity" : {
                 "type" : "number",
                 "description" : "With `include_details`: the largest absolute sensitivity of a month\nprice to a quote. A large value means a small change of a quote moves\nsome month a lot: the build is fragile."
+              },
+        "points" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityCurvePoint"},
+                "description" : "Spot builds: every point in date order."
               }
       },
       "additionalProperties" : false
@@ -539,14 +585,18 @@
       "properties" : {
         "contract" : {
                 "$ref" : "#/definitions/quantra_CommodityContractSpec",
-                "description" : "The request's contract with every live month priced: quoted months,\nexpired months, fixings, pricing calendar and pricing holidays as\nsent. Pastes unchanged into `pricing.commodity.contracts` of a\n`/price-commodity-swap` request."
+                "description" : "The request's contract with every live month priced: quoted months,\nexpired months, fixings, pricing calendar and pricing holidays as\nsent. Pastes unchanged into `pricing.commodity.contracts` of a\n`/price-commodity-swap` request. Present for a contract build."
               },
         "report" : {
                 "$ref" : "#/definitions/quantra_CommodityCurveReport",
                 "description" : "How it was built."
+              },
+        "spot" : {
+                "$ref" : "#/definitions/quantra_CommoditySpotSpec",
+                "description" : "The request's spot price with every point priced: interpolation,\nextrapolate_flat, fixings, pricing calendar and pricing holidays as\nsent. Pastes unchanged into `pricing.commodity.spot_prices` of a\n`/price-commodity-swap` request. Present for a spot build."
               }
       },
-      "required" : ["contract", "report"],
+      "required" : ["report"],
       "additionalProperties" : false
     },
     "quantra_BuildCommodityCurvesResponse" : {

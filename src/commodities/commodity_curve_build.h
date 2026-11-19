@@ -92,12 +92,36 @@ struct CurveBuildRefusal {
         NotFinite,
         /// A value of the request a build rule refuses (a quote's periods,
         /// nearby, roll, missing payment field, price): `path` names it.
-        InvalidInput
+        InvalidInput,
+        /// Spot builds: a date read outside the points while extrapolate_flat
+        /// is false (a quote's pricing day: `average_quote` and `date`; a
+        /// point to fill: `date` and every such `dates`).
+        DateOutsideRange,
+        /// Spot builds: points to fill and no determined point.
+        NoPricedPoint,
+        /// Basis builds: the base curve named by `basis.base` is not in the
+        /// request (a 404).
+        UnknownBase,
+        /// Basis builds: the base is not a contract build, or names more
+        /// than one entry.
+        BaseNotContract,
+        /// Basis builds: the bases form a cycle (`cycle`: the curves in it).
+        BasisCycle,
+        /// Basis builds: a base price cannot be read (`base_curve`,
+        /// `base_month`): the base month is not listed, or expired without
+        /// its final fixing, or its month average reads no live or fixed day.
+        BaseNotDetermined,
+        /// Basis builds: a month with both a price and a basis quote.
+        BasisAndPrice,
+        /// Basis builds: a basis quote on an expired month.
+        BasisOnExpiredMonth
     };
-    /// One input of the build: a direct month price or an average quote.
+    /// One input of the build: a direct price (a month, or a spot point's
+    /// date) or an average quote.
     struct Input {
         std::optional<std::string> month;
         std::optional<std::size_t> averageQuote;
+        std::optional<std::string> date;
     };
     Reason reason = Reason::QuoteConflict;
     /// The field the refusal is about, relative to the build
@@ -112,6 +136,14 @@ struct CurveBuildRefusal {
     std::optional<double> gap;
     std::vector<Input> dependsOn;
     std::optional<CurveRule> rule;
+    /// Spot builds: the date (YYYY-MM-DD) or dates the refusal is about.
+    std::optional<std::string> date;
+    std::vector<std::string> dates;
+    /// Basis builds: the base curve's index in the request, the base month,
+    /// and for a cycle the curves in it (in order).
+    std::optional<std::size_t> baseCurve;
+    std::optional<std::string> baseMonth;
+    std::vector<std::size_t> cycle;
 };
 
 /// The reason's name as on the wire ("QuoteConflict").
@@ -204,28 +236,45 @@ struct AverageQuote {
 };
 
 enum class CurveStatus { Unique, Underdetermined };
-enum class MonthSource { Quoted, Solved, Assumed, Interpolated, Extrapolated };
+enum class MonthSource { Quoted, Solved, Assumed, Interpolated, Extrapolated, Basis };
 enum class QuoteStatus { Used, Redundant };
 
-/// d price / d quote: a direct price (`month`) or an average quote (index).
+/// d price / d quote: a direct price (`month`, or `date` for a spot point)
+/// or an average quote (index).
 struct QuoteSensitivity {
     std::optional<std::string> month;
     std::optional<std::size_t> averageQuote;
     double value = 0.0;
+    std::optional<std::string> date;
 };
 
 struct MonthReport {
     std::string month;
     double price = 0.0;
     MonthSource source = MonthSource::Quoted;
+    /// Basis builds: the month's base price and price - base price.
+    std::optional<double> basePrice;
+    std::optional<double> basis;
     /// With details, Quoted / Solved / Assumed months: one entry per input
     /// quote (direct prices in month order, then average quotes).
     std::vector<QuoteSensitivity> sensitivities;
 };
 
 struct QuoteWeight {
+    /// The month read (futures); empty for a spot point.
     std::string month;
     double weight = 0.0;
+    /// The point read (spot, YYYY-MM-DD); empty for a futures month.
+    std::string date;
+};
+
+/// One point of a built spot price.
+struct PointReport {
+    QuantLib::Date date;
+    double price = 0.0;
+    MonthSource source = MonthSource::Quoted;
+    /// As MonthReport::sensitivities.
+    std::vector<QuoteSensitivity> sensitivities;
 };
 
 struct AverageQuoteReport {
@@ -250,6 +299,47 @@ struct CurveBuildReport {
     std::vector<AverageQuoteReport> averageQuotes;
     /// With details: the largest absolute sensitivity.
     std::optional<double> maxSensitivity;
+    /// Spot builds: every point in date order (months is then empty).
+    std::vector<PointReport> points;
+};
+
+// ---------------------------------------------------------------------------
+// Basis: a contract priced as another contract (the base) plus a basis
+// ---------------------------------------------------------------------------
+//
+// A basis quote on month M gives M the direct price base(M) + value (source
+// Basis) before the solve, so average quotes on the contract still work on
+// top. base(M):
+//   SameMonth     the base contract's month M - base_month_offset months, read
+//                 as the swap pricer reads it: its price when live, its fixing
+//                 on its last trading date when expired;
+//   MonthAverage  the average over the pricing days of calendar month M (the
+//                 base's calendar and holidays) of the base contract read with
+//                 base_nearby / base_roll_days_before_expiry, fixings for the
+//                 days before the valuation date (PriceCommoditySwap's average).
+// The live months no quote touches are filled on the BASIS of the determined
+// months (price - base) with `interpolation` / `extrapolate_flat` on the
+// contract's last trading dates, then the base is added back. The sensitivity
+// of a month to its base price is 1 and is not reported.
+
+enum class BasisBasePrice { SameMonth, MonthAverage };
+
+struct BasisQuote {
+    /// A month of the contract, "YYYY-MM".
+    std::string month;
+    double value = 0.0;
+};
+
+struct BasisInputs {
+    /// The built base contract (every live month priced) and its index in
+    /// the request; set by the caller.
+    std::shared_ptr<const FuturesContract> base;
+    std::size_t baseCurve = 0;
+    BasisBasePrice basePrice = BasisBasePrice::SameMonth;
+    int baseMonthOffset = 0;
+    std::optional<int> baseNearby;
+    std::optional<int> baseRollDaysBeforeExpiry;
+    std::vector<BasisQuote> quotes;
 };
 
 struct CurveBuildInputs {
@@ -258,6 +348,8 @@ struct CurveBuildInputs {
     std::vector<AverageQuote> averageQuotes;
     std::optional<CurveRule> rule;
     bool includeDetails = false;
+    /// Contract builds only.
+    std::optional<BasisInputs> basis;
 };
 
 struct CommodityCurveBuildResult {
@@ -277,10 +369,62 @@ struct CommodityCurveBuildResult {
 CommodityCurveBuildResult BuildCommodityCurve(
     const FuturesContract& contract, const CurveBuildInputs& inputs, const QuantLib::Date& asOf);
 
+// ---------------------------------------------------------------------------
+// Spot prices from dated points and average quotes
+// ---------------------------------------------------------------------------
+//
+// The nodes are the spot's points, at the dates the caller chose (nothing
+// places a node). A point with a price is a direct quote. An average quote
+// is the fixed price of an average swap on the spot price: each pricing day
+// reads the points through the spot's own interpolation (Linear,
+// BackwardFlat, ForwardFlat: linear in the point prices) and
+// extrapolate_flat, so it is one linear equation on the points; its row comes
+// from PriceCommoditySwap as for a contract (one implementation of pricing
+// days, fixings and discounting). Every point is a node whatever its date:
+// the swap pricer reads a point before the valuation date when a later day
+// lies between it and the next point. Unknowns = points with a price or a
+// weight, in date order; then the solve of a contract build (labels are the
+// dates). Smooth uses second divided differences on x = days from the
+// valuation date / 365:
+//     (p[i+1] - p[i]) / (x[i+1] - x[i]) - (p[i] - p[i-1]) / (x[i] - x[i-1]),
+// divided by x[i+1] - x[i-1]. A point no quote reads and without a price is
+// read from the determined points with the spot's own interpolation and
+// extrapolate_flat (Interpolated / Extrapolated; outside without
+// extrapolate_flat: refused, DateOutsideRange).
+
+struct SpotNode {
+    QuantLib::Date date;
+    std::optional<double> price;
+};
+
+struct SpotCurveSpec {
+    std::string id;
+    PricingCalendar calendar;
+    SpotInterpolation interpolation = SpotInterpolation::Linear;
+    bool extrapolateFlat = false;
+    std::vector<SpotNode> points;
+    std::vector<SpotFixing> fixings;
+};
+
+struct SpotCurveBuildResult {
+    /// Every point with its price.
+    std::vector<SpotNode> points;
+    CurveBuildReport report;
+};
+
+/// Build a spot price from its priced points and average quotes (rules
+/// above). `inputs.interpolation` is not read (the spot's own interpolation
+/// is used); quotes' nearby / roll are not read. Invalid argument naming the
+/// field relative to the build: the spot's own rules (`spot: commodity spot
+/// price ...`, path `spot.points[i]...`), the refusals of a contract build,
+/// DateOutsideRange and NoPricedPoint.
+SpotCurveBuildResult BuildSpotCurve(
+    const SpotCurveSpec& spot, const CurveBuildInputs& inputs, const QuantLib::Date& asOf);
+
 std::string CurveRuleName(CurveRule rule);
 
 /// `build` + (`.` or `: `) + `message`: a message that starts with a field
-/// of the build (`contract`, `interpolation`, `extrapolate_flat`,
+/// of the build (`contract`, `spot`, `interpolation`, `extrapolate_flat`,
 /// `average_quotes`, `rule`) is joined with a dot, any other with a colon.
 /// `build` is e.g. `curves[1]`.
 std::string QualifyCurveBuildMessage(const std::string& build, const std::string& message);

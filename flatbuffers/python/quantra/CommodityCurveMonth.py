@@ -76,8 +76,24 @@ class CommodityCurveMonth(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         return o == 0
 
+    # Basis builds: the month's base price and its basis (price - base
+    # price). Absent otherwise.
+    # CommodityCurveMonth
+    def BasePrice(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
+    # CommodityCurveMonth
+    def Basis(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
 def CommodityCurveMonthStart(builder):
-    builder.StartObject(4)
+    builder.StartObject(6)
 
 def Start(builder):
     CommodityCurveMonthStart(builder)
@@ -112,6 +128,18 @@ def CommodityCurveMonthStartSensitivitiesVector(builder, numElems):
 def StartSensitivitiesVector(builder, numElems):
     return CommodityCurveMonthStartSensitivitiesVector(builder, numElems)
 
+def CommodityCurveMonthAddBasePrice(builder, basePrice):
+    builder.PrependFloat64Slot(4, basePrice, None)
+
+def AddBasePrice(builder, basePrice):
+    CommodityCurveMonthAddBasePrice(builder, basePrice)
+
+def CommodityCurveMonthAddBasis(builder, basis):
+    builder.PrependFloat64Slot(5, basis, None)
+
+def AddBasis(builder, basis):
+    CommodityCurveMonthAddBasis(builder, basis)
+
 def CommodityCurveMonthEnd(builder):
     return builder.EndObject()
 
@@ -131,6 +159,8 @@ class CommodityCurveMonthT(object):
         self.price = 0.0  # type: float
         self.source = 0  # type: int
         self.sensitivities = None  # type: List[CommodityQuoteSensitivityT]
+        self.basePrice = None  # type: Optional[float]
+        self.basis = None  # type: Optional[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -164,6 +194,8 @@ class CommodityCurveMonthT(object):
                 else:
                     commodityQuoteSensitivity_ = CommodityQuoteSensitivityT.InitFromObj(commodityCurveMonth.Sensitivities(i))
                     self.sensitivities.append(commodityQuoteSensitivity_)
+        self.basePrice = commodityCurveMonth.BasePrice()
+        self.basis = commodityCurveMonth.Basis()
 
     # CommodityCurveMonthT
     def Pack(self, builder):
@@ -184,5 +216,7 @@ class CommodityCurveMonthT(object):
         CommodityCurveMonthAddSource(builder, self.source)
         if self.sensitivities is not None:
             CommodityCurveMonthAddSensitivities(builder, sensitivities)
+        CommodityCurveMonthAddBasePrice(builder, self.basePrice)
+        CommodityCurveMonthAddBasis(builder, self.basis)
         commodityCurveMonth = CommodityCurveMonthEnd(builder)
         return commodityCurveMonth

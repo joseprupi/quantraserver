@@ -1623,6 +1623,48 @@
 <td><a href="../../examples/data/commodity_curve/synthetic_fully_priced_identity.json">synthetic_fully_priced_identity.json</a></td>
 <td class="npv">price=59.8, price=60, price=60.4, price=60.7, price=61, price=61.2, price=61.4, price=61.5, price=61.6, price=61.7, price=61.8, price=61.9, price=62, price=62.1</td>
 </tr>
+<tr>
+<td><div class="title">Synthetic spot price from monthly average quotes, three readings</div><div class="desc">A spot price built from one-month average quotes, one point per month, the first pinned: Linear and BackwardFlat on month ends, ForwardFlat on month starts. Each build reprices its quotes exactly. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>spot price build</code> <code>average quotes</code> <code>Linear</code> <code>BackwardFlat</code> <code>ForwardFlat</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_spot_monthly_strip_three_readings.json">synthetic_spot_monthly_strip_three_readings.json</a></td>
+<td class="npv">price=60, price=60.4, price=60.8, price=61.1, price=61.3, price=60, price=60.4, price=60.8, price=61.1, price=61.3, price=60, price=60.4, price=60.8, price=61.1, price=61.3</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic spot price: a month and a quarter quote, completed Flat and Smooth</div><div class="desc">Fewer quotes than points: rule Flat gives the points of the same quotes one price, rule Smooth minimises the second divided differences on the date axis. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>spot price build</code> <code>Underdetermined</code> <code>rule Flat</code> <code>rule Smooth</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_spot_quarter_flat_and_smooth.json">synthetic_spot_quarter_flat_and_smooth.json</a></td>
+<td class="npv">price=60.4, price=61, price=61, price=61, price=60.4, price=60.7104, price=60.9907, price=61.301</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic spot price: a consistent quarter quote reported Redundant, tail held flat</div><div class="desc">A quarter quote equal to the average its months already give is reported Redundant; a point after the last quote is filled flat (extrapolate_flat). Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>spot price build</code> <code>Redundant</code> <code>extrapolate_flat</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_spot_redundant_quarter_and_flat_tail.json">synthetic_spot_redundant_quarter_and_flat_tail.json</a></td>
+<td class="npv">price=60, price=60.4, price=60.8, price=61.1, price=61.3, price=61.3</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic basis contract: every month quoted as a basis to another contract</div><div class="desc">A contract priced month by month as the same month of a base contract in the same request plus a basis quote; the base is built first. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>basis</code> <code>SameMonth</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_basis_full_strip.json">synthetic_basis_full_strip.json</a></td>
+<td class="npv">price=60, price=60.4, price=60.7, price=61, price=61.2, price=61.4, price=61.5, price=61.6, price=61.7, price=60.8, price=61.15, price=61.4, price=61.72, price=61.98, price=62.25, price=62.4</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic basis contract with gaps: the basis is interpolated, then the base added</div><div class="desc">Three basis quotes among seven months: the missing months take the basis interpolated Linear on the last-trading-date axis (held flat outside), plus their base price. The basis entry comes before its base in the request. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>basis</code> <code>Linear</code> <code>extrapolate_flat</code> <code>build order</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_basis_gaps_linear_on_the_basis.json">synthetic_basis_gaps_linear_on_the_basis.json</a></td>
+<td class="npv">price=60.75, price=61.15, price=61.4599, price=61.7708, price=61.98, price=62.25, price=62.35, price=60, price=60.4, price=60.7, price=61, price=61.2, price=61.4, price=61.5, price=61.6, price=61.7</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic averaging basis: basis to the calendar-month average of the base front month</div><div class="desc">Each month&#x27;s base price is the average of the base contract&#x27;s front month (roll on expiry) over the pricing days of that calendar month, the November fixings included. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>basis</code> <code>MonthAverage</code> <code>fixings</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_basis_month_average.json">synthetic_basis_month_average.json</a></td>
+<td class="npv">price=60, price=60.4, price=60.7, price=61, price=61.2, price=61.4, price=61.5, price=61.6, price=61.7, price=60.825, price=61.2455, price=61.5105, price=61.7621, price=62.0345, price=62.2864, price=62.43</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic basis contract: two basis quotes and an average quote solved on top</div><div class="desc">January and March are basis quotes; a one-month average quote solves February and is repriced exactly. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>basis</code> <code>average quotes</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_basis_with_average_quote_on_top.json">synthetic_basis_with_average_quote_on_top.json</a></td>
+<td class="npv">price=60, price=60.4, price=60.7, price=61, price=61.2, price=61.4, price=61.5, price=61.6, price=61.7, price=60.75, price=61.15, price=61.2179, price=61.72, price=61.92, price=62.12, price=62.22</td>
+</tr>
 </tbody>
 </table>
 <h2>Structured Notes</h2>
@@ -1697,6 +1739,6 @@
 </tr>
 </tbody>
 </table>
-<footer>261 cases across 17 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<footer>268 cases across 17 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

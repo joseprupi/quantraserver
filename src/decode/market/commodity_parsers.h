@@ -26,6 +26,7 @@
  * holidays and change no other use of the calendar.
  */
 
+#include "commodity_curve_build.h"
 #include "commodity_futures_contract.h"
 #include "commodity_spot_price.h"
 
@@ -71,6 +72,25 @@ struct CommodityContractData {
 /// curve build.
 CommodityContractData DecodeCommodityContract(
     const quantra::CommodityContractSpec* spec, const std::string& base);
+
+/// One `CommoditySpotSpec` decoded (presence, dates, calendar,
+/// interpolation) and not yet validated: the SpotPrice constructor owns the
+/// value rules.
+struct CommoditySpotData {
+    std::string id;
+    commodities::PricingCalendar calendar;
+    commodities::SpotInterpolation interpolation;
+    bool extrapolateFlat = false;
+    /// A price is present on every point when `pricesRequired`.
+    std::vector<commodities::SpotNode> points;
+    std::vector<commodities::SpotFixing> fixings;
+};
+
+/// Decode one spot price; `base` is its path in the request. With
+/// `pricesRequired` (the swap request) every point needs a price (400
+/// naming it); without (the curve build) an absent price stays absent.
+CommoditySpotData DecodeCommoditySpot(
+    const quantra::CommoditySpotSpec* spec, const std::string& base, bool pricesRequired);
 
 /// A present interpolation enum as a commodity price interpolation:
 /// Linear, BackwardFlat or ForwardFlat; any other value is a 400 naming
