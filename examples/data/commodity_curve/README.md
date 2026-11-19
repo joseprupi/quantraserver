@@ -11,7 +11,9 @@ live months (last trading date on or after the valuation date) left without
 a price. The response returns the same contract with every live month
 priced, ready to paste into a swap request, and a report of where each
 month's price comes from. Some requests add average-price quotes, solved
-together with the month prices as one linear system. The six fill methods (`Linear`, `LogLinear`, `BackwardFlat`, `ForwardFlat`,
+together with the month prices as one linear system; some build a spot
+price (`spot` instead of `contract`) or a contract quoted as a basis to
+another contract of the request (`basis`). The six fill methods (`Linear`, `LogLinear`, `BackwardFlat`, `ForwardFlat`,
 `KrugerCubic`, `NaturalCubic`) each have an example.
 
 Every number in these files is synthetic: the contract `SYN_CL` (and its
@@ -38,6 +40,15 @@ contract (worth zero).
 | `synthetic_average_quotes_monthly_strip.json` | The swap examples' contract with only January 2027 priced and eleven one-month average quotes: the strip they were computed from comes back. |
 | `synthetic_average_quotes_monthly_strip_rounded_fragile.json` | The same quotes rounded to the cent: an exact but wildly oscillating strip, `max_sensitivity` about 8,171. |
 | `synthetic_fully_priced_identity.json` | Every month priced and no `interpolation`: the contract comes back unchanged. |
+| `synthetic_spot_monthly_strip_three_readings.json` | Spot price builds: one-month average quotes, one point per month, the first pinned by a price; `Linear` and `BackwardFlat` on month ends, `ForwardFlat` on month starts. |
+| `synthetic_spot_quarter_flat_and_smooth.json` | Spot price builds with fewer quotes than points: `Flat` and `Smooth` (second divided differences on the date axis). |
+| `synthetic_spot_redundant_quarter_and_flat_tail.json` | A quarter quote that its months already imply (`Redundant`) and a point after the last quote held flat. |
+| `refused_spot_conflicting_quarter.json` | Refused: a quarter quote that contradicts its months (`400`, `QuoteConflict`, implied value and gap in `details`). Not a catalog row. |
+| `synthetic_basis_full_strip.json` | A contract quoted month by month as a basis to the same month of `SYN_CL` (`SameMonth`). |
+| `synthetic_basis_gaps_linear_on_the_basis.json` | Three basis quotes: the other months take the basis interpolated `Linear` (flat outside) plus their base price; the basis entry comes before its base in the request. |
+| `synthetic_basis_month_average.json` | An averaging basis: each month's base price is the calendar-month average of the base front month (`MonthAverage`), November fixings included. |
+| `synthetic_basis_with_average_quote_on_top.json` | Basis quotes on January and March, a one-month average quote solving February. |
+| `refused_basis_cycle.json` | Refused: two contracts each the base of the other (`400`, `BasisCycle`). Not a catalog row. |
 
 To build one against a running gateway:
 

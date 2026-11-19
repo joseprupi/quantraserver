@@ -2523,37 +2523,76 @@ enum CommodityMonthSource : int8_t {
   /// Not touched by any quote, outside the determined months: the nearest
   /// one (extrapolate_flat).
   CommodityMonthSource_Extrapolated = 4,
+  /// A basis quote: the base price plus the basis.
+  CommodityMonthSource_Basis = 5,
   CommodityMonthSource_MIN = CommodityMonthSource_Quoted,
-  CommodityMonthSource_MAX = CommodityMonthSource_Extrapolated
+  CommodityMonthSource_MAX = CommodityMonthSource_Basis
 };
 
-inline const CommodityMonthSource (&EnumValuesCommodityMonthSource())[5] {
+inline const CommodityMonthSource (&EnumValuesCommodityMonthSource())[6] {
   static const CommodityMonthSource values[] = {
     CommodityMonthSource_Quoted,
     CommodityMonthSource_Solved,
     CommodityMonthSource_Assumed,
     CommodityMonthSource_Interpolated,
-    CommodityMonthSource_Extrapolated
+    CommodityMonthSource_Extrapolated,
+    CommodityMonthSource_Basis
   };
   return values;
 }
 
 inline const char * const *EnumNamesCommodityMonthSource() {
-  static const char * const names[6] = {
+  static const char * const names[7] = {
     "Quoted",
     "Solved",
     "Assumed",
     "Interpolated",
     "Extrapolated",
+    "Basis",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameCommodityMonthSource(CommodityMonthSource e) {
-  if (::flatbuffers::IsOutRange(e, CommodityMonthSource_Quoted, CommodityMonthSource_Extrapolated)) return "";
+  if (::flatbuffers::IsOutRange(e, CommodityMonthSource_Quoted, CommodityMonthSource_Basis)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesCommodityMonthSource()[index];
+}
+
+/// How a basis build reads the base price of a month M.
+enum CommodityBasisBasePrice : int8_t {
+  /// The base contract's month M - base_month_offset months: its price when
+  /// live, its fixing on its last trading date when expired.
+  CommodityBasisBasePrice_SameMonth = 0,
+  /// The average over the pricing days of calendar month M of the base
+  /// contract read with base_nearby / base_roll_days_before_expiry.
+  CommodityBasisBasePrice_MonthAverage = 1,
+  CommodityBasisBasePrice_MIN = CommodityBasisBasePrice_SameMonth,
+  CommodityBasisBasePrice_MAX = CommodityBasisBasePrice_MonthAverage
+};
+
+inline const CommodityBasisBasePrice (&EnumValuesCommodityBasisBasePrice())[2] {
+  static const CommodityBasisBasePrice values[] = {
+    CommodityBasisBasePrice_SameMonth,
+    CommodityBasisBasePrice_MonthAverage
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCommodityBasisBasePrice() {
+  static const char * const names[3] = {
+    "SameMonth",
+    "MonthAverage",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCommodityBasisBasePrice(CommodityBasisBasePrice e) {
+  if (::flatbuffers::IsOutRange(e, CommodityBasisBasePrice_SameMonth, CommodityBasisBasePrice_MonthAverage)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCommodityBasisBasePrice()[index];
 }
 
 /// How an average quote entered a commodity curve build.

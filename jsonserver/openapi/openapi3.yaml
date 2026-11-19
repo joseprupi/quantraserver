@@ -59,7 +59,7 @@ info:
     \ a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond\
     \ \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/bonds/fixed_rate_bond_request.json\n\
     ```\n"
-  version: 0.17.0-commodities.2
+  version: 0.17.0-commodities.3
   contact:
     name: Quantra API Support
     url: https://github.com/joseprupi/quantraserver
@@ -1493,36 +1493,48 @@ paths:
   /build-commodity-curves:
     post:
       summary: Build Commodity Curves
-      description: 'Build futures contracts from futures prices and average-price
-        quotes (preview). Each entry of curves is a contract in the shape pricing.commodity.contracts
-        of /price-commodity-swap takes. A month whose last trading date is on or after
-        pricing.as_of_date is live; a live month with a price is a futures quote and
-        is returned unchanged; average_quotes (the fixed price of an average swap
-        over one or several periods, read through the swap pricer: pricing days, quantities,
-        discounting, fixings) are equations on the months they read, solved with the
-        direct prices as one linear system; a redundant quote that agrees is flagged,
-        a conflicting one is a 400 with the implied value and the gap, and when the
-        quotes leave months open rule (Flat: one price per group of months touched
-        by the same quotes; Smooth: least squared second differences) is required.
-        A live month no quote touches is filled from the determined months, placed
-        on their last trading dates and read on the missing month''s last trading
-        date with the chosen interpolation on x = calendar days from the valuation
-        date / 365 (Actual/365 Fixed): Linear, LogLinear (straight in log price; quotes
-        must be > 0), BackwardFlat (the next quote), ForwardFlat (the previous quote),
-        KrugerCubic (a cubic through all the quotes that limits overshoot: node slope
-        = harmonic mean of the neighbouring slopes, 0 where they change sign) or NaturalCubic
-        (natural cubic spline through all the quotes: smooth, can overshoot). A month
-        outside the quoted live months is a 400 naming it unless extrapolate_flat,
-        which takes the nearest quote (no method is continued beyond the quotes).
-        Expired months, fixings, the pricing calendar and the pricing holidays are
-        returned as sent. The response returns, in request order, each complete contract
-        (paste it into a swap request as is) and a report: status (Unique or Underdetermined),
-        counts, every live month''s price and source (Quoted, Solved, Assumed, Interpolated,
-        Extrapolated), every average quote repriced on the built contract, and with
-        include_details the weights of each quote and the sensitivity of each month
-        to each quote (max_sensitivity shows a fragile build). pricing.commodity is
-        a 400 (the contracts are given under curves); pricing.rates.curves is read
-        only when a quote names a discounting_curve.'
+      description: 'Build futures contracts from futures prices, average-price quotes
+        and basis quotes to another contract of the request, and spot prices from
+        average-price quotes (preview). Each entry of curves is a contract in the
+        shape pricing.commodity.contracts of /price-commodity-swap takes. A month
+        whose last trading date is on or after pricing.as_of_date is live; a live
+        month with a price is a futures quote and is returned unchanged; average_quotes
+        (the fixed price of an average swap over one or several periods, read through
+        the swap pricer: pricing days, quantities, discounting, fixings) are equations
+        on the months they read, solved with the direct prices as one linear system;
+        a redundant quote that agrees is flagged, a conflicting one is a 400 with
+        the implied value and the gap, and when the quotes leave months open rule
+        (Flat: one price per group of months touched by the same quotes; Smooth: least
+        squared second differences) is required. A live month no quote touches is
+        filled from the determined months, placed on their last trading dates and
+        read on the missing month''s last trading date with the chosen interpolation
+        on x = calendar days from the valuation date / 365 (Actual/365 Fixed): Linear,
+        LogLinear (straight in log price; quotes must be > 0), BackwardFlat (the next
+        quote), ForwardFlat (the previous quote), KrugerCubic (a cubic through all
+        the quotes that limits overshoot: node slope = harmonic mean of the neighbouring
+        slopes, 0 where they change sign) or NaturalCubic (natural cubic spline through
+        all the quotes: smooth, can overshoot). A month outside the quoted live months
+        is a 400 naming it unless extrapolate_flat, which takes the nearest quote
+        (no method is continued beyond the quotes). Expired months, fixings, the pricing
+        calendar and the pricing holidays are returned as sent. The response returns,
+        in request order, each complete contract (paste it into a swap request as
+        is) and a report: status (Unique or Underdetermined), counts, every live month''s
+        price and source (Quoted, Solved, Assumed, Interpolated, Extrapolated), every
+        average quote repriced on the built contract, and with include_details the
+        weights of each quote and the sensitivity of each month to each quote (max_sensitivity
+        shows a fragile build). pricing.commodity is a 400 (the contracts are given
+        under curves); pricing.rates.curves is read only when a quote names a discounting_curve.
+        An entry with spot instead of contract builds a spot price: its points are
+        the nodes (priced = direct price), the quotes average the spot read with its
+        own interpolation, Smooth uses second divided differences on the date axis,
+        unread points are filled with the spot''s interpolation, and the report lists
+        points instead of months. A contract entry with basis prices each month as
+        a base price (SameMonth: base month minus base_month_offset, its price or
+        its final fixing; MonthAverage: the base contract averaged over the calendar
+        month with base_nearby and base_roll_days_before_expiry) plus the quoted basis
+        (source Basis); the base entry is built first, the remaining months are filled
+        on the basis and the base added back, and report months carry base_price and
+        basis. An unknown base is a 404, a cycle a 400.'
       tags:
       - Commodities
       requestBody:
@@ -1550,10 +1562,11 @@ paths:
                     description: Error message
                   details:
                     type: object
-                    description: 'Present on a refused build (and only on this endpoint):
-                      structured fields of the refusal, only those that apply. The
-                      same object reaches gRPC callers in the trailing metadata key
-                      quantra-error-details-bin (UTF-8 JSON).'
+                    description: 'Present on a refused build, and on the 404 of an
+                      unknown basis base (and only on this endpoint): structured fields
+                      of the refusal, only those that apply. The same object reaches
+                      gRPC callers in the trailing metadata key quantra-error-details-bin
+                      (UTF-8 JSON).'
                     properties:
                       reason:
                         type: string
@@ -1568,6 +1581,14 @@ paths:
                         - InterpolationRequired
                         - NoPricedMonth
                         - NotFinite
+                        - DateOutsideRange
+                        - NoPricedPoint
+                        - UnknownBase
+                        - BaseNotContract
+                        - BasisCycle
+                        - BaseNotDetermined
+                        - BasisAndPrice
+                        - BasisOnExpiredMonth
                         - InvalidInput
                       curve:
                         type: integer
@@ -1599,6 +1620,8 @@ paths:
                           properties:
                             month:
                               type: string
+                            date:
+                              type: string
                             average_quote:
                               type: integer
                       rule:
@@ -1606,6 +1629,23 @@ paths:
                         enum:
                         - Flat
                         - Smooth
+                      date:
+                        type: string
+                        description: YYYY-MM-DD (spot builds)
+                      dates:
+                        type: array
+                        items:
+                          type: string
+                      base_curve:
+                        type: integer
+                        description: Index in curves of the base entry.
+                      base_month:
+                        type: string
+                        description: YYYY-MM
+                      cycle:
+                        type: array
+                        items:
+                          type: integer
                     required:
                     - reason
         '500':
@@ -2116,6 +2156,12 @@ components:
       - Assumed
       - Interpolated
       - Extrapolated
+      - Basis
+    quantra_enums_CommodityBasisBasePrice:
+      type: string
+      enum:
+      - SameMonth
+      - MonthAverage
     quantra_enums_CommodityQuoteStatus:
       type: string
       enum:
@@ -6054,7 +6100,9 @@ components:
           description: 'The contract month averaged, as on `FuturesFloatingPrice`:
             1 = front
 
-            month. Presence-required, >= 1.'
+            month. Contract builds: presence-required, >= 1. Spot builds: not
+
+            given (400).'
           minimum: -2147483648
           maximum: 2147483647
         roll_days_before_expiry:
@@ -6062,7 +6110,9 @@ components:
           description: 'Roll this many pricing days before the last trading date,
             as on
 
-            `FuturesFloatingPrice`. Presence-required, >= 0.'
+            `FuturesFloatingPrice`. Contract builds: presence-required, >= 0.
+
+            Spot builds: not given (400).'
           minimum: -2147483648
           maximum: 2147483647
         quantity_basis:
@@ -6086,14 +6136,80 @@ components:
       required:
       - periods
       additionalProperties: false
+    quantra_CommodityBasisQuote:
+      type: object
+      description: 'One basis quote: the month''s price is its base price plus `value`.'
+      properties:
+        month:
+          type: string
+          description: A month of the contract being built, "YYYY-MM". Required.
+        value:
+          type: number
+          description: 'The basis, added to the base price (a caller quoting base
+            minus
+
+            basis sends the negated value). Presence-required.'
+      required:
+      - month
+      additionalProperties: false
+    quantra_CommodityCurveBasis:
+      type: object
+      description: 'A contract priced as another contract of the request (the base)
+        plus a
+
+        basis.'
+      properties:
+        base:
+          type: string
+          description: 'The contract id of another `curves[]` entry, a contract build,
+            built
+
+            first whatever the order (404 when no entry has that id). A fully
+
+            priced contract entry is how a finished base is given. Required.'
+        base_price:
+          $ref: '#/components/schemas/quantra_enums_CommodityBasisBasePrice'
+        base_month_offset:
+          type: integer
+          description: 'SameMonth: the base month is the basis month minus this many
+            months
+
+            (>= 0). Not used with MonthAverage.'
+          minimum: -2147483648
+          maximum: 2147483647
+        base_nearby:
+          type: integer
+          description: 'MonthAverage: the base contract month averaged and its roll,
+            as on a
+
+            swap leg. Required with MonthAverage, refused with SameMonth.'
+          minimum: -2147483648
+          maximum: 2147483647
+        base_roll_days_before_expiry:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        quotes:
+          type: array
+          description: 'The basis quotes. A quoted month gets base + value as its
+            price
+
+            (source Basis); a month with both a price and a basis quote, or a
+
+            basis quote on an expired month, is a 400.'
+          items:
+            $ref: '#/components/schemas/quantra_CommodityBasisQuote'
+      required:
+      - base
+      additionalProperties: false
     quantra_CommodityCurveBuild:
       type: object
-      description: 'One futures contract to build: the months that have a price are
-        futures
+      description: 'One futures contract or spot price to build: the months (points)
+        that
 
-        quotes, the average quotes are equations on the months they read, and
+        have a price are quotes, the average quotes are equations on the months
 
-        the live months no quote touches are filled.'
+        (points) they read, and the ones no quote touches are filled.'
       properties:
         contract:
           $ref: '#/components/schemas/quantra_CommodityContractSpec'
@@ -6119,8 +6235,10 @@ components:
             $ref: '#/components/schemas/quantra_CommodityAverageQuote'
         rule:
           $ref: '#/components/schemas/quantra_enums_CommodityCurveRule'
-      required:
-      - contract
+        spot:
+          $ref: '#/components/schemas/quantra_CommoditySpotSpec'
+        basis:
+          $ref: '#/components/schemas/quantra_CommodityCurveBasis'
       additionalProperties: false
     quantra_BuildCommodityCurvesRequest:
       type: object
@@ -6174,6 +6292,10 @@ components:
         value:
           type: number
           description: d month price / d quote.
+        date:
+          type: string
+          description: Date of a direct spot point price (YYYY-MM-DD), instead of
+            `month`.
       additionalProperties: false
     quantra_CommodityCurveMonth:
       type: object
@@ -6195,16 +6317,50 @@ components:
             per input quote (direct prices in month order, then average quotes).'
           items:
             $ref: '#/components/schemas/quantra_CommodityQuoteSensitivity'
+        base_price:
+          type: number
+          description: 'Basis builds: the month''s base price and its basis (price
+            - base
+
+            price). Absent otherwise.'
+        basis:
+          type: number
       additionalProperties: false
     quantra_CommodityQuoteWeight:
       type: object
-      description: The weight of one month in an average quote's equation.
+      description: The weight of one month (or spot point) in an average quote's equation.
       properties:
         month:
           type: string
-          description: '"YYYY-MM".'
+          description: '"YYYY-MM". Absent for a spot point.'
         weight:
           type: number
+        date:
+          type: string
+          description: The spot point's date (YYYY-MM-DD). Absent for a month.
+      additionalProperties: false
+    quantra_CommodityCurvePoint:
+      type: object
+      description: One point of a built spot price.
+      properties:
+        date:
+          type: string
+          description: YYYY-MM-DD.
+        price:
+          type: number
+          description: The built price.
+        source:
+          $ref: '#/components/schemas/quantra_enums_CommodityMonthSource'
+        sensitivities:
+          type: array
+          description: 'With `include_details`, Quoted / Solved / Assumed points:
+            one entry
+
+            per input quote (direct point prices in date order, then average
+
+            quotes).'
+          items:
+            $ref: '#/components/schemas/quantra_CommodityQuoteSensitivity'
       additionalProperties: false
     quantra_CommodityAverageQuoteResult:
       type: object
@@ -6257,7 +6413,10 @@ components:
           description: Largest |difference| over the average quotes (0 without any).
         months:
           type: array
-          description: Every live month in contract order.
+          description: 'Contract builds: every live month in contract order. Absent
+            for a
+
+            spot build.'
           items:
             $ref: '#/components/schemas/quantra_CommodityCurveMonth'
         average_quotes:
@@ -6273,6 +6432,11 @@ components:
             price to a quote. A large value means a small change of a quote moves
 
             some month a lot: the build is fragile.'
+        points:
+          type: array
+          description: 'Spot builds: every point in date order.'
+          items:
+            $ref: '#/components/schemas/quantra_CommodityCurvePoint'
       additionalProperties: false
     quantra_BuiltCommodityCurve:
       type: object
@@ -6282,8 +6446,9 @@ components:
           $ref: '#/components/schemas/quantra_CommodityContractSpec'
         report:
           $ref: '#/components/schemas/quantra_CommodityCurveReport'
+        spot:
+          $ref: '#/components/schemas/quantra_CommoditySpotSpec'
       required:
-      - contract
       - report
       additionalProperties: false
     quantra_BuildCommodityCurvesResponse:

@@ -255,7 +255,11 @@
     },
     "quantra_enums_CommodityMonthSource" : {
       "type" : "string",
-      "enum": ["Quoted", "Solved", "Assumed", "Interpolated", "Extrapolated"]
+      "enum": ["Quoted", "Solved", "Assumed", "Interpolated", "Extrapolated", "Basis"]
+    },
+    "quantra_enums_CommodityBasisBasePrice" : {
+      "type" : "string",
+      "enum": ["SameMonth", "MonthAverage"]
     },
     "quantra_enums_CommodityQuoteStatus" : {
       "type" : "string",
@@ -2987,11 +2991,11 @@
               },
         "nearby" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
-                "description" : "The contract month averaged, as on `FuturesFloatingPrice`: 1 = front\nmonth. Presence-required, >= 1."
+                "description" : "The contract month averaged, as on `FuturesFloatingPrice`: 1 = front\nmonth. Contract builds: presence-required, >= 1. Spot builds: not\ngiven (400)."
               },
         "roll_days_before_expiry" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
-                "description" : "Roll this many pricing days before the last trading date, as on\n`FuturesFloatingPrice`. Presence-required, >= 0."
+                "description" : "Roll this many pricing days before the last trading date, as on\n`FuturesFloatingPrice`. Contract builds: presence-required, >= 0.\nSpot builds: not given (400)."
               },
         "quantity_basis" : {
                 "$ref" : "#/definitions/quantra_enums_CommodityQuantityBasis",
@@ -3015,13 +3019,60 @@
       "required" : ["periods"],
       "additionalProperties" : false
     },
+    "quantra_CommodityBasisQuote" : {
+      "type" : "object",
+      "description" : "One basis quote: the month's price is its base price plus `value`.",
+      "properties" : {
+        "month" : {
+                "type" : "string",
+                "description" : "A month of the contract being built, \"YYYY-MM\". Required."
+              },
+        "value" : {
+                "type" : "number",
+                "description" : "The basis, added to the base price (a caller quoting base minus\nbasis sends the negated value). Presence-required."
+              }
+      },
+      "required" : ["month"],
+      "additionalProperties" : false
+    },
+    "quantra_CommodityCurveBasis" : {
+      "type" : "object",
+      "description" : "A contract priced as another contract of the request (the base) plus a\nbasis.",
+      "properties" : {
+        "base" : {
+                "type" : "string",
+                "description" : "The contract id of another `curves[]` entry, a contract build, built\nfirst whatever the order (404 when no entry has that id). A fully\npriced contract entry is how a finished base is given. Required."
+              },
+        "base_price" : {
+                "$ref" : "#/definitions/quantra_enums_CommodityBasisBasePrice",
+                "description" : "How the base price of a month is read: SameMonth or MonthAverage.\nPresence-required."
+              },
+        "base_month_offset" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "SameMonth: the base month is the basis month minus this many months\n(>= 0). Not used with MonthAverage."
+              },
+        "base_nearby" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "MonthAverage: the base contract month averaged and its roll, as on a\nswap leg. Required with MonthAverage, refused with SameMonth."
+              },
+        "base_roll_days_before_expiry" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "quotes" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityBasisQuote"},
+                "description" : "The basis quotes. A quoted month gets base + value as its price\n(source Basis); a month with both a price and a basis quote, or a\nbasis quote on an expired month, is a 400."
+              }
+      },
+      "required" : ["base"],
+      "additionalProperties" : false
+    },
     "quantra_CommodityCurveBuild" : {
       "type" : "object",
-      "description" : "One futures contract to build: the months that have a price are futures\nquotes, the average quotes are equations on the months they read, and\nthe live months no quote touches are filled.",
+      "description" : "One futures contract or spot price to build: the months (points) that\nhave a price are quotes, the average quotes are equations on the months\n(points) they read, and the ones no quote touches are filled.",
       "properties" : {
         "contract" : {
                 "$ref" : "#/definitions/quantra_CommodityContractSpec",
-                "description" : "The contract as `pricing.commodity.contracts[]` of a swap request\ntakes it. A month with a `price` is a quote and is returned\nunchanged. A live month (last trading date on or after the valuation\ndate) without a price is solved from the average quotes when one of\nthem reads it, otherwise filled with `interpolation`. A month whose\nlast trading date is before the valuation date is returned as sent\n(it is read through fixings). Fixings, pricing calendar and pricing\nholidays are returned unchanged. Required."
+                "description" : "The contract as `pricing.commodity.contracts[]` of a swap request\ntakes it. A month with a `price` is a quote and is returned\nunchanged. A live month (last trading date on or after the valuation\ndate) without a price is solved from the average quotes when one of\nthem reads it, otherwise filled with `interpolation`. A month whose\nlast trading date is before the valuation date is returned as sent\n(it is read through fixings). Fixings, pricing calendar and pricing\nholidays are returned unchanged. Exactly one of `contract` and `spot`\nis given (400 otherwise)."
               },
         "interpolation" : {
                 "$ref" : "#/definitions/quantra_enums_CommodityCurveInterpolation",
@@ -3038,9 +3089,16 @@
         "rule" : {
                 "$ref" : "#/definitions/quantra_enums_CommodityCurveRule",
                 "description" : "Required when the quotes do not determine every month they touch\n(400 listing those months otherwise): Flat or Smooth. When they do,\nit is validated and echoed and changes nothing."
+              },
+        "spot" : {
+                "$ref" : "#/definitions/quantra_CommoditySpotSpec",
+                "description" : "A spot price to build instead of a contract, as\n`pricing.commodity.spot_prices[]` of a swap request takes it. Its\n`points` are the nodes, at the dates the caller chose: a point with a\n`price` is a quote and is returned unchanged, a point without one is\nsolved from the average quotes that read it or, when none does, read\nfrom the determined points with the spot's own `interpolation` and\n`extrapolate_flat`. The average quotes average the spot price (no\n`nearby` / `roll_days_before_expiry`); `interpolation` above is not\ngiven (400). Exactly one of `contract` and `spot`."
+              },
+        "basis" : {
+                "$ref" : "#/definitions/quantra_CommodityCurveBasis",
+                "description" : "Contract builds: the contract is a basis to another contract of the\nrequest. The live months no quote touches are then filled on their\nbasis (price - base price) with `interpolation` / `extrapolate_flat`,\nand the base price is added back."
               }
       },
-      "required" : ["contract"],
       "additionalProperties" : false
     },
     "quantra_BuildCommodityCurvesRequest" : {

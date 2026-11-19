@@ -255,7 +255,11 @@
     },
     "quantra_enums_CommodityMonthSource" : {
       "type" : "string",
-      "enum": ["Quoted", "Solved", "Assumed", "Interpolated", "Extrapolated"]
+      "enum": ["Quoted", "Solved", "Assumed", "Interpolated", "Extrapolated", "Basis"]
+    },
+    "quantra_enums_CommodityBasisBasePrice" : {
+      "type" : "string",
+      "enum": ["SameMonth", "MonthAverage"]
     },
     "quantra_enums_CommodityQuoteStatus" : {
       "type" : "string",

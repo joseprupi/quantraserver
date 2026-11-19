@@ -5282,6 +5282,123 @@ CASES = [
         "compare": "fields",
         "exercises": ["commodity curve build", "identity", "interpolation not needed"],
     },
+    {
+        "id": "build_commodity_curves_synthetic_spot_monthly_strip_three_readings",
+        "product": "build_commodity_curves",
+        "family": "Commodities",
+        "title": "Synthetic spot price from monthly average quotes, three readings",
+        "description": (
+            "A spot price built from one-month average quotes, one point per month, "
+            "the first pinned: Linear and BackwardFlat on month ends, ForwardFlat "
+            "on month starts. Each build reprices its quotes exactly. Synthetic "
+            "data."
+        ),
+        "request": "commodity_curve/synthetic_spot_monthly_strip_three_readings.json",
+        "ql_pricer": "build_commodity_curves_ql",
+        "tolerance": COMMODITY_CURVE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["commodity curve build", "spot price build", "average quotes",
+                      "Linear", "BackwardFlat", "ForwardFlat"],
+    },
+    {
+        "id": "build_commodity_curves_synthetic_spot_quarter_flat_and_smooth",
+        "product": "build_commodity_curves",
+        "family": "Commodities",
+        "title": "Synthetic spot price: a month and a quarter quote, completed Flat and Smooth",
+        "description": (
+            "Fewer quotes than points: rule Flat gives the points of the same "
+            "quotes one price, rule Smooth minimises the second divided differences "
+            "on the date axis. Synthetic data."
+        ),
+        "request": "commodity_curve/synthetic_spot_quarter_flat_and_smooth.json",
+        "ql_pricer": "build_commodity_curves_ql",
+        "tolerance": COMMODITY_CURVE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["commodity curve build", "spot price build", "Underdetermined",
+                      "rule Flat", "rule Smooth"],
+    },
+    {
+        "id": "build_commodity_curves_synthetic_spot_redundant_quarter_and_flat_tail",
+        "product": "build_commodity_curves",
+        "family": "Commodities",
+        "title": "Synthetic spot price: a consistent quarter quote reported Redundant, tail held flat",
+        "description": (
+            "A quarter quote equal to the average its months already give is "
+            "reported Redundant; a point after the last quote is filled flat "
+            "(extrapolate_flat). Synthetic data."
+        ),
+        "request": "commodity_curve/synthetic_spot_redundant_quarter_and_flat_tail.json",
+        "ql_pricer": "build_commodity_curves_ql",
+        "tolerance": COMMODITY_CURVE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["commodity curve build", "spot price build", "Redundant",
+                      "extrapolate_flat"],
+    },
+    {
+        "id": "build_commodity_curves_synthetic_basis_full_strip",
+        "product": "build_commodity_curves",
+        "family": "Commodities",
+        "title": "Synthetic basis contract: every month quoted as a basis to another contract",
+        "description": (
+            "A contract priced month by month as the same month of a base contract "
+            "in the same request plus a basis quote; the base is built first. "
+            "Synthetic data."
+        ),
+        "request": "commodity_curve/synthetic_basis_full_strip.json",
+        "ql_pricer": "build_commodity_curves_ql",
+        "tolerance": COMMODITY_CURVE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["commodity curve build", "basis", "SameMonth"],
+    },
+    {
+        "id": "build_commodity_curves_synthetic_basis_gaps_linear_on_the_basis",
+        "product": "build_commodity_curves",
+        "family": "Commodities",
+        "title": "Synthetic basis contract with gaps: the basis is interpolated, then the base added",
+        "description": (
+            "Three basis quotes among seven months: the missing months take the "
+            "basis interpolated Linear on the last-trading-date axis (held flat "
+            "outside), plus their base price. The basis entry comes before its base "
+            "in the request. Synthetic data."
+        ),
+        "request": "commodity_curve/synthetic_basis_gaps_linear_on_the_basis.json",
+        "ql_pricer": "build_commodity_curves_ql",
+        "tolerance": COMMODITY_CURVE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["commodity curve build", "basis", "Linear", "extrapolate_flat",
+                      "build order"],
+    },
+    {
+        "id": "build_commodity_curves_synthetic_basis_month_average",
+        "product": "build_commodity_curves",
+        "family": "Commodities",
+        "title": "Synthetic averaging basis: basis to the calendar-month average of the base front month",
+        "description": (
+            "Each month's base price is the average of the base contract's front "
+            "month (roll on expiry) over the pricing days of that calendar month, "
+            "the November fixings included. Synthetic data."
+        ),
+        "request": "commodity_curve/synthetic_basis_month_average.json",
+        "ql_pricer": "build_commodity_curves_ql",
+        "tolerance": COMMODITY_CURVE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["commodity curve build", "basis", "MonthAverage", "fixings"],
+    },
+    {
+        "id": "build_commodity_curves_synthetic_basis_with_average_quote_on_top",
+        "product": "build_commodity_curves",
+        "family": "Commodities",
+        "title": "Synthetic basis contract: two basis quotes and an average quote solved on top",
+        "description": (
+            "January and March are basis quotes; a one-month average quote solves "
+            "February and is repriced exactly. Synthetic data."
+        ),
+        "request": "commodity_curve/synthetic_basis_with_average_quote_on_top.json",
+        "ql_pricer": "build_commodity_curves_ql",
+        "tolerance": COMMODITY_CURVE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["commodity curve build", "basis", "average quotes"],
+    },
     # ------------------------------------------------------------------
     # Structured Notes — worst-of autocallables on index baskets, Monte Carlo
     # on the engine's own random stream

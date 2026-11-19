@@ -1372,9 +1372,11 @@ response formats may still change before the release that makes them
 stable.
 
 The endpoint builds a futures contract's month prices from futures prices
-(a quote sheet with gaps, illiquid back months) and from average-price
+(a quote sheet with gaps, illiquid back months), from average-price
 quotes (the fixed price of an average swap over a month, a quarter or a
-year). It takes the contract in the shape `pricing.commodity.contracts[]` of
+year) and from basis quotes to another contract; it also builds a spot
+price's forward points from average-price quotes (below, "Spot price
+builds"). It takes the contract in the shape `pricing.commodity.contracts[]` of
 `/price-commodity-swap` takes and returns the same contract with every live
 month priced, so the result pastes into a swap request as is, together with
 a report of how each month was obtained. Nothing is stored: the caller sends
@@ -1395,7 +1397,9 @@ the quotes and receives the contract.
 | Field | Meaning |
 | --- | --- |
 | `pricing` | `as_of_date` (the valuation date) and `calendar_overrides` are read, and `rates.curves` when an average quote names a `discounting_curve` (otherwise no curve is needed). `pricing.commodity` is a `400`: the contracts to build are given under `curves`. Required. |
-| `curves[].contract` | A `CommodityContractSpec`, exactly as in the swap request (`id`, `pricing_calendar`, `pricing_holidays`, `months`, `fixings`; same rules: months `YYYY-MM` ascending, last trading dates ascending, finite prices). A month with a `price` is a futures quote. Required. |
+| `curves[].contract` | A `CommodityContractSpec`, exactly as in the swap request (`id`, `pricing_calendar`, `pricing_holidays`, `months`, `fixings`; same rules: months `YYYY-MM` ascending, last trading dates ascending, finite prices). A month with a `price` is a futures quote. Exactly one of `contract` and `spot` (a `400` otherwise). |
+| `curves[].spot` | A `CommoditySpotSpec` to build instead of a contract (below, "Spot price builds"). |
+| `curves[].basis` | Contract builds: the contract is a basis to another contract of the request (below, "Basis contracts"). Optional. |
 | `curves[].interpolation` | How a live month without a price is read from the quoted live months (a `CommodityCurveInterpolation`, its own list, not the rate-curve `Interpolator`): `Linear`, `LogLinear`, `BackwardFlat`, `ForwardFlat`, `KrugerCubic` or `NaturalCubic` (below). Required as soon as a live month has no price; not read when every live month is quoted. |
 | `curves[].extrapolate_flat` | When `false` (the default), a live month without a price before the first quoted live month or after the last one is a `400` naming the month; when `true` it takes the nearest quote, whatever the method (no method is continued beyond the quotes). |
 | `curves[].average_quotes` | Average-price quotes (below), solved together with the month prices. Optional. |
@@ -1410,15 +1414,15 @@ An average quote (`CommodityAverageQuote`):
 | --- | --- |
 | `price` | The quoted fixed price. Presence-required. |
 | `periods` | The periods, exactly as on a swap leg (generated or explicit). One period: a month, or a quarter settled once. Several: a quarter or a year settled per month. Required. |
-| `nearby`, `roll_days_before_expiry` | The contract month averaged, as on `FuturesFloatingPrice`. Presence-required. |
+| `nearby`, `roll_days_before_expiry` | The contract month averaged, as on `FuturesFloatingPrice`. Presence-required on a contract build; a `400` on a spot build (a spot price has no months). |
 | `quantity_basis` | `PerPeriod` or `PerPricingDay`, as on a swap leg. Required with several periods. |
 | `payment_calendar`, `payment_lag`, `payment_convention` | Each period's payment, as on a swap leg. Required with several periods. |
 | `discounting_curve` | Id of a `pricing.rates.curves` curve (`404` when unknown). Required with several periods. |
 
 With one period the payment terms, `quantity_basis` and
 `discounting_curve` may be left out: the discount factor cancels in a
-one-period quote. When given they are validated and used. Futures contracts
-only: no spot price, no spread on the quote.
+one-period quote. When given they are validated and used. No spread on the
+quote.
 
 ### The rule
 
@@ -1534,6 +1538,82 @@ months from 42.62 to 100.84 that still reprice every quote exactly. The
 report's `max_sensitivity` (with `include_details`) shows it: about 8,171
 on both builds, a month moving up to 8,171 times a change in a quote.
 
+### Spot price builds
+
+With `spot` instead of `contract`, the entry builds a spot price's forward
+points, in the shape `pricing.commodity.spot_prices[]` of a swap request
+takes (`id`, `pricing_calendar`, `pricing_holidays`, `interpolation`,
+`extrapolate_flat`, `points`, `fixings`):
+
+- each point is a node on its date: a point with a `price` is a direct
+  price (as a priced month of a contract), a point without one is an
+  unknown;
+- the average quotes average the spot price over their pricing days, read
+  from the points by the spot's own `interpolation` and `extrapolate_flat`
+  exactly as the swap pricer reads them (a pricing day outside the points
+  without `extrapolate_flat` is the swap's `400`, here with `details`
+  `DateOutsideRange` and the day);
+- unknowns, equations, `Redundant`, conflicts and `Flat` are as for a
+  contract; `Smooth` minimises the squared second divided differences on
+  the date axis (`x` = days from the valuation date / 365), so points
+  spaced unevenly are compared by slope, not by index;
+- a point no quote reads is then filled from the determined points with
+  the spot's `interpolation` (`Interpolated`, or `Extrapolated` with
+  `extrapolate_flat`; outside without it, a `400` naming the date). Points
+  before the valuation date are nodes like the others (the swap pricer
+  interpolates between them);
+- `curves[].interpolation` is a `400` on a spot build (the spot has its
+  own); `nearby` and `roll_days_before_expiry` on a quote are a `400`;
+- the response row has `spot` (paste it into `pricing.commodity.spot_prices`)
+  instead of `contract`, and the report lists `points[]{date, price, source,
+  sensitivities}` instead of `months`; sensitivities and weights name a
+  point by `date`.
+
+A strip of one-month quotes with one point at each month's last pricing day
+(the first one pinned by a direct price, `extrapolate_flat` to hold it before
+that day) reproduces the independent reference values of the same strip to
+1e-9 in price (`examples/data/commodity_curve/synthetic_spot_*.json`).
+
+### Basis contracts
+
+`basis` on a contract build prices the contract as another contract of the
+same request (its base) plus a basis:
+
+| Field | Meaning |
+| --- | --- |
+| `base` | Id of another `curves[]` entry with a `contract`. It is built first, whatever the order in the request (results still come back in request order); a fully priced contract entry is how a finished base is given. Unknown: a `404`. A spot entry, two contracts with that id, the contract itself or a cycle of bases: a `400`. Required. |
+| `base_price` | `SameMonth` or `MonthAverage`: how a month's base price is read. Presence-required. |
+| `base_month_offset` | `SameMonth`: the base month is the basis month minus this many months (`>= 0`, default 0). A `400` with `MonthAverage`. |
+| `base_nearby`, `base_roll_days_before_expiry` | `MonthAverage`: the base month averaged and its roll, as on `FuturesFloatingPrice`. Required with `MonthAverage`, a `400` with `SameMonth`. |
+| `quotes[]` | `{month, value}`: the month's price is base price + `value` (a basis quoted as base minus a value is sent negated). |
+
+- **Base price** of a month M. `SameMonth`: the base month
+  M - `base_month_offset`, its built price when live, its fixing on its last
+  trading date when expired (a `400` when the base does not list it or has
+  no such fixing). `MonthAverage`: the average of the base contract over the
+  pricing days of calendar month M (`base_nearby`, roll), computed by the
+  swap pricer, fixings included.
+- Every live month of the basis contract needs a base price (a `400` naming
+  the month, the base entry and the base month otherwise).
+- A basis quote gives its month a direct price (source `Basis`) that enters
+  the linear system like a futures price, so average quotes can be solved on
+  top of basis quotes. A month with both a `price` and a basis quote, or a
+  basis quote on an expired month, is a `400`.
+- The months left are filled on the **basis** (price - base price of the
+  determined months) with `interpolation` and `extrapolate_flat`, on the
+  basis contract's last trading dates, then their base price is added back.
+  `LogLinear` reads the log of the basis: a basis `<= 0` at a node is a
+  `400`.
+- Each report month adds `base_price` and `basis`. Sensitivities are to the
+  basis entry's own quotes; the sensitivity of a month to its base price is 1
+  (not reported).
+
+The six basis cases of the independent reference (full strip, gaps, basis
+subtracted, month offset, month average, same month) reproduce its month
+prices to 1e-9 and its swap values to 1e-6. The reference shifts the base
+month twice for a month offset of 1; the same base months are read here with
+`base_month_offset` 2.
+
 ### Response
 
 | Field | Meaning |
@@ -1543,7 +1623,9 @@ on both builds, a month moving up to 8,171 times a change in a quote.
 | `curves[].report.rule` | The rule sent (absent when none was sent). |
 | `curves[].report.unknowns`, `equations`, `rank` | Months the quotes touch; direct prices plus average quotes; independent equations. |
 | `curves[].report.max_repricing_difference` | Largest absolute `difference` over the average quotes (0 without any). |
-| `curves[].report.months[]` | Every live month in contract order: `month`, `price`, `source` (`Quoted`, `Solved`, `Assumed`, `Interpolated`, `Extrapolated`). With `include_details`, a `Quoted`, `Solved` or `Assumed` month adds `sensitivities[]`: one entry per input quote (`month` for a direct price, `average_quote` for an average quote's index) with `value`, the change of the month's price per unit change of that quote. |
+| `curves[].spot` | Spot builds, instead of `contract`: the request's spot with every point priced. |
+| `curves[].report.points[]` | Spot builds, instead of `months`: every point in date order, `date`, `price`, `source`, and `sensitivities` as for months. |
+| `curves[].report.months[]` | Every live month in contract order: `month`, `price`, `source` (`Quoted`, `Solved`, `Assumed`, `Interpolated`, `Extrapolated`, `Basis`); on a basis contract also `base_price` and `basis`. With `include_details`, a `Quoted`, `Solved` or `Assumed` month adds `sensitivities[]`: one entry per input quote (`month` for a direct price, `average_quote` for an average quote's index) with `value`, the change of the month's price per unit change of that quote. |
 | `curves[].report.average_quotes[]` | Every average quote in request order: `repriced` (its fair fixed price on the built contract, priced as a swap), `difference` (`repriced` - quoted), `status` (`Used` or `Redundant`). With `include_details`: `weights[]{month, weight}` and `constant`, the quote's equation (`quoted = constant + sum of weight x price`). |
 | `curves[].report.max_sensitivity` | With `include_details`: the largest absolute sensitivity. A large value means some month moves a lot for a small change of a quote: the build is fragile. |
 
@@ -1594,8 +1676,11 @@ program can act on, only those that apply.
 | `month` | The month (`YYYY-MM`) when it is about one month. |
 | `months` | The months it is about when there are several. |
 | `implied_value`, `quoted_value`, `gap` | `QuoteConflict`: the value the other inputs imply, the quoted value and `quoted_value - implied_value`, at full double precision. |
-| `depends_on` | `QuoteConflict`: the inputs the quote is determined by, each `{"month": "YYYY-MM"}` (a direct month price) or `{"average_quote": k}`. |
+| `depends_on` | `QuoteConflict`: the inputs the quote is determined by, each `{"month": "YYYY-MM"}` (a direct month price), `{"date": "YYYY-MM-DD"}` (a spot point's price) or `{"average_quote": k}`. |
 | `rule` | The rule that was applied, when the refusal is specific to it. |
+| `date`, `dates` | Spot builds: the point or pricing day (`YYYY-MM-DD`) it is about, or several. |
+| `base_curve`, `base_month` | Basis contracts: the index of the base entry in `curves` and the base month that has no price. |
+| `cycle` | `BasisCycle`: the indices in `curves` of the entries whose bases form the cycle. |
 
 | `reason` | Fields | When |
 | --- | --- | --- |
@@ -1609,7 +1694,15 @@ program can act on, only those that apply.
 | `InterpolationRequired` | `months` (the months to fill) | Months to fill and no `interpolation`. |
 | `NoPricedMonth` | `months` | Months to fill and no determined month. |
 | `NotFinite` | `month` | A solved or filled price is not finite. |
-| `InvalidInput` | `path`, `curve` and `average_quote` when known | A field missing or malformed, or a value a rule refuses (a quote's periods, `nearby`, roll, a missing payment field, a contract's months or fixings). |
+| `DateOutsideRange` | `date`; `dates`, `average_quote` when they apply | Spot builds: a quote's pricing day or a point to fill lies outside the determined points and `extrapolate_flat` is false. |
+| `NoPricedPoint` | `dates` | Spot builds: points to fill and no determined point. |
+| `UnknownBase` | `path` | `404`: no contract entry has the `basis.base` id. |
+| `BaseNotContract` | `path` | The base is a spot entry, or several contract entries have its id. |
+| `BasisCycle` | `cycle`, `base_curve` | A contract is its own base, or bases form a cycle. |
+| `BaseNotDetermined` | `month`, `base_curve`, `base_month` | A live month's base price cannot be read (base month not listed, expired without its fixing, or the average not computable). |
+| `BasisAndPrice` | `month` | A month has both a `price` and a basis quote. |
+| `BasisOnExpiredMonth` | `month` | A basis quote on an expired month. |
+| `InvalidInput` | `path`, `curve` and `average_quote` when known | A field missing or malformed, or a value a rule refuses (a quote's periods, `nearby`, roll, a missing payment field, a contract's months or fixings, a spot's points, a basis field). |
 
 Example (case B above):
 
@@ -1629,7 +1722,7 @@ Example (case B above):
 
 Without `details`: errors the gateway finds before the engine (malformed
 JSON, an unknown enum name, a field the schema marks required), a `404`
-(unknown `discounting_curve`), and the swap pricer's own messages about a
+other than an unknown base (unknown `discounting_curve`), and the swap pricer's own messages about a
 quote's market data (a missing fixing, a month needed after the last listed
 one). No other endpoint returns `details`.
 

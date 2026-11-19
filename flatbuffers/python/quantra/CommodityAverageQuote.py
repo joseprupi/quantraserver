@@ -55,7 +55,8 @@ class CommodityAverageQuote(object):
         return None
 
     # The contract month averaged, as on `FuturesFloatingPrice`: 1 = front
-    # month. Presence-required, >= 1.
+    # month. Contract builds: presence-required, >= 1. Spot builds: not
+    # given (400).
     # CommodityAverageQuote
     def Nearby(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -64,7 +65,8 @@ class CommodityAverageQuote(object):
         return None
 
     # Roll this many pricing days before the last trading date, as on
-    # `FuturesFloatingPrice`. Presence-required, >= 0.
+    # `FuturesFloatingPrice`. Contract builds: presence-required, >= 0.
+    # Spot builds: not given (400).
     # CommodityAverageQuote
     def RollDaysBeforeExpiry(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))

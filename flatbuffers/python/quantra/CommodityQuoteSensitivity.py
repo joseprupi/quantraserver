@@ -51,8 +51,16 @@ class CommodityQuoteSensitivity(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Date of a direct spot point price (YYYY-MM-DD), instead of `month`.
+    # CommodityQuoteSensitivity
+    def Date(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
 def CommodityQuoteSensitivityStart(builder):
-    builder.StartObject(3)
+    builder.StartObject(4)
 
 def Start(builder):
     CommodityQuoteSensitivityStart(builder)
@@ -75,6 +83,12 @@ def CommodityQuoteSensitivityAddValue(builder, value):
 def AddValue(builder, value):
     CommodityQuoteSensitivityAddValue(builder, value)
 
+def CommodityQuoteSensitivityAddDate(builder, date):
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(date), 0)
+
+def AddDate(builder, date):
+    CommodityQuoteSensitivityAddDate(builder, date)
+
 def CommodityQuoteSensitivityEnd(builder):
     return builder.EndObject()
 
@@ -89,6 +103,7 @@ class CommodityQuoteSensitivityT(object):
         self.month = None  # type: str
         self.averageQuote = None  # type: Optional[int]
         self.value = 0.0  # type: float
+        self.date = None  # type: str
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -114,15 +129,20 @@ class CommodityQuoteSensitivityT(object):
         self.month = commodityQuoteSensitivity.Month()
         self.averageQuote = commodityQuoteSensitivity.AverageQuote()
         self.value = commodityQuoteSensitivity.Value()
+        self.date = commodityQuoteSensitivity.Date()
 
     # CommodityQuoteSensitivityT
     def Pack(self, builder):
         if self.month is not None:
             month = builder.CreateString(self.month)
+        if self.date is not None:
+            date = builder.CreateString(self.date)
         CommodityQuoteSensitivityStart(builder)
         if self.month is not None:
             CommodityQuoteSensitivityAddMonth(builder, month)
         CommodityQuoteSensitivityAddAverageQuote(builder, self.averageQuote)
         CommodityQuoteSensitivityAddValue(builder, self.value)
+        if self.date is not None:
+            CommodityQuoteSensitivityAddDate(builder, date)
         commodityQuoteSensitivity = CommodityQuoteSensitivityEnd(builder)
         return commodityQuoteSensitivity

@@ -21,10 +21,12 @@ table CommodityAverageQuote {
     /// (a quarter or a calendar year settled per month). Required.
     periods:CommodityPeriods (required);
     /// The contract month averaged, as on `FuturesFloatingPrice`: 1 = front
-    /// month. Presence-required, >= 1.
+    /// month. Contract builds: presence-required, >= 1. Spot builds: not
+    /// given (400).
     nearby:int = null;
     /// Roll this many pricing days before the last trading date, as on
-    /// `FuturesFloatingPrice`. Presence-required, >= 0.
+    /// `FuturesFloatingPrice`. Contract builds: presence-required, >= 0.
+    /// Spot builds: not given (400).
     roll_days_before_expiry:int = null;
     /// PerPeriod (each period weighs the same) or PerPricingDay (each period
     /// weighs its pricing days). Required with more than one period; one
@@ -43,9 +45,41 @@ table CommodityAverageQuote {
     discounting_curve:string;
 }
 
-/// One futures contract to build: the months that have a price are futures
-/// quotes, the average quotes are equations on the months they read, and
-/// the live months no quote touches are filled.
+/// One basis quote: the month's price is its base price plus `value`.
+table CommodityBasisQuote {
+    /// A month of the contract being built, "YYYY-MM". Required.
+    month:string (required);
+    /// The basis, added to the base price (a caller quoting base minus
+    /// basis sends the negated value). Presence-required.
+    value:double = null;
+}
+
+/// A contract priced as another contract of the request (the base) plus a
+/// basis.
+table CommodityCurveBasis {
+    /// The contract id of another `curves[]` entry, a contract build, built
+    /// first whatever the order (404 when no entry has that id). A fully
+    /// priced contract entry is how a finished base is given. Required.
+    base:string (required);
+    /// How the base price of a month is read: SameMonth or MonthAverage.
+    /// Presence-required.
+    base_price:enums.CommodityBasisBasePrice = null;
+    /// SameMonth: the base month is the basis month minus this many months
+    /// (>= 0). Not used with MonthAverage.
+    base_month_offset:int = 0;
+    /// MonthAverage: the base contract month averaged and its roll, as on a
+    /// swap leg. Required with MonthAverage, refused with SameMonth.
+    base_nearby:int = null;
+    base_roll_days_before_expiry:int = null;
+    /// The basis quotes. A quoted month gets base + value as its price
+    /// (source Basis); a month with both a price and a basis quote, or a
+    /// basis quote on an expired month, is a 400.
+    quotes:[CommodityBasisQuote];
+}
+
+/// One futures contract or spot price to build: the months (points) that
+/// have a price are quotes, the average quotes are equations on the months
+/// (points) they read, and the ones no quote touches are filled.
 table CommodityCurveBuild {
     /// The contract as `pricing.commodity.contracts[]` of a swap request
     /// takes it. A month with a `price` is a quote and is returned
@@ -54,8 +88,9 @@ table CommodityCurveBuild {
     /// them reads it, otherwise filled with `interpolation`. A month whose
     /// last trading date is before the valuation date is returned as sent
     /// (it is read through fixings). Fixings, pricing calendar and pricing
-    /// holidays are returned unchanged. Required.
-    contract:CommodityContractSpec (required);
+    /// holidays are returned unchanged. Exactly one of `contract` and `spot`
+    /// is given (400 otherwise).
+    contract:CommodityContractSpec;
     /// How a live month no quote touches is filled from the determined
     /// months (quoted, solved or assumed): Linear, LogLinear, BackwardFlat,
     /// ForwardFlat, KrugerCubic or NaturalCubic (see
@@ -75,6 +110,21 @@ table CommodityCurveBuild {
     /// (400 listing those months otherwise): Flat or Smooth. When they do,
     /// it is validated and echoed and changes nothing.
     rule:enums.CommodityCurveRule = null;
+    /// A spot price to build instead of a contract, as
+    /// `pricing.commodity.spot_prices[]` of a swap request takes it. Its
+    /// `points` are the nodes, at the dates the caller chose: a point with a
+    /// `price` is a quote and is returned unchanged, a point without one is
+    /// solved from the average quotes that read it or, when none does, read
+    /// from the determined points with the spot's own `interpolation` and
+    /// `extrapolate_flat`. The average quotes average the spot price (no
+    /// `nearby` / `roll_days_before_expiry`); `interpolation` above is not
+    /// given (400). Exactly one of `contract` and `spot`.
+    spot:CommoditySpotSpec;
+    /// Contract builds: the contract is a basis to another contract of the
+    /// request. The live months no quote touches are then filled on their
+    /// basis (price - base price) with `interpolation` / `extrapolate_flat`,
+    /// and the base price is added back.
+    basis:CommodityCurveBasis;
 }
 
 /// Request to build one or more futures contracts from futures prices and

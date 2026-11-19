@@ -16,3 +16,5 @@ class CommodityMonthSource(object):
     # Not touched by any quote, outside the determined months: the nearest
     # one (extrapolate_flat).
     Extrapolated = 4
+    # A basis quote: the base price plus the basis.
+    Basis = 5

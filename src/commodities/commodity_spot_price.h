@@ -15,6 +15,7 @@
  */
 
 #include "commodity_pricing_days.h"
+#include "error.h"
 
 #include <ql/time/date.hpp>
 
@@ -45,6 +46,18 @@ struct SpotPointWeight {
     double weight = 0.0;
 };
 
+/// A date read outside the points while extrapolate_flat is false: the
+/// invalid argument SpotPrice::weights raises, with the date as data.
+class SpotDateOutsidePoints : public QuantraInvalidArgument {
+public:
+    SpotDateOutsidePoints(const std::string& message, const QuantLib::Date& date)
+        : QuantraInvalidArgument(message), date_(date) {}
+    const QuantLib::Date& date() const { return date_; }
+
+private:
+    QuantLib::Date date_;
+};
+
 class SpotPrice {
 public:
     /// Validates the values: at least one point; point dates strictly
@@ -61,13 +74,15 @@ public:
     const std::string& id() const { return id_; }
     const PricingCalendar& pricingCalendar() const { return pricingCalendar_; }
     const std::vector<SpotPoint>& points() const { return points_; }
+    SpotInterpolation interpolation() const { return interpolation_; }
+    bool extrapolateFlat() const { return extrapolateFlat_; }
 
     /// Interpolated forward price on `date`: weightedPrice(weights(date)).
     double forward(const QuantLib::Date& date) const;
 
     /// The points the forward price on `date` is made of and their weights;
-    /// weights that are 0 are left out. Invalid argument outside the points
-    /// unless extrapolating.
+    /// weights that are 0 are left out. SpotDateOutsidePoints outside the
+    /// points unless extrapolating.
     std::vector<SpotPointWeight> weights(const QuantLib::Date& date) const;
 
     /// Sum of weight * point price over `weights` (from weights()).

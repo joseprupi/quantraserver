@@ -1,0 +1,4948 @@
+{
+ "note": "Futures contracts built as a basis to another contract on synthetic data, with independent reference values for every month price and for swaps on the built contract.",
+ "cases": {
+  "basis_full": {
+   "request": {
+    "pricing": {
+     "as_of_date": "2026-11-13",
+     "rates": {
+      "curves": [
+       {
+        "id": "USD_DISC",
+        "reference_date": "2026-11-13",
+        "day_counter": "Actual365Fixed",
+        "interpolator": "LogLinear",
+        "bootstrap_trait": "InterpolatedDiscount",
+        "points": [
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2026-11-13",
+           "discount_factor": 1.0
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2026-12-13",
+           "discount_factor": 0.9967177272404354
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-01-13",
+           "discount_factor": 0.9933373629411609
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-02-12",
+           "discount_factor": 0.9900769587737215
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-03-15",
+           "discount_factor": 0.9867191166148997
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-04-14",
+           "discount_factor": 0.9834804353370931
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-05-14",
+           "discount_factor": 0.9802523842946214
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-06-14",
+           "discount_factor": 0.976927862141973
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-07-14",
+           "discount_factor": 0.9737213184320047
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-08-14",
+           "discount_factor": 0.9704189463638535
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-09-13",
+           "discount_factor": 0.967233766690838
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-10-14",
+           "discount_factor": 0.9639533971292101
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-11-13",
+           "discount_factor": 0.9607894391523232
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-12-13",
+           "discount_factor": 0.9576358661485161
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-01-13",
+           "discount_factor": 0.9543880478292858
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-02-12",
+           "discount_factor": 0.9512554859378417
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-03-14",
+           "discount_factor": 0.9480293066533053
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-04-13",
+           "discount_factor": 0.9449176158848083
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-05-14",
+           "discount_factor": 0.9417129314619316
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-06-13",
+           "discount_factor": 0.9386219727596643
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-07-13",
+           "discount_factor": 0.9355411594269465
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-08-13",
+           "discount_factor": 0.9323682752197152
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-09-12",
+           "discount_factor": 0.9293079882280794
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-10-13",
+           "discount_factor": 0.9261562437967505
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-11-12",
+           "discount_factor": 0.9231163463866358
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-12-12",
+           "discount_factor": 0.9200864267489821
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-01-12",
+           "discount_factor": 0.9169659572075801
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-02-11",
+           "discount_factor": 0.9139562248247896
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-03-14",
+           "discount_factor": 0.9108565458393951
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-04-13",
+           "discount_factor": 0.9078668662111153
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-05-13",
+           "discount_factor": 0.9048869995268393
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-06-13",
+           "discount_factor": 0.9018180787838052
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-07-13",
+           "discount_factor": 0.8988580658697302
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-08-13",
+           "discount_factor": 0.8958095922317691
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-09-12",
+           "discount_factor": 0.8928693008094302
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-10-13",
+           "discount_factor": 0.8898411380449023
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-11-12",
+           "discount_factor": 0.8869204367171575
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-12-12",
+           "discount_factor": 0.8840093219278197
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-01-12",
+           "discount_factor": 0.8810112077472441
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-02-11",
+           "discount_factor": 0.8781194886591842
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-03-14",
+           "discount_factor": 0.8751413498252548
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-04-13",
+           "discount_factor": 0.8722688972119548
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-05-14",
+           "discount_factor": 0.8693106006361866
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-06-13",
+           "discount_factor": 0.8664572861321177
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-07-13",
+           "discount_factor": 0.86361333698452
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-08-13",
+           "discount_factor": 0.8606843957076328
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-09-12",
+           "discount_factor": 0.8578593947610194
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-10-13",
+           "discount_factor": 0.8549499679568267
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-11-12",
+           "discount_factor": 0.8521437889662113
+          }
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "curves": [
+     {
+      "contract": {
+       "id": "SYN_BAS",
+       "pricing_calendar": "WeekendsOnly",
+       "pricing_holidays": [
+        "2026-11-26",
+        "2026-12-25",
+        "2027-01-01",
+        "2027-01-18",
+        "2027-02-15",
+        "2027-03-26",
+        "2027-05-31",
+        "2027-07-05",
+        "2027-09-06",
+        "2027-11-25",
+        "2027-12-24",
+        "2028-01-17"
+       ],
+       "months": [
+        {
+         "month": "2026-12",
+         "last_trade_date": "2026-11-24"
+        },
+        {
+         "month": "2027-01",
+         "last_trade_date": "2026-12-23"
+        },
+        {
+         "month": "2027-02",
+         "last_trade_date": "2027-01-22"
+        },
+        {
+         "month": "2027-03",
+         "last_trade_date": "2027-02-24"
+        },
+        {
+         "month": "2027-04",
+         "last_trade_date": "2027-03-24"
+        },
+        {
+         "month": "2027-05",
+         "last_trade_date": "2027-04-22"
+        },
+        {
+         "month": "2027-06",
+         "last_trade_date": "2027-05-24"
+        },
+        {
+         "month": "2027-07",
+         "last_trade_date": "2027-06-24"
+        },
+        {
+         "month": "2027-08",
+         "last_trade_date": "2027-07-22"
+        },
+        {
+         "month": "2027-09",
+         "last_trade_date": "2027-08-24"
+        },
+        {
+         "month": "2027-10",
+         "last_trade_date": "2027-09-23"
+        },
+        {
+         "month": "2027-11",
+         "last_trade_date": "2027-10-22"
+        },
+        {
+         "month": "2027-12",
+         "last_trade_date": "2027-11-23"
+        },
+        {
+         "month": "2028-01",
+         "last_trade_date": "2027-12-22"
+        }
+       ]
+      },
+      "basis": {
+       "base": "SYN_CL",
+       "base_price": "SameMonth",
+       "quotes": [
+        {
+         "month": "2026-12",
+         "value": 0.8
+        },
+        {
+         "month": "2027-01",
+         "value": 0.75
+        },
+        {
+         "month": "2027-02",
+         "value": 0.7
+        },
+        {
+         "month": "2027-03",
+         "value": 0.72
+        },
+        {
+         "month": "2027-04",
+         "value": 0.78
+        },
+        {
+         "month": "2027-05",
+         "value": 0.85
+        },
+        {
+         "month": "2027-06",
+         "value": 0.9
+        },
+        {
+         "month": "2027-07",
+         "value": 0.95
+        },
+        {
+         "month": "2027-08",
+         "value": 0.92
+        },
+        {
+         "month": "2027-09",
+         "value": 0.88
+        },
+        {
+         "month": "2027-10",
+         "value": 0.85
+        },
+        {
+         "month": "2027-11",
+         "value": 0.83
+        },
+        {
+         "month": "2027-12",
+         "value": 0.8
+        },
+        {
+         "month": "2028-01",
+         "value": 0.78
+        }
+       ]
+      },
+      "interpolation": "Linear",
+      "extrapolate_flat": false
+     },
+     {
+      "contract": {
+       "id": "SYN_CL",
+       "pricing_calendar": "WeekendsOnly",
+       "pricing_holidays": [
+        "2026-11-26",
+        "2026-12-25",
+        "2027-01-01",
+        "2027-01-18",
+        "2027-02-15",
+        "2027-03-26",
+        "2027-05-31",
+        "2027-07-05",
+        "2027-09-06",
+        "2027-11-25",
+        "2027-12-24",
+        "2028-01-17"
+       ],
+       "months": [
+        {
+         "month": "2026-10",
+         "last_trade_date": "2026-09-22"
+        },
+        {
+         "month": "2026-11",
+         "last_trade_date": "2026-10-20"
+        },
+        {
+         "month": "2026-12",
+         "last_trade_date": "2026-11-20",
+         "price": 60.0
+        },
+        {
+         "month": "2027-01",
+         "last_trade_date": "2026-12-21",
+         "price": 60.4
+        },
+        {
+         "month": "2027-02",
+         "last_trade_date": "2027-01-20",
+         "price": 60.7
+        },
+        {
+         "month": "2027-03",
+         "last_trade_date": "2027-02-22",
+         "price": 61.0
+        },
+        {
+         "month": "2027-04",
+         "last_trade_date": "2027-03-22",
+         "price": 61.2
+        },
+        {
+         "month": "2027-05",
+         "last_trade_date": "2027-04-20",
+         "price": 61.4
+        },
+        {
+         "month": "2027-06",
+         "last_trade_date": "2027-05-20",
+         "price": 61.5
+        },
+        {
+         "month": "2027-07",
+         "last_trade_date": "2027-06-22",
+         "price": 61.6
+        },
+        {
+         "month": "2027-08",
+         "last_trade_date": "2027-07-20",
+         "price": 61.7
+        },
+        {
+         "month": "2027-09",
+         "last_trade_date": "2027-08-20",
+         "price": 61.8
+        },
+        {
+         "month": "2027-10",
+         "last_trade_date": "2027-09-21",
+         "price": 61.9
+        },
+        {
+         "month": "2027-11",
+         "last_trade_date": "2027-10-20",
+         "price": 62.0
+        },
+        {
+         "month": "2027-12",
+         "last_trade_date": "2027-11-19",
+         "price": 62.1
+        },
+        {
+         "month": "2028-01",
+         "last_trade_date": "2027-12-20",
+         "price": 62.2
+        },
+        {
+         "month": "2028-02",
+         "last_trade_date": "2028-01-20",
+         "price": 62.2
+        }
+       ],
+       "fixings": [
+        {
+         "month": "2026-10",
+         "date": "2026-09-22",
+         "value": 58.6
+        },
+        {
+         "month": "2026-11",
+         "date": "2026-10-20",
+         "value": 59.3
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-02",
+         "value": 59.0
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-03",
+         "value": 59.25
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-04",
+         "value": 59.5
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-05",
+         "value": 59.75
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-06",
+         "value": 60.0
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-09",
+         "value": 60.25
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-10",
+         "value": 60.5
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-11",
+         "value": 60.25
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-12",
+         "value": 60.0
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "expected_month_prices": {
+    "2026-12": 60.8,
+    "2027-01": 61.15,
+    "2027-02": 61.400000000000006,
+    "2027-03": 61.72,
+    "2027-04": 61.980000000000004,
+    "2027-05": 62.25,
+    "2027-06": 62.4,
+    "2027-07": 62.550000000000004,
+    "2027-08": 62.620000000000005,
+    "2027-09": 62.68,
+    "2027-10": 62.75,
+    "2027-11": 62.83,
+    "2027-12": 62.9,
+    "2028-01": 62.980000000000004
+   },
+   "swaps": [
+    {
+     "id": "SWAP_B_ROLL0",
+     "npv": 34592.06562694069,
+     "commodity_swap": {
+      "leg1": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2026-12-01",
+          "end_date": "2026-12-31"
+         },
+         {
+          "start_date": "2027-01-01",
+          "end_date": "2027-01-31"
+         },
+         {
+          "start_date": "2027-02-01",
+          "end_date": "2027-02-28"
+         },
+         {
+          "start_date": "2027-03-01",
+          "end_date": "2027-03-31"
+         },
+         {
+          "start_date": "2027-04-01",
+          "end_date": "2027-04-30"
+         },
+         {
+          "start_date": "2027-05-01",
+          "end_date": "2027-05-31"
+         },
+         {
+          "start_date": "2027-06-01",
+          "end_date": "2027-06-30"
+         },
+         {
+          "start_date": "2027-07-01",
+          "end_date": "2027-07-31"
+         },
+         {
+          "start_date": "2027-08-01",
+          "end_date": "2027-08-31"
+         },
+         {
+          "start_date": "2027-09-01",
+          "end_date": "2027-09-30"
+         },
+         {
+          "start_date": "2027-10-01",
+          "end_date": "2027-10-31"
+         },
+         {
+          "start_date": "2027-11-01",
+          "end_date": "2027-11-30"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Pay",
+       "price_type": "CommodityFixedPrice",
+       "price": {
+        "price": 62.0
+       }
+      },
+      "leg2": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2026-12-01",
+          "end_date": "2026-12-31"
+         },
+         {
+          "start_date": "2027-01-01",
+          "end_date": "2027-01-31"
+         },
+         {
+          "start_date": "2027-02-01",
+          "end_date": "2027-02-28"
+         },
+         {
+          "start_date": "2027-03-01",
+          "end_date": "2027-03-31"
+         },
+         {
+          "start_date": "2027-04-01",
+          "end_date": "2027-04-30"
+         },
+         {
+          "start_date": "2027-05-01",
+          "end_date": "2027-05-31"
+         },
+         {
+          "start_date": "2027-06-01",
+          "end_date": "2027-06-30"
+         },
+         {
+          "start_date": "2027-07-01",
+          "end_date": "2027-07-31"
+         },
+         {
+          "start_date": "2027-08-01",
+          "end_date": "2027-08-31"
+         },
+         {
+          "start_date": "2027-09-01",
+          "end_date": "2027-09-30"
+         },
+         {
+          "start_date": "2027-10-01",
+          "end_date": "2027-10-31"
+         },
+         {
+          "start_date": "2027-11-01",
+          "end_date": "2027-11-30"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Receive",
+       "price_type": "FuturesFloatingPrice",
+       "price": {
+        "contract_id": "SYN_BAS",
+        "nearby": 1,
+        "roll_days_before_expiry": 0
+       }
+      }
+     }
+    },
+    {
+     "id": "SWAP_B_ROLL2_MID",
+     "npv": 4511.952969191363,
+     "commodity_swap": {
+      "leg1": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2027-02-15",
+          "end_date": "2027-03-14"
+         },
+         {
+          "start_date": "2027-03-15",
+          "end_date": "2027-04-14"
+         },
+         {
+          "start_date": "2027-04-15",
+          "end_date": "2027-05-14"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Pay",
+       "price_type": "CommodityFixedPrice",
+       "price": {
+        "price": 62.0
+       }
+      },
+      "leg2": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2027-02-15",
+          "end_date": "2027-03-14"
+         },
+         {
+          "start_date": "2027-03-15",
+          "end_date": "2027-04-14"
+         },
+         {
+          "start_date": "2027-04-15",
+          "end_date": "2027-05-14"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Receive",
+       "price_type": "FuturesFloatingPrice",
+       "price": {
+        "contract_id": "SYN_BAS",
+        "nearby": 1,
+        "roll_days_before_expiry": 2
+       }
+      }
+     }
+    }
+   ]
+  },
+  "basis_gaps": {
+   "request": {
+    "pricing": {
+     "as_of_date": "2026-11-13",
+     "rates": {
+      "curves": [
+       {
+        "id": "USD_DISC",
+        "reference_date": "2026-11-13",
+        "day_counter": "Actual365Fixed",
+        "interpolator": "LogLinear",
+        "bootstrap_trait": "InterpolatedDiscount",
+        "points": [
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2026-11-13",
+           "discount_factor": 1.0
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2026-12-13",
+           "discount_factor": 0.9967177272404354
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-01-13",
+           "discount_factor": 0.9933373629411609
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-02-12",
+           "discount_factor": 0.9900769587737215
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-03-15",
+           "discount_factor": 0.9867191166148997
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-04-14",
+           "discount_factor": 0.9834804353370931
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-05-14",
+           "discount_factor": 0.9802523842946214
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-06-14",
+           "discount_factor": 0.976927862141973
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-07-14",
+           "discount_factor": 0.9737213184320047
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-08-14",
+           "discount_factor": 0.9704189463638535
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-09-13",
+           "discount_factor": 0.967233766690838
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-10-14",
+           "discount_factor": 0.9639533971292101
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-11-13",
+           "discount_factor": 0.9607894391523232
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-12-13",
+           "discount_factor": 0.9576358661485161
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-01-13",
+           "discount_factor": 0.9543880478292858
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-02-12",
+           "discount_factor": 0.9512554859378417
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-03-14",
+           "discount_factor": 0.9480293066533053
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-04-13",
+           "discount_factor": 0.9449176158848083
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-05-14",
+           "discount_factor": 0.9417129314619316
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-06-13",
+           "discount_factor": 0.9386219727596643
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-07-13",
+           "discount_factor": 0.9355411594269465
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-08-13",
+           "discount_factor": 0.9323682752197152
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-09-12",
+           "discount_factor": 0.9293079882280794
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-10-13",
+           "discount_factor": 0.9261562437967505
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-11-12",
+           "discount_factor": 0.9231163463866358
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-12-12",
+           "discount_factor": 0.9200864267489821
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-01-12",
+           "discount_factor": 0.9169659572075801
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-02-11",
+           "discount_factor": 0.9139562248247896
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-03-14",
+           "discount_factor": 0.9108565458393951
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-04-13",
+           "discount_factor": 0.9078668662111153
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-05-13",
+           "discount_factor": 0.9048869995268393
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-06-13",
+           "discount_factor": 0.9018180787838052
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-07-13",
+           "discount_factor": 0.8988580658697302
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-08-13",
+           "discount_factor": 0.8958095922317691
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-09-12",
+           "discount_factor": 0.8928693008094302
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-10-13",
+           "discount_factor": 0.8898411380449023
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-11-12",
+           "discount_factor": 0.8869204367171575
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-12-12",
+           "discount_factor": 0.8840093219278197
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-01-12",
+           "discount_factor": 0.8810112077472441
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-02-11",
+           "discount_factor": 0.8781194886591842
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-03-14",
+           "discount_factor": 0.8751413498252548
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-04-13",
+           "discount_factor": 0.8722688972119548
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-05-14",
+           "discount_factor": 0.8693106006361866
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-06-13",
+           "discount_factor": 0.8664572861321177
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-07-13",
+           "discount_factor": 0.86361333698452
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-08-13",
+           "discount_factor": 0.8606843957076328
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-09-12",
+           "discount_factor": 0.8578593947610194
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-10-13",
+           "discount_factor": 0.8549499679568267
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-11-12",
+           "discount_factor": 0.8521437889662113
+          }
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "curves": [
+     {
+      "contract": {
+       "id": "SYN_BAS",
+       "pricing_calendar": "WeekendsOnly",
+       "pricing_holidays": [
+        "2026-11-26",
+        "2026-12-25",
+        "2027-01-01",
+        "2027-01-18",
+        "2027-02-15",
+        "2027-03-26",
+        "2027-05-31",
+        "2027-07-05",
+        "2027-09-06",
+        "2027-11-25",
+        "2027-12-24",
+        "2028-01-17"
+       ],
+       "months": [
+        {
+         "month": "2026-12",
+         "last_trade_date": "2026-11-24"
+        },
+        {
+         "month": "2027-01",
+         "last_trade_date": "2026-12-23"
+        },
+        {
+         "month": "2027-02",
+         "last_trade_date": "2027-01-22"
+        },
+        {
+         "month": "2027-03",
+         "last_trade_date": "2027-02-24"
+        },
+        {
+         "month": "2027-04",
+         "last_trade_date": "2027-03-24"
+        },
+        {
+         "month": "2027-05",
+         "last_trade_date": "2027-04-22"
+        },
+        {
+         "month": "2027-06",
+         "last_trade_date": "2027-05-24"
+        },
+        {
+         "month": "2027-07",
+         "last_trade_date": "2027-06-24"
+        },
+        {
+         "month": "2027-08",
+         "last_trade_date": "2027-07-22"
+        },
+        {
+         "month": "2027-09",
+         "last_trade_date": "2027-08-24"
+        },
+        {
+         "month": "2027-10",
+         "last_trade_date": "2027-09-23"
+        },
+        {
+         "month": "2027-11",
+         "last_trade_date": "2027-10-22"
+        },
+        {
+         "month": "2027-12",
+         "last_trade_date": "2027-11-23"
+        },
+        {
+         "month": "2028-01",
+         "last_trade_date": "2027-12-22"
+        }
+       ]
+      },
+      "basis": {
+       "base": "SYN_CL",
+       "base_price": "SameMonth",
+       "quotes": [
+        {
+         "month": "2027-01",
+         "value": 0.75
+        },
+        {
+         "month": "2027-04",
+         "value": 0.78
+        },
+        {
+         "month": "2027-05",
+         "value": 0.85
+        },
+        {
+         "month": "2027-07",
+         "value": 0.95
+        },
+        {
+         "month": "2027-08",
+         "value": 0.92
+        },
+        {
+         "month": "2027-10",
+         "value": 0.85
+        },
+        {
+         "month": "2027-11",
+         "value": 0.83
+        }
+       ]
+      },
+      "interpolation": "Linear",
+      "extrapolate_flat": true
+     },
+     {
+      "contract": {
+       "id": "SYN_CL",
+       "pricing_calendar": "WeekendsOnly",
+       "pricing_holidays": [
+        "2026-11-26",
+        "2026-12-25",
+        "2027-01-01",
+        "2027-01-18",
+        "2027-02-15",
+        "2027-03-26",
+        "2027-05-31",
+        "2027-07-05",
+        "2027-09-06",
+        "2027-11-25",
+        "2027-12-24",
+        "2028-01-17"
+       ],
+       "months": [
+        {
+         "month": "2026-10",
+         "last_trade_date": "2026-09-22"
+        },
+        {
+         "month": "2026-11",
+         "last_trade_date": "2026-10-20"
+        },
+        {
+         "month": "2026-12",
+         "last_trade_date": "2026-11-20",
+         "price": 60.0
+        },
+        {
+         "month": "2027-01",
+         "last_trade_date": "2026-12-21",
+         "price": 60.4
+        },
+        {
+         "month": "2027-02",
+         "last_trade_date": "2027-01-20",
+         "price": 60.7
+        },
+        {
+         "month": "2027-03",
+         "last_trade_date": "2027-02-22",
+         "price": 61.0
+        },
+        {
+         "month": "2027-04",
+         "last_trade_date": "2027-03-22",
+         "price": 61.2
+        },
+        {
+         "month": "2027-05",
+         "last_trade_date": "2027-04-20",
+         "price": 61.4
+        },
+        {
+         "month": "2027-06",
+         "last_trade_date": "2027-05-20",
+         "price": 61.5
+        },
+        {
+         "month": "2027-07",
+         "last_trade_date": "2027-06-22",
+         "price": 61.6
+        },
+        {
+         "month": "2027-08",
+         "last_trade_date": "2027-07-20",
+         "price": 61.7
+        },
+        {
+         "month": "2027-09",
+         "last_trade_date": "2027-08-20",
+         "price": 61.8
+        },
+        {
+         "month": "2027-10",
+         "last_trade_date": "2027-09-21",
+         "price": 61.9
+        },
+        {
+         "month": "2027-11",
+         "last_trade_date": "2027-10-20",
+         "price": 62.0
+        },
+        {
+         "month": "2027-12",
+         "last_trade_date": "2027-11-19",
+         "price": 62.1
+        },
+        {
+         "month": "2028-01",
+         "last_trade_date": "2027-12-20",
+         "price": 62.2
+        },
+        {
+         "month": "2028-02",
+         "last_trade_date": "2028-01-20",
+         "price": 62.2
+        }
+       ],
+       "fixings": [
+        {
+         "month": "2026-10",
+         "date": "2026-09-22",
+         "value": 58.6
+        },
+        {
+         "month": "2026-11",
+         "date": "2026-10-20",
+         "value": 59.3
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-02",
+         "value": 59.0
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-03",
+         "value": 59.25
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-04",
+         "value": 59.5
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-05",
+         "value": 59.75
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-06",
+         "value": 60.0
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-09",
+         "value": 60.25
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-10",
+         "value": 60.5
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-11",
+         "value": 60.25
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-12",
+         "value": 60.0
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "expected_month_prices": {
+    "2026-12": 60.75,
+    "2027-01": 61.15,
+    "2027-02": 61.45989010989011,
+    "2027-03": 61.77076923076923,
+    "2027-04": 61.980000000000004,
+    "2027-05": 62.25,
+    "2027-06": 62.40079365079365,
+    "2027-07": 62.550000000000004,
+    "2027-08": 62.620000000000005,
+    "2027-09": 62.68333333333333,
+    "2027-10": 62.75,
+    "2027-11": 62.83,
+    "2027-12": 62.93,
+    "2028-01": 63.03
+   },
+   "swaps": [
+    {
+     "id": "SWAP_B_ROLL0",
+     "npv": 36180.86862177681,
+     "commodity_swap": {
+      "leg1": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2026-12-01",
+          "end_date": "2026-12-31"
+         },
+         {
+          "start_date": "2027-01-01",
+          "end_date": "2027-01-31"
+         },
+         {
+          "start_date": "2027-02-01",
+          "end_date": "2027-02-28"
+         },
+         {
+          "start_date": "2027-03-01",
+          "end_date": "2027-03-31"
+         },
+         {
+          "start_date": "2027-04-01",
+          "end_date": "2027-04-30"
+         },
+         {
+          "start_date": "2027-05-01",
+          "end_date": "2027-05-31"
+         },
+         {
+          "start_date": "2027-06-01",
+          "end_date": "2027-06-30"
+         },
+         {
+          "start_date": "2027-07-01",
+          "end_date": "2027-07-31"
+         },
+         {
+          "start_date": "2027-08-01",
+          "end_date": "2027-08-31"
+         },
+         {
+          "start_date": "2027-09-01",
+          "end_date": "2027-09-30"
+         },
+         {
+          "start_date": "2027-10-01",
+          "end_date": "2027-10-31"
+         },
+         {
+          "start_date": "2027-11-01",
+          "end_date": "2027-11-30"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Pay",
+       "price_type": "CommodityFixedPrice",
+       "price": {
+        "price": 62.0
+       }
+      },
+      "leg2": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2026-12-01",
+          "end_date": "2026-12-31"
+         },
+         {
+          "start_date": "2027-01-01",
+          "end_date": "2027-01-31"
+         },
+         {
+          "start_date": "2027-02-01",
+          "end_date": "2027-02-28"
+         },
+         {
+          "start_date": "2027-03-01",
+          "end_date": "2027-03-31"
+         },
+         {
+          "start_date": "2027-04-01",
+          "end_date": "2027-04-30"
+         },
+         {
+          "start_date": "2027-05-01",
+          "end_date": "2027-05-31"
+         },
+         {
+          "start_date": "2027-06-01",
+          "end_date": "2027-06-30"
+         },
+         {
+          "start_date": "2027-07-01",
+          "end_date": "2027-07-31"
+         },
+         {
+          "start_date": "2027-08-01",
+          "end_date": "2027-08-31"
+         },
+         {
+          "start_date": "2027-09-01",
+          "end_date": "2027-09-30"
+         },
+         {
+          "start_date": "2027-10-01",
+          "end_date": "2027-10-31"
+         },
+         {
+          "start_date": "2027-11-01",
+          "end_date": "2027-11-30"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Receive",
+       "price_type": "FuturesFloatingPrice",
+       "price": {
+        "contract_id": "SYN_BAS",
+        "nearby": 1,
+        "roll_days_before_expiry": 0
+       }
+      }
+     }
+    },
+    {
+     "id": "SWAP_B_ROLL2_MID",
+     "npv": 4650.084457832854,
+     "commodity_swap": {
+      "leg1": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2027-02-15",
+          "end_date": "2027-03-14"
+         },
+         {
+          "start_date": "2027-03-15",
+          "end_date": "2027-04-14"
+         },
+         {
+          "start_date": "2027-04-15",
+          "end_date": "2027-05-14"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Pay",
+       "price_type": "CommodityFixedPrice",
+       "price": {
+        "price": 62.0
+       }
+      },
+      "leg2": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2027-02-15",
+          "end_date": "2027-03-14"
+         },
+         {
+          "start_date": "2027-03-15",
+          "end_date": "2027-04-14"
+         },
+         {
+          "start_date": "2027-04-15",
+          "end_date": "2027-05-14"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Receive",
+       "price_type": "FuturesFloatingPrice",
+       "price": {
+        "contract_id": "SYN_BAS",
+        "nearby": 1,
+        "roll_days_before_expiry": 2
+       }
+      }
+     }
+    }
+   ]
+  },
+  "basis_subtract": {
+   "request": {
+    "pricing": {
+     "as_of_date": "2026-11-13",
+     "rates": {
+      "curves": [
+       {
+        "id": "USD_DISC",
+        "reference_date": "2026-11-13",
+        "day_counter": "Actual365Fixed",
+        "interpolator": "LogLinear",
+        "bootstrap_trait": "InterpolatedDiscount",
+        "points": [
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2026-11-13",
+           "discount_factor": 1.0
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2026-12-13",
+           "discount_factor": 0.9967177272404354
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-01-13",
+           "discount_factor": 0.9933373629411609
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-02-12",
+           "discount_factor": 0.9900769587737215
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-03-15",
+           "discount_factor": 0.9867191166148997
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-04-14",
+           "discount_factor": 0.9834804353370931
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-05-14",
+           "discount_factor": 0.9802523842946214
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-06-14",
+           "discount_factor": 0.976927862141973
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-07-14",
+           "discount_factor": 0.9737213184320047
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-08-14",
+           "discount_factor": 0.9704189463638535
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-09-13",
+           "discount_factor": 0.967233766690838
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-10-14",
+           "discount_factor": 0.9639533971292101
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-11-13",
+           "discount_factor": 0.9607894391523232
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-12-13",
+           "discount_factor": 0.9576358661485161
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-01-13",
+           "discount_factor": 0.9543880478292858
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-02-12",
+           "discount_factor": 0.9512554859378417
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-03-14",
+           "discount_factor": 0.9480293066533053
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-04-13",
+           "discount_factor": 0.9449176158848083
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-05-14",
+           "discount_factor": 0.9417129314619316
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-06-13",
+           "discount_factor": 0.9386219727596643
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-07-13",
+           "discount_factor": 0.9355411594269465
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-08-13",
+           "discount_factor": 0.9323682752197152
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-09-12",
+           "discount_factor": 0.9293079882280794
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-10-13",
+           "discount_factor": 0.9261562437967505
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-11-12",
+           "discount_factor": 0.9231163463866358
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-12-12",
+           "discount_factor": 0.9200864267489821
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-01-12",
+           "discount_factor": 0.9169659572075801
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-02-11",
+           "discount_factor": 0.9139562248247896
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-03-14",
+           "discount_factor": 0.9108565458393951
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-04-13",
+           "discount_factor": 0.9078668662111153
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-05-13",
+           "discount_factor": 0.9048869995268393
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-06-13",
+           "discount_factor": 0.9018180787838052
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-07-13",
+           "discount_factor": 0.8988580658697302
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-08-13",
+           "discount_factor": 0.8958095922317691
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-09-12",
+           "discount_factor": 0.8928693008094302
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-10-13",
+           "discount_factor": 0.8898411380449023
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-11-12",
+           "discount_factor": 0.8869204367171575
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-12-12",
+           "discount_factor": 0.8840093219278197
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-01-12",
+           "discount_factor": 0.8810112077472441
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-02-11",
+           "discount_factor": 0.8781194886591842
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-03-14",
+           "discount_factor": 0.8751413498252548
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-04-13",
+           "discount_factor": 0.8722688972119548
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-05-14",
+           "discount_factor": 0.8693106006361866
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-06-13",
+           "discount_factor": 0.8664572861321177
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-07-13",
+           "discount_factor": 0.86361333698452
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-08-13",
+           "discount_factor": 0.8606843957076328
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-09-12",
+           "discount_factor": 0.8578593947610194
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-10-13",
+           "discount_factor": 0.8549499679568267
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-11-12",
+           "discount_factor": 0.8521437889662113
+          }
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "curves": [
+     {
+      "contract": {
+       "id": "SYN_BAS",
+       "pricing_calendar": "WeekendsOnly",
+       "pricing_holidays": [
+        "2026-11-26",
+        "2026-12-25",
+        "2027-01-01",
+        "2027-01-18",
+        "2027-02-15",
+        "2027-03-26",
+        "2027-05-31",
+        "2027-07-05",
+        "2027-09-06",
+        "2027-11-25",
+        "2027-12-24",
+        "2028-01-17"
+       ],
+       "months": [
+        {
+         "month": "2026-12",
+         "last_trade_date": "2026-11-24"
+        },
+        {
+         "month": "2027-01",
+         "last_trade_date": "2026-12-23"
+        },
+        {
+         "month": "2027-02",
+         "last_trade_date": "2027-01-22"
+        },
+        {
+         "month": "2027-03",
+         "last_trade_date": "2027-02-24"
+        },
+        {
+         "month": "2027-04",
+         "last_trade_date": "2027-03-24"
+        },
+        {
+         "month": "2027-05",
+         "last_trade_date": "2027-04-22"
+        },
+        {
+         "month": "2027-06",
+         "last_trade_date": "2027-05-24"
+        },
+        {
+         "month": "2027-07",
+         "last_trade_date": "2027-06-24"
+        },
+        {
+         "month": "2027-08",
+         "last_trade_date": "2027-07-22"
+        },
+        {
+         "month": "2027-09",
+         "last_trade_date": "2027-08-24"
+        },
+        {
+         "month": "2027-10",
+         "last_trade_date": "2027-09-23"
+        },
+        {
+         "month": "2027-11",
+         "last_trade_date": "2027-10-22"
+        },
+        {
+         "month": "2027-12",
+         "last_trade_date": "2027-11-23"
+        },
+        {
+         "month": "2028-01",
+         "last_trade_date": "2027-12-22"
+        }
+       ]
+      },
+      "basis": {
+       "base": "SYN_CL",
+       "base_price": "SameMonth",
+       "quotes": [
+        {
+         "month": "2026-12",
+         "value": -0.8
+        },
+        {
+         "month": "2027-01",
+         "value": -0.75
+        },
+        {
+         "month": "2027-02",
+         "value": -0.7
+        },
+        {
+         "month": "2027-03",
+         "value": -0.72
+        },
+        {
+         "month": "2027-04",
+         "value": -0.78
+        },
+        {
+         "month": "2027-05",
+         "value": -0.85
+        },
+        {
+         "month": "2027-06",
+         "value": -0.9
+        },
+        {
+         "month": "2027-07",
+         "value": -0.95
+        },
+        {
+         "month": "2027-08",
+         "value": -0.92
+        },
+        {
+         "month": "2027-09",
+         "value": -0.88
+        },
+        {
+         "month": "2027-10",
+         "value": -0.85
+        },
+        {
+         "month": "2027-11",
+         "value": -0.83
+        },
+        {
+         "month": "2027-12",
+         "value": -0.8
+        },
+        {
+         "month": "2028-01",
+         "value": -0.78
+        }
+       ]
+      },
+      "interpolation": "Linear",
+      "extrapolate_flat": false
+     },
+     {
+      "contract": {
+       "id": "SYN_CL",
+       "pricing_calendar": "WeekendsOnly",
+       "pricing_holidays": [
+        "2026-11-26",
+        "2026-12-25",
+        "2027-01-01",
+        "2027-01-18",
+        "2027-02-15",
+        "2027-03-26",
+        "2027-05-31",
+        "2027-07-05",
+        "2027-09-06",
+        "2027-11-25",
+        "2027-12-24",
+        "2028-01-17"
+       ],
+       "months": [
+        {
+         "month": "2026-10",
+         "last_trade_date": "2026-09-22"
+        },
+        {
+         "month": "2026-11",
+         "last_trade_date": "2026-10-20"
+        },
+        {
+         "month": "2026-12",
+         "last_trade_date": "2026-11-20",
+         "price": 60.0
+        },
+        {
+         "month": "2027-01",
+         "last_trade_date": "2026-12-21",
+         "price": 60.4
+        },
+        {
+         "month": "2027-02",
+         "last_trade_date": "2027-01-20",
+         "price": 60.7
+        },
+        {
+         "month": "2027-03",
+         "last_trade_date": "2027-02-22",
+         "price": 61.0
+        },
+        {
+         "month": "2027-04",
+         "last_trade_date": "2027-03-22",
+         "price": 61.2
+        },
+        {
+         "month": "2027-05",
+         "last_trade_date": "2027-04-20",
+         "price": 61.4
+        },
+        {
+         "month": "2027-06",
+         "last_trade_date": "2027-05-20",
+         "price": 61.5
+        },
+        {
+         "month": "2027-07",
+         "last_trade_date": "2027-06-22",
+         "price": 61.6
+        },
+        {
+         "month": "2027-08",
+         "last_trade_date": "2027-07-20",
+         "price": 61.7
+        },
+        {
+         "month": "2027-09",
+         "last_trade_date": "2027-08-20",
+         "price": 61.8
+        },
+        {
+         "month": "2027-10",
+         "last_trade_date": "2027-09-21",
+         "price": 61.9
+        },
+        {
+         "month": "2027-11",
+         "last_trade_date": "2027-10-20",
+         "price": 62.0
+        },
+        {
+         "month": "2027-12",
+         "last_trade_date": "2027-11-19",
+         "price": 62.1
+        },
+        {
+         "month": "2028-01",
+         "last_trade_date": "2027-12-20",
+         "price": 62.2
+        },
+        {
+         "month": "2028-02",
+         "last_trade_date": "2028-01-20",
+         "price": 62.2
+        }
+       ],
+       "fixings": [
+        {
+         "month": "2026-10",
+         "date": "2026-09-22",
+         "value": 58.6
+        },
+        {
+         "month": "2026-11",
+         "date": "2026-10-20",
+         "value": 59.3
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-02",
+         "value": 59.0
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-03",
+         "value": 59.25
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-04",
+         "value": 59.5
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-05",
+         "value": 59.75
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-06",
+         "value": 60.0
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-09",
+         "value": 60.25
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-10",
+         "value": 60.5
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-11",
+         "value": 60.25
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-12",
+         "value": 60.0
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "expected_month_prices": {
+    "2026-12": 59.2,
+    "2027-01": 59.65,
+    "2027-02": 60.0,
+    "2027-03": 60.28,
+    "2027-04": 60.42,
+    "2027-05": 60.55,
+    "2027-06": 60.6,
+    "2027-07": 60.65,
+    "2027-08": 60.78,
+    "2027-09": 60.919999999999995,
+    "2027-10": 61.05,
+    "2027-11": 61.17,
+    "2027-12": 61.300000000000004,
+    "2028-01": 61.42
+   },
+   "swaps": [
+    {
+     "id": "SWAP_B_ROLL0",
+     "npv": -159107.8502244791,
+     "commodity_swap": {
+      "leg1": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2026-12-01",
+          "end_date": "2026-12-31"
+         },
+         {
+          "start_date": "2027-01-01",
+          "end_date": "2027-01-31"
+         },
+         {
+          "start_date": "2027-02-01",
+          "end_date": "2027-02-28"
+         },
+         {
+          "start_date": "2027-03-01",
+          "end_date": "2027-03-31"
+         },
+         {
+          "start_date": "2027-04-01",
+          "end_date": "2027-04-30"
+         },
+         {
+          "start_date": "2027-05-01",
+          "end_date": "2027-05-31"
+         },
+         {
+          "start_date": "2027-06-01",
+          "end_date": "2027-06-30"
+         },
+         {
+          "start_date": "2027-07-01",
+          "end_date": "2027-07-31"
+         },
+         {
+          "start_date": "2027-08-01",
+          "end_date": "2027-08-31"
+         },
+         {
+          "start_date": "2027-09-01",
+          "end_date": "2027-09-30"
+         },
+         {
+          "start_date": "2027-10-01",
+          "end_date": "2027-10-31"
+         },
+         {
+          "start_date": "2027-11-01",
+          "end_date": "2027-11-30"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Pay",
+       "price_type": "CommodityFixedPrice",
+       "price": {
+        "price": 62.0
+       }
+      },
+      "leg2": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2026-12-01",
+          "end_date": "2026-12-31"
+         },
+         {
+          "start_date": "2027-01-01",
+          "end_date": "2027-01-31"
+         },
+         {
+          "start_date": "2027-02-01",
+          "end_date": "2027-02-28"
+         },
+         {
+          "start_date": "2027-03-01",
+          "end_date": "2027-03-31"
+         },
+         {
+          "start_date": "2027-04-01",
+          "end_date": "2027-04-30"
+         },
+         {
+          "start_date": "2027-05-01",
+          "end_date": "2027-05-31"
+         },
+         {
+          "start_date": "2027-06-01",
+          "end_date": "2027-06-30"
+         },
+         {
+          "start_date": "2027-07-01",
+          "end_date": "2027-07-31"
+         },
+         {
+          "start_date": "2027-08-01",
+          "end_date": "2027-08-31"
+         },
+         {
+          "start_date": "2027-09-01",
+          "end_date": "2027-09-30"
+         },
+         {
+          "start_date": "2027-10-01",
+          "end_date": "2027-10-31"
+         },
+         {
+          "start_date": "2027-11-01",
+          "end_date": "2027-11-30"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Receive",
+       "price_type": "FuturesFloatingPrice",
+       "price": {
+        "contract_id": "SYN_BAS",
+        "nearby": 1,
+        "roll_days_before_expiry": 0
+       }
+      }
+     }
+    },
+    {
+     "id": "SWAP_B_ROLL2_MID",
+     "npv": -44346.70567030925,
+     "commodity_swap": {
+      "leg1": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2027-02-15",
+          "end_date": "2027-03-14"
+         },
+         {
+          "start_date": "2027-03-15",
+          "end_date": "2027-04-14"
+         },
+         {
+          "start_date": "2027-04-15",
+          "end_date": "2027-05-14"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Pay",
+       "price_type": "CommodityFixedPrice",
+       "price": {
+        "price": 62.0
+       }
+      },
+      "leg2": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2027-02-15",
+          "end_date": "2027-03-14"
+         },
+         {
+          "start_date": "2027-03-15",
+          "end_date": "2027-04-14"
+         },
+         {
+          "start_date": "2027-04-15",
+          "end_date": "2027-05-14"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Receive",
+       "price_type": "FuturesFloatingPrice",
+       "price": {
+        "contract_id": "SYN_BAS",
+        "nearby": 1,
+        "roll_days_before_expiry": 2
+       }
+      }
+     }
+    }
+   ]
+  },
+  "basis_monthoffset1": {
+   "request": {
+    "pricing": {
+     "as_of_date": "2026-11-13",
+     "rates": {
+      "curves": [
+       {
+        "id": "USD_DISC",
+        "reference_date": "2026-11-13",
+        "day_counter": "Actual365Fixed",
+        "interpolator": "LogLinear",
+        "bootstrap_trait": "InterpolatedDiscount",
+        "points": [
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2026-11-13",
+           "discount_factor": 1.0
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2026-12-13",
+           "discount_factor": 0.9967177272404354
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-01-13",
+           "discount_factor": 0.9933373629411609
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-02-12",
+           "discount_factor": 0.9900769587737215
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-03-15",
+           "discount_factor": 0.9867191166148997
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-04-14",
+           "discount_factor": 0.9834804353370931
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-05-14",
+           "discount_factor": 0.9802523842946214
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-06-14",
+           "discount_factor": 0.976927862141973
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-07-14",
+           "discount_factor": 0.9737213184320047
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-08-14",
+           "discount_factor": 0.9704189463638535
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-09-13",
+           "discount_factor": 0.967233766690838
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-10-14",
+           "discount_factor": 0.9639533971292101
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-11-13",
+           "discount_factor": 0.9607894391523232
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-12-13",
+           "discount_factor": 0.9576358661485161
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-01-13",
+           "discount_factor": 0.9543880478292858
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-02-12",
+           "discount_factor": 0.9512554859378417
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-03-14",
+           "discount_factor": 0.9480293066533053
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-04-13",
+           "discount_factor": 0.9449176158848083
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-05-14",
+           "discount_factor": 0.9417129314619316
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-06-13",
+           "discount_factor": 0.9386219727596643
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-07-13",
+           "discount_factor": 0.9355411594269465
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-08-13",
+           "discount_factor": 0.9323682752197152
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-09-12",
+           "discount_factor": 0.9293079882280794
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-10-13",
+           "discount_factor": 0.9261562437967505
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-11-12",
+           "discount_factor": 0.9231163463866358
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-12-12",
+           "discount_factor": 0.9200864267489821
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-01-12",
+           "discount_factor": 0.9169659572075801
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-02-11",
+           "discount_factor": 0.9139562248247896
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-03-14",
+           "discount_factor": 0.9108565458393951
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-04-13",
+           "discount_factor": 0.9078668662111153
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-05-13",
+           "discount_factor": 0.9048869995268393
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-06-13",
+           "discount_factor": 0.9018180787838052
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-07-13",
+           "discount_factor": 0.8988580658697302
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-08-13",
+           "discount_factor": 0.8958095922317691
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-09-12",
+           "discount_factor": 0.8928693008094302
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-10-13",
+           "discount_factor": 0.8898411380449023
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-11-12",
+           "discount_factor": 0.8869204367171575
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-12-12",
+           "discount_factor": 0.8840093219278197
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-01-12",
+           "discount_factor": 0.8810112077472441
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-02-11",
+           "discount_factor": 0.8781194886591842
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-03-14",
+           "discount_factor": 0.8751413498252548
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-04-13",
+           "discount_factor": 0.8722688972119548
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-05-14",
+           "discount_factor": 0.8693106006361866
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-06-13",
+           "discount_factor": 0.8664572861321177
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-07-13",
+           "discount_factor": 0.86361333698452
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-08-13",
+           "discount_factor": 0.8606843957076328
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-09-12",
+           "discount_factor": 0.8578593947610194
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-10-13",
+           "discount_factor": 0.8549499679568267
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-11-12",
+           "discount_factor": 0.8521437889662113
+          }
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "curves": [
+     {
+      "contract": {
+       "id": "SYN_BAS",
+       "pricing_calendar": "WeekendsOnly",
+       "pricing_holidays": [
+        "2026-11-26",
+        "2026-12-25",
+        "2027-01-01",
+        "2027-01-18",
+        "2027-02-15",
+        "2027-03-26",
+        "2027-05-31",
+        "2027-07-05",
+        "2027-09-06",
+        "2027-11-25",
+        "2027-12-24",
+        "2028-01-17"
+       ],
+       "months": [
+        {
+         "month": "2026-12",
+         "last_trade_date": "2026-11-24"
+        },
+        {
+         "month": "2027-01",
+         "last_trade_date": "2026-12-23"
+        },
+        {
+         "month": "2027-02",
+         "last_trade_date": "2027-01-22"
+        },
+        {
+         "month": "2027-03",
+         "last_trade_date": "2027-02-24"
+        },
+        {
+         "month": "2027-04",
+         "last_trade_date": "2027-03-24"
+        },
+        {
+         "month": "2027-05",
+         "last_trade_date": "2027-04-22"
+        },
+        {
+         "month": "2027-06",
+         "last_trade_date": "2027-05-24"
+        },
+        {
+         "month": "2027-07",
+         "last_trade_date": "2027-06-24"
+        },
+        {
+         "month": "2027-08",
+         "last_trade_date": "2027-07-22"
+        },
+        {
+         "month": "2027-09",
+         "last_trade_date": "2027-08-24"
+        },
+        {
+         "month": "2027-10",
+         "last_trade_date": "2027-09-23"
+        },
+        {
+         "month": "2027-11",
+         "last_trade_date": "2027-10-22"
+        },
+        {
+         "month": "2027-12",
+         "last_trade_date": "2027-11-23"
+        },
+        {
+         "month": "2028-01",
+         "last_trade_date": "2027-12-22"
+        }
+       ]
+      },
+      "basis": {
+       "base": "SYN_CL",
+       "base_price": "SameMonth",
+       "quotes": [
+        {
+         "month": "2026-12",
+         "value": 0.8
+        },
+        {
+         "month": "2027-01",
+         "value": 0.75
+        },
+        {
+         "month": "2027-02",
+         "value": 0.7
+        },
+        {
+         "month": "2027-03",
+         "value": 0.72
+        },
+        {
+         "month": "2027-04",
+         "value": 0.78
+        },
+        {
+         "month": "2027-05",
+         "value": 0.85
+        },
+        {
+         "month": "2027-06",
+         "value": 0.9
+        },
+        {
+         "month": "2027-07",
+         "value": 0.95
+        },
+        {
+         "month": "2027-08",
+         "value": 0.92
+        },
+        {
+         "month": "2027-09",
+         "value": 0.88
+        },
+        {
+         "month": "2027-10",
+         "value": 0.85
+        },
+        {
+         "month": "2027-11",
+         "value": 0.83
+        },
+        {
+         "month": "2027-12",
+         "value": 0.8
+        },
+        {
+         "month": "2028-01",
+         "value": 0.78
+        }
+       ],
+       "base_month_offset": 2
+      },
+      "interpolation": "Linear",
+      "extrapolate_flat": false
+     },
+     {
+      "contract": {
+       "id": "SYN_CL",
+       "pricing_calendar": "WeekendsOnly",
+       "pricing_holidays": [
+        "2026-11-26",
+        "2026-12-25",
+        "2027-01-01",
+        "2027-01-18",
+        "2027-02-15",
+        "2027-03-26",
+        "2027-05-31",
+        "2027-07-05",
+        "2027-09-06",
+        "2027-11-25",
+        "2027-12-24",
+        "2028-01-17"
+       ],
+       "months": [
+        {
+         "month": "2026-10",
+         "last_trade_date": "2026-09-22"
+        },
+        {
+         "month": "2026-11",
+         "last_trade_date": "2026-10-20"
+        },
+        {
+         "month": "2026-12",
+         "last_trade_date": "2026-11-20",
+         "price": 60.0
+        },
+        {
+         "month": "2027-01",
+         "last_trade_date": "2026-12-21",
+         "price": 60.4
+        },
+        {
+         "month": "2027-02",
+         "last_trade_date": "2027-01-20",
+         "price": 60.7
+        },
+        {
+         "month": "2027-03",
+         "last_trade_date": "2027-02-22",
+         "price": 61.0
+        },
+        {
+         "month": "2027-04",
+         "last_trade_date": "2027-03-22",
+         "price": 61.2
+        },
+        {
+         "month": "2027-05",
+         "last_trade_date": "2027-04-20",
+         "price": 61.4
+        },
+        {
+         "month": "2027-06",
+         "last_trade_date": "2027-05-20",
+         "price": 61.5
+        },
+        {
+         "month": "2027-07",
+         "last_trade_date": "2027-06-22",
+         "price": 61.6
+        },
+        {
+         "month": "2027-08",
+         "last_trade_date": "2027-07-20",
+         "price": 61.7
+        },
+        {
+         "month": "2027-09",
+         "last_trade_date": "2027-08-20",
+         "price": 61.8
+        },
+        {
+         "month": "2027-10",
+         "last_trade_date": "2027-09-21",
+         "price": 61.9
+        },
+        {
+         "month": "2027-11",
+         "last_trade_date": "2027-10-20",
+         "price": 62.0
+        },
+        {
+         "month": "2027-12",
+         "last_trade_date": "2027-11-19",
+         "price": 62.1
+        },
+        {
+         "month": "2028-01",
+         "last_trade_date": "2027-12-20",
+         "price": 62.2
+        },
+        {
+         "month": "2028-02",
+         "last_trade_date": "2028-01-20",
+         "price": 62.2
+        }
+       ],
+       "fixings": [
+        {
+         "month": "2026-10",
+         "date": "2026-09-22",
+         "value": 58.6
+        },
+        {
+         "month": "2026-11",
+         "date": "2026-10-20",
+         "value": 59.3
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-02",
+         "value": 59.0
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-03",
+         "value": 59.25
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-04",
+         "value": 59.5
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-05",
+         "value": 59.75
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-06",
+         "value": 60.0
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-09",
+         "value": 60.25
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-10",
+         "value": 60.5
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-11",
+         "value": 60.25
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-12",
+         "value": 60.0
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "expected_month_prices": {
+    "2026-12": 59.4,
+    "2027-01": 60.05,
+    "2027-02": 60.7,
+    "2027-03": 61.12,
+    "2027-04": 61.480000000000004,
+    "2027-05": 61.85,
+    "2027-06": 62.1,
+    "2027-07": 62.35,
+    "2027-08": 62.42,
+    "2027-09": 62.480000000000004,
+    "2027-10": 62.550000000000004,
+    "2027-11": 62.629999999999995,
+    "2027-12": 62.699999999999996,
+    "2028-01": 62.78
+   },
+   "swaps": [
+    {
+     "id": "SWAP_B_ROLL0",
+     "npv": -10667.210123993456,
+     "commodity_swap": {
+      "leg1": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2026-12-01",
+          "end_date": "2026-12-31"
+         },
+         {
+          "start_date": "2027-01-01",
+          "end_date": "2027-01-31"
+         },
+         {
+          "start_date": "2027-02-01",
+          "end_date": "2027-02-28"
+         },
+         {
+          "start_date": "2027-03-01",
+          "end_date": "2027-03-31"
+         },
+         {
+          "start_date": "2027-04-01",
+          "end_date": "2027-04-30"
+         },
+         {
+          "start_date": "2027-05-01",
+          "end_date": "2027-05-31"
+         },
+         {
+          "start_date": "2027-06-01",
+          "end_date": "2027-06-30"
+         },
+         {
+          "start_date": "2027-07-01",
+          "end_date": "2027-07-31"
+         },
+         {
+          "start_date": "2027-08-01",
+          "end_date": "2027-08-31"
+         },
+         {
+          "start_date": "2027-09-01",
+          "end_date": "2027-09-30"
+         },
+         {
+          "start_date": "2027-10-01",
+          "end_date": "2027-10-31"
+         },
+         {
+          "start_date": "2027-11-01",
+          "end_date": "2027-11-30"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Pay",
+       "price_type": "CommodityFixedPrice",
+       "price": {
+        "price": 62.0
+       }
+      },
+      "leg2": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2026-12-01",
+          "end_date": "2026-12-31"
+         },
+         {
+          "start_date": "2027-01-01",
+          "end_date": "2027-01-31"
+         },
+         {
+          "start_date": "2027-02-01",
+          "end_date": "2027-02-28"
+         },
+         {
+          "start_date": "2027-03-01",
+          "end_date": "2027-03-31"
+         },
+         {
+          "start_date": "2027-04-01",
+          "end_date": "2027-04-30"
+         },
+         {
+          "start_date": "2027-05-01",
+          "end_date": "2027-05-31"
+         },
+         {
+          "start_date": "2027-06-01",
+          "end_date": "2027-06-30"
+         },
+         {
+          "start_date": "2027-07-01",
+          "end_date": "2027-07-31"
+         },
+         {
+          "start_date": "2027-08-01",
+          "end_date": "2027-08-31"
+         },
+         {
+          "start_date": "2027-09-01",
+          "end_date": "2027-09-30"
+         },
+         {
+          "start_date": "2027-10-01",
+          "end_date": "2027-10-31"
+         },
+         {
+          "start_date": "2027-11-01",
+          "end_date": "2027-11-30"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Receive",
+       "price_type": "FuturesFloatingPrice",
+       "price": {
+        "contract_id": "SYN_BAS",
+        "nearby": 1,
+        "roll_days_before_expiry": 0
+       }
+      }
+     }
+    },
+    {
+     "id": "SWAP_B_ROLL2_MID",
+     "npv": -7994.544024108909,
+     "commodity_swap": {
+      "leg1": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2027-02-15",
+          "end_date": "2027-03-14"
+         },
+         {
+          "start_date": "2027-03-15",
+          "end_date": "2027-04-14"
+         },
+         {
+          "start_date": "2027-04-15",
+          "end_date": "2027-05-14"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Pay",
+       "price_type": "CommodityFixedPrice",
+       "price": {
+        "price": 62.0
+       }
+      },
+      "leg2": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2027-02-15",
+          "end_date": "2027-03-14"
+         },
+         {
+          "start_date": "2027-03-15",
+          "end_date": "2027-04-14"
+         },
+         {
+          "start_date": "2027-04-15",
+          "end_date": "2027-05-14"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Receive",
+       "price_type": "FuturesFloatingPrice",
+       "price": {
+        "contract_id": "SYN_BAS",
+        "nearby": 1,
+        "roll_days_before_expiry": 2
+       }
+      }
+     }
+    }
+   ]
+  },
+  "basis_avg_base": {
+   "request": {
+    "pricing": {
+     "as_of_date": "2026-11-13",
+     "rates": {
+      "curves": [
+       {
+        "id": "USD_DISC",
+        "reference_date": "2026-11-13",
+        "day_counter": "Actual365Fixed",
+        "interpolator": "LogLinear",
+        "bootstrap_trait": "InterpolatedDiscount",
+        "points": [
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2026-11-13",
+           "discount_factor": 1.0
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2026-12-13",
+           "discount_factor": 0.9967177272404354
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-01-13",
+           "discount_factor": 0.9933373629411609
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-02-12",
+           "discount_factor": 0.9900769587737215
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-03-15",
+           "discount_factor": 0.9867191166148997
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-04-14",
+           "discount_factor": 0.9834804353370931
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-05-14",
+           "discount_factor": 0.9802523842946214
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-06-14",
+           "discount_factor": 0.976927862141973
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-07-14",
+           "discount_factor": 0.9737213184320047
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-08-14",
+           "discount_factor": 0.9704189463638535
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-09-13",
+           "discount_factor": 0.967233766690838
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-10-14",
+           "discount_factor": 0.9639533971292101
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-11-13",
+           "discount_factor": 0.9607894391523232
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-12-13",
+           "discount_factor": 0.9576358661485161
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-01-13",
+           "discount_factor": 0.9543880478292858
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-02-12",
+           "discount_factor": 0.9512554859378417
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-03-14",
+           "discount_factor": 0.9480293066533053
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-04-13",
+           "discount_factor": 0.9449176158848083
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-05-14",
+           "discount_factor": 0.9417129314619316
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-06-13",
+           "discount_factor": 0.9386219727596643
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-07-13",
+           "discount_factor": 0.9355411594269465
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-08-13",
+           "discount_factor": 0.9323682752197152
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-09-12",
+           "discount_factor": 0.9293079882280794
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-10-13",
+           "discount_factor": 0.9261562437967505
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-11-12",
+           "discount_factor": 0.9231163463866358
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-12-12",
+           "discount_factor": 0.9200864267489821
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-01-12",
+           "discount_factor": 0.9169659572075801
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-02-11",
+           "discount_factor": 0.9139562248247896
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-03-14",
+           "discount_factor": 0.9108565458393951
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-04-13",
+           "discount_factor": 0.9078668662111153
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-05-13",
+           "discount_factor": 0.9048869995268393
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-06-13",
+           "discount_factor": 0.9018180787838052
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-07-13",
+           "discount_factor": 0.8988580658697302
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-08-13",
+           "discount_factor": 0.8958095922317691
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-09-12",
+           "discount_factor": 0.8928693008094302
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-10-13",
+           "discount_factor": 0.8898411380449023
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-11-12",
+           "discount_factor": 0.8869204367171575
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-12-12",
+           "discount_factor": 0.8840093219278197
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-01-12",
+           "discount_factor": 0.8810112077472441
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-02-11",
+           "discount_factor": 0.8781194886591842
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-03-14",
+           "discount_factor": 0.8751413498252548
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-04-13",
+           "discount_factor": 0.8722688972119548
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-05-14",
+           "discount_factor": 0.8693106006361866
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-06-13",
+           "discount_factor": 0.8664572861321177
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-07-13",
+           "discount_factor": 0.86361333698452
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-08-13",
+           "discount_factor": 0.8606843957076328
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-09-12",
+           "discount_factor": 0.8578593947610194
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-10-13",
+           "discount_factor": 0.8549499679568267
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-11-12",
+           "discount_factor": 0.8521437889662113
+          }
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "curves": [
+     {
+      "contract": {
+       "id": "SYN_BAS",
+       "pricing_calendar": "WeekendsOnly",
+       "pricing_holidays": [
+        "2026-11-26",
+        "2026-12-25",
+        "2027-01-01",
+        "2027-01-18",
+        "2027-02-15",
+        "2027-03-26",
+        "2027-05-31",
+        "2027-07-05",
+        "2027-09-06",
+        "2027-11-25",
+        "2027-12-24",
+        "2028-01-17"
+       ],
+       "months": [
+        {
+         "month": "2026-11",
+         "last_trade_date": "2026-11-30"
+        },
+        {
+         "month": "2026-12",
+         "last_trade_date": "2026-12-31"
+        },
+        {
+         "month": "2027-01",
+         "last_trade_date": "2027-01-29"
+        },
+        {
+         "month": "2027-02",
+         "last_trade_date": "2027-02-26"
+        },
+        {
+         "month": "2027-03",
+         "last_trade_date": "2027-03-31"
+        },
+        {
+         "month": "2027-04",
+         "last_trade_date": "2027-04-30"
+        },
+        {
+         "month": "2027-05",
+         "last_trade_date": "2027-05-28"
+        },
+        {
+         "month": "2027-06",
+         "last_trade_date": "2027-06-30"
+        },
+        {
+         "month": "2027-07",
+         "last_trade_date": "2027-07-30"
+        },
+        {
+         "month": "2027-08",
+         "last_trade_date": "2027-08-31"
+        },
+        {
+         "month": "2027-09",
+         "last_trade_date": "2027-09-30"
+        },
+        {
+         "month": "2027-10",
+         "last_trade_date": "2027-10-29"
+        },
+        {
+         "month": "2027-11",
+         "last_trade_date": "2027-11-30"
+        },
+        {
+         "month": "2027-12",
+         "last_trade_date": "2027-12-31"
+        }
+       ]
+      },
+      "basis": {
+       "base": "SYN_CL",
+       "base_price": "MonthAverage",
+       "quotes": [
+        {
+         "month": "2026-11",
+         "value": 0.8
+        },
+        {
+         "month": "2026-12",
+         "value": 0.75
+        },
+        {
+         "month": "2027-01",
+         "value": 0.7
+        },
+        {
+         "month": "2027-02",
+         "value": 0.72
+        },
+        {
+         "month": "2027-03",
+         "value": 0.78
+        },
+        {
+         "month": "2027-04",
+         "value": 0.85
+        },
+        {
+         "month": "2027-05",
+         "value": 0.9
+        },
+        {
+         "month": "2027-06",
+         "value": 0.95
+        },
+        {
+         "month": "2027-07",
+         "value": 0.92
+        },
+        {
+         "month": "2027-08",
+         "value": 0.88
+        },
+        {
+         "month": "2027-09",
+         "value": 0.85
+        },
+        {
+         "month": "2027-10",
+         "value": 0.83
+        },
+        {
+         "month": "2027-11",
+         "value": 0.8
+        },
+        {
+         "month": "2027-12",
+         "value": 0.78
+        }
+       ],
+       "base_nearby": 1,
+       "base_roll_days_before_expiry": 0
+      },
+      "interpolation": "Linear",
+      "extrapolate_flat": false
+     },
+     {
+      "contract": {
+       "id": "SYN_CL",
+       "pricing_calendar": "WeekendsOnly",
+       "pricing_holidays": [
+        "2026-11-26",
+        "2026-12-25",
+        "2027-01-01",
+        "2027-01-18",
+        "2027-02-15",
+        "2027-03-26",
+        "2027-05-31",
+        "2027-07-05",
+        "2027-09-06",
+        "2027-11-25",
+        "2027-12-24",
+        "2028-01-17"
+       ],
+       "months": [
+        {
+         "month": "2026-10",
+         "last_trade_date": "2026-09-22"
+        },
+        {
+         "month": "2026-11",
+         "last_trade_date": "2026-10-20"
+        },
+        {
+         "month": "2026-12",
+         "last_trade_date": "2026-11-20",
+         "price": 60.0
+        },
+        {
+         "month": "2027-01",
+         "last_trade_date": "2026-12-21",
+         "price": 60.4
+        },
+        {
+         "month": "2027-02",
+         "last_trade_date": "2027-01-20",
+         "price": 60.7
+        },
+        {
+         "month": "2027-03",
+         "last_trade_date": "2027-02-22",
+         "price": 61.0
+        },
+        {
+         "month": "2027-04",
+         "last_trade_date": "2027-03-22",
+         "price": 61.2
+        },
+        {
+         "month": "2027-05",
+         "last_trade_date": "2027-04-20",
+         "price": 61.4
+        },
+        {
+         "month": "2027-06",
+         "last_trade_date": "2027-05-20",
+         "price": 61.5
+        },
+        {
+         "month": "2027-07",
+         "last_trade_date": "2027-06-22",
+         "price": 61.6
+        },
+        {
+         "month": "2027-08",
+         "last_trade_date": "2027-07-20",
+         "price": 61.7
+        },
+        {
+         "month": "2027-09",
+         "last_trade_date": "2027-08-20",
+         "price": 61.8
+        },
+        {
+         "month": "2027-10",
+         "last_trade_date": "2027-09-21",
+         "price": 61.9
+        },
+        {
+         "month": "2027-11",
+         "last_trade_date": "2027-10-20",
+         "price": 62.0
+        },
+        {
+         "month": "2027-12",
+         "last_trade_date": "2027-11-19",
+         "price": 62.1
+        },
+        {
+         "month": "2028-01",
+         "last_trade_date": "2027-12-20",
+         "price": 62.2
+        },
+        {
+         "month": "2028-02",
+         "last_trade_date": "2028-01-20",
+         "price": 62.2
+        }
+       ],
+       "fixings": [
+        {
+         "month": "2026-10",
+         "date": "2026-09-22",
+         "value": 58.6
+        },
+        {
+         "month": "2026-11",
+         "date": "2026-10-20",
+         "value": 59.3
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-02",
+         "value": 59.0
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-03",
+         "value": 59.25
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-04",
+         "value": 59.5
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-05",
+         "value": 59.75
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-06",
+         "value": 60.0
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-09",
+         "value": 60.25
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-10",
+         "value": 60.5
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-11",
+         "value": 60.25
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-12",
+         "value": 60.0
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "expected_month_prices": {
+    "2026-11": 60.82500000000001,
+    "2026-12": 61.24545454545455,
+    "2027-01": 61.510526315789484,
+    "2027-02": 61.762105263157906,
+    "2027-03": 62.034545454545494,
+    "2027-04": 62.28636363636363,
+    "2027-05": 62.429999999999986,
+    "2027-06": 62.57727272727275,
+    "2027-07": 62.65809523809523,
+    "2027-08": 62.711818181818195,
+    "2027-09": 62.78333333333333,
+    "2027-10": 62.863333333333316,
+    "2027-11": 62.92857142857145,
+    "2027-12": 62.980000000000025
+   },
+   "swaps": []
+  },
+  "basis_avg_nobaseavg": {
+   "request": {
+    "pricing": {
+     "as_of_date": "2026-11-13",
+     "rates": {
+      "curves": [
+       {
+        "id": "USD_DISC",
+        "reference_date": "2026-11-13",
+        "day_counter": "Actual365Fixed",
+        "interpolator": "LogLinear",
+        "bootstrap_trait": "InterpolatedDiscount",
+        "points": [
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2026-11-13",
+           "discount_factor": 1.0
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2026-12-13",
+           "discount_factor": 0.9967177272404354
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-01-13",
+           "discount_factor": 0.9933373629411609
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-02-12",
+           "discount_factor": 0.9900769587737215
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-03-15",
+           "discount_factor": 0.9867191166148997
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-04-14",
+           "discount_factor": 0.9834804353370931
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-05-14",
+           "discount_factor": 0.9802523842946214
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-06-14",
+           "discount_factor": 0.976927862141973
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-07-14",
+           "discount_factor": 0.9737213184320047
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-08-14",
+           "discount_factor": 0.9704189463638535
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-09-13",
+           "discount_factor": 0.967233766690838
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-10-14",
+           "discount_factor": 0.9639533971292101
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-11-13",
+           "discount_factor": 0.9607894391523232
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2027-12-13",
+           "discount_factor": 0.9576358661485161
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-01-13",
+           "discount_factor": 0.9543880478292858
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-02-12",
+           "discount_factor": 0.9512554859378417
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-03-14",
+           "discount_factor": 0.9480293066533053
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-04-13",
+           "discount_factor": 0.9449176158848083
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-05-14",
+           "discount_factor": 0.9417129314619316
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-06-13",
+           "discount_factor": 0.9386219727596643
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-07-13",
+           "discount_factor": 0.9355411594269465
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-08-13",
+           "discount_factor": 0.9323682752197152
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-09-12",
+           "discount_factor": 0.9293079882280794
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-10-13",
+           "discount_factor": 0.9261562437967505
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-11-12",
+           "discount_factor": 0.9231163463866358
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2028-12-12",
+           "discount_factor": 0.9200864267489821
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-01-12",
+           "discount_factor": 0.9169659572075801
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-02-11",
+           "discount_factor": 0.9139562248247896
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-03-14",
+           "discount_factor": 0.9108565458393951
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-04-13",
+           "discount_factor": 0.9078668662111153
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-05-13",
+           "discount_factor": 0.9048869995268393
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-06-13",
+           "discount_factor": 0.9018180787838052
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-07-13",
+           "discount_factor": 0.8988580658697302
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-08-13",
+           "discount_factor": 0.8958095922317691
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-09-12",
+           "discount_factor": 0.8928693008094302
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-10-13",
+           "discount_factor": 0.8898411380449023
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-11-12",
+           "discount_factor": 0.8869204367171575
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2029-12-12",
+           "discount_factor": 0.8840093219278197
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-01-12",
+           "discount_factor": 0.8810112077472441
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-02-11",
+           "discount_factor": 0.8781194886591842
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-03-14",
+           "discount_factor": 0.8751413498252548
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-04-13",
+           "discount_factor": 0.8722688972119548
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-05-14",
+           "discount_factor": 0.8693106006361866
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-06-13",
+           "discount_factor": 0.8664572861321177
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-07-13",
+           "discount_factor": 0.86361333698452
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-08-13",
+           "discount_factor": 0.8606843957076328
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-09-12",
+           "discount_factor": 0.8578593947610194
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-10-13",
+           "discount_factor": 0.8549499679568267
+          }
+         },
+         {
+          "point_type": "DiscountFactorPoint",
+          "point": {
+           "date": "2030-11-12",
+           "discount_factor": 0.8521437889662113
+          }
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "curves": [
+     {
+      "contract": {
+       "id": "SYN_BAS",
+       "pricing_calendar": "WeekendsOnly",
+       "pricing_holidays": [
+        "2026-11-26",
+        "2026-12-25",
+        "2027-01-01",
+        "2027-01-18",
+        "2027-02-15",
+        "2027-03-26",
+        "2027-05-31",
+        "2027-07-05",
+        "2027-09-06",
+        "2027-11-25",
+        "2027-12-24",
+        "2028-01-17"
+       ],
+       "months": [
+        {
+         "month": "2026-11",
+         "last_trade_date": "2026-11-30"
+        },
+        {
+         "month": "2026-12",
+         "last_trade_date": "2026-12-31"
+        },
+        {
+         "month": "2027-01",
+         "last_trade_date": "2027-01-29"
+        },
+        {
+         "month": "2027-02",
+         "last_trade_date": "2027-02-26"
+        },
+        {
+         "month": "2027-03",
+         "last_trade_date": "2027-03-31"
+        },
+        {
+         "month": "2027-04",
+         "last_trade_date": "2027-04-30"
+        },
+        {
+         "month": "2027-05",
+         "last_trade_date": "2027-05-28"
+        },
+        {
+         "month": "2027-06",
+         "last_trade_date": "2027-06-30"
+        },
+        {
+         "month": "2027-07",
+         "last_trade_date": "2027-07-30"
+        },
+        {
+         "month": "2027-08",
+         "last_trade_date": "2027-08-31"
+        },
+        {
+         "month": "2027-09",
+         "last_trade_date": "2027-09-30"
+        },
+        {
+         "month": "2027-10",
+         "last_trade_date": "2027-10-29"
+        },
+        {
+         "month": "2027-11",
+         "last_trade_date": "2027-11-30"
+        },
+        {
+         "month": "2027-12",
+         "last_trade_date": "2027-12-31"
+        }
+       ]
+      },
+      "basis": {
+       "base": "SYN_CL",
+       "base_price": "SameMonth",
+       "quotes": [
+        {
+         "month": "2026-11",
+         "value": 0.8
+        },
+        {
+         "month": "2026-12",
+         "value": 0.75
+        },
+        {
+         "month": "2027-01",
+         "value": 0.7
+        },
+        {
+         "month": "2027-02",
+         "value": 0.72
+        },
+        {
+         "month": "2027-03",
+         "value": 0.78
+        },
+        {
+         "month": "2027-04",
+         "value": 0.85
+        },
+        {
+         "month": "2027-05",
+         "value": 0.9
+        },
+        {
+         "month": "2027-06",
+         "value": 0.95
+        },
+        {
+         "month": "2027-07",
+         "value": 0.92
+        },
+        {
+         "month": "2027-08",
+         "value": 0.88
+        },
+        {
+         "month": "2027-09",
+         "value": 0.85
+        },
+        {
+         "month": "2027-10",
+         "value": 0.83
+        },
+        {
+         "month": "2027-11",
+         "value": 0.8
+        },
+        {
+         "month": "2027-12",
+         "value": 0.78
+        }
+       ]
+      },
+      "interpolation": "Linear",
+      "extrapolate_flat": false
+     },
+     {
+      "contract": {
+       "id": "SYN_CL",
+       "pricing_calendar": "WeekendsOnly",
+       "pricing_holidays": [
+        "2026-11-26",
+        "2026-12-25",
+        "2027-01-01",
+        "2027-01-18",
+        "2027-02-15",
+        "2027-03-26",
+        "2027-05-31",
+        "2027-07-05",
+        "2027-09-06",
+        "2027-11-25",
+        "2027-12-24",
+        "2028-01-17"
+       ],
+       "months": [
+        {
+         "month": "2026-10",
+         "last_trade_date": "2026-09-22"
+        },
+        {
+         "month": "2026-11",
+         "last_trade_date": "2026-10-20"
+        },
+        {
+         "month": "2026-12",
+         "last_trade_date": "2026-11-20",
+         "price": 60.0
+        },
+        {
+         "month": "2027-01",
+         "last_trade_date": "2026-12-21",
+         "price": 60.4
+        },
+        {
+         "month": "2027-02",
+         "last_trade_date": "2027-01-20",
+         "price": 60.7
+        },
+        {
+         "month": "2027-03",
+         "last_trade_date": "2027-02-22",
+         "price": 61.0
+        },
+        {
+         "month": "2027-04",
+         "last_trade_date": "2027-03-22",
+         "price": 61.2
+        },
+        {
+         "month": "2027-05",
+         "last_trade_date": "2027-04-20",
+         "price": 61.4
+        },
+        {
+         "month": "2027-06",
+         "last_trade_date": "2027-05-20",
+         "price": 61.5
+        },
+        {
+         "month": "2027-07",
+         "last_trade_date": "2027-06-22",
+         "price": 61.6
+        },
+        {
+         "month": "2027-08",
+         "last_trade_date": "2027-07-20",
+         "price": 61.7
+        },
+        {
+         "month": "2027-09",
+         "last_trade_date": "2027-08-20",
+         "price": 61.8
+        },
+        {
+         "month": "2027-10",
+         "last_trade_date": "2027-09-21",
+         "price": 61.9
+        },
+        {
+         "month": "2027-11",
+         "last_trade_date": "2027-10-20",
+         "price": 62.0
+        },
+        {
+         "month": "2027-12",
+         "last_trade_date": "2027-11-19",
+         "price": 62.1
+        },
+        {
+         "month": "2028-01",
+         "last_trade_date": "2027-12-20",
+         "price": 62.2
+        },
+        {
+         "month": "2028-02",
+         "last_trade_date": "2028-01-20",
+         "price": 62.2
+        }
+       ],
+       "fixings": [
+        {
+         "month": "2026-10",
+         "date": "2026-09-22",
+         "value": 58.6
+        },
+        {
+         "month": "2026-11",
+         "date": "2026-10-20",
+         "value": 59.3
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-02",
+         "value": 59.0
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-03",
+         "value": 59.25
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-04",
+         "value": 59.5
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-05",
+         "value": 59.75
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-06",
+         "value": 60.0
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-09",
+         "value": 60.25
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-10",
+         "value": 60.5
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-11",
+         "value": 60.25
+        },
+        {
+         "month": "2026-12",
+         "date": "2026-11-12",
+         "value": 60.0
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "expected_month_prices": {
+    "2026-11": 60.099999999999994,
+    "2026-12": 60.75,
+    "2027-01": 61.1,
+    "2027-02": 61.42,
+    "2027-03": 61.78,
+    "2027-04": 62.050000000000004,
+    "2027-05": 62.3,
+    "2027-06": 62.45,
+    "2027-07": 62.52,
+    "2027-08": 62.580000000000005,
+    "2027-09": 62.65,
+    "2027-10": 62.73,
+    "2027-11": 62.8,
+    "2027-12": 62.88
+   },
+   "swaps": []
+  }
+ }
+}

@@ -14,13 +14,17 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdio>
 #include <exception>
 #include <functional>
 #include <map>
 #include <memory>
+#include <set>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <utility>
+#include <variant>
 
 namespace quantra { namespace commodities {
 
@@ -267,6 +271,14 @@ std::string CurveBuildRefusalReasonName(CurveBuildRefusal::Reason reason) {
         case CurveBuildRefusal::Reason::NoPricedMonth: return "NoPricedMonth";
         case CurveBuildRefusal::Reason::NotFinite: return "NotFinite";
         case CurveBuildRefusal::Reason::InvalidInput: return "InvalidInput";
+        case CurveBuildRefusal::Reason::DateOutsideRange: return "DateOutsideRange";
+        case CurveBuildRefusal::Reason::NoPricedPoint: return "NoPricedPoint";
+        case CurveBuildRefusal::Reason::UnknownBase: return "UnknownBase";
+        case CurveBuildRefusal::Reason::BaseNotContract: return "BaseNotContract";
+        case CurveBuildRefusal::Reason::BasisCycle: return "BasisCycle";
+        case CurveBuildRefusal::Reason::BaseNotDetermined: return "BaseNotDetermined";
+        case CurveBuildRefusal::Reason::BasisAndPrice: return "BasisAndPrice";
+        case CurveBuildRefusal::Reason::BasisOnExpiredMonth: return "BasisOnExpiredMonth";
     }
     return "Unknown";
 }
@@ -294,17 +306,19 @@ std::string quoteMessage(std::size_t k, const std::string& message) {
 }
 
 /// The two legs of a quote's swap: leg 1 pays the fixed `price`, leg 2
-/// receives the contract's average. Value rules on the quote are checked
-/// here.
+/// receives the average of `floating` (a contract month or a spot price).
+/// Value rules on the quote are checked here.
 std::pair<CommoditySwapLeg, CommoditySwapLeg> quoteLegs(
     const AverageQuote& q,
     std::size_t k,
-    std::shared_ptr<const FuturesContract> contract,
+    const LegPrice& floating,
     double price,
     const QuantLib::Date& asOf) {
     const std::string path = quotePath(k);
     ValidatePeriods(q.periods, path + ".periods");
-    ValidateNearbyAndRoll(q.nearby, q.rollDaysBeforeExpiry, path);
+    if (std::holds_alternative<FuturesFloatingPrice>(floating)) {
+        ValidateNearbyAndRoll(q.nearby, q.rollDaysBeforeExpiry, path);
+    }
     const bool several = q.periods.size() > 1;
     auto require = [&](bool present, const std::string& field) {
         if (several && !present) {
@@ -339,14 +353,34 @@ std::pair<CommoditySwapLeg, CommoditySwapLeg> quoteLegs(
             ? QuantLib::Handle<QuantLib::YieldTermStructure>(
                   std::make_shared<QuantLib::FlatForward>(asOf, 0.0, QuantLib::Actual365Fixed()))
             : q.discountCurve;
-    CommoditySwapLeg floating = fixed;
-    floating.payReceive = PayReceive::Receive;
-    FuturesFloatingPrice ff;
-    ff.contract = std::move(contract);
-    ff.nearby = q.nearby;
-    ff.rollDaysBeforeExpiry = q.rollDaysBeforeExpiry;
-    floating.price = ff;
-    return {fixed, floating};
+    CommoditySwapLeg floatingLeg = fixed;
+    floatingLeg.payReceive = PayReceive::Receive;
+    floatingLeg.price = floating;
+    return {fixed, floatingLeg};
+}
+
+CommoditySwapResult priceQuoteLegs(
+    const AverageQuote& q,
+    std::size_t k,
+    const LegPrice& floating,
+    double price,
+    const QuantLib::Date& asOf) {
+    const auto legs = quoteLegs(q, k, floating, price, asOf);
+    try {
+        return PriceCommoditySwap(legs.first, legs.second, asOf);
+    } catch (const SpotDateOutsidePoints& e) {
+        // A pricing day outside the spot's points: the swap's sentence, with
+        // the quote and the date as data.
+        CurveBuildRefusal r;
+        r.reason = CurveBuildRefusal::Reason::DateOutsideRange;
+        r.path = quotePath(k);
+        r.averageQuote = k;
+        r.date = DateToIso(e.date());
+        refuse(quoteMessage(k, e.what()), r);
+    } catch (const QuantraInvalidArgument& e) {
+        QUANTRA_INVALID_ARGUMENT(quoteMessage(k, e.what()));
+    }
+    return {}; // unreachable
 }
 
 CommoditySwapResult priceQuote(
@@ -355,27 +389,38 @@ CommoditySwapResult priceQuote(
     const std::shared_ptr<const FuturesContract>& contract,
     double price,
     const QuantLib::Date& asOf) {
-    const auto legs = quoteLegs(q, k, contract, price, asOf);
-    try {
-        return PriceCommoditySwap(legs.first, legs.second, asOf);
-    } catch (const QuantraInvalidArgument& e) {
-        QUANTRA_INVALID_ARGUMENT(quoteMessage(k, e.what()));
-    }
-    return {}; // unreachable
+    FuturesFloatingPrice ff;
+    ff.contract = contract;
+    ff.nearby = q.nearby;
+    ff.rollDaysBeforeExpiry = q.rollDaysBeforeExpiry;
+    return priceQuoteLegs(q, k, ff, price, asOf);
+}
+
+CommoditySwapResult priceQuote(
+    const AverageQuote& q,
+    std::size_t k,
+    const std::shared_ptr<const SpotPrice>& spot,
+    double price,
+    const QuantLib::Date& asOf) {
+    SpotFloatingPrice sf;
+    sf.spot = spot;
+    return priceQuoteLegs(q, k, sf, price, asOf);
 }
 
 /// One average quote as an equation: quote = constant + sum weight x price.
 struct QuoteEquation {
-    std::map<std::string, double> weights; // by month
+    std::map<std::string, double> weights; // by month, or by date for a spot
     double constant = 0.0;
 };
 
+template <typename Source>
 QuoteEquation quoteEquation(
     const AverageQuote& q,
     std::size_t k,
-    const std::shared_ptr<const FuturesContract>& placeholder,
+    const std::shared_ptr<const Source>& placeholder,
     const QuantLib::Date& asOf) {
-    // Fixed price 0 and every live month at 0: the NPV is the realised part.
+    // Fixed price 0 and every live month (spot point) at 0: the NPV is the
+    // realised part.
     const auto r = priceQuote(q, k, placeholder, 0.0, asOf);
     double annuity = 0.0;
     for (const auto& flow : r.legs[0].flows) {
@@ -385,7 +430,11 @@ QuoteEquation quoteEquation(
     if (annuity > 0.0) {
         for (const auto& d : r.deltas) {
             if (d.delta != 0.0) {
-                eq.weights[d.month] = d.delta / annuity;
+                // Futures: by month; spot: by the point's date (YYYY-MM-DD,
+                // which sorts in date order).
+                const std::string key =
+                    d.kind == CommodityPriceDelta::Kind::Futures ? d.month : DateToIso(d.date);
+                eq.weights[key] = d.delta / annuity;
             }
         }
     }
@@ -393,9 +442,10 @@ QuoteEquation quoteEquation(
         auto r = refusalOf(CurveBuildRefusal::Reason::QuoteHasNoLiveMonth);
         r.path = quotePath(k);
         r.averageQuote = k;
+        const std::string what = std::is_same<Source, SpotPrice>::value ? "point" : "month";
         refuse(
-            quotePath(k) +
-                ": no live month: every pricing day it averages is a fixing or every period is "
+            quotePath(k) + ": no live " + what +
+                ": every pricing day it averages is a fixing or every period is "
                 "already paid, so it constrains no price",
             r);
     }
@@ -440,10 +490,456 @@ Vector multiply(const std::vector<Vector>& m, const Vector& v) {
     return out;
 }
 
+/// The linear system of a build: one row per equation (direct prices first,
+/// then the average quotes), in the unknowns' order.
+struct SystemInputs {
+    std::vector<Vector> rows;
+    Vector rhs;
+    /// The quoted value of each row (the tolerance scale).
+    Vector quoted;
+    /// For messages: a direct price's label (month or date) or the quote's path.
+    std::vector<std::string> rowNames;
+    std::vector<std::optional<std::size_t>> rowQuote;
+    /// The unknowns' labels (months or dates), in order.
+    std::vector<std::string> labels;
+    /// Labels are dates (a spot price) rather than months.
+    bool byDate = false;
+    /// The unknowns' noun in messages ("months", "points").
+    std::string noun;
+    /// Smooth's penalty rows.
+    std::vector<Vector> secondDifferences;
+    std::optional<CurveRule> rule;
+    /// Per average quote: its equation's constant and its quoted price.
+    Vector constants;
+    Vector quotePrices;
+};
+
+struct SystemSolution {
+    std::vector<bool> determined;
+    /// The solve as a linear function of the right-hand sides.
+    std::function<Vector(const Vector&)> solve;
+    std::shared_ptr<EquationSpace> space;
+};
+
+void setLabel(CurveBuildRefusal& r, bool byDate, const std::string& label) {
+    (byDate ? r.date : r.month) = label;
+}
+
+void setLabels(CurveBuildRefusal& r, bool byDate, const std::vector<std::string>& labels) {
+    (byDate ? r.dates : r.months) = labels;
+}
+
+/// Solve: conflicts and redundant quotes, status, rank, rule. Fills the
+/// report's status, rank, unknowns, equations and quote statuses.
+SystemSolution SolveSystem(const SystemInputs& in, CurveBuildReport& report) {
+    const auto& rows = in.rows;
+    const auto& rhs = in.rhs;
+    const auto& quoted = in.quoted;
+    const auto& rowNames = in.rowNames;
+    const auto& rowQuote = in.rowQuote;
+    const std::size_t n = in.labels.size();
+    report.unknowns = static_cast<int>(n);
+    report.equations = static_cast<int>(rows.size());
+    report.rule = in.rule;
+    report.averageQuotes.resize(in.quotePrices.size());
+
+    SystemSolution out;
+    out.space = std::make_shared<EquationSpace>(n);
+    auto& space = *out.space;
+    for (std::size_t e = 0; e < rows.size(); ++e) {
+        const auto added = space.add(rows[e], rhs[e]);
+        if (added.independent) {
+            continue;
+        }
+        const std::size_t k = *rowQuote[e]; // direct prices are never dependent
+        const double implied = added.implied + in.constants[k];
+        const double gap = in.quotePrices[k] - implied;
+        if (std::fabs(gap) <= 1e-8 * std::max(1.0, std::fabs(in.quotePrices[k]))) {
+            report.averageQuotes[k].status = QuoteStatus::Redundant;
+            continue;
+        }
+        std::vector<std::string> involved;
+        auto r = refusalOf(CurveBuildRefusal::Reason::QuoteConflict);
+        r.path = quotePath(k);
+        r.averageQuote = k;
+        r.impliedValue = implied;
+        r.quotedValue = in.quotePrices[k];
+        r.gap = gap;
+        for (std::size_t j = 0; j < added.combination.size(); ++j) {
+            if (std::fabs(added.combination[j]) > 1e-12) {
+                involved.push_back(rowNames[j]);
+                CurveBuildRefusal::Input input;
+                if (rowQuote[j]) {
+                    input.averageQuote = *rowQuote[j];
+                } else if (in.byDate) {
+                    input.date = rowNames[j];
+                } else {
+                    input.month = rowNames[j];
+                }
+                r.dependsOn.push_back(input);
+            }
+        }
+        refuse(
+            quotePath(k) + ": conflicts with the other quotes: they imply " +
+                formatNumber(implied) + ", it quotes " + formatNumber(in.quotePrices[k]) +
+                ", a gap of " + formatNumber(gap) + " (it is determined by " + joinNames(involved) +
+                ")",
+            r);
+    }
+    report.rank = static_cast<int>(space.rank());
+
+    auto& determined = out.determined;
+    determined.assign(n, false);
+    std::vector<std::string> undetermined;
+    for (std::size_t c = 0; c < n; ++c) {
+        Vector e(n, 0.0);
+        e[c] = 1.0;
+        determined[c] = space.spans(e);
+        if (!determined[c]) {
+            undetermined.push_back(in.labels[c]);
+        }
+    }
+
+    auto& solve = out.solve;
+    const auto spacePtr = out.space;
+    if (space.rank() == n) {
+        report.status = CurveStatus::Unique;
+        solve = [spacePtr](const Vector& b) { return spacePtr->solve(b); };
+    } else {
+        report.status = CurveStatus::Underdetermined;
+        if (!in.rule) {
+            auto r = refusalOf(CurveBuildRefusal::Reason::RuleRequired);
+            r.path = "rule";
+            setLabels(r, in.byDate, undetermined);
+            refuse(
+                "rule is required: the quotes do not determine " + joinNames(undetermined) + " (" +
+                    std::to_string(n) + " " + in.noun + ", " + std::to_string(space.rank()) +
+                    " independent quotes); give Flat or Smooth",
+                r);
+        }
+        if (*in.rule == CurveRule::Flat) {
+            // Unknowns touched by the same equations share one price.
+            std::map<std::vector<std::size_t>, std::size_t> groupOf;
+            std::vector<std::size_t> group(n);
+            for (std::size_t c = 0; c < n; ++c) {
+                std::vector<std::size_t> signature;
+                for (std::size_t e = 0; e < rows.size(); ++e) {
+                    if (rows[e][c] != 0.0) {
+                        signature.push_back(e);
+                    }
+                }
+                auto it = groupOf.emplace(signature, groupOf.size()).first;
+                group[c] = it->second;
+            }
+            const std::size_t g = groupOf.size();
+            auto reduced = std::make_shared<EquationSpace>(g);
+            for (std::size_t e = 0; e < rows.size(); ++e) {
+                Vector row(g, 0.0);
+                for (std::size_t c = 0; c < n; ++c) {
+                    row[group[c]] += rows[e][c];
+                }
+                const auto added = reduced->add(row, rhs[e]);
+                if (!added.independent && std::fabs(rhs[e] - added.implied) >
+                                              1e-8 * std::max(1.0, std::fabs(quoted[e]))) {
+                    auto r = refusalOf(CurveBuildRefusal::Reason::FlatCannotResolve);
+                    r.path = "rule";
+                    r.rule = CurveRule::Flat;
+                    setLabels(r, in.byDate, undetermined);
+                    if (rowQuote[e]) {
+                        r.averageQuote = *rowQuote[e];
+                    } else {
+                        setLabel(r, in.byDate, rowNames[e]);
+                    }
+                    r.gap = rhs[e] - added.implied;
+                    refuse(
+                        "rule Flat cannot resolve these quotes: with one price per group of " +
+                            in.noun + " touched by the same quotes, " + rowNames[e] +
+                            " is no longer repriced (gap " + formatNumber(rhs[e] - added.implied) +
+                            ")",
+                        r);
+                }
+            }
+            if (reduced->rank() < g) {
+                auto r = refusalOf(CurveBuildRefusal::Reason::FlatCannotResolve);
+                r.path = "rule";
+                r.rule = CurveRule::Flat;
+                setLabels(r, in.byDate, undetermined);
+                refuse(
+                    "rule Flat cannot resolve these quotes: one price per group of " + in.noun +
+                        " touched by the same quotes still leaves " + joinNames(undetermined) +
+                        " undetermined",
+                    r);
+            }
+            solve = [reduced, group, n](const Vector& b) {
+                const Vector y = reduced->solve(b);
+                Vector x(n);
+                for (std::size_t c = 0; c < n; ++c) {
+                    x[c] = y[group[c]];
+                }
+                return x;
+            };
+        } else {
+            const auto basis = space.nullSpace();
+            const auto& d = in.secondDifferences;
+            // M = D N, one column per null-space vector.
+            std::vector<Vector> m(d.size(), Vector(basis.size(), 0.0));
+            for (std::size_t r = 0; r < d.size(); ++r) {
+                for (std::size_t j = 0; j < basis.size(); ++j) {
+                    m[r][j] = Dot(d[r], basis[j]);
+                }
+            }
+            std::vector<Vector> h(basis.size(), Vector(basis.size(), 0.0));
+            for (std::size_t a = 0; a < basis.size(); ++a) {
+                for (std::size_t b = 0; b < basis.size(); ++b) {
+                    for (std::size_t r = 0; r < d.size(); ++r) {
+                        h[a][b] += m[r][a] * m[r][b];
+                    }
+                }
+            }
+            EquationSpace columns(d.size());
+            for (std::size_t j = 0; j < basis.size(); ++j) {
+                Vector col(d.size());
+                for (std::size_t r = 0; r < d.size(); ++r) {
+                    col[r] = m[r][j];
+                }
+                columns.add(col, 0.0);
+            }
+            Vector probe;
+            if (columns.rank() < basis.size() ||
+                !SolveSquare(h, Vector(basis.size(), 0.0), probe)) {
+                auto r = refusalOf(CurveBuildRefusal::Reason::SmoothNotUnique);
+                r.path = "rule";
+                r.rule = CurveRule::Smooth;
+                setLabels(r, in.byDate, undetermined);
+                refuse(
+                    "rule Smooth has no unique solution: the quotes leave " +
+                        joinNames(undetermined) +
+                        " free in a way the second differences do not fix (they need a level "
+                        "and a slope); use Flat",
+                    r);
+            }
+            solve = [spacePtr, basis, d, m, h, n](const Vector& b) {
+                Vector x = spacePtr->solve(b);
+                const Vector dx = multiply(d, x);
+                Vector g(basis.size(), 0.0);
+                for (std::size_t j = 0; j < basis.size(); ++j) {
+                    for (std::size_t r = 0; r < d.size(); ++r) {
+                        g[j] -= m[r][j] * dx[r];
+                    }
+                }
+                Vector z;
+                SolveSquare(h, g, z);
+                for (std::size_t j = 0; j < basis.size(); ++j) {
+                    for (std::size_t c = 0; c < n; ++c) {
+                        x[c] += z[j] * basis[j][c];
+                    }
+                }
+                return x;
+            };
+        }
+    }
+    return out;
+}
+
+} // namespace
+
+namespace {
+
+/// "YYYY-MM" moved back `n` months.
+std::string monthsBefore(const std::string& month, int n) {
+    int y = std::stoi(month.substr(0, 4));
+    int m = std::stoi(month.substr(5, 2)) - n;
+    while (m < 1) {
+        m += 12;
+        --y;
+    }
+    char buf[8];
+    std::snprintf(buf, sizeof(buf), "%04d-%02d", y, m);
+    return buf;
+}
+
+[[noreturn]] void baseNotDetermined(
+    const BasisInputs& b,
+    const std::string& month,
+    const std::string& baseMonth,
+    const std::string& why) {
+    auto r = refusalOf(CurveBuildRefusal::Reason::BaseNotDetermined);
+    r.path = "basis.base";
+    r.month = month;
+    r.baseCurve = b.baseCurve;
+    r.baseMonth = baseMonth;
+    refuse(
+        "basis.base: no base price for " + month + ": the base contract '" + b.base->id() + "' " +
+            why,
+        r);
+}
+
+/// The base price of `month` (rules in the header).
+double basePriceOf(const BasisInputs& b, const ContractMonth& month, const QuantLib::Date& asOf) {
+    const auto& base = *b.base;
+    if (b.basePrice == BasisBasePrice::SameMonth) {
+        const std::string baseMonth = monthsBefore(month.month, b.baseMonthOffset);
+        for (const auto& m : base.months()) {
+            if (m.month != baseMonth) {
+                continue;
+            }
+            if (m.lastTradeDate >= asOf) {
+                if (!m.price) {
+                    baseNotDetermined(b, month.month, baseMonth, "has no price for " + baseMonth);
+                }
+                return *m.price;
+            }
+            const auto fixing = base.fixing(baseMonth, m.lastTradeDate);
+            if (!fixing) {
+                baseNotDetermined(
+                    b, month.month, baseMonth,
+                    "month " + baseMonth + " expired on " + DateToIso(m.lastTradeDate) +
+                        " and has no fixing on that day");
+            }
+            return *fixing;
+        }
+        baseNotDetermined(b, month.month, baseMonth, "does not list " + baseMonth);
+    }
+    // MonthAverage: the swap pricer's average of the base over calendar
+    // month M, one period, undiscounted.
+    const int y = std::stoi(month.month.substr(0, 4));
+    const int mm = std::stoi(month.month.substr(5, 2));
+    const QuantLib::Date first(1, static_cast<QuantLib::Month>(mm), y);
+    AverageQuote q;
+    q.periods = {{first, QuantLib::Date::endOfMonth(first)}};
+    q.nearby = *b.baseNearby;
+    q.rollDaysBeforeExpiry = *b.baseRollDaysBeforeExpiry;
+    FuturesFloatingPrice ff;
+    ff.contract = b.base;
+    ff.nearby = q.nearby;
+    ff.rollDaysBeforeExpiry = q.rollDaysBeforeExpiry;
+    CommoditySwapResult r;
+    try {
+        const auto legs = quoteLegs(q, 0, ff, 0.0, asOf);
+        r = PriceCommoditySwap(legs.first, legs.second, asOf);
+    } catch (const QuantraInvalidArgument& e) {
+        baseNotDetermined(
+            b, month.month, month.month,
+            std::string("cannot be averaged over ") + month.month + ": " + e.what());
+    }
+    if (r.legs[1].flows.empty() || !r.legs[1].flows[0].average) {
+        baseNotDetermined(
+            b, month.month, month.month, "has no pricing day left to average over " + month.month);
+    }
+    return *r.legs[1].flows[0].average;
+}
+
 } // namespace
 
 CommodityCurveBuildResult BuildCommodityCurve(
-    const FuturesContract& contract, const CurveBuildInputs& inputs, const QuantLib::Date& asOf) {
+    const FuturesContract& input, const CurveBuildInputs& inputs, const QuantLib::Date& asOf) {
+    // Basis: every live month's base price, then the basis quotes as direct
+    // prices.
+    std::map<std::size_t, double> baseOf;
+    std::set<std::size_t> basisMonths;
+    std::optional<FuturesContract> withBasis;
+    if (inputs.basis) {
+        const auto& b = *inputs.basis;
+        if (b.baseMonthOffset < 0) {
+            auto r = refusalOf(CurveBuildRefusal::Reason::InvalidInput);
+            r.path = "basis.base_month_offset";
+            refuse("basis.base_month_offset must be >= 0", r);
+        }
+        const bool average = b.basePrice == BasisBasePrice::MonthAverage;
+        for (const auto& [given, field] :
+             {std::make_pair(b.baseNearby.has_value(), std::string("base_nearby")),
+              std::make_pair(
+                  b.baseRollDaysBeforeExpiry.has_value(),
+                  std::string("base_roll_days_before_expiry"))}) {
+            if (average && !given) {
+                auto r = refusalOf(CurveBuildRefusal::Reason::InvalidInput);
+                r.path = "basis." + field;
+                refuse("basis." + field + " is required when base_price is MonthAverage", r);
+            }
+            if (!average && given) {
+                auto r = refusalOf(CurveBuildRefusal::Reason::InvalidInput);
+                r.path = "basis." + field;
+                refuse(
+                    "basis." + field +
+                        " is not used when base_price is SameMonth (it reads one base month)",
+                    r);
+            }
+        }
+        if (average && (*b.baseNearby < 1 || *b.baseRollDaysBeforeExpiry < 0)) {
+            const bool nearby = *b.baseNearby < 1;
+            auto r = refusalOf(CurveBuildRefusal::Reason::InvalidInput);
+            r.path = nearby ? "basis.base_nearby" : "basis.base_roll_days_before_expiry";
+            refuse(r.path + (nearby ? " must be >= 1 (1 = front month)" : " must be >= 0"), r);
+        }
+        if (b.baseMonthOffset != 0 && average) {
+            auto r = refusalOf(CurveBuildRefusal::Reason::InvalidInput);
+            r.path = "basis.base_month_offset";
+            refuse("basis.base_month_offset is not used when base_price is MonthAverage", r);
+        }
+        const auto& months = input.months();
+        std::map<std::string, std::size_t> index;
+        for (std::size_t i = 0; i < months.size(); ++i) {
+            index[months[i].month] = i;
+        }
+        std::vector<std::optional<double>> prices(months.size());
+        for (std::size_t i = 0; i < months.size(); ++i) {
+            prices[i] = months[i].price;
+        }
+        for (std::size_t k = 0; k < b.quotes.size(); ++k) {
+            const auto& quote = b.quotes[k];
+            const std::string path = "basis.quotes[" + std::to_string(k) + "]";
+            const auto it = index.find(quote.month);
+            if (it == index.end()) {
+                auto r = refusalOf(CurveBuildRefusal::Reason::InvalidInput);
+                r.path = path + ".month";
+                r.month = quote.month;
+                refuse(path + ".month " + quote.month + " is not a month of the contract", r);
+            }
+            const std::size_t i = it->second;
+            if (!std::isfinite(quote.value)) {
+                auto r = refusalOf(CurveBuildRefusal::Reason::InvalidInput);
+                r.path = path + ".value";
+                refuse(path + ".value must be finite", r);
+            }
+            if (basisMonths.count(i) > 0) {
+                auto r = refusalOf(CurveBuildRefusal::Reason::InvalidInput);
+                r.path = path + ".month";
+                r.month = quote.month;
+                refuse(path + ".month " + quote.month + " has a second basis quote", r);
+            }
+            if (months[i].price) {
+                auto r = refusalOf(CurveBuildRefusal::Reason::BasisAndPrice);
+                r.path = path;
+                r.month = quote.month;
+                refuse(
+                    path + ": month " + quote.month +
+                        " also has a price; give either the price or the basis",
+                    r);
+            }
+            if (months[i].lastTradeDate < asOf) {
+                auto r = refusalOf(CurveBuildRefusal::Reason::BasisOnExpiredMonth);
+                r.path = path;
+                r.month = quote.month;
+                refuse(
+                    path + ": month " + quote.month + " expired on " +
+                        DateToIso(months[i].lastTradeDate) +
+                        " (before the valuation date); it is read through fixings",
+                    r);
+            }
+            basisMonths.insert(i);
+        }
+        for (std::size_t i = 0; i < months.size(); ++i) {
+            if (months[i].lastTradeDate >= asOf) {
+                baseOf[i] = basePriceOf(b, months[i], asOf);
+            }
+        }
+        for (std::size_t k = 0; k < b.quotes.size(); ++k) {
+            const std::size_t i = index[b.quotes[k].month];
+            prices[i] = baseOf[i] + b.quotes[k].value;
+        }
+        withBasis.emplace(input.withPrices(prices));
+    }
+    const FuturesContract& contract = withBasis ? *withBasis : input;
     const auto& months = contract.months();
     const std::size_t nm = months.size();
     std::vector<std::size_t> live;
@@ -538,201 +1034,20 @@ CommodityCurveBuildResult BuildCommodityCurve(
 
     CommodityCurveBuildResult result;
     auto& report = result.report;
-    report.unknowns = static_cast<int>(n);
-    report.equations = static_cast<int>(rows.size());
-    report.rule = inputs.rule;
-    report.averageQuotes.resize(quotes.size());
-
-    EquationSpace space(n);
-    for (std::size_t e = 0; e < rows.size(); ++e) {
-        const auto added = space.add(rows[e], rhs[e]);
-        if (added.independent) {
-            continue;
-        }
-        const std::size_t k = *rowQuote[e]; // direct prices are never dependent
-        const double implied = added.implied + equations[k].constant;
-        const double gap = quotes[k].price - implied;
-        if (std::fabs(gap) <= 1e-8 * std::max(1.0, std::fabs(quotes[k].price))) {
-            report.averageQuotes[k].status = QuoteStatus::Redundant;
-            continue;
-        }
-        std::vector<std::string> involved;
-        auto r = refusalOf(CurveBuildRefusal::Reason::QuoteConflict);
-        r.path = quotePath(k);
-        r.averageQuote = k;
-        r.impliedValue = implied;
-        r.quotedValue = quotes[k].price;
-        r.gap = gap;
-        for (std::size_t j = 0; j < added.combination.size(); ++j) {
-            if (std::fabs(added.combination[j]) > 1e-12) {
-                involved.push_back(rowNames[j]);
-                CurveBuildRefusal::Input input;
-                if (rowQuote[j]) {
-                    input.averageQuote = *rowQuote[j];
-                } else {
-                    input.month = rowNames[j];
-                }
-                r.dependsOn.push_back(input);
-            }
-        }
-        refuse(
-            quotePath(k) + ": conflicts with the other quotes: they imply " +
-                formatNumber(implied) + ", it quotes " + formatNumber(quotes[k].price) +
-                ", a gap of " + formatNumber(gap) + " (it is determined by " + joinNames(involved) +
-                ")",
-            r);
+    std::vector<std::string> labels;
+    for (const std::size_t i : unknowns) {
+        labels.push_back(months[i].month);
     }
-    report.rank = static_cast<int>(space.rank());
-
-    std::vector<bool> determined(n);
-    std::vector<std::string> undetermined;
-    for (std::size_t c = 0; c < n; ++c) {
-        Vector e(n, 0.0);
-        e[c] = 1.0;
-        determined[c] = space.spans(e);
-        if (!determined[c]) {
-            undetermined.push_back(months[unknowns[c]].month);
-        }
+    SystemInputs system{
+        rows,       rhs, quoted, rowNames, rowQuote, labels, false, "months", secondDifferences(n),
+        inputs.rule};
+    for (std::size_t k = 0; k < quotes.size(); ++k) {
+        system.constants.push_back(equations[k].constant);
+        system.quotePrices.push_back(quotes[k].price);
     }
-
-    // The solve as a linear function of the right-hand sides.
-    std::function<Vector(const Vector&)> solve;
-    if (space.rank() == n) {
-        report.status = CurveStatus::Unique;
-        solve = [&space](const Vector& b) { return space.solve(b); };
-    } else {
-        report.status = CurveStatus::Underdetermined;
-        if (!inputs.rule) {
-            auto r = refusalOf(CurveBuildRefusal::Reason::RuleRequired);
-            r.path = "rule";
-            r.months = undetermined;
-            refuse(
-                "rule is required: the quotes do not determine " + joinNames(undetermined) + " (" +
-                    std::to_string(n) + " months, " + std::to_string(space.rank()) +
-                    " independent quotes); give Flat or Smooth",
-                r);
-        }
-        if (*inputs.rule == CurveRule::Flat) {
-            // Months touched by the same equations share one price.
-            std::map<std::vector<std::size_t>, std::size_t> groupOf;
-            std::vector<std::size_t> group(n);
-            for (std::size_t c = 0; c < n; ++c) {
-                std::vector<std::size_t> signature;
-                for (std::size_t e = 0; e < rows.size(); ++e) {
-                    if (rows[e][c] != 0.0) {
-                        signature.push_back(e);
-                    }
-                }
-                auto it = groupOf.emplace(signature, groupOf.size()).first;
-                group[c] = it->second;
-            }
-            const std::size_t g = groupOf.size();
-            auto reduced = std::make_shared<EquationSpace>(g);
-            for (std::size_t e = 0; e < rows.size(); ++e) {
-                Vector row(g, 0.0);
-                for (std::size_t c = 0; c < n; ++c) {
-                    row[group[c]] += rows[e][c];
-                }
-                const auto added = reduced->add(row, rhs[e]);
-                if (!added.independent && std::fabs(rhs[e] - added.implied) >
-                                              1e-8 * std::max(1.0, std::fabs(quoted[e]))) {
-                    auto r = refusalOf(CurveBuildRefusal::Reason::FlatCannotResolve);
-                    r.path = "rule";
-                    r.rule = CurveRule::Flat;
-                    r.months = undetermined;
-                    if (rowQuote[e]) {
-                        r.averageQuote = *rowQuote[e];
-                    } else {
-                        r.month = rowNames[e];
-                    }
-                    r.gap = rhs[e] - added.implied;
-                    refuse(
-                        "rule Flat cannot resolve these quotes: with one price per group of "
-                        "months touched by the same quotes, " +
-                            rowNames[e] + " is no longer repriced (gap " +
-                            formatNumber(rhs[e] - added.implied) + ")",
-                        r);
-                }
-            }
-            if (reduced->rank() < g) {
-                auto r = refusalOf(CurveBuildRefusal::Reason::FlatCannotResolve);
-                r.path = "rule";
-                r.rule = CurveRule::Flat;
-                r.months = undetermined;
-                refuse(
-                    "rule Flat cannot resolve these quotes: one price per group of months "
-                    "touched by the same quotes still leaves " +
-                        joinNames(undetermined) + " undetermined",
-                    r);
-            }
-            solve = [reduced, group, n](const Vector& b) {
-                const Vector y = reduced->solve(b);
-                Vector x(n);
-                for (std::size_t c = 0; c < n; ++c) {
-                    x[c] = y[group[c]];
-                }
-                return x;
-            };
-        } else {
-            const auto basis = space.nullSpace();
-            const auto d = secondDifferences(n);
-            // M = D N, one column per null-space vector.
-            std::vector<Vector> m(d.size(), Vector(basis.size(), 0.0));
-            for (std::size_t r = 0; r < d.size(); ++r) {
-                for (std::size_t j = 0; j < basis.size(); ++j) {
-                    m[r][j] = Dot(d[r], basis[j]);
-                }
-            }
-            std::vector<Vector> h(basis.size(), Vector(basis.size(), 0.0));
-            for (std::size_t a = 0; a < basis.size(); ++a) {
-                for (std::size_t b = 0; b < basis.size(); ++b) {
-                    for (std::size_t r = 0; r < d.size(); ++r) {
-                        h[a][b] += m[r][a] * m[r][b];
-                    }
-                }
-            }
-            EquationSpace columns(d.size());
-            for (std::size_t j = 0; j < basis.size(); ++j) {
-                Vector col(d.size());
-                for (std::size_t r = 0; r < d.size(); ++r) {
-                    col[r] = m[r][j];
-                }
-                columns.add(col, 0.0);
-            }
-            Vector probe;
-            if (columns.rank() < basis.size() ||
-                !SolveSquare(h, Vector(basis.size(), 0.0), probe)) {
-                auto r = refusalOf(CurveBuildRefusal::Reason::SmoothNotUnique);
-                r.path = "rule";
-                r.rule = CurveRule::Smooth;
-                r.months = undetermined;
-                refuse(
-                    "rule Smooth has no unique solution: the quotes leave " +
-                        joinNames(undetermined) +
-                        " free in a way the second differences do not fix (they need a level "
-                        "and a slope); use Flat",
-                    r);
-            }
-            solve = [&space, basis, d, m, h, n](const Vector& b) {
-                Vector x = space.solve(b);
-                const Vector dx = multiply(d, x);
-                Vector g(basis.size(), 0.0);
-                for (std::size_t j = 0; j < basis.size(); ++j) {
-                    for (std::size_t r = 0; r < d.size(); ++r) {
-                        g[j] -= m[r][j] * dx[r];
-                    }
-                }
-                Vector z;
-                SolveSquare(h, g, z);
-                for (std::size_t j = 0; j < basis.size(); ++j) {
-                    for (std::size_t c = 0; c < n; ++c) {
-                        x[c] += z[j] * basis[j][c];
-                    }
-                }
-                return x;
-            };
-        }
-    }
+    const auto solution = SolveSystem(system, report);
+    const auto& determined = solution.determined;
+    const auto& solve = solution.solve;
     const Vector x = solve(rhs);
 
     // The determined months are the nodes of the fill.
@@ -754,8 +1069,44 @@ CommodityCurveBuildResult BuildCommodityCurve(
         prices[i] = x[c];
     }
     const FuturesContract solved = contract.withPrices(prices);
-    const auto filled =
-        BuildFuturesCurve(solved, inputs.interpolation, inputs.extrapolateFlat, asOf);
+    FuturesCurveBuildResult filled;
+    if (!inputs.basis) {
+        filled = BuildFuturesCurve(solved, inputs.interpolation, inputs.extrapolateFlat, asOf);
+    } else {
+        // The fill reads the basis of the determined months, then adds the
+        // base back.
+        std::vector<std::optional<double>> basisPrices(nm);
+        for (std::size_t i = 0; i < nm; ++i) {
+            basisPrices[i] = prices[i];
+            const auto it = baseOf.find(i);
+            if (it != baseOf.end() && prices[i]) {
+                basisPrices[i] = *prices[i] - it->second;
+            }
+        }
+        try {
+            filled = BuildFuturesCurve(
+                contract.withPrices(basisPrices), inputs.interpolation, inputs.extrapolateFlat,
+                asOf);
+        } catch (const CurveBuildError& e) {
+            if (e.refusal().reason != CurveBuildRefusal::Reason::NonPositivePrice) {
+                throw;
+            }
+            // Worded for the basis.
+            const auto& r = e.refusal();
+            const std::size_t i = monthIndex[*r.month];
+            refuse(
+                "contract.months[" + std::to_string(i) + "] (" + *r.month + "): basis " +
+                    formatPrice(*basisPrices[i]) +
+                    " must be > 0 for interpolation LogLinear (it reads log basis)",
+                r);
+        }
+        for (std::size_t i = 0; i < nm; ++i) {
+            const auto it = baseOf.find(i);
+            if (it != baseOf.end()) {
+                filled.months[i].price = *filled.months[i].price + it->second;
+            }
+        }
+    }
     result.months = filled.months;
 
     // Sensitivities: one solve per unit right-hand side.
@@ -779,12 +1130,17 @@ CommodityCurveBuildResult BuildCommodityCurve(
         MonthReport mr;
         mr.month = months[i].month;
         mr.price = *filled.months[i].price;
+        if (inputs.basis) {
+            mr.basePrice = baseOf.at(i);
+            mr.basis = mr.price - *mr.basePrice;
+        }
         const auto it = column.find(i);
         if (it != column.end()) {
             const std::size_t c = it->second;
-            mr.source = months[i].price ? MonthSource::Quoted
-                        : determined[c] ? MonthSource::Solved
-                                        : MonthSource::Assumed;
+            mr.source = basisMonths.count(i) > 0 ? MonthSource::Basis
+                        : months[i].price        ? MonthSource::Quoted
+                        : determined[c]          ? MonthSource::Solved
+                                                 : MonthSource::Assumed;
             if (inputs.includeDetails) {
                 for (std::size_t e = 0; e < rows.size(); ++e) {
                     QuoteSensitivity qs;
@@ -832,11 +1188,300 @@ CommodityCurveBuildResult BuildCommodityCurve(
     return result;
 }
 
+SpotCurveBuildResult BuildSpotCurve(
+    const SpotCurveSpec& spec, const CurveBuildInputs& inputs, const QuantLib::Date& asOf) {
+    const auto& points = spec.points;
+    const std::size_t np = points.size();
+    const auto& quotes = inputs.averageQuotes;
+
+    // The spot's own rules (at least one point, dates ascending, finite
+    // prices and fixings) through its constructor, every unpriced point at 0.
+    std::vector<SpotPoint> zero;
+    zero.reserve(np);
+    for (const auto& p : points) {
+        zero.push_back({p.date, p.price.value_or(0.0)});
+    }
+    std::shared_ptr<const SpotPrice> placeholder;
+    try {
+        placeholder = std::make_shared<const SpotPrice>(
+            spec.id, spec.calendar, spec.interpolation, spec.extrapolateFlat, zero, spec.fixings);
+    } catch (const QuantraInvalidArgument& e) {
+        auto r = refusalOf(CurveBuildRefusal::Reason::InvalidInput);
+        r.path = e.path().empty() ? "spot" : "spot." + e.path();
+        refuse(std::string("spot: ") + e.what(), r);
+    }
+    for (std::size_t k = 0; k < quotes.size(); ++k) {
+        if (!std::isfinite(quotes[k].price)) {
+            auto r = refusalOf(CurveBuildRefusal::Reason::InvalidInput);
+            r.path = quotePath(k) + ".price";
+            r.averageQuote = k;
+            refuse(quotePath(k) + ".price must be finite", r);
+        }
+    }
+    // Every point at 0 (also the priced ones): the weights do not depend on
+    // the prices, and the constant is the realised part only.
+    for (auto& p : zero) {
+        p.price = 0.0;
+    }
+    const auto zeroSpot = std::make_shared<const SpotPrice>(
+        spec.id, spec.calendar, spec.interpolation, spec.extrapolateFlat, zero, spec.fixings);
+
+    std::vector<QuoteEquation> equations;
+    equations.reserve(quotes.size());
+    for (std::size_t k = 0; k < quotes.size(); ++k) {
+        try {
+            equations.push_back(quoteEquation(quotes[k], k, zeroSpot, asOf));
+        } catch (const CurveBuildError&) {
+            throw;
+        } catch (const QuantraInvalidArgument& e) {
+            if (e.path().empty()) {
+                throw;
+            }
+            auto r = refusalOf(CurveBuildRefusal::Reason::InvalidInput);
+            r.path = e.path();
+            r.averageQuote = k;
+            refuse(e.what(), r);
+        }
+    }
+
+    // Unknowns: points with a price or a weight, in date order.
+    std::map<std::string, std::size_t> pointIndex;
+    std::vector<std::string> isoDates(np);
+    for (std::size_t i = 0; i < np; ++i) {
+        isoDates[i] = DateToIso(points[i].date);
+        pointIndex[isoDates[i]] = i;
+    }
+    std::vector<std::size_t> unknowns;
+    std::map<std::size_t, std::size_t> column;
+    for (std::size_t i = 0; i < np; ++i) {
+        bool touched = points[i].price.has_value();
+        for (const auto& eq : equations) {
+            touched = touched || eq.weights.count(isoDates[i]) > 0;
+        }
+        if (touched) {
+            column[i] = unknowns.size();
+            unknowns.push_back(i);
+        }
+    }
+    const std::size_t n = unknowns.size();
+
+    std::vector<Vector> rows;
+    Vector rhs;
+    Vector quoted;
+    std::vector<std::string> rowNames;
+    std::vector<std::optional<std::size_t>> rowQuote;
+    for (const std::size_t i : unknowns) {
+        if (points[i].price) {
+            Vector row(n, 0.0);
+            row[column[i]] = 1.0;
+            rows.push_back(row);
+            rhs.push_back(*points[i].price);
+            quoted.push_back(*points[i].price);
+            rowNames.push_back(isoDates[i]);
+            rowQuote.push_back(std::nullopt);
+        }
+    }
+    for (std::size_t k = 0; k < quotes.size(); ++k) {
+        Vector row(n, 0.0);
+        for (const auto& w : equations[k].weights) {
+            row[column[pointIndex[w.first]]] = w.second;
+        }
+        rows.push_back(row);
+        rhs.push_back(quotes[k].price - equations[k].constant);
+        quoted.push_back(quotes[k].price);
+        rowNames.push_back(quotePath(k));
+        rowQuote.push_back(k);
+    }
+
+    // Smooth: second divided differences on x = days from the valuation date
+    // / 365 over the unknowns in date order.
+    std::vector<Vector> divided;
+    for (std::size_t c = 1; c + 1 < n; ++c) {
+        auto x = [&](std::size_t j) {
+            return static_cast<double>(points[unknowns[j]].date - asOf) / 365.0;
+        };
+        const double h0 = x(c) - x(c - 1);
+        const double h1 = x(c + 1) - x(c);
+        const double span = x(c + 1) - x(c - 1);
+        Vector row(n, 0.0);
+        row[c - 1] = 1.0 / (h0 * span);
+        row[c] = -(1.0 / h0 + 1.0 / h1) / span;
+        row[c + 1] = 1.0 / (h1 * span);
+        divided.push_back(std::move(row));
+    }
+
+    SpotCurveBuildResult result;
+    auto& report = result.report;
+    std::vector<std::string> labels;
+    for (const std::size_t i : unknowns) {
+        labels.push_back(isoDates[i]);
+    }
+    SystemInputs system{rows,   rhs,  quoted,   rowNames, rowQuote,
+                        labels, true, "points", divided,  inputs.rule};
+    for (std::size_t k = 0; k < quotes.size(); ++k) {
+        system.constants.push_back(equations[k].constant);
+        system.quotePrices.push_back(quotes[k].price);
+    }
+    const auto solution = SolveSystem(system, report);
+    const auto& determined = solution.determined;
+    const auto& solve = solution.solve;
+    const Vector x = solve(rhs);
+
+    // The determined points, then the fill of the others with the spot's
+    // own reading.
+    std::vector<std::optional<double>> prices(np);
+    for (std::size_t c = 0; c < n; ++c) {
+        const std::size_t i = unknowns[c];
+        if (!std::isfinite(x[c])) {
+            auto r = refusalOf(CurveBuildRefusal::Reason::NotFinite);
+            r.path = "spot.points[" + std::to_string(i) + "]";
+            r.date = isoDates[i];
+            refuse(
+                "spot.points[" + std::to_string(i) + "] (" + isoDates[i] +
+                    "): the solved price is not finite",
+                r);
+        }
+        prices[i] = x[c];
+    }
+    std::vector<std::size_t> missing;
+    std::vector<SpotPoint> nodes;
+    for (std::size_t i = 0; i < np; ++i) {
+        if (prices[i]) {
+            nodes.push_back({points[i].date, *prices[i]});
+        } else {
+            missing.push_back(i);
+        }
+    }
+    std::vector<bool> outside(np, false);
+    if (!missing.empty()) {
+        std::vector<std::string> missingDates;
+        for (const std::size_t i : missing) {
+            missingDates.push_back(isoDates[i]);
+        }
+        if (nodes.empty()) {
+            auto r = refusalOf(CurveBuildRefusal::Reason::NoPricedPoint);
+            r.path = "spot.points";
+            r.dates = missingDates;
+            refuse(
+                "spot.points: no point has a price or is read by a quote, so " +
+                    joinNames(missingDates) + " cannot be filled",
+                r);
+        }
+        const SpotPrice line(
+            spec.id, spec.calendar, spec.interpolation, spec.extrapolateFlat, nodes, {});
+        const QuantLib::Date first = nodes.front().date;
+        const QuantLib::Date last = nodes.back().date;
+        for (const std::size_t i : missing) {
+            const QuantLib::Date date = points[i].date;
+            outside[i] = date < first || date > last;
+            if (outside[i] && !spec.extrapolateFlat) {
+                auto r = refusalOf(CurveBuildRefusal::Reason::DateOutsideRange);
+                r.path = "spot.points[" + std::to_string(i) + "]";
+                r.date = isoDates[i];
+                for (const std::size_t j : missing) {
+                    if (points[j].date < first || points[j].date > last) {
+                        r.dates.push_back(isoDates[j]);
+                    }
+                }
+                refuse(
+                    "spot.points[" + std::to_string(i) + "] (" + isoDates[i] + ") is " +
+                        (date < first ? "before the first" : "after the last") +
+                        " determined point (" + DateToIso(first) + " to " + DateToIso(last) +
+                        ") and extrapolate_flat is false",
+                    r);
+            }
+            const double price = line.forward(date);
+            if (!std::isfinite(price)) {
+                auto r = refusalOf(CurveBuildRefusal::Reason::NotFinite);
+                r.path = "spot.points[" + std::to_string(i) + "]";
+                r.date = isoDates[i];
+                refuse(
+                    "spot.points[" + std::to_string(i) + "] (" + isoDates[i] +
+                        "): the filled price is not finite",
+                    r);
+            }
+            prices[i] = price;
+        }
+    }
+    result.points.reserve(np);
+    std::vector<SpotPoint> built;
+    for (std::size_t i = 0; i < np; ++i) {
+        result.points.push_back({points[i].date, prices[i]});
+        built.push_back({points[i].date, *prices[i]});
+    }
+
+    std::vector<Vector> sens;
+    if (inputs.includeDetails) {
+        for (std::size_t e = 0; e < rows.size(); ++e) {
+            Vector unit(rows.size(), 0.0);
+            unit[e] = 1.0;
+            sens.push_back(solve(unit));
+        }
+        double largest = 0.0;
+        for (const auto& v : sens) {
+            for (const double s : v) {
+                largest = std::max(largest, std::fabs(s));
+            }
+        }
+        report.maxSensitivity = largest;
+    }
+    for (std::size_t i = 0; i < np; ++i) {
+        PointReport pr;
+        pr.date = points[i].date;
+        pr.price = *prices[i];
+        const auto it = column.find(i);
+        if (it != column.end()) {
+            const std::size_t c = it->second;
+            pr.source = points[i].price ? MonthSource::Quoted
+                        : determined[c] ? MonthSource::Solved
+                                        : MonthSource::Assumed;
+            if (inputs.includeDetails) {
+                for (std::size_t e = 0; e < rows.size(); ++e) {
+                    QuoteSensitivity qs;
+                    if (rowQuote[e]) {
+                        qs.averageQuote = *rowQuote[e];
+                    } else {
+                        qs.date = rowNames[e];
+                    }
+                    qs.value = sens[e][c];
+                    pr.sensitivities.push_back(qs);
+                }
+            }
+        } else {
+            pr.source = outside[i] ? MonthSource::Extrapolated : MonthSource::Interpolated;
+        }
+        report.points.push_back(std::move(pr));
+    }
+
+    // Every quote repriced by the swap pricer on the built spot price.
+    const auto builtSpot = std::make_shared<const SpotPrice>(
+        spec.id, spec.calendar, spec.interpolation, spec.extrapolateFlat, built, spec.fixings);
+    for (std::size_t k = 0; k < quotes.size(); ++k) {
+        const auto r = priceQuote(quotes[k], k, builtSpot, quotes[k].price, asOf);
+        auto& qr = report.averageQuotes[k];
+        qr.repriced = r.fairFixedPrice.value_or(0.0);
+        qr.difference = qr.repriced - quotes[k].price;
+        report.maxRepricingDifference =
+            std::max(report.maxRepricingDifference, std::fabs(qr.difference));
+        if (inputs.includeDetails) {
+            for (const auto& w : equations[k].weights) {
+                QuoteWeight qw;
+                qw.date = w.first;
+                qw.weight = w.second;
+                qr.weights.push_back(qw);
+            }
+            qr.constant = equations[k].constant;
+        }
+    }
+    return result;
+}
+
 std::string QualifyCurveBuildMessage(const std::string& build, const std::string& message) {
-    const bool fieldPath = message.rfind("contract", 0) == 0 ||
-                           message.rfind("interpolation", 0) == 0 ||
-                           message.rfind("extrapolate_flat", 0) == 0 ||
-                           message.rfind("average_quotes", 0) == 0 || message.rfind("rule", 0) == 0;
+    const bool fieldPath =
+        message.rfind("contract", 0) == 0 || message.rfind("interpolation", 0) == 0 ||
+        message.rfind("extrapolate_flat", 0) == 0 || message.rfind("average_quotes", 0) == 0 ||
+        message.rfind("rule", 0) == 0 || message.rfind("spot", 0) == 0 ||
+        message.rfind("basis", 0) == 0;
     return build + (fieldPath ? "." : ": ") + message;
 }
 

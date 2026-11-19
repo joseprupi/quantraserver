@@ -679,7 +679,19 @@ enum CommodityMonthSource : byte {
     Interpolated = 3,
     /// Not touched by any quote, outside the determined months: the nearest
     /// one (extrapolate_flat).
-    Extrapolated = 4
+    Extrapolated = 4,
+    /// A basis quote: the base price plus the basis.
+    Basis = 5
+}
+
+/// How a basis build reads the base price of a month M.
+enum CommodityBasisBasePrice : byte {
+    /// The base contract's month M - base_month_offset months: its price when
+    /// live, its fixing on its last trading date when expired.
+    SameMonth = 0,
+    /// The average over the pricing days of calendar month M of the base
+    /// contract read with base_nearby / base_roll_days_before_expiry.
+    MonthAverage = 1
 }
 
 /// How an average quote entered a commodity curve build.
