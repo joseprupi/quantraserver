@@ -119,8 +119,36 @@ class CommodityAverageQuote(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Basis builds only: when true, `price` is a spread, the average of this
+    # curve over the periods minus the average of the base over the same
+    # periods (each with the quote's quantities, payments and discounting:
+    # the difference of the two fair fixed prices). Default false.
+    # CommodityAverageQuote
+    def VersusBase(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
+    # With `versus_base` on a contract build: the base contract month
+    # averaged and its roll, as `nearby` / `roll_days_before_expiry` are for
+    # this contract. Required then; refused otherwise (and on spot builds).
+    # CommodityAverageQuote
+    def BaseNearby(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
+        return None
+
+    # CommodityAverageQuote
+    def BaseRollDaysBeforeExpiry(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
+        return None
+
 def CommodityAverageQuoteStart(builder):
-    builder.StartObject(9)
+    builder.StartObject(12)
 
 def Start(builder):
     CommodityAverageQuoteStart(builder)
@@ -179,6 +207,24 @@ def CommodityAverageQuoteAddDiscountingCurve(builder, discountingCurve):
 def AddDiscountingCurve(builder, discountingCurve):
     CommodityAverageQuoteAddDiscountingCurve(builder, discountingCurve)
 
+def CommodityAverageQuoteAddVersusBase(builder, versusBase):
+    builder.PrependBoolSlot(9, versusBase, 0)
+
+def AddVersusBase(builder, versusBase):
+    CommodityAverageQuoteAddVersusBase(builder, versusBase)
+
+def CommodityAverageQuoteAddBaseNearby(builder, baseNearby):
+    builder.PrependInt32Slot(10, baseNearby, None)
+
+def AddBaseNearby(builder, baseNearby):
+    CommodityAverageQuoteAddBaseNearby(builder, baseNearby)
+
+def CommodityAverageQuoteAddBaseRollDaysBeforeExpiry(builder, baseRollDaysBeforeExpiry):
+    builder.PrependInt32Slot(11, baseRollDaysBeforeExpiry, None)
+
+def AddBaseRollDaysBeforeExpiry(builder, baseRollDaysBeforeExpiry):
+    CommodityAverageQuoteAddBaseRollDaysBeforeExpiry(builder, baseRollDaysBeforeExpiry)
+
 def CommodityAverageQuoteEnd(builder):
     return builder.EndObject()
 
@@ -203,6 +249,9 @@ class CommodityAverageQuoteT(object):
         self.paymentLag = None  # type: Optional[int]
         self.paymentConvention = None  # type: Optional[int]
         self.discountingCurve = None  # type: str
+        self.versusBase = False  # type: bool
+        self.baseNearby = None  # type: Optional[int]
+        self.baseRollDaysBeforeExpiry = None  # type: Optional[int]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -235,6 +284,9 @@ class CommodityAverageQuoteT(object):
         self.paymentLag = commodityAverageQuote.PaymentLag()
         self.paymentConvention = commodityAverageQuote.PaymentConvention()
         self.discountingCurve = commodityAverageQuote.DiscountingCurve()
+        self.versusBase = commodityAverageQuote.VersusBase()
+        self.baseNearby = commodityAverageQuote.BaseNearby()
+        self.baseRollDaysBeforeExpiry = commodityAverageQuote.BaseRollDaysBeforeExpiry()
 
     # CommodityAverageQuoteT
     def Pack(self, builder):
@@ -254,5 +306,8 @@ class CommodityAverageQuoteT(object):
         CommodityAverageQuoteAddPaymentConvention(builder, self.paymentConvention)
         if self.discountingCurve is not None:
             CommodityAverageQuoteAddDiscountingCurve(builder, discountingCurve)
+        CommodityAverageQuoteAddVersusBase(builder, self.versusBase)
+        CommodityAverageQuoteAddBaseNearby(builder, self.baseNearby)
+        CommodityAverageQuoteAddBaseRollDaysBeforeExpiry(builder, self.baseRollDaysBeforeExpiry)
         commodityAverageQuote = CommodityAverageQuoteEnd(builder)
         return commodityAverageQuote

@@ -248,8 +248,7 @@ TEST(CommodityCurveBuild, Errors) {
         [&] {
             contract({M("2027-01", D(2026, 12, 21), 60.0), M("2027-02", D(2026, 12, 21), 61.0)});
         },
-        "commodity contract 'SYN_CL' months[1]: last_trade_date 2026-12-21 of 2027-02 is not "
-        "after 2026-12-21 of 2027-01");
+        "months[1].last_trade_date 2026-12-21 of 2027-02 is not after 2026-12-21 of 2027-01");
 }
 
 TEST(CommodityCurveBuild, MessagePrefix) {
@@ -611,8 +610,22 @@ TEST(CommodityAverageQuotes, UnderdeterminedNeedsARule) {
         EXPECT_NEAR(rep->months[0].price, 50.0, 1e-10);
     }
     EXPECT_NEAR(flat.months[1].price, flat.months[2].price, 1e-12);
+    // Smooth: zero second divided difference on the last trading dates.
+    const auto qc = quarterContract();
+    const auto& qm = qc.months();
+    std::vector<double> t;
+    for (const auto& m : smooth.months) {
+        for (const auto& c : qm) {
+            if (c.month == m.month) {
+                t.push_back(static_cast<double>(c.lastTradeDate - kAsOf));
+            }
+        }
+    }
+    ASSERT_EQ(t.size(), 3u);
     EXPECT_NEAR(
-        smooth.months[0].price - 2.0 * smooth.months[1].price + smooth.months[2].price, 0.0, 1e-10);
+        (smooth.months[2].price - smooth.months[1].price) / (t[2] - t[1]) -
+            (smooth.months[1].price - smooth.months[0].price) / (t[1] - t[0]),
+        0.0, 1e-12);
     EXPECT_GT(std::fabs(flat.months[2].price - smooth.months[2].price), 0.1);
     EXPECT_EQ(*flat.rule, CurveRule::Flat);
 }
@@ -1220,4 +1233,95 @@ TEST(CommodityBasisBuild, MonthAverageUsesTheSwapAverage) {
     // January 2027: 21 weekdays, 1-20 January (14 days) on February (60.7),
     // 21-29 January (7 days) on March (61.0).
     EXPECT_NEAR(*r.report.months[0].basePrice, (14 * 60.7 + 7 * 61.0) / 21.0, 1e-12);
+}
+
+// ---------------------------------------------------------------------------
+// m. basis on spot builds, spread quotes, jacobians
+// ---------------------------------------------------------------------------
+
+TEST(CommoditySpotBasisBuild, BaseReadOnEachDatePlusTheBasis) {
+    // Base: linear between 30 November (60) and 31 January (61.24).
+    const auto baseSpec =
+        spotSpec(SpotInterpolation::Linear, {{D(2026, 11, 30), 60.0}, {D(2027, 1, 31), 61.24}});
+    const auto base = std::make_shared<const SpotPrice>(
+        "SYN_BASE", baseSpec.calendar, SpotInterpolation::Linear, false,
+        std::vector<SpotPoint>{{D(2026, 11, 30), 60.0}, {D(2027, 1, 31), 61.24}},
+        std::vector<SpotFixing>{});
+    auto spec = spotSpec(
+        SpotInterpolation::Linear, {{D(2026, 11, 30), std::nullopt},
+                                    {D(2026, 12, 31), std::nullopt},
+                                    {D(2027, 1, 31), std::nullopt}});
+    CurveBuildInputs in;
+    BasisInputs b;
+    b.baseSpot = base;
+    b.baseCurve = 1;
+    BasisQuote q0;
+    q0.value = 0.4;
+    q0.date = D(2026, 11, 30);
+    BasisQuote q2;
+    q2.value = 0.6;
+    q2.date = D(2027, 1, 31);
+    b.quotes = {q0, q2};
+    in.basis = b;
+    in.fullJacobian = true;
+    const auto r = BuildSpotCurve(spec, in, kAsOf);
+    // 31 December: base 60 + 1.24 x 31/62 = 60.62, basis 0.4 + 0.2 x 31/62.
+    EXPECT_NEAR(*r.points[1].price, 60.62 + 0.5, 1e-12);
+    EXPECT_EQ(r.report.points[0].source, MonthSource::Basis);
+    EXPECT_EQ(r.report.points[1].source, MonthSource::Interpolated);
+    EXPECT_NEAR(*r.report.points[1].basePrice, 60.62, 1e-12);
+    EXPECT_NEAR(*r.report.points[1].basis, 0.5, 1e-12);
+    // The filled point moves half with each basis quote.
+    ASSERT_EQ(r.jacobian.inputs.size(), 2u);
+    EXPECT_EQ(r.jacobian.inputs[0].date, std::optional<std::string>("2026-11-30"));
+    EXPECT_NEAR(r.jacobian.rows[1][0], 0.5, 1e-9);
+    EXPECT_NEAR(r.jacobian.rows[1][1], 0.5, 1e-9);
+    EXPECT_NEAR(r.jacobian.rows[0][0], 1.0, 1e-12);
+    // A quote on a date that is not a point.
+    in.basis->quotes[0].date = D(2026, 12, 1);
+    const auto refusal = refusalOf([&] { BuildSpotCurve(spec, in, kAsOf); });
+    EXPECT_EQ(refusal.reason, CurveBuildRefusal::Reason::InvalidInput);
+    EXPECT_EQ(refusal.path, "basis.quotes[0].date");
+}
+
+TEST(CommoditySpotBasisBuild, SpreadQuoteIsTheDifferenceOfTheFairPrices) {
+    // Base flat at 60 (BackwardFlat, extrapolated); this spot BackwardFlat
+    // on 31 December: every December day reads it, so the December spread
+    // quote 0.45 gives 60.45.
+    const auto base = std::make_shared<const SpotPrice>(
+        "SYN_BASE", PricingCalendar(QuantLib::WeekendsOnly(), {}), SpotInterpolation::BackwardFlat,
+        true, std::vector<SpotPoint>{{D(2026, 11, 30), 60.0}}, std::vector<SpotFixing>{});
+    const auto spec = spotSpec(
+        SpotInterpolation::BackwardFlat,
+        {{D(2026, 11, 30), 60.3}, {D(2026, 12, 31), std::nullopt}});
+    auto in = withQuotes({spotQuote(D(2026, 12, 1), D(2026, 12, 31), 0.45)});
+    in.averageQuotes[0].versusBase = true;
+    BasisInputs b;
+    b.baseSpot = base;
+    in.basis = b;
+    const auto r = BuildSpotCurve(spec, in, kAsOf);
+    EXPECT_NEAR(*r.points[1].price, 60.45, 1e-12);
+    EXPECT_NEAR(r.report.averageQuotes[0].repriced, 0.45, 1e-12);
+    // Without a basis the spread has no base.
+    in.basis.reset();
+    const auto refusal = refusalOf([&] { BuildSpotCurve(spec, in, kAsOf); });
+    EXPECT_EQ(refusal.path, "average_quotes[0].versus_base");
+}
+
+TEST(CommodityCurveBuildJacobian, DeterminedRowsAreTheSensitivitiesFilledRowsTheFill) {
+    // Linear fill of February between January and March (30 of 63 days).
+    const auto c = contract(
+        {M("2027-01", D(2026, 12, 21), 60.4), M("2027-02", D(2027, 1, 20), std::nullopt),
+         M("2027-03", D(2027, 2, 22), 61.0)});
+    CurveBuildInputs in;
+    in.interpolation = CurveInterpolation::Linear;
+    in.fullJacobian = true;
+    const auto r = BuildCommodityCurve(c, in, kAsOf);
+    ASSERT_EQ(r.jacobian.rows.size(), 3u);
+    ASSERT_EQ(r.jacobian.inputs.size(), 2u);
+    EXPECT_NEAR(r.jacobian.rows[0][0], 1.0, 1e-12);
+    EXPECT_NEAR(r.jacobian.rows[0][1], 0.0, 1e-12);
+    EXPECT_NEAR(r.jacobian.rows[1][0], 33.0 / 63.0, 1e-9);
+    EXPECT_NEAR(r.jacobian.rows[1][1], 30.0 / 63.0, 1e-9);
+    EXPECT_NEAR(r.jacobian.rows[2][1], 1.0, 1e-12);
 }

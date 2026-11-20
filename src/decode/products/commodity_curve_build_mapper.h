@@ -45,6 +45,27 @@
 
 namespace quantra {
 
+/// One `CommodityCurveBuild` decoded (presence and wire form); `base` is its
+/// path in the request (`curves[2]`, `pricing.commodity.curve_builds[0]`)
+/// and `index` its index in that list (the `curve` of the error details).
+/// Used by this endpoint and by the swap request's pricing.commodity.
+CommodityCurveBuildSpec DecodeCommodityCurveBuild(
+    const quantra::CommodityCurveBuild* entry, const std::string& base, std::size_t index);
+
+/// Build `pricing.commodity.curve_builds` (as /build-commodity-curves builds
+/// `curves`, with jacobians; through the curve cache when it is enabled) and
+/// register each built contract / spot price in `commodity` under its id. An
+/// id given twice (among the built entries of one kind, or also in
+/// `contracts` / `spot_prices`) is a 400. `requestKey`: what else the builds
+/// read (the calendar overrides), for the cache key.
+void RegisterCommodityCurveBuilds(
+    CommodityRegistry& commodity,
+    const RatesRegistry& rates,
+    const flatbuffers::Vector<flatbuffers::Offset<quantra::CommodityCurveBuild>>* builds,
+    const QuantLib::Date& asOf,
+    const RequestBudget& budget,
+    const std::string& requestKey);
+
 class CommodityCurveBuildMapper {
 public:
     /// The pricing registry (which requires `pricing.rates.curves`) is built

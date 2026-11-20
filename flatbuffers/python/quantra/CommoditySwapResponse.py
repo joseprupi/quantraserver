@@ -109,8 +109,37 @@ class CommoditySwapResponse(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         return o == 0
 
+    # Only when `pricing.commodity.curve_builds` is given: the sensitivity
+    # of `npv` to every input of every built contract or spot price the
+    # swap reads (in entry order, then the entry's inputs: direct prices
+    # and basis quotes in month or date order, then average quotes).
+    # CommoditySwapResponse
+    def QuoteDeltas(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra.CommodityQuoteDelta import CommodityQuoteDelta
+            obj = CommodityQuoteDelta()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # CommoditySwapResponse
+    def QuoteDeltasLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # CommoditySwapResponse
+    def QuoteDeltasIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        return o == 0
+
 def CommoditySwapResponseStart(builder):
-    builder.StartObject(5)
+    builder.StartObject(6)
 
 def Start(builder):
     CommoditySwapResponseStart(builder)
@@ -157,6 +186,18 @@ def CommoditySwapResponseStartDeltasVector(builder, numElems):
 def StartDeltasVector(builder, numElems):
     return CommoditySwapResponseStartDeltasVector(builder, numElems)
 
+def CommoditySwapResponseAddQuoteDeltas(builder, quoteDeltas):
+    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(quoteDeltas), 0)
+
+def AddQuoteDeltas(builder, quoteDeltas):
+    CommoditySwapResponseAddQuoteDeltas(builder, quoteDeltas)
+
+def CommoditySwapResponseStartQuoteDeltasVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartQuoteDeltasVector(builder, numElems):
+    return CommoditySwapResponseStartQuoteDeltasVector(builder, numElems)
+
 def CommoditySwapResponseEnd(builder):
     return builder.EndObject()
 
@@ -177,6 +218,7 @@ class CommoditySwapResponseT(object):
         self.fairSpread = None  # type: Optional[float]
         self.legs = None  # type: List[CommoditySwapLegResultT]
         self.deltas = None  # type: List[CommodityPriceDeltaT]
+        self.quoteDeltas = None  # type: List[CommodityQuoteDeltaT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -218,6 +260,14 @@ class CommoditySwapResponseT(object):
                 else:
                     commodityPriceDelta_ = CommodityPriceDeltaT.InitFromObj(commoditySwapResponse.Deltas(i))
                     self.deltas.append(commodityPriceDelta_)
+        if not commoditySwapResponse.QuoteDeltasIsNone():
+            self.quoteDeltas = []
+            for i in range(commoditySwapResponse.QuoteDeltasLength()):
+                if commoditySwapResponse.QuoteDeltas(i) is None:
+                    self.quoteDeltas.append(None)
+                else:
+                    commodityQuoteDelta_ = CommodityQuoteDeltaT.InitFromObj(commoditySwapResponse.QuoteDeltas(i))
+                    self.quoteDeltas.append(commodityQuoteDelta_)
 
     # CommoditySwapResponseT
     def Pack(self, builder):
@@ -237,6 +287,14 @@ class CommoditySwapResponseT(object):
             for i in reversed(range(len(self.deltas))):
                 builder.PrependUOffsetTRelative(deltaslist[i])
             deltas = builder.EndVector()
+        if self.quoteDeltas is not None:
+            quoteDeltaslist = []
+            for i in range(len(self.quoteDeltas)):
+                quoteDeltaslist.append(self.quoteDeltas[i].Pack(builder))
+            CommoditySwapResponseStartQuoteDeltasVector(builder, len(self.quoteDeltas))
+            for i in reversed(range(len(self.quoteDeltas))):
+                builder.PrependUOffsetTRelative(quoteDeltaslist[i])
+            quoteDeltas = builder.EndVector()
         CommoditySwapResponseStart(builder)
         CommoditySwapResponseAddNpv(builder, self.npv)
         CommoditySwapResponseAddFairFixedPrice(builder, self.fairFixedPrice)
@@ -245,5 +303,7 @@ class CommoditySwapResponseT(object):
             CommoditySwapResponseAddLegs(builder, legs)
         if self.deltas is not None:
             CommoditySwapResponseAddDeltas(builder, deltas)
+        if self.quoteDeltas is not None:
+            CommoditySwapResponseAddQuoteDeltas(builder, quoteDeltas)
         commoditySwapResponse = CommoditySwapResponseEnd(builder)
         return commoditySwapResponse

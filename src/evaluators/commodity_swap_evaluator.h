@@ -44,6 +44,8 @@ struct CommoditySwapLegSpec {
 
 struct CommoditySwapTrade {
     std::array<CommoditySwapLegSpec, 2> legs;
+    /// `common_pricing`: two floating legs average over their common days.
+    bool commonPricing = false;
 };
 
 struct CommoditySwapInputs {
@@ -53,10 +55,25 @@ struct CommoditySwapInputs {
     bool includeObservations = false;
 };
 
+/// d NPV / d input of a contract or spot price built in the request.
+struct CommodityQuoteDeltaRow {
+    /// The built entry's id.
+    std::string curveId;
+    /// The input, as labelled in the entry's jacobian (month, date or
+    /// average quote).
+    commodities::QuoteSensitivity input;
+    double delta = 0.0;
+};
+
 struct CommoditySwapResultSet {
     std::vector<commodities::CommoditySwapResult> swaps;
     bool includeFlows = false;
     bool includeObservations = false;
+    /// pricing.commodity.curve_builds was given: per swap its quote deltas,
+    /// and one summary per built entry.
+    bool hasBuilds = false;
+    std::vector<std::vector<CommodityQuoteDeltaRow>> quoteDeltas;
+    std::vector<BuiltCommodityCurveInfo> builds;
 };
 
 class CommoditySwapEvaluator {

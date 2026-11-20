@@ -59,8 +59,18 @@ class CommodityQuoteSensitivity(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Basis builds: the index in `curves` of the entry the input belongs
+    # to, when it is an input of the base (or of the base's base). Absent
+    # for the entry's own inputs.
+    # CommodityQuoteSensitivity
+    def Curve(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
+        return None
+
 def CommodityQuoteSensitivityStart(builder):
-    builder.StartObject(4)
+    builder.StartObject(5)
 
 def Start(builder):
     CommodityQuoteSensitivityStart(builder)
@@ -89,6 +99,12 @@ def CommodityQuoteSensitivityAddDate(builder, date):
 def AddDate(builder, date):
     CommodityQuoteSensitivityAddDate(builder, date)
 
+def CommodityQuoteSensitivityAddCurve(builder, curve):
+    builder.PrependInt32Slot(4, curve, None)
+
+def AddCurve(builder, curve):
+    CommodityQuoteSensitivityAddCurve(builder, curve)
+
 def CommodityQuoteSensitivityEnd(builder):
     return builder.EndObject()
 
@@ -104,6 +120,7 @@ class CommodityQuoteSensitivityT(object):
         self.averageQuote = None  # type: Optional[int]
         self.value = 0.0  # type: float
         self.date = None  # type: str
+        self.curve = None  # type: Optional[int]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -130,6 +147,7 @@ class CommodityQuoteSensitivityT(object):
         self.averageQuote = commodityQuoteSensitivity.AverageQuote()
         self.value = commodityQuoteSensitivity.Value()
         self.date = commodityQuoteSensitivity.Date()
+        self.curve = commodityQuoteSensitivity.Curve()
 
     # CommodityQuoteSensitivityT
     def Pack(self, builder):
@@ -144,5 +162,6 @@ class CommodityQuoteSensitivityT(object):
         CommodityQuoteSensitivityAddValue(builder, self.value)
         if self.date is not None:
             CommodityQuoteSensitivityAddDate(builder, date)
+        CommodityQuoteSensitivityAddCurve(builder, self.curve)
         commodityQuoteSensitivity = CommodityQuoteSensitivityEnd(builder)
         return commodityQuoteSensitivity

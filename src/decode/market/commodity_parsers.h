@@ -39,10 +39,31 @@
 
 namespace quantra {
 
+/// A contract or spot price built in the request
+/// (`pricing.commodity.curve_builds`), registered next to the given ones.
+struct BuiltCommodityCurveInfo {
+    std::string id;
+    bool spot = false;
+    /// The jacobian's rows: the live months ("YYYY-MM", contract order) or
+    /// the points (YYYY-MM-DD).
+    std::vector<std::string> outputs;
+    /// d output / d input; inputs of a base carry the base's index in
+    /// `curve`.
+    commodities::BuildJacobian jacobian;
+    commodities::CurveStatus status = commodities::CurveStatus::Unique;
+    double maxRepricingDifference = 0.0;
+    /// Largest |d output / d input| over the whole jacobian.
+    double maxSensitivity = 0.0;
+};
+
 /// Commodity market data of one request, by id.
 struct CommodityRegistry {
     std::map<std::string, std::shared_ptr<const commodities::FuturesContract>> contracts;
     std::map<std::string, std::shared_ptr<const commodities::SpotPrice>> spotPrices;
+    /// pricing.commodity.curve_builds was given (possibly empty).
+    bool hasBuilds = false;
+    /// The built entries, in request order.
+    std::vector<BuiltCommodityCurveInfo> built;
 
     /// The contract with the given id; QuantraNotFound (404) naming `field`
     /// (the request field that holds the id) when absent.

@@ -77,8 +77,24 @@ class CommodityCurvePoint(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         return o == 0
 
+    # Basis builds: the point's base price (the base spot read on its date)
+    # and price - base price.
+    # CommodityCurvePoint
+    def BasePrice(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
+    # CommodityCurvePoint
+    def Basis(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
 def CommodityCurvePointStart(builder):
-    builder.StartObject(4)
+    builder.StartObject(6)
 
 def Start(builder):
     CommodityCurvePointStart(builder)
@@ -113,6 +129,18 @@ def CommodityCurvePointStartSensitivitiesVector(builder, numElems):
 def StartSensitivitiesVector(builder, numElems):
     return CommodityCurvePointStartSensitivitiesVector(builder, numElems)
 
+def CommodityCurvePointAddBasePrice(builder, basePrice):
+    builder.PrependFloat64Slot(4, basePrice, None)
+
+def AddBasePrice(builder, basePrice):
+    CommodityCurvePointAddBasePrice(builder, basePrice)
+
+def CommodityCurvePointAddBasis(builder, basis):
+    builder.PrependFloat64Slot(5, basis, None)
+
+def AddBasis(builder, basis):
+    CommodityCurvePointAddBasis(builder, basis)
+
 def CommodityCurvePointEnd(builder):
     return builder.EndObject()
 
@@ -132,6 +160,8 @@ class CommodityCurvePointT(object):
         self.price = 0.0  # type: float
         self.source = 0  # type: int
         self.sensitivities = None  # type: List[CommodityQuoteSensitivityT]
+        self.basePrice = None  # type: Optional[float]
+        self.basis = None  # type: Optional[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -165,6 +195,8 @@ class CommodityCurvePointT(object):
                 else:
                     commodityQuoteSensitivity_ = CommodityQuoteSensitivityT.InitFromObj(commodityCurvePoint.Sensitivities(i))
                     self.sensitivities.append(commodityQuoteSensitivity_)
+        self.basePrice = commodityCurvePoint.BasePrice()
+        self.basis = commodityCurvePoint.Basis()
 
     # CommodityCurvePointT
     def Pack(self, builder):
@@ -185,5 +217,7 @@ class CommodityCurvePointT(object):
         CommodityCurvePointAddSource(builder, self.source)
         if self.sensitivities is not None:
             CommodityCurvePointAddSensitivities(builder, sensitivities)
+        CommodityCurvePointAddBasePrice(builder, self.basePrice)
+        CommodityCurvePointAddBasis(builder, self.basis)
         commodityCurvePoint = CommodityCurvePointEnd(builder)
         return commodityCurvePoint

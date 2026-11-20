@@ -7,7 +7,8 @@ from flatbuffers.compat import import_numpy
 np = import_numpy()
 
 # Floating price from a futures contract: the average, over the period's
-# pricing days, of the nearby contract's price.
+# pricing days, of the nearby contract's price; or, with `observation`
+# OnePricePerPeriod, one price per period.
 class FuturesFloatingPrice(object):
     __slots__ = ['_tab']
 
@@ -35,7 +36,7 @@ class FuturesFloatingPrice(object):
         return None
 
     # Which contract is read: 1 is the front month, 2 the next one.
-    # Presence-required.
+    # Presence-required with DailyAverage; a 400 with OnePricePerPeriod.
     # FuturesFloatingPrice
     def Nearby(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -45,7 +46,8 @@ class FuturesFloatingPrice(object):
 
     # A pricing day rolls to the next contract this many pricing days
     # before the last trading date: 0 reads the front month on its last
-    # trading date. Presence-required.
+    # trading date. Presence-required with DailyAverage; a 400 with
+    # OnePricePerPeriod.
     # FuturesFloatingPrice
     def RollDaysBeforeExpiry(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -61,8 +63,20 @@ class FuturesFloatingPrice(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # DailyAverage (the default): the average over the period's pricing
+    # days. OnePricePerPeriod: one price per period, the contract month
+    # containing the period's last day read on the earlier of the payment
+    # date and its last trading date (a quantity per pricing day on either
+    # leg is then a 400).
+    # FuturesFloatingPrice
+    def Observation(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 0
+
 def FuturesFloatingPriceStart(builder):
-    builder.StartObject(4)
+    builder.StartObject(5)
 
 def Start(builder):
     FuturesFloatingPriceStart(builder)
@@ -91,6 +105,12 @@ def FuturesFloatingPriceAddSpread(builder, spread):
 def AddSpread(builder, spread):
     FuturesFloatingPriceAddSpread(builder, spread)
 
+def FuturesFloatingPriceAddObservation(builder, observation):
+    builder.PrependInt8Slot(4, observation, 0)
+
+def AddObservation(builder, observation):
+    FuturesFloatingPriceAddObservation(builder, observation)
+
 def FuturesFloatingPriceEnd(builder):
     return builder.EndObject()
 
@@ -106,6 +126,7 @@ class FuturesFloatingPriceT(object):
         self.nearby = None  # type: Optional[int]
         self.rollDaysBeforeExpiry = None  # type: Optional[int]
         self.spread = 0.0  # type: float
+        self.observation = 0  # type: int
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -132,6 +153,7 @@ class FuturesFloatingPriceT(object):
         self.nearby = futuresFloatingPrice.Nearby()
         self.rollDaysBeforeExpiry = futuresFloatingPrice.RollDaysBeforeExpiry()
         self.spread = futuresFloatingPrice.Spread()
+        self.observation = futuresFloatingPrice.Observation()
 
     # FuturesFloatingPriceT
     def Pack(self, builder):
@@ -143,5 +165,6 @@ class FuturesFloatingPriceT(object):
         FuturesFloatingPriceAddNearby(builder, self.nearby)
         FuturesFloatingPriceAddRollDaysBeforeExpiry(builder, self.rollDaysBeforeExpiry)
         FuturesFloatingPriceAddSpread(builder, self.spread)
+        FuturesFloatingPriceAddObservation(builder, self.observation)
         futuresFloatingPrice = FuturesFloatingPriceEnd(builder)
         return futuresFloatingPrice

@@ -8,6 +8,16 @@
 
 namespace quantra { namespace commodities {
 
+CommodityReadData SpotDateOutsidePoints::dataFor(
+    const QuantLib::Date& date, const std::string& spotId, const std::string& path) {
+    CommodityReadData data;
+    data.reason = "DateOutsidePoints";
+    data.path = path;
+    data.date = DateToIso(date);
+    data.spotId = spotId;
+    return data;
+}
+
 SpotPrice::SpotPrice(
     std::string id,
     PricingCalendar pricingCalendar,
@@ -17,32 +27,31 @@ SpotPrice::SpotPrice(
     const std::vector<SpotFixing>& fixings)
     : id_(std::move(id)), pricingCalendar_(std::move(pricingCalendar)),
       interpolation_(interpolation), extrapolateFlat_(extrapolateFlat), points_(std::move(points)) {
-    const std::string where = "commodity spot price '" + id_ + "'";
+    // Messages start with the field, relative to the spot price (the caller
+    // puts its path in front): `points[2].date ...`.
     if (points_.empty()) {
-        QuantraInvalidArgumentAt("points", where + ": at least one point is required");
+        QuantraInvalidArgumentAt("points", "points: at least one point is required");
     }
     for (std::size_t i = 0; i < points_.size(); ++i) {
-        const std::string at = where + " points[" + std::to_string(i) + "]";
         const std::string field = "points[" + std::to_string(i) + "]";
         if (!std::isfinite(points_[i].price)) {
-            QuantraInvalidArgumentAt(field + ".price", at + ": price must be finite");
+            QuantraInvalidArgumentAt(field + ".price", field + ".price must be finite");
         }
         if (i > 0 && points_[i].date <= points_[i - 1].date) {
             QuantraInvalidArgumentAt(
                 field + ".date",
-                at + ": date " + DateToIso(points_[i].date) +
+                field + ".date " + DateToIso(points_[i].date) +
                     " is not after the previous point; points must be in ascending date order");
         }
     }
     for (std::size_t i = 0; i < fixings.size(); ++i) {
-        const std::string at = where + " fixings[" + std::to_string(i) + "]";
         const std::string field = "fixings[" + std::to_string(i) + "]";
         if (!std::isfinite(fixings[i].value)) {
-            QuantraInvalidArgumentAt(field + ".value", at + ": value must be finite");
+            QuantraInvalidArgumentAt(field + ".value", field + ".value must be finite");
         }
         if (!fixings_.emplace(fixings[i].date, fixings[i].value).second) {
             QuantraInvalidArgumentAt(
-                field, at + ": a second fixing on " + DateToIso(fixings[i].date));
+                field, field + ": a second fixing on " + DateToIso(fixings[i].date));
         }
     }
 }
@@ -55,7 +64,7 @@ std::vector<SpotPointWeight> SpotPrice::weights(const QuantLib::Date& date) cons
                 "commodity spot price '" + id_ + "': " + DateToIso(date) +
                     " is outside its points (" + DateToIso(points_.front().date) + " to " +
                     DateToIso(points_.back().date) + ") and extrapolate_flat is false",
-                date);
+                date, id_);
         }
         return {{date < points_.front().date ? 0 : n - 1, 1.0}};
     }

@@ -13,6 +13,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
+#include "commodity_periods_generated.h"
 #include "enums_generated.h"
 
 namespace quantra {
@@ -40,6 +41,22 @@ struct CommoditySpotPointT;
 struct CommoditySpotSpec;
 struct CommoditySpotSpecBuilder;
 struct CommoditySpotSpecT;
+
+struct CommodityAverageQuote;
+struct CommodityAverageQuoteBuilder;
+struct CommodityAverageQuoteT;
+
+struct CommodityBasisQuote;
+struct CommodityBasisQuoteBuilder;
+struct CommodityBasisQuoteT;
+
+struct CommodityCurveBasis;
+struct CommodityCurveBasisBuilder;
+struct CommodityCurveBasisT;
+
+struct CommodityCurveBuild;
+struct CommodityCurveBuildBuilder;
+struct CommodityCurveBuildT;
 
 struct CommodityMarketData;
 struct CommodityMarketDataBuilder;
@@ -726,10 +743,694 @@ inline ::flatbuffers::Offset<CommoditySpotSpec> CreateCommoditySpotSpecDirect(
 
 ::flatbuffers::Offset<CommoditySpotSpec> CreateCommoditySpotSpec(::flatbuffers::FlatBufferBuilder &_fbb, const CommoditySpotSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct CommodityAverageQuoteT : public ::flatbuffers::NativeTable {
+  typedef CommodityAverageQuote TableType;
+  ::flatbuffers::Optional<double> price = ::flatbuffers::nullopt;
+  std::unique_ptr<quantra::CommodityPeriodsT> periods{};
+  ::flatbuffers::Optional<int32_t> nearby = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> roll_days_before_expiry = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::CommodityQuantityBasis> quantity_basis = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Calendar> payment_calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt;
+  std::string discounting_curve{};
+  bool versus_base = false;
+  ::flatbuffers::Optional<int32_t> base_nearby = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> base_roll_days_before_expiry = ::flatbuffers::nullopt;
+  CommodityAverageQuoteT() = default;
+  CommodityAverageQuoteT(const CommodityAverageQuoteT &o);
+  CommodityAverageQuoteT(CommodityAverageQuoteT&&) FLATBUFFERS_NOEXCEPT = default;
+  CommodityAverageQuoteT &operator=(CommodityAverageQuoteT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// An average-price quote: the fixed price of a fixed-for-floating average
+/// swap on the contract (fixed paid, the average of the `nearby` contract
+/// month over each period's pricing days received) that is worth zero. It
+/// is one equation on the prices of the months it reads:
+/// quote = constant + sum of weight x month price, where the constant is the
+/// part already fixed (fixings) and the weights are the pricing days reading
+/// each month, times the period's quantity and discount factor, divided by
+/// the sum of quantity x discount factor over the periods still to be paid.
+struct CommodityAverageQuote FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef CommodityAverageQuoteT NativeTableType;
+  typedef CommodityAverageQuoteBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_PRICE = 4,
+    VT_PERIODS = 6,
+    VT_NEARBY = 8,
+    VT_ROLL_DAYS_BEFORE_EXPIRY = 10,
+    VT_QUANTITY_BASIS = 12,
+    VT_PAYMENT_CALENDAR = 14,
+    VT_PAYMENT_LAG = 16,
+    VT_PAYMENT_CONVENTION = 18,
+    VT_DISCOUNTING_CURVE = 20,
+    VT_VERSUS_BASE = 22,
+    VT_BASE_NEARBY = 24,
+    VT_BASE_ROLL_DAYS_BEFORE_EXPIRY = 26
+  };
+  /// The quoted fixed price. Presence-required.
+  ::flatbuffers::Optional<double> price() const {
+    return GetOptional<double, double>(VT_PRICE);
+  }
+  /// The quote's calculation periods, as on a swap leg (generated or
+  /// explicit). One period (a month, or a quarter settled once) or several
+  /// (a quarter or a calendar year settled per month). Required.
+  const quantra::CommodityPeriods *periods() const {
+    return GetPointer<const quantra::CommodityPeriods *>(VT_PERIODS);
+  }
+  /// The contract month averaged, as on `FuturesFloatingPrice`: 1 = front
+  /// month. Contract builds: presence-required, >= 1. Spot builds: not
+  /// given (400).
+  ::flatbuffers::Optional<int32_t> nearby() const {
+    return GetOptional<int32_t, int32_t>(VT_NEARBY);
+  }
+  /// Roll this many pricing days before the last trading date, as on
+  /// `FuturesFloatingPrice`. Contract builds: presence-required, >= 0.
+  /// Spot builds: not given (400).
+  ::flatbuffers::Optional<int32_t> roll_days_before_expiry() const {
+    return GetOptional<int32_t, int32_t>(VT_ROLL_DAYS_BEFORE_EXPIRY);
+  }
+  /// PerPeriod (each period weighs the same) or PerPricingDay (each period
+  /// weighs its pricing days). Required with more than one period; one
+  /// period: optional (it changes nothing).
+  ::flatbuffers::Optional<quantra::enums::CommodityQuantityBasis> quantity_basis() const {
+    return GetOptional<int8_t, quantra::enums::CommodityQuantityBasis>(VT_QUANTITY_BASIS);
+  }
+  /// Payment of each period, as on a swap leg: `payment_lag` business days
+  /// of `payment_calendar` after the period's last day, adjusted with
+  /// `payment_convention`. Required with more than one period; one period:
+  /// optional (the discount factor cancels), used when given.
+  ::flatbuffers::Optional<quantra::enums::Calendar> payment_calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_PAYMENT_CALENDAR);
+  }
+  ::flatbuffers::Optional<int32_t> payment_lag() const {
+    return GetOptional<int32_t, int32_t>(VT_PAYMENT_LAG);
+  }
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_PAYMENT_CONVENTION);
+  }
+  /// Id of a `pricing.rates.curves` curve discounting the payments (404
+  /// when unknown). Required with more than one period; one period:
+  /// optional.
+  const ::flatbuffers::String *discounting_curve() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNTING_CURVE);
+  }
+  /// Basis builds only: when true, `price` is a spread, the average of this
+  /// curve over the periods minus the average of the base over the same
+  /// periods (each with the quote's quantities, payments and discounting:
+  /// the difference of the two fair fixed prices). Default false.
+  bool versus_base() const {
+    return GetField<uint8_t>(VT_VERSUS_BASE, 0) != 0;
+  }
+  /// With `versus_base` on a contract build: the base contract month
+  /// averaged and its roll, as `nearby` / `roll_days_before_expiry` are for
+  /// this contract. Required then; refused otherwise (and on spot builds).
+  ::flatbuffers::Optional<int32_t> base_nearby() const {
+    return GetOptional<int32_t, int32_t>(VT_BASE_NEARBY);
+  }
+  ::flatbuffers::Optional<int32_t> base_roll_days_before_expiry() const {
+    return GetOptional<int32_t, int32_t>(VT_BASE_ROLL_DAYS_BEFORE_EXPIRY);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<double>(verifier, VT_PRICE, 8) &&
+           VerifyOffsetRequired(verifier, VT_PERIODS) &&
+           verifier.VerifyTable(periods()) &&
+           VerifyField<int32_t>(verifier, VT_NEARBY, 4) &&
+           VerifyField<int32_t>(verifier, VT_ROLL_DAYS_BEFORE_EXPIRY, 4) &&
+           VerifyField<int8_t>(verifier, VT_QUANTITY_BASIS, 1) &&
+           VerifyField<int8_t>(verifier, VT_PAYMENT_CALENDAR, 1) &&
+           VerifyField<int32_t>(verifier, VT_PAYMENT_LAG, 4) &&
+           VerifyField<int8_t>(verifier, VT_PAYMENT_CONVENTION, 1) &&
+           VerifyOffset(verifier, VT_DISCOUNTING_CURVE) &&
+           verifier.VerifyString(discounting_curve()) &&
+           VerifyField<uint8_t>(verifier, VT_VERSUS_BASE, 1) &&
+           VerifyField<int32_t>(verifier, VT_BASE_NEARBY, 4) &&
+           VerifyField<int32_t>(verifier, VT_BASE_ROLL_DAYS_BEFORE_EXPIRY, 4) &&
+           verifier.EndTable();
+  }
+  CommodityAverageQuoteT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(CommodityAverageQuoteT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<CommodityAverageQuote> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityAverageQuoteT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct CommodityAverageQuoteBuilder {
+  typedef CommodityAverageQuote Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_price(double price) {
+    fbb_.AddElement<double>(CommodityAverageQuote::VT_PRICE, price);
+  }
+  void add_periods(::flatbuffers::Offset<quantra::CommodityPeriods> periods) {
+    fbb_.AddOffset(CommodityAverageQuote::VT_PERIODS, periods);
+  }
+  void add_nearby(int32_t nearby) {
+    fbb_.AddElement<int32_t>(CommodityAverageQuote::VT_NEARBY, nearby);
+  }
+  void add_roll_days_before_expiry(int32_t roll_days_before_expiry) {
+    fbb_.AddElement<int32_t>(CommodityAverageQuote::VT_ROLL_DAYS_BEFORE_EXPIRY, roll_days_before_expiry);
+  }
+  void add_quantity_basis(quantra::enums::CommodityQuantityBasis quantity_basis) {
+    fbb_.AddElement<int8_t>(CommodityAverageQuote::VT_QUANTITY_BASIS, static_cast<int8_t>(quantity_basis));
+  }
+  void add_payment_calendar(quantra::enums::Calendar payment_calendar) {
+    fbb_.AddElement<int8_t>(CommodityAverageQuote::VT_PAYMENT_CALENDAR, static_cast<int8_t>(payment_calendar));
+  }
+  void add_payment_lag(int32_t payment_lag) {
+    fbb_.AddElement<int32_t>(CommodityAverageQuote::VT_PAYMENT_LAG, payment_lag);
+  }
+  void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
+    fbb_.AddElement<int8_t>(CommodityAverageQuote::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
+  }
+  void add_discounting_curve(::flatbuffers::Offset<::flatbuffers::String> discounting_curve) {
+    fbb_.AddOffset(CommodityAverageQuote::VT_DISCOUNTING_CURVE, discounting_curve);
+  }
+  void add_versus_base(bool versus_base) {
+    fbb_.AddElement<uint8_t>(CommodityAverageQuote::VT_VERSUS_BASE, static_cast<uint8_t>(versus_base), 0);
+  }
+  void add_base_nearby(int32_t base_nearby) {
+    fbb_.AddElement<int32_t>(CommodityAverageQuote::VT_BASE_NEARBY, base_nearby);
+  }
+  void add_base_roll_days_before_expiry(int32_t base_roll_days_before_expiry) {
+    fbb_.AddElement<int32_t>(CommodityAverageQuote::VT_BASE_ROLL_DAYS_BEFORE_EXPIRY, base_roll_days_before_expiry);
+  }
+  explicit CommodityAverageQuoteBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<CommodityAverageQuote> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<CommodityAverageQuote>(end);
+    fbb_.Required(o, CommodityAverageQuote::VT_PERIODS);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<CommodityAverageQuote> CreateCommodityAverageQuote(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Optional<double> price = ::flatbuffers::nullopt,
+    ::flatbuffers::Offset<quantra::CommodityPeriods> periods = 0,
+    ::flatbuffers::Optional<int32_t> nearby = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> roll_days_before_expiry = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::CommodityQuantityBasis> quantity_basis = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> payment_calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Offset<::flatbuffers::String> discounting_curve = 0,
+    bool versus_base = false,
+    ::flatbuffers::Optional<int32_t> base_nearby = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> base_roll_days_before_expiry = ::flatbuffers::nullopt) {
+  CommodityAverageQuoteBuilder builder_(_fbb);
+  if(price) { builder_.add_price(*price); }
+  if(base_roll_days_before_expiry) { builder_.add_base_roll_days_before_expiry(*base_roll_days_before_expiry); }
+  if(base_nearby) { builder_.add_base_nearby(*base_nearby); }
+  builder_.add_discounting_curve(discounting_curve);
+  if(payment_lag) { builder_.add_payment_lag(*payment_lag); }
+  if(roll_days_before_expiry) { builder_.add_roll_days_before_expiry(*roll_days_before_expiry); }
+  if(nearby) { builder_.add_nearby(*nearby); }
+  builder_.add_periods(periods);
+  builder_.add_versus_base(versus_base);
+  if(payment_convention) { builder_.add_payment_convention(*payment_convention); }
+  if(payment_calendar) { builder_.add_payment_calendar(*payment_calendar); }
+  if(quantity_basis) { builder_.add_quantity_basis(*quantity_basis); }
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<CommodityAverageQuote> CreateCommodityAverageQuoteDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Optional<double> price = ::flatbuffers::nullopt,
+    ::flatbuffers::Offset<quantra::CommodityPeriods> periods = 0,
+    ::flatbuffers::Optional<int32_t> nearby = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> roll_days_before_expiry = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::CommodityQuantityBasis> quantity_basis = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> payment_calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
+    const char *discounting_curve = nullptr,
+    bool versus_base = false,
+    ::flatbuffers::Optional<int32_t> base_nearby = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> base_roll_days_before_expiry = ::flatbuffers::nullopt) {
+  auto discounting_curve__ = discounting_curve ? _fbb.CreateString(discounting_curve) : 0;
+  return quantra::CreateCommodityAverageQuote(
+      _fbb,
+      price,
+      periods,
+      nearby,
+      roll_days_before_expiry,
+      quantity_basis,
+      payment_calendar,
+      payment_lag,
+      payment_convention,
+      discounting_curve__,
+      versus_base,
+      base_nearby,
+      base_roll_days_before_expiry);
+}
+
+::flatbuffers::Offset<CommodityAverageQuote> CreateCommodityAverageQuote(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityAverageQuoteT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct CommodityBasisQuoteT : public ::flatbuffers::NativeTable {
+  typedef CommodityBasisQuote TableType;
+  std::string month{};
+  ::flatbuffers::Optional<double> value = ::flatbuffers::nullopt;
+  std::string date{};
+};
+
+/// One basis quote: the month's (point's) price is its base price plus
+/// `value`.
+struct CommodityBasisQuote FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef CommodityBasisQuoteT NativeTableType;
+  typedef CommodityBasisQuoteBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_MONTH = 4,
+    VT_VALUE = 6,
+    VT_DATE = 8
+  };
+  /// Contract builds: a month of the contract being built, "YYYY-MM".
+  /// Required there; refused on spot builds.
+  const ::flatbuffers::String *month() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_MONTH);
+  }
+  /// The basis, added to the base price (a caller quoting base minus
+  /// basis sends the negated value). Presence-required.
+  ::flatbuffers::Optional<double> value() const {
+    return GetOptional<double, double>(VT_VALUE);
+  }
+  /// Spot builds: the date of one of the spot's points (YYYY-MM-DD).
+  /// Required there; refused on contract builds.
+  const ::flatbuffers::String *date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_DATE);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_MONTH) &&
+           verifier.VerifyString(month()) &&
+           VerifyField<double>(verifier, VT_VALUE, 8) &&
+           VerifyOffset(verifier, VT_DATE) &&
+           verifier.VerifyString(date()) &&
+           verifier.EndTable();
+  }
+  CommodityBasisQuoteT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(CommodityBasisQuoteT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<CommodityBasisQuote> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityBasisQuoteT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct CommodityBasisQuoteBuilder {
+  typedef CommodityBasisQuote Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_month(::flatbuffers::Offset<::flatbuffers::String> month) {
+    fbb_.AddOffset(CommodityBasisQuote::VT_MONTH, month);
+  }
+  void add_value(double value) {
+    fbb_.AddElement<double>(CommodityBasisQuote::VT_VALUE, value);
+  }
+  void add_date(::flatbuffers::Offset<::flatbuffers::String> date) {
+    fbb_.AddOffset(CommodityBasisQuote::VT_DATE, date);
+  }
+  explicit CommodityBasisQuoteBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<CommodityBasisQuote> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<CommodityBasisQuote>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<CommodityBasisQuote> CreateCommodityBasisQuote(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> month = 0,
+    ::flatbuffers::Optional<double> value = ::flatbuffers::nullopt,
+    ::flatbuffers::Offset<::flatbuffers::String> date = 0) {
+  CommodityBasisQuoteBuilder builder_(_fbb);
+  if(value) { builder_.add_value(*value); }
+  builder_.add_date(date);
+  builder_.add_month(month);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<CommodityBasisQuote> CreateCommodityBasisQuoteDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *month = nullptr,
+    ::flatbuffers::Optional<double> value = ::flatbuffers::nullopt,
+    const char *date = nullptr) {
+  auto month__ = month ? _fbb.CreateString(month) : 0;
+  auto date__ = date ? _fbb.CreateString(date) : 0;
+  return quantra::CreateCommodityBasisQuote(
+      _fbb,
+      month__,
+      value,
+      date__);
+}
+
+::flatbuffers::Offset<CommodityBasisQuote> CreateCommodityBasisQuote(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityBasisQuoteT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct CommodityCurveBasisT : public ::flatbuffers::NativeTable {
+  typedef CommodityCurveBasis TableType;
+  std::string base{};
+  ::flatbuffers::Optional<quantra::enums::CommodityBasisBasePrice> base_price = ::flatbuffers::nullopt;
+  int32_t base_month_offset = 0;
+  ::flatbuffers::Optional<int32_t> base_nearby = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> base_roll_days_before_expiry = ::flatbuffers::nullopt;
+  std::vector<std::unique_ptr<quantra::CommodityBasisQuoteT>> quotes{};
+  CommodityCurveBasisT() = default;
+  CommodityCurveBasisT(const CommodityCurveBasisT &o);
+  CommodityCurveBasisT(CommodityCurveBasisT&&) FLATBUFFERS_NOEXCEPT = default;
+  CommodityCurveBasisT &operator=(CommodityCurveBasisT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// A contract (or spot price) priced as another contract (spot price) of the
+/// request, the base, plus a basis.
+struct CommodityCurveBasis FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef CommodityCurveBasisT NativeTableType;
+  typedef CommodityCurveBasisBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_BASE = 4,
+    VT_BASE_PRICE = 6,
+    VT_BASE_MONTH_OFFSET = 8,
+    VT_BASE_NEARBY = 10,
+    VT_BASE_ROLL_DAYS_BEFORE_EXPIRY = 12,
+    VT_QUOTES = 14
+  };
+  /// The id of another entry of the same kind (a contract build for a
+  /// contract, a spot build for a spot price), built first whatever the
+  /// order (404 when no entry has that id). A fully priced entry is how a
+  /// finished base is given. Required.
+  const ::flatbuffers::String *base() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_BASE);
+  }
+  /// Contract builds: how the base price of a month is read, SameMonth or
+  /// MonthAverage. Presence-required there; refused on spot builds (a
+  /// point's base price is the base spot read on the point's date).
+  ::flatbuffers::Optional<quantra::enums::CommodityBasisBasePrice> base_price() const {
+    return GetOptional<int8_t, quantra::enums::CommodityBasisBasePrice>(VT_BASE_PRICE);
+  }
+  /// SameMonth: the base month is the basis month minus this many months
+  /// (>= 0). Not used with MonthAverage.
+  int32_t base_month_offset() const {
+    return GetField<int32_t>(VT_BASE_MONTH_OFFSET, 0);
+  }
+  /// MonthAverage: the base contract month averaged and its roll, as on a
+  /// swap leg. Required with MonthAverage, refused with SameMonth.
+  ::flatbuffers::Optional<int32_t> base_nearby() const {
+    return GetOptional<int32_t, int32_t>(VT_BASE_NEARBY);
+  }
+  ::flatbuffers::Optional<int32_t> base_roll_days_before_expiry() const {
+    return GetOptional<int32_t, int32_t>(VT_BASE_ROLL_DAYS_BEFORE_EXPIRY);
+  }
+  /// The basis quotes. A quoted month gets base + value as its price
+  /// (source Basis); a month with both a price and a basis quote, or a
+  /// basis quote on an expired month, is a 400.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityBasisQuote>> *quotes() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityBasisQuote>> *>(VT_QUOTES);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffsetRequired(verifier, VT_BASE) &&
+           verifier.VerifyString(base()) &&
+           VerifyField<int8_t>(verifier, VT_BASE_PRICE, 1) &&
+           VerifyField<int32_t>(verifier, VT_BASE_MONTH_OFFSET, 4) &&
+           VerifyField<int32_t>(verifier, VT_BASE_NEARBY, 4) &&
+           VerifyField<int32_t>(verifier, VT_BASE_ROLL_DAYS_BEFORE_EXPIRY, 4) &&
+           VerifyOffset(verifier, VT_QUOTES) &&
+           verifier.VerifyVector(quotes()) &&
+           verifier.VerifyVectorOfTables(quotes()) &&
+           verifier.EndTable();
+  }
+  CommodityCurveBasisT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(CommodityCurveBasisT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<CommodityCurveBasis> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityCurveBasisT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct CommodityCurveBasisBuilder {
+  typedef CommodityCurveBasis Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_base(::flatbuffers::Offset<::flatbuffers::String> base) {
+    fbb_.AddOffset(CommodityCurveBasis::VT_BASE, base);
+  }
+  void add_base_price(quantra::enums::CommodityBasisBasePrice base_price) {
+    fbb_.AddElement<int8_t>(CommodityCurveBasis::VT_BASE_PRICE, static_cast<int8_t>(base_price));
+  }
+  void add_base_month_offset(int32_t base_month_offset) {
+    fbb_.AddElement<int32_t>(CommodityCurveBasis::VT_BASE_MONTH_OFFSET, base_month_offset, 0);
+  }
+  void add_base_nearby(int32_t base_nearby) {
+    fbb_.AddElement<int32_t>(CommodityCurveBasis::VT_BASE_NEARBY, base_nearby);
+  }
+  void add_base_roll_days_before_expiry(int32_t base_roll_days_before_expiry) {
+    fbb_.AddElement<int32_t>(CommodityCurveBasis::VT_BASE_ROLL_DAYS_BEFORE_EXPIRY, base_roll_days_before_expiry);
+  }
+  void add_quotes(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityBasisQuote>>> quotes) {
+    fbb_.AddOffset(CommodityCurveBasis::VT_QUOTES, quotes);
+  }
+  explicit CommodityCurveBasisBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<CommodityCurveBasis> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<CommodityCurveBasis>(end);
+    fbb_.Required(o, CommodityCurveBasis::VT_BASE);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<CommodityCurveBasis> CreateCommodityCurveBasis(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> base = 0,
+    ::flatbuffers::Optional<quantra::enums::CommodityBasisBasePrice> base_price = ::flatbuffers::nullopt,
+    int32_t base_month_offset = 0,
+    ::flatbuffers::Optional<int32_t> base_nearby = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> base_roll_days_before_expiry = ::flatbuffers::nullopt,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityBasisQuote>>> quotes = 0) {
+  CommodityCurveBasisBuilder builder_(_fbb);
+  builder_.add_quotes(quotes);
+  if(base_roll_days_before_expiry) { builder_.add_base_roll_days_before_expiry(*base_roll_days_before_expiry); }
+  if(base_nearby) { builder_.add_base_nearby(*base_nearby); }
+  builder_.add_base_month_offset(base_month_offset);
+  builder_.add_base(base);
+  if(base_price) { builder_.add_base_price(*base_price); }
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<CommodityCurveBasis> CreateCommodityCurveBasisDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *base = nullptr,
+    ::flatbuffers::Optional<quantra::enums::CommodityBasisBasePrice> base_price = ::flatbuffers::nullopt,
+    int32_t base_month_offset = 0,
+    ::flatbuffers::Optional<int32_t> base_nearby = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> base_roll_days_before_expiry = ::flatbuffers::nullopt,
+    const std::vector<::flatbuffers::Offset<quantra::CommodityBasisQuote>> *quotes = nullptr) {
+  auto base__ = base ? _fbb.CreateString(base) : 0;
+  auto quotes__ = quotes ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityBasisQuote>>(*quotes) : 0;
+  return quantra::CreateCommodityCurveBasis(
+      _fbb,
+      base__,
+      base_price,
+      base_month_offset,
+      base_nearby,
+      base_roll_days_before_expiry,
+      quotes__);
+}
+
+::flatbuffers::Offset<CommodityCurveBasis> CreateCommodityCurveBasis(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityCurveBasisT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct CommodityCurveBuildT : public ::flatbuffers::NativeTable {
+  typedef CommodityCurveBuild TableType;
+  std::unique_ptr<quantra::CommodityContractSpecT> contract{};
+  ::flatbuffers::Optional<quantra::enums::CommodityCurveInterpolation> interpolation = ::flatbuffers::nullopt;
+  bool extrapolate_flat = false;
+  std::vector<std::unique_ptr<quantra::CommodityAverageQuoteT>> average_quotes{};
+  ::flatbuffers::Optional<quantra::enums::CommodityCurveRule> rule = ::flatbuffers::nullopt;
+  std::unique_ptr<quantra::CommoditySpotSpecT> spot{};
+  std::unique_ptr<quantra::CommodityCurveBasisT> basis{};
+  CommodityCurveBuildT() = default;
+  CommodityCurveBuildT(const CommodityCurveBuildT &o);
+  CommodityCurveBuildT(CommodityCurveBuildT&&) FLATBUFFERS_NOEXCEPT = default;
+  CommodityCurveBuildT &operator=(CommodityCurveBuildT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// One futures contract or spot price to build: the months (points) that
+/// have a price are quotes, the average quotes are equations on the months
+/// (points) they read, and the ones no quote touches are filled.
+struct CommodityCurveBuild FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef CommodityCurveBuildT NativeTableType;
+  typedef CommodityCurveBuildBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_CONTRACT = 4,
+    VT_INTERPOLATION = 6,
+    VT_EXTRAPOLATE_FLAT = 8,
+    VT_AVERAGE_QUOTES = 10,
+    VT_RULE = 12,
+    VT_SPOT = 14,
+    VT_BASIS = 16
+  };
+  /// The contract as `pricing.commodity.contracts[]` of a swap request
+  /// takes it. A month with a `price` is a quote and is returned
+  /// unchanged. A live month (last trading date on or after the valuation
+  /// date) without a price is solved from the average quotes when one of
+  /// them reads it, otherwise filled with `interpolation`. A month whose
+  /// last trading date is before the valuation date is returned as sent
+  /// (it is read through fixings). Fixings, pricing calendar and pricing
+  /// holidays are returned unchanged. Exactly one of `contract` and `spot`
+  /// is given (400 otherwise).
+  const quantra::CommodityContractSpec *contract() const {
+    return GetPointer<const quantra::CommodityContractSpec *>(VT_CONTRACT);
+  }
+  /// How a live month no quote touches is filled from the determined
+  /// months (quoted, solved or assumed): Linear, LogLinear, BackwardFlat,
+  /// ForwardFlat, KrugerCubic or NaturalCubic (see
+  /// `CommodityCurveInterpolation`), on the axis of their last trading
+  /// dates in calendar days from the valuation date / 365. Required as soon
+  /// as such a month exists.
+  ::flatbuffers::Optional<quantra::enums::CommodityCurveInterpolation> interpolation() const {
+    return GetOptional<int8_t, quantra::enums::CommodityCurveInterpolation>(VT_INTERPOLATION);
+  }
+  /// When false, a live month no quote touches before the first determined
+  /// month or after the last one is a 400 naming the month; when true it
+  /// takes the price of the nearest determined month, whatever the method
+  /// (a method is never continued beyond the determined months).
+  bool extrapolate_flat() const {
+    return GetField<uint8_t>(VT_EXTRAPOLATE_FLAT, 0) != 0;
+  }
+  /// Average-price quotes, solved together with the month prices as one
+  /// linear system. Optional.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityAverageQuote>> *average_quotes() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityAverageQuote>> *>(VT_AVERAGE_QUOTES);
+  }
+  /// Required when the quotes do not determine every month they touch
+  /// (400 listing those months otherwise): Flat or Smooth. When they do,
+  /// it is validated and echoed and changes nothing.
+  ::flatbuffers::Optional<quantra::enums::CommodityCurveRule> rule() const {
+    return GetOptional<int8_t, quantra::enums::CommodityCurveRule>(VT_RULE);
+  }
+  /// A spot price to build instead of a contract, as
+  /// `pricing.commodity.spot_prices[]` of a swap request takes it. Its
+  /// `points` are the nodes, at the dates the caller chose: a point with a
+  /// `price` is a quote and is returned unchanged, a point without one is
+  /// solved from the average quotes that read it or, when none does, read
+  /// from the determined points with the spot's own `interpolation` and
+  /// `extrapolate_flat`. The average quotes average the spot price (no
+  /// `nearby` / `roll_days_before_expiry`); `interpolation` above is not
+  /// given (400). Exactly one of `contract` and `spot`.
+  const quantra::CommoditySpotSpec *spot() const {
+    return GetPointer<const quantra::CommoditySpotSpec *>(VT_SPOT);
+  }
+  /// The contract (spot price) is a basis to another contract (spot price)
+  /// of the request. The live months (points) no quote touches are then
+  /// filled on their basis (price - base price) with the interpolation and
+  /// extrapolate_flat of the build, and the base price is added back.
+  const quantra::CommodityCurveBasis *basis() const {
+    return GetPointer<const quantra::CommodityCurveBasis *>(VT_BASIS);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_CONTRACT) &&
+           verifier.VerifyTable(contract()) &&
+           VerifyField<int8_t>(verifier, VT_INTERPOLATION, 1) &&
+           VerifyField<uint8_t>(verifier, VT_EXTRAPOLATE_FLAT, 1) &&
+           VerifyOffset(verifier, VT_AVERAGE_QUOTES) &&
+           verifier.VerifyVector(average_quotes()) &&
+           verifier.VerifyVectorOfTables(average_quotes()) &&
+           VerifyField<int8_t>(verifier, VT_RULE, 1) &&
+           VerifyOffset(verifier, VT_SPOT) &&
+           verifier.VerifyTable(spot()) &&
+           VerifyOffset(verifier, VT_BASIS) &&
+           verifier.VerifyTable(basis()) &&
+           verifier.EndTable();
+  }
+  CommodityCurveBuildT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(CommodityCurveBuildT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<CommodityCurveBuild> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityCurveBuildT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct CommodityCurveBuildBuilder {
+  typedef CommodityCurveBuild Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_contract(::flatbuffers::Offset<quantra::CommodityContractSpec> contract) {
+    fbb_.AddOffset(CommodityCurveBuild::VT_CONTRACT, contract);
+  }
+  void add_interpolation(quantra::enums::CommodityCurveInterpolation interpolation) {
+    fbb_.AddElement<int8_t>(CommodityCurveBuild::VT_INTERPOLATION, static_cast<int8_t>(interpolation));
+  }
+  void add_extrapolate_flat(bool extrapolate_flat) {
+    fbb_.AddElement<uint8_t>(CommodityCurveBuild::VT_EXTRAPOLATE_FLAT, static_cast<uint8_t>(extrapolate_flat), 0);
+  }
+  void add_average_quotes(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityAverageQuote>>> average_quotes) {
+    fbb_.AddOffset(CommodityCurveBuild::VT_AVERAGE_QUOTES, average_quotes);
+  }
+  void add_rule(quantra::enums::CommodityCurveRule rule) {
+    fbb_.AddElement<int8_t>(CommodityCurveBuild::VT_RULE, static_cast<int8_t>(rule));
+  }
+  void add_spot(::flatbuffers::Offset<quantra::CommoditySpotSpec> spot) {
+    fbb_.AddOffset(CommodityCurveBuild::VT_SPOT, spot);
+  }
+  void add_basis(::flatbuffers::Offset<quantra::CommodityCurveBasis> basis) {
+    fbb_.AddOffset(CommodityCurveBuild::VT_BASIS, basis);
+  }
+  explicit CommodityCurveBuildBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<CommodityCurveBuild> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<CommodityCurveBuild>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<CommodityCurveBuild> CreateCommodityCurveBuild(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<quantra::CommodityContractSpec> contract = 0,
+    ::flatbuffers::Optional<quantra::enums::CommodityCurveInterpolation> interpolation = ::flatbuffers::nullopt,
+    bool extrapolate_flat = false,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityAverageQuote>>> average_quotes = 0,
+    ::flatbuffers::Optional<quantra::enums::CommodityCurveRule> rule = ::flatbuffers::nullopt,
+    ::flatbuffers::Offset<quantra::CommoditySpotSpec> spot = 0,
+    ::flatbuffers::Offset<quantra::CommodityCurveBasis> basis = 0) {
+  CommodityCurveBuildBuilder builder_(_fbb);
+  builder_.add_basis(basis);
+  builder_.add_spot(spot);
+  builder_.add_average_quotes(average_quotes);
+  builder_.add_contract(contract);
+  if(rule) { builder_.add_rule(*rule); }
+  builder_.add_extrapolate_flat(extrapolate_flat);
+  if(interpolation) { builder_.add_interpolation(*interpolation); }
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<CommodityCurveBuild> CreateCommodityCurveBuildDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<quantra::CommodityContractSpec> contract = 0,
+    ::flatbuffers::Optional<quantra::enums::CommodityCurveInterpolation> interpolation = ::flatbuffers::nullopt,
+    bool extrapolate_flat = false,
+    const std::vector<::flatbuffers::Offset<quantra::CommodityAverageQuote>> *average_quotes = nullptr,
+    ::flatbuffers::Optional<quantra::enums::CommodityCurveRule> rule = ::flatbuffers::nullopt,
+    ::flatbuffers::Offset<quantra::CommoditySpotSpec> spot = 0,
+    ::flatbuffers::Offset<quantra::CommodityCurveBasis> basis = 0) {
+  auto average_quotes__ = average_quotes ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityAverageQuote>>(*average_quotes) : 0;
+  return quantra::CreateCommodityCurveBuild(
+      _fbb,
+      contract,
+      interpolation,
+      extrapolate_flat,
+      average_quotes__,
+      rule,
+      spot,
+      basis);
+}
+
+::flatbuffers::Offset<CommodityCurveBuild> CreateCommodityCurveBuild(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityCurveBuildT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct CommodityMarketDataT : public ::flatbuffers::NativeTable {
   typedef CommodityMarketData TableType;
   std::vector<std::unique_ptr<quantra::CommodityContractSpecT>> contracts{};
   std::vector<std::unique_ptr<quantra::CommoditySpotSpecT>> spot_prices{};
+  std::vector<std::unique_ptr<quantra::CommodityCurveBuildT>> curve_builds{};
   CommodityMarketDataT() = default;
   CommodityMarketDataT(const CommodityMarketDataT &o);
   CommodityMarketDataT(CommodityMarketDataT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -742,7 +1443,8 @@ struct CommodityMarketData FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
   typedef CommodityMarketDataBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_CONTRACTS = 4,
-    VT_SPOT_PRICES = 6
+    VT_SPOT_PRICES = 6,
+    VT_CURVE_BUILDS = 8
   };
   /// Futures contracts referenced by commodity swap legs.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityContractSpec>> *contracts() const {
@@ -752,6 +1454,15 @@ struct CommodityMarketData FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommoditySpotSpec>> *spot_prices() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommoditySpotSpec>> *>(VT_SPOT_PRICES);
   }
+  /// Contracts and spot prices built in the request from quotes, exactly
+  /// as `/build-commodity-curves` builds `curves` (same entries, same
+  /// rules, `include_details` not read), then registered under their ids
+  /// next to `contracts` and `spot_prices`. An id given twice across the
+  /// three lists is a 400. A basis entry's base is another entry of this
+  /// list.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityCurveBuild>> *curve_builds() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityCurveBuild>> *>(VT_CURVE_BUILDS);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_CONTRACTS) &&
@@ -760,6 +1471,9 @@ struct CommodityMarketData FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
            VerifyOffset(verifier, VT_SPOT_PRICES) &&
            verifier.VerifyVector(spot_prices()) &&
            verifier.VerifyVectorOfTables(spot_prices()) &&
+           VerifyOffset(verifier, VT_CURVE_BUILDS) &&
+           verifier.VerifyVector(curve_builds()) &&
+           verifier.VerifyVectorOfTables(curve_builds()) &&
            verifier.EndTable();
   }
   CommodityMarketDataT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -777,6 +1491,9 @@ struct CommodityMarketDataBuilder {
   void add_spot_prices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommoditySpotSpec>>> spot_prices) {
     fbb_.AddOffset(CommodityMarketData::VT_SPOT_PRICES, spot_prices);
   }
+  void add_curve_builds(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityCurveBuild>>> curve_builds) {
+    fbb_.AddOffset(CommodityMarketData::VT_CURVE_BUILDS, curve_builds);
+  }
   explicit CommodityMarketDataBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -791,8 +1508,10 @@ struct CommodityMarketDataBuilder {
 inline ::flatbuffers::Offset<CommodityMarketData> CreateCommodityMarketData(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityContractSpec>>> contracts = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommoditySpotSpec>>> spot_prices = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommoditySpotSpec>>> spot_prices = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityCurveBuild>>> curve_builds = 0) {
   CommodityMarketDataBuilder builder_(_fbb);
+  builder_.add_curve_builds(curve_builds);
   builder_.add_spot_prices(spot_prices);
   builder_.add_contracts(contracts);
   return builder_.Finish();
@@ -801,13 +1520,16 @@ inline ::flatbuffers::Offset<CommodityMarketData> CreateCommodityMarketData(
 inline ::flatbuffers::Offset<CommodityMarketData> CreateCommodityMarketDataDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const std::vector<::flatbuffers::Offset<quantra::CommodityContractSpec>> *contracts = nullptr,
-    const std::vector<::flatbuffers::Offset<quantra::CommoditySpotSpec>> *spot_prices = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::CommoditySpotSpec>> *spot_prices = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::CommodityCurveBuild>> *curve_builds = nullptr) {
   auto contracts__ = contracts ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityContractSpec>>(*contracts) : 0;
   auto spot_prices__ = spot_prices ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommoditySpotSpec>>(*spot_prices) : 0;
+  auto curve_builds__ = curve_builds ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityCurveBuild>>(*curve_builds) : 0;
   return quantra::CreateCommodityMarketData(
       _fbb,
       contracts__,
-      spot_prices__);
+      spot_prices__,
+      curve_builds__);
 }
 
 ::flatbuffers::Offset<CommodityMarketData> CreateCommodityMarketData(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityMarketDataT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -1058,16 +1780,268 @@ inline ::flatbuffers::Offset<CommoditySpotSpec> CreateCommoditySpotSpec(::flatbu
       _fixings);
 }
 
+inline CommodityAverageQuoteT::CommodityAverageQuoteT(const CommodityAverageQuoteT &o)
+      : price(o.price),
+        periods((o.periods) ? new quantra::CommodityPeriodsT(*o.periods) : nullptr),
+        nearby(o.nearby),
+        roll_days_before_expiry(o.roll_days_before_expiry),
+        quantity_basis(o.quantity_basis),
+        payment_calendar(o.payment_calendar),
+        payment_lag(o.payment_lag),
+        payment_convention(o.payment_convention),
+        discounting_curve(o.discounting_curve),
+        versus_base(o.versus_base),
+        base_nearby(o.base_nearby),
+        base_roll_days_before_expiry(o.base_roll_days_before_expiry) {
+}
+
+inline CommodityAverageQuoteT &CommodityAverageQuoteT::operator=(CommodityAverageQuoteT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(price, o.price);
+  std::swap(periods, o.periods);
+  std::swap(nearby, o.nearby);
+  std::swap(roll_days_before_expiry, o.roll_days_before_expiry);
+  std::swap(quantity_basis, o.quantity_basis);
+  std::swap(payment_calendar, o.payment_calendar);
+  std::swap(payment_lag, o.payment_lag);
+  std::swap(payment_convention, o.payment_convention);
+  std::swap(discounting_curve, o.discounting_curve);
+  std::swap(versus_base, o.versus_base);
+  std::swap(base_nearby, o.base_nearby);
+  std::swap(base_roll_days_before_expiry, o.base_roll_days_before_expiry);
+  return *this;
+}
+
+inline CommodityAverageQuoteT *CommodityAverageQuote::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<CommodityAverageQuoteT>(new CommodityAverageQuoteT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void CommodityAverageQuote::UnPackTo(CommodityAverageQuoteT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = price(); _o->price = _e; }
+  { auto _e = periods(); if (_e) { if(_o->periods) { _e->UnPackTo(_o->periods.get(), _resolver); } else { _o->periods = std::unique_ptr<quantra::CommodityPeriodsT>(_e->UnPack(_resolver)); } } else if (_o->periods) { _o->periods.reset(); } }
+  { auto _e = nearby(); _o->nearby = _e; }
+  { auto _e = roll_days_before_expiry(); _o->roll_days_before_expiry = _e; }
+  { auto _e = quantity_basis(); _o->quantity_basis = _e; }
+  { auto _e = payment_calendar(); _o->payment_calendar = _e; }
+  { auto _e = payment_lag(); _o->payment_lag = _e; }
+  { auto _e = payment_convention(); _o->payment_convention = _e; }
+  { auto _e = discounting_curve(); if (_e) _o->discounting_curve = _e->str(); }
+  { auto _e = versus_base(); _o->versus_base = _e; }
+  { auto _e = base_nearby(); _o->base_nearby = _e; }
+  { auto _e = base_roll_days_before_expiry(); _o->base_roll_days_before_expiry = _e; }
+}
+
+inline ::flatbuffers::Offset<CommodityAverageQuote> CommodityAverageQuote::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityAverageQuoteT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateCommodityAverageQuote(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<CommodityAverageQuote> CreateCommodityAverageQuote(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityAverageQuoteT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CommodityAverageQuoteT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _price = _o->price;
+  auto _periods = _o->periods ? CreateCommodityPeriods(_fbb, _o->periods.get(), _rehasher) : 0;
+  auto _nearby = _o->nearby;
+  auto _roll_days_before_expiry = _o->roll_days_before_expiry;
+  auto _quantity_basis = _o->quantity_basis;
+  auto _payment_calendar = _o->payment_calendar;
+  auto _payment_lag = _o->payment_lag;
+  auto _payment_convention = _o->payment_convention;
+  auto _discounting_curve = _o->discounting_curve.empty() ? 0 : _fbb.CreateString(_o->discounting_curve);
+  auto _versus_base = _o->versus_base;
+  auto _base_nearby = _o->base_nearby;
+  auto _base_roll_days_before_expiry = _o->base_roll_days_before_expiry;
+  return quantra::CreateCommodityAverageQuote(
+      _fbb,
+      _price,
+      _periods,
+      _nearby,
+      _roll_days_before_expiry,
+      _quantity_basis,
+      _payment_calendar,
+      _payment_lag,
+      _payment_convention,
+      _discounting_curve,
+      _versus_base,
+      _base_nearby,
+      _base_roll_days_before_expiry);
+}
+
+inline CommodityBasisQuoteT *CommodityBasisQuote::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<CommodityBasisQuoteT>(new CommodityBasisQuoteT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void CommodityBasisQuote::UnPackTo(CommodityBasisQuoteT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = month(); if (_e) _o->month = _e->str(); }
+  { auto _e = value(); _o->value = _e; }
+  { auto _e = date(); if (_e) _o->date = _e->str(); }
+}
+
+inline ::flatbuffers::Offset<CommodityBasisQuote> CommodityBasisQuote::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityBasisQuoteT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateCommodityBasisQuote(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<CommodityBasisQuote> CreateCommodityBasisQuote(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityBasisQuoteT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CommodityBasisQuoteT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _month = _o->month.empty() ? 0 : _fbb.CreateString(_o->month);
+  auto _value = _o->value;
+  auto _date = _o->date.empty() ? 0 : _fbb.CreateString(_o->date);
+  return quantra::CreateCommodityBasisQuote(
+      _fbb,
+      _month,
+      _value,
+      _date);
+}
+
+inline CommodityCurveBasisT::CommodityCurveBasisT(const CommodityCurveBasisT &o)
+      : base(o.base),
+        base_price(o.base_price),
+        base_month_offset(o.base_month_offset),
+        base_nearby(o.base_nearby),
+        base_roll_days_before_expiry(o.base_roll_days_before_expiry) {
+  quotes.reserve(o.quotes.size());
+  for (const auto &quotes_ : o.quotes) { quotes.emplace_back((quotes_) ? new quantra::CommodityBasisQuoteT(*quotes_) : nullptr); }
+}
+
+inline CommodityCurveBasisT &CommodityCurveBasisT::operator=(CommodityCurveBasisT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(base, o.base);
+  std::swap(base_price, o.base_price);
+  std::swap(base_month_offset, o.base_month_offset);
+  std::swap(base_nearby, o.base_nearby);
+  std::swap(base_roll_days_before_expiry, o.base_roll_days_before_expiry);
+  std::swap(quotes, o.quotes);
+  return *this;
+}
+
+inline CommodityCurveBasisT *CommodityCurveBasis::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<CommodityCurveBasisT>(new CommodityCurveBasisT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void CommodityCurveBasis::UnPackTo(CommodityCurveBasisT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = base(); if (_e) _o->base = _e->str(); }
+  { auto _e = base_price(); _o->base_price = _e; }
+  { auto _e = base_month_offset(); _o->base_month_offset = _e; }
+  { auto _e = base_nearby(); _o->base_nearby = _e; }
+  { auto _e = base_roll_days_before_expiry(); _o->base_roll_days_before_expiry = _e; }
+  { auto _e = quotes(); if (_e) { _o->quotes.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->quotes[_i]) { _e->Get(_i)->UnPackTo(_o->quotes[_i].get(), _resolver); } else { _o->quotes[_i] = std::unique_ptr<quantra::CommodityBasisQuoteT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->quotes.resize(0); } }
+}
+
+inline ::flatbuffers::Offset<CommodityCurveBasis> CommodityCurveBasis::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityCurveBasisT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateCommodityCurveBasis(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<CommodityCurveBasis> CreateCommodityCurveBasis(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityCurveBasisT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CommodityCurveBasisT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _base = _fbb.CreateString(_o->base);
+  auto _base_price = _o->base_price;
+  auto _base_month_offset = _o->base_month_offset;
+  auto _base_nearby = _o->base_nearby;
+  auto _base_roll_days_before_expiry = _o->base_roll_days_before_expiry;
+  auto _quotes = _o->quotes.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityBasisQuote>> (_o->quotes.size(), [](size_t i, _VectorArgs *__va) { return CreateCommodityBasisQuote(*__va->__fbb, __va->__o->quotes[i].get(), __va->__rehasher); }, &_va ) : 0;
+  return quantra::CreateCommodityCurveBasis(
+      _fbb,
+      _base,
+      _base_price,
+      _base_month_offset,
+      _base_nearby,
+      _base_roll_days_before_expiry,
+      _quotes);
+}
+
+inline CommodityCurveBuildT::CommodityCurveBuildT(const CommodityCurveBuildT &o)
+      : contract((o.contract) ? new quantra::CommodityContractSpecT(*o.contract) : nullptr),
+        interpolation(o.interpolation),
+        extrapolate_flat(o.extrapolate_flat),
+        rule(o.rule),
+        spot((o.spot) ? new quantra::CommoditySpotSpecT(*o.spot) : nullptr),
+        basis((o.basis) ? new quantra::CommodityCurveBasisT(*o.basis) : nullptr) {
+  average_quotes.reserve(o.average_quotes.size());
+  for (const auto &average_quotes_ : o.average_quotes) { average_quotes.emplace_back((average_quotes_) ? new quantra::CommodityAverageQuoteT(*average_quotes_) : nullptr); }
+}
+
+inline CommodityCurveBuildT &CommodityCurveBuildT::operator=(CommodityCurveBuildT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(contract, o.contract);
+  std::swap(interpolation, o.interpolation);
+  std::swap(extrapolate_flat, o.extrapolate_flat);
+  std::swap(average_quotes, o.average_quotes);
+  std::swap(rule, o.rule);
+  std::swap(spot, o.spot);
+  std::swap(basis, o.basis);
+  return *this;
+}
+
+inline CommodityCurveBuildT *CommodityCurveBuild::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<CommodityCurveBuildT>(new CommodityCurveBuildT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void CommodityCurveBuild::UnPackTo(CommodityCurveBuildT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = contract(); if (_e) { if(_o->contract) { _e->UnPackTo(_o->contract.get(), _resolver); } else { _o->contract = std::unique_ptr<quantra::CommodityContractSpecT>(_e->UnPack(_resolver)); } } else if (_o->contract) { _o->contract.reset(); } }
+  { auto _e = interpolation(); _o->interpolation = _e; }
+  { auto _e = extrapolate_flat(); _o->extrapolate_flat = _e; }
+  { auto _e = average_quotes(); if (_e) { _o->average_quotes.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->average_quotes[_i]) { _e->Get(_i)->UnPackTo(_o->average_quotes[_i].get(), _resolver); } else { _o->average_quotes[_i] = std::unique_ptr<quantra::CommodityAverageQuoteT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->average_quotes.resize(0); } }
+  { auto _e = rule(); _o->rule = _e; }
+  { auto _e = spot(); if (_e) { if(_o->spot) { _e->UnPackTo(_o->spot.get(), _resolver); } else { _o->spot = std::unique_ptr<quantra::CommoditySpotSpecT>(_e->UnPack(_resolver)); } } else if (_o->spot) { _o->spot.reset(); } }
+  { auto _e = basis(); if (_e) { if(_o->basis) { _e->UnPackTo(_o->basis.get(), _resolver); } else { _o->basis = std::unique_ptr<quantra::CommodityCurveBasisT>(_e->UnPack(_resolver)); } } else if (_o->basis) { _o->basis.reset(); } }
+}
+
+inline ::flatbuffers::Offset<CommodityCurveBuild> CommodityCurveBuild::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityCurveBuildT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateCommodityCurveBuild(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<CommodityCurveBuild> CreateCommodityCurveBuild(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityCurveBuildT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CommodityCurveBuildT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _contract = _o->contract ? CreateCommodityContractSpec(_fbb, _o->contract.get(), _rehasher) : 0;
+  auto _interpolation = _o->interpolation;
+  auto _extrapolate_flat = _o->extrapolate_flat;
+  auto _average_quotes = _o->average_quotes.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityAverageQuote>> (_o->average_quotes.size(), [](size_t i, _VectorArgs *__va) { return CreateCommodityAverageQuote(*__va->__fbb, __va->__o->average_quotes[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _rule = _o->rule;
+  auto _spot = _o->spot ? CreateCommoditySpotSpec(_fbb, _o->spot.get(), _rehasher) : 0;
+  auto _basis = _o->basis ? CreateCommodityCurveBasis(_fbb, _o->basis.get(), _rehasher) : 0;
+  return quantra::CreateCommodityCurveBuild(
+      _fbb,
+      _contract,
+      _interpolation,
+      _extrapolate_flat,
+      _average_quotes,
+      _rule,
+      _spot,
+      _basis);
+}
+
 inline CommodityMarketDataT::CommodityMarketDataT(const CommodityMarketDataT &o) {
   contracts.reserve(o.contracts.size());
   for (const auto &contracts_ : o.contracts) { contracts.emplace_back((contracts_) ? new quantra::CommodityContractSpecT(*contracts_) : nullptr); }
   spot_prices.reserve(o.spot_prices.size());
   for (const auto &spot_prices_ : o.spot_prices) { spot_prices.emplace_back((spot_prices_) ? new quantra::CommoditySpotSpecT(*spot_prices_) : nullptr); }
+  curve_builds.reserve(o.curve_builds.size());
+  for (const auto &curve_builds_ : o.curve_builds) { curve_builds.emplace_back((curve_builds_) ? new quantra::CommodityCurveBuildT(*curve_builds_) : nullptr); }
 }
 
 inline CommodityMarketDataT &CommodityMarketDataT::operator=(CommodityMarketDataT o) FLATBUFFERS_NOEXCEPT {
   std::swap(contracts, o.contracts);
   std::swap(spot_prices, o.spot_prices);
+  std::swap(curve_builds, o.curve_builds);
   return *this;
 }
 
@@ -1082,6 +2056,7 @@ inline void CommodityMarketData::UnPackTo(CommodityMarketDataT *_o, const ::flat
   (void)_resolver;
   { auto _e = contracts(); if (_e) { _o->contracts.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->contracts[_i]) { _e->Get(_i)->UnPackTo(_o->contracts[_i].get(), _resolver); } else { _o->contracts[_i] = std::unique_ptr<quantra::CommodityContractSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->contracts.resize(0); } }
   { auto _e = spot_prices(); if (_e) { _o->spot_prices.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->spot_prices[_i]) { _e->Get(_i)->UnPackTo(_o->spot_prices[_i].get(), _resolver); } else { _o->spot_prices[_i] = std::unique_ptr<quantra::CommoditySpotSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->spot_prices.resize(0); } }
+  { auto _e = curve_builds(); if (_e) { _o->curve_builds.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->curve_builds[_i]) { _e->Get(_i)->UnPackTo(_o->curve_builds[_i].get(), _resolver); } else { _o->curve_builds[_i] = std::unique_ptr<quantra::CommodityCurveBuildT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->curve_builds.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<CommodityMarketData> CommodityMarketData::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityMarketDataT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -1094,10 +2069,12 @@ inline ::flatbuffers::Offset<CommodityMarketData> CreateCommodityMarketData(::fl
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CommodityMarketDataT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _contracts = _o->contracts.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityContractSpec>> (_o->contracts.size(), [](size_t i, _VectorArgs *__va) { return CreateCommodityContractSpec(*__va->__fbb, __va->__o->contracts[i].get(), __va->__rehasher); }, &_va ) : 0;
   auto _spot_prices = _o->spot_prices.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommoditySpotSpec>> (_o->spot_prices.size(), [](size_t i, _VectorArgs *__va) { return CreateCommoditySpotSpec(*__va->__fbb, __va->__o->spot_prices[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _curve_builds = _o->curve_builds.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityCurveBuild>> (_o->curve_builds.size(), [](size_t i, _VectorArgs *__va) { return CreateCommodityCurveBuild(*__va->__fbb, __va->__o->curve_builds[i].get(), __va->__rehasher); }, &_va ) : 0;
   return quantra::CreateCommodityMarketData(
       _fbb,
       _contracts,
-      _spot_prices);
+      _spot_prices,
+      _curve_builds);
 }
 
 }  // namespace quantra

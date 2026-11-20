@@ -353,10 +353,12 @@ struct FuturesFloatingPriceT : public ::flatbuffers::NativeTable {
   ::flatbuffers::Optional<int32_t> nearby = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<int32_t> roll_days_before_expiry = ::flatbuffers::nullopt;
   double spread = 0.0;
+  quantra::enums::CommodityFuturesObservation observation = quantra::enums::CommodityFuturesObservation_DailyAverage;
 };
 
 /// Floating price from a futures contract: the average, over the period's
-/// pricing days, of the nearby contract's price.
+/// pricing days, of the nearby contract's price; or, with `observation`
+/// OnePricePerPeriod, one price per period.
 struct FuturesFloatingPrice FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FuturesFloatingPriceT NativeTableType;
   typedef FuturesFloatingPriceBuilder Builder;
@@ -364,26 +366,36 @@ struct FuturesFloatingPrice FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
     VT_CONTRACT_ID = 4,
     VT_NEARBY = 6,
     VT_ROLL_DAYS_BEFORE_EXPIRY = 8,
-    VT_SPREAD = 10
+    VT_SPREAD = 10,
+    VT_OBSERVATION = 12
   };
   /// Id of a `pricing.commodity.contracts` entry. Required.
   const ::flatbuffers::String *contract_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_CONTRACT_ID);
   }
   /// Which contract is read: 1 is the front month, 2 the next one.
-  /// Presence-required.
+  /// Presence-required with DailyAverage; a 400 with OnePricePerPeriod.
   ::flatbuffers::Optional<int32_t> nearby() const {
     return GetOptional<int32_t, int32_t>(VT_NEARBY);
   }
   /// A pricing day rolls to the next contract this many pricing days
   /// before the last trading date: 0 reads the front month on its last
-  /// trading date. Presence-required.
+  /// trading date. Presence-required with DailyAverage; a 400 with
+  /// OnePricePerPeriod.
   ::flatbuffers::Optional<int32_t> roll_days_before_expiry() const {
     return GetOptional<int32_t, int32_t>(VT_ROLL_DAYS_BEFORE_EXPIRY);
   }
   /// Added to each period's average, in price units. Defaults to 0.
   double spread() const {
     return GetField<double>(VT_SPREAD, 0.0);
+  }
+  /// DailyAverage (the default): the average over the period's pricing
+  /// days. OnePricePerPeriod: one price per period, the contract month
+  /// containing the period's last day read on the earlier of the payment
+  /// date and its last trading date (a quantity per pricing day on either
+  /// leg is then a 400).
+  quantra::enums::CommodityFuturesObservation observation() const {
+    return static_cast<quantra::enums::CommodityFuturesObservation>(GetField<int8_t>(VT_OBSERVATION, 0));
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -392,6 +404,7 @@ struct FuturesFloatingPrice FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
            VerifyField<int32_t>(verifier, VT_NEARBY, 4) &&
            VerifyField<int32_t>(verifier, VT_ROLL_DAYS_BEFORE_EXPIRY, 4) &&
            VerifyField<double>(verifier, VT_SPREAD, 8) &&
+           VerifyField<int8_t>(verifier, VT_OBSERVATION, 1) &&
            verifier.EndTable();
   }
   FuturesFloatingPriceT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -415,6 +428,9 @@ struct FuturesFloatingPriceBuilder {
   void add_spread(double spread) {
     fbb_.AddElement<double>(FuturesFloatingPrice::VT_SPREAD, spread, 0.0);
   }
+  void add_observation(quantra::enums::CommodityFuturesObservation observation) {
+    fbb_.AddElement<int8_t>(FuturesFloatingPrice::VT_OBSERVATION, static_cast<int8_t>(observation), 0);
+  }
   explicit FuturesFloatingPriceBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -432,12 +448,14 @@ inline ::flatbuffers::Offset<FuturesFloatingPrice> CreateFuturesFloatingPrice(
     ::flatbuffers::Offset<::flatbuffers::String> contract_id = 0,
     ::flatbuffers::Optional<int32_t> nearby = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<int32_t> roll_days_before_expiry = ::flatbuffers::nullopt,
-    double spread = 0.0) {
+    double spread = 0.0,
+    quantra::enums::CommodityFuturesObservation observation = quantra::enums::CommodityFuturesObservation_DailyAverage) {
   FuturesFloatingPriceBuilder builder_(_fbb);
   builder_.add_spread(spread);
   if(roll_days_before_expiry) { builder_.add_roll_days_before_expiry(*roll_days_before_expiry); }
   if(nearby) { builder_.add_nearby(*nearby); }
   builder_.add_contract_id(contract_id);
+  builder_.add_observation(observation);
   return builder_.Finish();
 }
 
@@ -446,14 +464,16 @@ inline ::flatbuffers::Offset<FuturesFloatingPrice> CreateFuturesFloatingPriceDir
     const char *contract_id = nullptr,
     ::flatbuffers::Optional<int32_t> nearby = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<int32_t> roll_days_before_expiry = ::flatbuffers::nullopt,
-    double spread = 0.0) {
+    double spread = 0.0,
+    quantra::enums::CommodityFuturesObservation observation = quantra::enums::CommodityFuturesObservation_DailyAverage) {
   auto contract_id__ = contract_id ? _fbb.CreateString(contract_id) : 0;
   return quantra::CreateFuturesFloatingPrice(
       _fbb,
       contract_id__,
       nearby,
       roll_days_before_expiry,
-      spread);
+      spread,
+      observation);
 }
 
 ::flatbuffers::Offset<FuturesFloatingPrice> CreateFuturesFloatingPrice(::flatbuffers::FlatBufferBuilder &_fbb, const FuturesFloatingPriceT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -754,6 +774,7 @@ struct CommoditySwapT : public ::flatbuffers::NativeTable {
   typedef CommoditySwap TableType;
   std::unique_ptr<quantra::CommoditySwapLegT> leg1{};
   std::unique_ptr<quantra::CommoditySwapLegT> leg2{};
+  bool common_pricing = false;
   CommoditySwapT() = default;
   CommoditySwapT(const CommoditySwapT &o);
   CommoditySwapT(CommoditySwapT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -767,7 +788,8 @@ struct CommoditySwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CommoditySwapBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_LEG1 = 4,
-    VT_LEG2 = 6
+    VT_LEG2 = 6,
+    VT_COMMON_PRICING = 8
   };
   /// First leg. Required. Reported as `legs[0]`.
   const quantra::CommoditySwapLeg *leg1() const {
@@ -777,12 +799,20 @@ struct CommoditySwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::CommoditySwapLeg *leg2() const {
     return GetPointer<const quantra::CommoditySwapLeg *>(VT_LEG2);
   }
+  /// Two floating legs only (a 400 otherwise): a day is a pricing day of a
+  /// period of either leg only when it is a pricing day of both legs'
+  /// contracts or spot prices. Default false: each leg averages over its
+  /// own pricing days.
+  bool common_pricing() const {
+    return GetField<uint8_t>(VT_COMMON_PRICING, 0) != 0;
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_LEG1) &&
            verifier.VerifyTable(leg1()) &&
            VerifyOffsetRequired(verifier, VT_LEG2) &&
            verifier.VerifyTable(leg2()) &&
+           VerifyField<uint8_t>(verifier, VT_COMMON_PRICING, 1) &&
            verifier.EndTable();
   }
   CommoditySwapT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -800,6 +830,9 @@ struct CommoditySwapBuilder {
   void add_leg2(::flatbuffers::Offset<quantra::CommoditySwapLeg> leg2) {
     fbb_.AddOffset(CommoditySwap::VT_LEG2, leg2);
   }
+  void add_common_pricing(bool common_pricing) {
+    fbb_.AddElement<uint8_t>(CommoditySwap::VT_COMMON_PRICING, static_cast<uint8_t>(common_pricing), 0);
+  }
   explicit CommoditySwapBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -816,10 +849,12 @@ struct CommoditySwapBuilder {
 inline ::flatbuffers::Offset<CommoditySwap> CreateCommoditySwap(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::CommoditySwapLeg> leg1 = 0,
-    ::flatbuffers::Offset<quantra::CommoditySwapLeg> leg2 = 0) {
+    ::flatbuffers::Offset<quantra::CommoditySwapLeg> leg2 = 0,
+    bool common_pricing = false) {
   CommoditySwapBuilder builder_(_fbb);
   builder_.add_leg2(leg2);
   builder_.add_leg1(leg1);
+  builder_.add_common_pricing(common_pricing);
   return builder_.Finish();
 }
 
@@ -899,6 +934,7 @@ inline void FuturesFloatingPrice::UnPackTo(FuturesFloatingPriceT *_o, const ::fl
   { auto _e = nearby(); _o->nearby = _e; }
   { auto _e = roll_days_before_expiry(); _o->roll_days_before_expiry = _e; }
   { auto _e = spread(); _o->spread = _e; }
+  { auto _e = observation(); _o->observation = _e; }
 }
 
 inline ::flatbuffers::Offset<FuturesFloatingPrice> FuturesFloatingPrice::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const FuturesFloatingPriceT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -913,12 +949,14 @@ inline ::flatbuffers::Offset<FuturesFloatingPrice> CreateFuturesFloatingPrice(::
   auto _nearby = _o->nearby;
   auto _roll_days_before_expiry = _o->roll_days_before_expiry;
   auto _spread = _o->spread;
+  auto _observation = _o->observation;
   return quantra::CreateFuturesFloatingPrice(
       _fbb,
       _contract_id,
       _nearby,
       _roll_days_before_expiry,
-      _spread);
+      _spread,
+      _observation);
 }
 
 inline SpotFloatingPriceT *SpotFloatingPrice::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
@@ -1025,12 +1063,14 @@ inline ::flatbuffers::Offset<CommoditySwapLeg> CreateCommoditySwapLeg(::flatbuff
 
 inline CommoditySwapT::CommoditySwapT(const CommoditySwapT &o)
       : leg1((o.leg1) ? new quantra::CommoditySwapLegT(*o.leg1) : nullptr),
-        leg2((o.leg2) ? new quantra::CommoditySwapLegT(*o.leg2) : nullptr) {
+        leg2((o.leg2) ? new quantra::CommoditySwapLegT(*o.leg2) : nullptr),
+        common_pricing(o.common_pricing) {
 }
 
 inline CommoditySwapT &CommoditySwapT::operator=(CommoditySwapT o) FLATBUFFERS_NOEXCEPT {
   std::swap(leg1, o.leg1);
   std::swap(leg2, o.leg2);
+  std::swap(common_pricing, o.common_pricing);
   return *this;
 }
 
@@ -1045,6 +1085,7 @@ inline void CommoditySwap::UnPackTo(CommoditySwapT *_o, const ::flatbuffers::res
   (void)_resolver;
   { auto _e = leg1(); if (_e) { if(_o->leg1) { _e->UnPackTo(_o->leg1.get(), _resolver); } else { _o->leg1 = std::unique_ptr<quantra::CommoditySwapLegT>(_e->UnPack(_resolver)); } } else if (_o->leg1) { _o->leg1.reset(); } }
   { auto _e = leg2(); if (_e) { if(_o->leg2) { _e->UnPackTo(_o->leg2.get(), _resolver); } else { _o->leg2 = std::unique_ptr<quantra::CommoditySwapLegT>(_e->UnPack(_resolver)); } } else if (_o->leg2) { _o->leg2.reset(); } }
+  { auto _e = common_pricing(); _o->common_pricing = _e; }
 }
 
 inline ::flatbuffers::Offset<CommoditySwap> CommoditySwap::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommoditySwapT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -1057,10 +1098,12 @@ inline ::flatbuffers::Offset<CommoditySwap> CreateCommoditySwap(::flatbuffers::F
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CommoditySwapT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _leg1 = _o->leg1 ? CreateCommoditySwapLeg(_fbb, _o->leg1.get(), _rehasher) : 0;
   auto _leg2 = _o->leg2 ? CreateCommoditySwapLeg(_fbb, _o->leg2.get(), _rehasher) : 0;
+  auto _common_pricing = _o->common_pricing;
   return quantra::CreateCommoditySwap(
       _fbb,
       _leg1,
-      _leg2);
+      _leg2,
+      _common_pricing);
 }
 
 inline bool VerifyCommodityLegPrice(::flatbuffers::Verifier &verifier, const void *obj, CommodityLegPrice type) {

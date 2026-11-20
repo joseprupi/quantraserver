@@ -117,6 +117,13 @@ CASES = [
     # kept between requests would show in the flows.
     Case("commodity_swap_benchmark", "commodity_swap",
          "commodity_swap/synthetic_benchmark_fixed_vs_futures_and_spot.json", "swaps"),
+    # A futures contract built inside the swap request from a pinned month and
+    # eleven monthly average quotes (pricing.commodity.curve_builds): the
+    # built contract, its jacobian and the quote deltas come from the cache
+    # on a hit.
+    Case("commodity_swap_built_from_quotes", "commodity_swap",
+         "commodity_swap/synthetic_fixed_vs_contract_built_from_quotes_in_request.json",
+         "swaps"),
 ]
 
 # The product whose log we probe to prove the cache engaged. Any cacheable row
@@ -364,6 +371,37 @@ def test_cache_engaged(cache_client, data_dir, cache_log_path):
         f"the cache-ON gRPC server?"
     )
     print(f"[cache] cache engaged — CurveCache hit logged: {_last_hit_line(cache_log_path)}")
+
+
+COMMODITY_BUILD_CASE = next(c for c in CASES if c.id == "commodity_swap_built_from_quotes")
+
+
+def _count_commodity_build_hits(log_path: Path) -> int:
+    if not log_path.exists():
+        return 0
+    return sum(1 for line in log_path.read_text(errors="replace").splitlines()
+               if "key=cb:" in line and "event=L1_HIT" in line)
+
+
+def test_commodity_build_cache_engaged(cache_client, data_dir, cache_log_path):
+    """A curve built in the swap request is served from the cache on the
+    second identical request (and test_cache_transparency shows the response
+    is the same, bit for bit, with the cache off, on the miss and on the
+    hit)."""
+    request = load_json(data_dir / COMMODITY_BUILD_CASE.filename)
+    before = _count_commodity_build_hits(cache_log_path)
+    cache_client.price(COMMODITY_BUILD_CASE.product, request)
+    cache_client.price(COMMODITY_BUILD_CASE.product, request)
+    after = before
+    for _ in range(20):
+        after = _count_commodity_build_hits(cache_log_path)
+        if after > before:
+            break
+        time.sleep(0.1)
+    assert after > before, (
+        f"No commodity curve-build cache hit logged in {cache_log_path} "
+        f"(hits before={before}, after={after})")
+    print("[cache] commodity curve build served from the cache")
 
 
 def _count_zero_curve_hits(log_path: Path) -> int:

@@ -261,6 +261,10 @@
       "type" : "string",
       "enum": ["SameMonth", "MonthAverage"]
     },
+    "quantra_enums_CommodityFuturesObservation" : {
+      "type" : "string",
+      "enum": ["DailyAverage", "OnePricePerPeriod"]
+    },
     "quantra_enums_CommodityQuoteStatus" : {
       "type" : "string",
       "enum": ["Used", "Redundant"]
@@ -397,6 +401,56 @@
       },
       "additionalProperties" : false
     },
+    "quantra_CommodityQuoteDelta" : {
+      "type" : "object",
+      "description" : "Sensitivity of a swap's NPV to one input of a contract or spot price built\nin the request (`pricing.commodity.curve_builds`): the NPV's sensitivity\nto each built price read (`deltas`) times that price's sensitivity to the\ninput, summed over every built price (and, through a basis, over the\nbase's prices).",
+      "properties" : {
+        "curve_id" : {
+                "type" : "string",
+                "description" : "Id of the `pricing.commodity.curve_builds` entry the input belongs\nto."
+              },
+        "month" : {
+                "type" : "string",
+                "description" : "A direct price (or basis quote) of a contract month, \"YYYY-MM\"."
+              },
+        "date" : {
+                "type" : "string",
+                "description" : "A direct price (or basis quote) of a spot point, YYYY-MM-DD."
+              },
+        "average_quote" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "An average quote's index in the entry's `average_quotes`."
+              },
+        "delta" : {
+                "type" : "number",
+                "description" : "Change of the swap's NPV per unit change of the input."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CommodityBuiltCurveSummary" : {
+      "type" : "object",
+      "description" : "One contract or spot price built in the request.",
+      "properties" : {
+        "id" : {
+                "type" : "string",
+                "description" : "The entry's contract or spot id."
+              },
+        "status" : {
+                "$ref" : "#/definitions/quantra_enums_CommodityCurveStatus",
+                "description" : "Unique or Underdetermined (then the entry's rule decided)."
+              },
+        "max_repricing_difference" : {
+                "type" : "number",
+                "description" : "Largest |repriced - quoted| over the entry's average quotes."
+              },
+        "max_sensitivity" : {
+                "type" : "number",
+                "description" : "Largest |d price / d input| over every live month (point) and every\ninput, the bases' inputs included: a large value means a fragile\nbuild."
+              }
+      },
+      "additionalProperties" : false
+    },
     "quantra_CommoditySwapResponse" : {
       "type" : "object",
       "description" : "Commodity swap pricing result, as of the valuation date. Each flow's\n`amount` is the leg's sign (-1 for `Pay`, +1 for `Receive`) times the\nperiod's quantity times its price (the fixed price, or the average plus\nthe spread); `present_value` is the amount times `discount`;\n`legs[i].npv` is the sum of the leg's present values and\n`npv = legs[0].npv + legs[1].npv`.",
@@ -420,6 +474,10 @@
         "deltas" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityPriceDelta"},
                 "description" : "Sensitivities of `npv` to each input price used."
+              },
+        "quote_deltas" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityQuoteDelta"},
+                "description" : "Only when `pricing.commodity.curve_builds` is given: the sensitivity\nof `npv` to every input of every built contract or spot price the\nswap reads (in entry order, then the entry's inputs: direct prices\nand basis quotes in month or date order, then average quotes)."
               }
       },
       "required" : ["legs"],
@@ -431,6 +489,10 @@
       "properties" : {
         "swaps" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommoditySwapResponse"}
+              },
+        "curve_builds" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CommodityBuiltCurveSummary"},
+                "description" : "Only when `pricing.commodity.curve_builds` is given: one summary per\nentry, in request order."
               }
       },
       "required" : ["swaps"],

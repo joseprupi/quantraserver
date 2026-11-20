@@ -34,7 +34,7 @@ from pathlib import Path
 
 import pytest
 
-from ql_reference import commodity_curve_build_ql
+from ql_reference import commodity_curve_build_ql, commodity_swap_ql
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLES_DIR = ROOT / "examples" / "data" / "commodity_curve"
@@ -430,7 +430,7 @@ def test_second_curve_named_once_400(client):
     request = _load("synthetic_backward_and_forward_flat.json")
     del request["curves"][1]["contract"]["pricing_calendar"]
     text = _assert_status(client, request, 400,
-                          "curves[1].contract ('SYN_CL_FF').pricing_calendar is required")
+                          "curves[1].contract.pricing_calendar is required")
     _assert_named_once(text, "pricing_calendar")
 
 
@@ -455,7 +455,8 @@ def test_contract_rules_400(client):
     months = request["curves"][0]["contract"]["months"]
     months[3]["last_trade_date"] = months[2]["last_trade_date"]
     text = _assert_status(client, request, 400,
-                          "curves[0].contract: commodity contract 'SYN_CL' months[3]")
+                          "curves[0].contract.months[3].last_trade_date 2026-12-21 of 2027-02 "
+                          "is not after 2026-12-21 of 2027-01")
     _assert_named_once(text, "months[3]")
 
     request = _linear()
@@ -465,7 +466,7 @@ def test_contract_rules_400(client):
     request = _linear()
     request["curves"][0]["contract"]["months"][2]["last_trade_date"] = "2026-12-32"
     _assert_status(client, request, 400,
-                   "curves[0].contract ('SYN_CL').months[2].last_trade_date: Invalid date")
+                   "curves[0].contract.months[2].last_trade_date: Invalid date")
 
 
 def test_pricing_commodity_refused_400(client):
@@ -584,9 +585,14 @@ def test_case_c_needs_a_rule_then_flat_and_smooth(client):
         assert report["max_repricing_difference"] < 1e-9
     assert rows[0]["report"]["rule"] == "Flat" and rows[1]["report"]["rule"] == "Smooth"
     assert abs(flat["2027-02"]["price"] - flat["2027-03"]["price"]) < 1e-12
-    # Smooth: zero second difference, so the three months lie on a line.
-    p = [smooth[m]["price"] for m in ("2027-01", "2027-02", "2027-03")]
-    assert abs(p[0] - 2 * p[1] + p[2]) < 1e-9
+    # Smooth: zero second divided difference on the last trading dates, so
+    # the three months lie on a line in time.
+    names = ("2027-01", "2027-02", "2027-03")
+    p = [smooth[m]["price"] for m in names]
+    ltd = {m["month"]: datetime.date.fromisoformat(m["last_trade_date"])
+           for m in rows[1]["contract"]["months"]}
+    t = [(ltd[m] - ltd[names[0]]).days for m in names]
+    assert abs((p[2] - p[1]) / (t[2] - t[1]) - (p[1] - p[0]) / (t[1] - t[0])) < 1e-11
     assert abs(flat["2027-03"]["price"] - smooth["2027-03"]["price"]) > 0.1
 
 
@@ -746,9 +752,12 @@ def test_details_weights_reprice_and_sensitivities_match_bumps(client):
     assert all("sensitivities" not in m for m in plain["months"])
 
 
-def _swap_for_quote(as_of, contract, quote, curves, spot=None):
+def _swap_for_quote(as_of, contract, quote, curves, spot=None, base=None):
     """A swap paying the quote and receiving the average it quotes: on the
-    contract, or on the spot price `spot` (then `contract` is None)."""
+    contract, or on the spot price `spot` (then `contract` is None). A
+    spread quote (versus_base, `base` = the built base row) is a swap of two
+    floating legs: receive this curve's average, pay the base's average plus
+    the quoted spread."""
     pay = {"payment_calendar": quote.get("payment_calendar", "NullCalendar"),
            "payment_lag": quote.get("payment_lag", 1),
            "payment_convention": quote.get("payment_convention", "Following"),
@@ -768,11 +777,24 @@ def _swap_for_quote(as_of, contract, quote, curves, spot=None):
     else:
         floating = dict(price_type="SpotFloatingPrice", price={"spot_id": spot["id"]})
         commodity = {"spot_prices": [spot]}
+    paid = dict(price_type="CommodityFixedPrice", price={"price": quote["price"]})
+    if quote.get("versus_base"):
+        if "spot" in base:
+            paid = dict(price_type="SpotFloatingPrice",
+                        price={"spot_id": base["spot"]["id"], "spread": quote["price"]})
+            commodity.setdefault("spot_prices", []).append(base["spot"])
+        else:
+            paid = dict(price_type="FuturesFloatingPrice",
+                        price={"contract_id": base["contract"]["id"],
+                               "nearby": quote["base_nearby"],
+                               "roll_days_before_expiry": quote["base_roll_days_before_expiry"],
+                               "spread": quote["price"]})
+            commodity.setdefault("contracts", []).append(base["contract"])
     return {"pricing": {"as_of_date": as_of, "rates": {"curves": list(curves) + [flat]},
                         "commodity": commodity},
             "swaps": [{"commodity_swap": {
                 "leg1": dict(pay, pay_receive="Pay", periods=quote["periods"], quantity=quantity,
-                             price_type="CommodityFixedPrice", price={"price": quote["price"]}),
+                             **paid),
                 "leg2": dict(pay, pay_receive="Receive", periods=quote["periods"],
                              quantity=quantity, **floating)}}]}
 
@@ -782,9 +804,17 @@ def test_round_trip_every_quote_prices_to_zero(client, example):
     request = _load(example)
     as_of = request["pricing"]["as_of_date"]
     curves = (request["pricing"].get("rates") or {}).get("curves") or []
-    for i, row in enumerate(_build(client, request)["curves"]):
-        for k, quote in enumerate(request["curves"][i].get("average_quotes") or []):
-            swap = _swap_for_quote(as_of, row.get("contract"), quote, curves, row.get("spot"))
+    rows = _build(client, request)["curves"]
+    for i, row in enumerate(rows):
+        entry = request["curves"][i]
+        base = None
+        if "basis" in entry:
+            kind = "spot" if "spot" in entry else "contract"
+            base = next(r for r, e in zip(rows, request["curves"])
+                        if kind in e and e[kind]["id"] == entry["basis"]["base"])
+        for k, quote in enumerate(entry.get("average_quotes") or []):
+            swap = _swap_for_quote(as_of, row.get("contract"), quote, curves, row.get("spot"),
+                                   base)
             status, text = _post(client, "commodity_swap", swap)
             assert status == 200, text[:400]
             npv = json.loads(text)["swaps"][0]["npv"]
@@ -1022,7 +1052,7 @@ def test_input_errors_carry_their_path(client):
     request["curves"][0]["contract"]["months"][2]["last_trade_date"] = "2026-12-32"
     details = _refused(client, request, "Invalid date")
     assert details == {"reason": "InvalidInput", "curve": 0,
-                       "path": "curves[0].contract ('SYN_CL').months[2].last_trade_date"}
+                       "path": "curves[0].contract.months[2].last_trade_date"}
     request = _linear()
     request["curves"] = []
     assert _refused(client, request, "curves is required") == {"reason": "InvalidInput",
@@ -1044,14 +1074,15 @@ def test_input_errors_carry_their_path(client):
     request = _linear()
     months = request["curves"][0]["contract"]["months"]
     months[3]["last_trade_date"] = months[2]["last_trade_date"]
-    details = _refused(client, request, "curves[0].contract: commodity contract 'SYN_CL' months[3]")
+    details = _refused(client, request, "curves[0].contract.months[3].last_trade_date")
     assert details == {"reason": "InvalidInput", "curve": 0,
                        "path": "curves[0].contract.months[3].last_trade_date"}
 
 
-def test_errors_without_a_path_have_no_details(client):
-    # The swap pricer's own messages about a quote's market data carry no
-    # field path: no details, as before.
+def test_swap_pricer_refusals_carry_details(client):
+    # The swap pricer's own refusals about a quote's market data name the
+    # quote's period and carry their data; an unknown discounting curve is a
+    # 404 with details; so are the swap endpoint's errors.
     request = {"pricing": {"as_of_date": "2026-11-13"},
                "curves": [{"contract": _benchmark_contract({"2027-01"}),
                            "average_quotes": [
@@ -1061,25 +1092,32 @@ def test_errors_without_a_path_have_no_details(client):
                                 "nearby": 1, "roll_days_before_expiry": 0}],
                            "interpolation": "Linear", "extrapolate_flat": True}]}
     request["curves"][0]["contract"]["fixings"] = []
-    body = json.loads(_assert_status(client, request, 400, "no fixing"))
-    assert set(body) == {"error", "code", "code_name", "message"}
+    body = json.loads(_assert_status(
+        client, request, 400, "curves[0].average_quotes[0].periods[0] (2026-11-02 to "
+                              "2026-11-30): commodity contract 'SYN_CL': no fixing"))
+    assert body["details"] == {"reason": "MissingFixing", "curve": 0,
+                               "path": "curves[0].average_quotes[0].periods[0]",
+                               "average_quote": 0, "month": "2026-12", "date": "2026-11-02"}
     request = _load(UNIQUE)
     request["curves"][0]["average_quotes"][2]["discounting_curve"] = "NO_SUCH_CURVE"
     body = json.loads(_assert_status(client, request, 404, "discounting curve not found"))
-    assert "details" not in body
-    # Another endpoint: unchanged, even where the shared helpers know the
-    # field.
+    assert body["details"] == {"reason": "UnknownDiscountingCurve", "curve": 0,
+                               "path": "curves[0].average_quotes[2].discounting_curve",
+                               "average_quote": 2}
+    # The swap endpoint.
     with open(SWAP_BENCHMARK) as f:
         swap = json.load(f)
     swap["swaps"][0]["commodity_swap"]["leg2"]["pay_receive"] = "Pay"
     status, text = _post(client, "commodity_swap", swap)
-    assert status == 400 and "details" not in json.loads(text), text[:300]
+    assert status == 400 and json.loads(text)["details"] == {
+        "reason": "InvalidInput", "swap": 0, "path": "swaps[0].commodity_swap.leg1.pay_receive"}
     with open(SWAP_BENCHMARK) as f:
         swap = json.load(f)
     del swap["swaps"][0]["commodity_swap"]["leg2"]["price"]["nearby"]
     status, text = _post(client, "commodity_swap", swap)
     assert status == 400 and "nearby is required" in text
-    assert set(json.loads(text)) == {"error", "code", "code_name", "message"}
+    assert json.loads(text)["details"] == {
+        "reason": "InvalidInput", "swap": 0, "path": "swaps[0].commodity_swap.leg2.price.nearby"}
 
 
 # ---------------------------------------------------------------------------
@@ -1202,8 +1240,8 @@ def test_spot_input_errors(client):
     request = _load(SPOT_STRIP)
     points = request["curves"][0]["spot"]["points"]
     points[2]["date"] = points[1]["date"]
-    details = _refused(client, request, "curves[0].spot: commodity spot price 'SYN_SPOT_LINEAR' "
-                                        "points[2]")
+    details = _refused(client, request, "curves[0].spot.points[2].date 2026-12-31 is not after "
+                                        "the previous point")
     assert details == {"reason": "InvalidInput", "curve": 0,
                        "path": "curves[0].spot.points[2].date"}
 
@@ -1213,10 +1251,11 @@ def test_spot_quote_day_outside_the_points(client):
     # swap's own sentence, with the quote and the first such day.
     request = _spot_request([{"date": "2026-11-30", "price": 60.0}, {"date": "2027-02-28"}],
                             [_once("2027-02-01", "2027-03-31", 60.5)])
-    details = _refused(client, request, "curves[0].average_quotes[0]: commodity spot price "
-                                        "'SYN_SPOT': 2027-03-01 is outside its points")
+    details = _refused(client, request, "curves[0].average_quotes[0].periods[0] (2027-02-01 to "
+                                        "2027-03-31): commodity spot price 'SYN_SPOT': 2027-03-01 "
+                                        "is outside its points")
     assert details == {"reason": "DateOutsideRange", "curve": 0,
-                       "path": "curves[0].average_quotes[0]", "average_quote": 0,
+                       "path": "curves[0].average_quotes[0].periods[0]", "average_quote": 0,
                        "date": "2027-03-01"}
 
 
@@ -1433,10 +1472,11 @@ def test_basis_refusals(client):
     request["pricing"]["rates"]["curves"][0]["points"][0]["point"]["date"] = "2026-12-01"
     details = _refused_basis(client, request, 400, "expired on 2026-11-24")
     assert details["reason"] == "BasisOnExpiredMonth" and details["month"] == "2026-12"
-    # A basis on a spot build, and a base that is a spot price.
+    # A contract field on a spot basis, and a base that is a spot price.
     request = _load(SPOT_STRIP)
     request["curves"][0]["basis"] = {"base": "X", "base_price": "SameMonth"}
-    _refused_basis(client, request, 400, "curves[0].basis is not used by a spot price build")
+    _refused_basis(client, request, 400, "curves[0].basis.base_price is not used on a spot "
+                                         "price build")
     request = copy.deepcopy(ref["request"])
     request["curves"][0]["basis"]["base"] = "SYN_SPOT_LINEAR"
     request["curves"].append(_load(SPOT_STRIP)["curves"][0])
@@ -1477,3 +1517,396 @@ def test_basis_month_average_example_reads_the_base_front_month(client):
     assert abs(nov["base_price"] - expected) < 1e-12
     assert abs(nov["price"] - (expected + 0.80)) < 1e-12
     assert nov["source"] == "Basis"
+
+
+# ---------------------------------------------------------------------------
+# basis on spot builds, spread quotes to the base, sensitivities through the
+# base
+# ---------------------------------------------------------------------------
+
+SPOT_BASIS = "synthetic_spot_basis_by_date_with_spread_quote.json"
+SPREAD_QUARTER = "synthetic_basis_quarter_spread_to_base.json"
+
+
+def _spot_read(spot, date):
+    """The twin's reading of a built spot price on a date."""
+    import ql_reference as ref
+    weights = ref._commodity_spot_weights(spot["points"], ref.parse_date(date),
+                                          spot["interpolation"],
+                                          bool(spot.get("extrapolate_flat", False)), spot["id"])
+    return sum(w * float(spot["points"][i]["price"]) for i, w in weights)
+
+
+def test_spot_basis_reads_the_base_on_each_date(client):
+    request = _load(SPOT_BASIS)
+    row, base = _build(client, request)["curves"]
+    points = {p["date"]: p for p in row["report"]["points"]}
+    quotes = {q["date"]: q["value"] for q in request["curves"][0]["basis"]["quotes"]}
+    for date, p in points.items():
+        assert _close(p["base_price"], _spot_read(base["spot"], date))
+        assert _close(p["price"], p["base_price"] + p["basis"])
+        if date in quotes:
+            assert p["source"] == "Basis" and _close(p["basis"], quotes[date])
+    # December is solved from the spread quote, the rest filled on the basis.
+    assert points["2026-12-31"]["source"] == "Solved"
+    assert points["2027-01-29"]["source"] == "Interpolated"
+    assert row["report"]["max_repricing_difference"] < 1e-9
+
+
+def test_spread_quotes_reprice_as_two_swaps(client):
+    # A spread quote's swap: receive this curve's average, pay the base's
+    # average plus the spread (worth zero, test_round_trip_every_quote_...);
+    # and the same as two fixed-price swaps: fair(this) - fair(base) = spread.
+    for name in (SPOT_BASIS, SPREAD_QUARTER):
+        request = _load(name)
+        rows = _build(client, request)["curves"]
+        for i, entry in enumerate(request["curves"]):
+            for quote in entry.get("average_quotes") or []:
+                if not quote.get("versus_base"):
+                    continue
+                kind = "spot" if "spot" in entry else "contract"
+                base = next(r for r, e in zip(rows, request["curves"])
+                            if kind in e and e[kind]["id"] == entry["basis"]["base"])
+                fairs = []
+                for curve, nearby in ((rows[i], quote.get("nearby")),
+                                      (base, quote.get("base_nearby"))):
+                    q = dict(quote, versus_base=False)
+                    if kind == "contract":
+                        q["nearby"] = nearby
+                        q["roll_days_before_expiry"] = (
+                            quote["roll_days_before_expiry"] if curve is rows[i]
+                            else quote["base_roll_days_before_expiry"])
+                    swap = _swap_for_quote(request["pricing"]["as_of_date"],
+                                           curve.get("contract"), q, [], curve.get("spot"))
+                    status, text = _post(client, "commodity_swap", swap)
+                    assert status == 200, text[:400]
+                    fairs.append(json.loads(text)["swaps"][0]["fair_fixed_price"])
+                assert abs(fairs[0] - fairs[1] - quote["price"]) < 1e-9, (name, fairs)
+
+
+def test_spot_basis_reproduces_a_known_curve(client):
+    # A known local spot price (base + a basis that moves month to month) on
+    # month-end points; its quotes generated from it through the swap
+    # endpoint: one basis quote on the first point, then each month's
+    # average spread to the base. The build gives every point back.
+    request = _load(SPOT_BASIS)
+    base = request["curves"][1]["spot"]
+    local = copy.deepcopy(request["curves"][0]["spot"])
+    true_basis = [0.40, 0.47, 0.43, 0.52, 0.55, 0.58, 0.62, 0.60]
+    for p, b in zip(local["points"], true_basis):
+        p["price"] = _spot_read(base, p["date"]) + b
+    as_of = request["pricing"]["as_of_date"]
+    quotes = []
+    months = [("2026-12-01", "2026-12-31"), ("2027-01-01", "2027-01-29"),
+              ("2027-02-01", "2027-02-26"), ("2027-03-01", "2027-03-31"),
+              ("2027-04-01", "2027-04-30"), ("2027-05-01", "2027-05-28"),
+              ("2027-06-01", "2027-06-30")]
+    for start, end in months:
+        q = {"price": 0.0, "periods": {"start_date": start, "end_date": end,
+                                       "frequency": "Once"}}
+        fairs = []
+        for spot in (local, base):
+            status, text = _post(client, "commodity_swap",
+                                 _swap_for_quote(as_of, None, q, [], spot))
+            assert status == 200, text[:400]
+            fairs.append(json.loads(text)["swaps"][0]["fair_fixed_price"])
+        quotes.append(dict(q, price=fairs[0] - fairs[1], versus_base=True))
+    unpriced = copy.deepcopy(local)
+    for p in unpriced["points"]:
+        del p["price"]
+    build = {"spot": unpriced, "average_quotes": quotes,
+             "basis": {"base": base["id"], "quotes": [{"date": local["points"][0]["date"],
+                                                       "value": true_basis[0]}]}}
+    row = _build(client, {"pricing": {"as_of_date": as_of},
+                          "curves": [build, {"spot": base}]})["curves"][0]
+    for got, want in zip(row["spot"]["points"], local["points"]):
+        assert abs(got["price"] - want["price"]) < 1e-9, (got, want)
+    assert row["report"]["status"] == "Unique"
+
+
+def test_sensitivities_through_the_base_match_bump_and_rebuild(client):
+    # A basis entry's determined months list the base's inputs too (`curve`
+    # = the base's index): each equals the twin's central difference of the
+    # basis build with that base input moved.
+    import ql_reference as ref
+    request = _load(SPREAD_QUARTER)
+    row = _build(client, request)["curves"][1]
+    base_contract = request["curves"][0]["contract"]
+    h = 1e-4
+    checked = 0
+    for month in row["report"]["months"]:
+        through = [s for s in month.get("sensitivities", []) if s.get("curve") == 0]
+        if not month.get("sensitivities"):
+            continue
+        assert len(through) == len([m for m in base_contract["months"] if "price" in m])
+        for s in through:
+            values = []
+            for step in (h, -h):
+                bumped = copy.deepcopy(request)
+                m = next(x for x in bumped["curves"][0]["contract"]["months"]
+                         if x["month"] == s["month"])
+                m["price"] += step
+                built = ref.commodity_curve_build_ql(bumped, 1)["contract"]
+                values.append(next(x["price"] for x in built["months"]
+                                   if x["month"] == month["month"]))
+            fd = (values[0] - values[1]) / (2 * h)
+            assert abs(s["value"] - fd) <= 1e-6 * max(1.0, abs(fd)), (month["month"], s, fd)
+            checked += 1
+    assert checked > 0
+    # No basis: no `curve` field anywhere (reports unchanged).
+    plain = _build(client, _load("synthetic_average_quotes_quarter_flat_and_smooth.json"))
+    assert "\"curve\":" not in json.dumps(plain)
+
+
+def test_basis_stage_two_refusals(client):
+    request = _load(SPOT_BASIS)
+    # A spot basis on a contract base.
+    bad = copy.deepcopy(request)
+    bad["curves"].append({"contract": copy.deepcopy(_load(SPREAD_QUARTER)["curves"][0]["contract"])})
+    bad["curves"][0]["basis"]["base"] = "SYN_CL"
+    details = json.loads(_assert_status(client, bad, 400, "is a contract build; the base of a "
+                                                          "spot price must be a spot price"))
+    assert details["details"]["reason"] == "BaseNotSpot"
+    # A basis quote on a date that is not a point.
+    bad = copy.deepcopy(request)
+    bad["curves"][0]["basis"]["quotes"][0]["date"] = "2026-12-01"
+    _assert_status(client, bad, 400, "curves[0].basis.quotes[0].date 2026-12-01 is not the date "
+                                     "of a point")
+    # Contract fields on a spot basis.
+    for field, value in (("base_price", "SameMonth"), ("base_nearby", 1)):
+        bad = copy.deepcopy(request)
+        bad["curves"][0]["basis"][field] = value
+        _assert_status(client, bad, 400, f"curves[0].basis.{field} is not used on a spot price")
+    bad = copy.deepcopy(request)
+    bad["curves"][0]["basis"]["quotes"][0]["month"] = "2026-11"
+    _assert_status(client, bad, 400, "curves[0].basis.quotes[0].month is not used on a spot")
+    # A base read outside its points without extrapolation.
+    bad = copy.deepcopy(request)
+    bad["curves"][1]["spot"]["extrapolate_flat"] = False
+    bad["curves"][1]["spot"]["points"] = bad["curves"][1]["spot"]["points"][:7]
+    details = json.loads(_assert_status(client, bad, 400, "curves[0].basis.base: no base price "
+                                                          "for 2027-05-28"))["details"]
+    assert details["reason"] == "BaseNotDetermined" and details["date"] == "2027-05-28"
+    assert details["base_curve"] == 1
+    # Spread quote fields.
+    bad = copy.deepcopy(request)
+    del bad["curves"][0]["basis"]
+    _assert_status(client, bad, 400, "curves[0].average_quotes[0].versus_base needs basis")
+    bad = _load(SPREAD_QUARTER)
+    del bad["curves"][1]["average_quotes"][0]["base_nearby"]
+    _assert_status(client, bad, 400, "curves[1].average_quotes[0].base_nearby is required with "
+                                     "versus_base")
+    bad = _load(SPREAD_QUARTER)
+    bad["curves"][1]["average_quotes"][0]["versus_base"] = False
+    _assert_status(client, bad, 400, "curves[1].average_quotes[0].base_nearby is only used with "
+                                     "versus_base")
+    bad = copy.deepcopy(request)
+    bad["curves"][0]["average_quotes"][0]["base_nearby"] = 1
+    _assert_status(client, bad, 400, "base_nearby is not used on a spot price build")
+
+
+# ---------------------------------------------------------------------------
+# curve builds inside the swap request (pricing.commodity.curve_builds)
+# ---------------------------------------------------------------------------
+
+QUOTE_DELTA_REFERENCE = (Path(__file__).resolve().parent / "data" / "commodity"
+                         / "swap_quote_delta_reference_values.json")
+FLAT_DISCOUNT = {"id": "FLAT_DISC", "reference_date": "2026-11-13",
+                 "day_counter": "Actual365Fixed", "interpolator": "LogLinear",
+                 "bootstrap_trait": "InterpolatedDiscount",
+                 "points": [{"point_type": "DiscountFactorPoint",
+                             "point": {"date": "2026-11-13", "discount_factor": 1.0}},
+                            {"point_type": "DiscountFactorPoint",
+                             "point": {"date": "2030-12-31", "discount_factor": 0.85}}]}
+
+
+def _swaps_on_built(request, rows):
+    """One swap per built entry: 1,000 paid fixed at 60 against its average
+    from the valuation date to its last live month's last trading date
+    (contract: front month, roll 0) or its last point (spot), one period."""
+    as_of = request["pricing"]["as_of_date"]
+    swaps = []
+    for entry, row in zip(request["curves"], rows):
+        if "contract" in row:
+            live = [m for m in row["contract"]["months"] if m["last_trade_date"] >= as_of]
+            end = live[-1]["last_trade_date"]
+            price = {"contract_id": row["contract"]["id"], "nearby": 1,
+                     "roll_days_before_expiry": 0}
+            kind = "FuturesFloatingPrice"
+            start = as_of
+        else:
+            end = row["spot"]["points"][-1]["date"]
+            first = row["spot"]["points"][0]["date"]
+            start = max(as_of, first)
+            price = {"spot_id": row["spot"]["id"]}
+            kind = "SpotFloatingPrice"
+        leg = {"periods": {"start_date": start, "end_date": end, "frequency": "Once"},
+               "quantity": {"value": 1000.0, "basis": "PerPeriod"},
+               "payment_calendar": "UnitedStatesSettlement", "payment_lag": 2,
+               "payment_convention": "Following", "discounting_curve": "FLAT_DISC"}
+        swaps.append({"commodity_swap": {
+            "leg1": dict(leg, pay_receive="Pay", price_type="CommodityFixedPrice",
+                         price={"price": 60.0}),
+            "leg2": dict(leg, pay_receive="Receive", price_type=kind, price=price)}})
+    return swaps
+
+
+def _in_request(build_request, swaps):
+    pricing = copy.deepcopy(build_request["pricing"])
+    pricing.setdefault("rates", {"curves": []})
+    pricing["rates"].setdefault("curves", [])
+    pricing["rates"]["curves"].append(FLAT_DISCOUNT)
+    pricing["commodity"] = {"curve_builds": copy.deepcopy(build_request["curves"])}
+    return {"pricing": pricing, "swaps": swaps}
+
+
+@pytest.mark.parametrize("example", EXAMPLES)
+def test_curve_builds_in_the_swap_request_equal_build_then_paste(client, example):
+    # The same entries built inside the swap request and built by
+    # /build-commodity-curves then pasted: the same NPVs up to the pasted
+    # prices' 12 printed decimals (bounded by the sum of |delta| x 1e-12),
+    # and the in-request NPVs against the twin. Examples that build one id
+    # twice (two rules on one contract) go one entry at a time: the swap
+    # request registers an id once.
+    full = _load(example)
+    ids = [e.get("contract", e.get("spot"))["id"] for e in full["curves"]]
+    if len(set(ids)) == len(ids):
+        requests = [full]
+    else:
+        requests = [dict(full, curves=[e]) for e in full["curves"]]
+    for build_request in requests:
+        _check_in_request_equals_paste(client, example, build_request)
+
+
+def _check_in_request_equals_paste(client, example, build_request):
+    rows = _build(client, build_request)["curves"]
+    swaps = _swaps_on_built(build_request, rows)
+    inside = _in_request(build_request, swaps)
+    status, text = _post(client, "commodity_swap", inside)
+    assert status == 200, text[:500]
+    in_rows = json.loads(text)["swaps"]
+    pasted = copy.deepcopy(inside)
+    pasted["pricing"]["commodity"] = {
+        "contracts": [r["contract"] for r in rows if "contract" in r],
+        "spot_prices": [r["spot"] for r in rows if "spot" in r]}
+    status, text = _post(client, "commodity_swap", pasted)
+    assert status == 200, text[:500]
+    paste_rows = json.loads(text)["swaps"]
+    for i, (a, b) in enumerate(zip(in_rows, paste_rows)):
+        bound = sum(abs(d["delta"]) for d in b["deltas"]) * 1e-12 + 1e-9
+        assert abs(a["npv"] - b["npv"]) <= bound, (example, i, a["npv"], b["npv"])
+        assert a["deltas"] == b["deltas"] or all(
+            abs(x["delta"] - y["delta"]) <= 1e-9 * max(1.0, abs(y["delta"]))
+            for x, y in zip(a["deltas"], b["deltas"]))
+        assert "quote_deltas" in a and "quote_deltas" not in b
+        ref = commodity_swap_ql(inside, i)
+        assert abs(a["npv"] - ref["npv"]) <= 1e-9 * max(1.0, abs(ref["npv"])), (example, i)
+
+
+def test_quote_deltas_match_bump_and_rebuild(client):
+    # Each quote delta against the twin's central difference: the input moved
+    # by h in the request's curve builds, everything rebuilt and repriced.
+    for example in ("synthetic_average_quotes_months_and_quarter_unique.json",
+                    "synthetic_basis_quarter_spread_to_base.json",
+                    "synthetic_spot_basis_by_date_with_spread_quote.json",
+                    "synthetic_kruger_cubic.json"):
+        build_request = _load(example)
+        rows = _build(client, build_request)["curves"]
+        inside = _in_request(build_request, _swaps_on_built(build_request, rows))
+        status, text = _post(client, "commodity_swap", inside)
+        assert status == 200, text[:500]
+        result = json.loads(text)
+        ids = [e.get("contract", e.get("spot"))["id"] for e in build_request["curves"]]
+        assert [s["id"] for s in result["curve_builds"]] == ids
+        for i, swap in enumerate(result["swaps"]):
+            assert swap["quote_deltas"], (example, i)
+            for qd in swap["quote_deltas"]:
+                j = ids.index(qd["curve_id"])
+                h = 1e-4
+                npvs = []
+                for step in (h, -h):
+                    bumped = copy.deepcopy(inside)
+                    entry = bumped["pricing"]["commodity"]["curve_builds"][j]
+                    _bump_input(entry, qd, step)
+                    npvs.append(commodity_swap_ql(bumped, i)["npv"])
+                fd = (npvs[0] - npvs[1]) / (2 * h)
+                assert abs(qd["delta"] - fd) <= 1e-6 * max(1.0, abs(fd)), (example, i, qd, fd)
+
+
+def _bump_input(entry, qd, step):
+    if "average_quote" in qd:
+        entry["average_quotes"][qd["average_quote"]]["price"] += step
+        return
+    key, value = ("month", qd["month"]) if "month" in qd else ("date", qd["date"])
+    for q in (entry.get("basis") or {}).get("quotes") or []:
+        if q.get(key) == value:
+            q["value"] += step
+            return
+    items = entry["contract"]["months"] if key == "month" else entry["spot"]["points"]
+    item = next(x for x in items if x[key] == value)
+    item["price"] += step
+
+
+def test_quote_deltas_independent_reference_values(client):
+    # The first benchmark swap on the strip built from a pinned front month and
+    # eleven monthly average quotes: d NPV / d quote against the independent
+    # reference's central differences (step 1e-4, rebuilt each time); the
+    # reference's own bumps agree with each other to about 1e-8 relative.
+    request = json.loads((ROOT / "examples" / "data" / "commodity_swap"
+                          / "synthetic_fixed_vs_contract_built_from_quotes_in_request.json"
+                          ).read_text())
+    with open(QUOTE_DELTA_REFERENCE) as f:
+        ref = json.load(f)
+    status, text = _post(client, "commodity_swap", request)
+    assert status == 200, text[:500]
+    swap = json.loads(text)["swaps"][0]
+    assert abs(swap["npv"] - ref["base_npv"]) < 1e-6
+    by_input = {(d.get("month"), d.get("average_quote")): d["delta"]
+                for d in swap["quote_deltas"]}
+    worst = 0.0
+    for r in ref["quote_deltas"]:
+        got = by_input[(r.get("month"), r.get("average_quote"))]
+        worst = max(worst, abs(got - r["central_difference"]))
+        assert abs(got - r["central_difference"]) < 1e-3, (r, got)
+    print(f"[commodity] quote deltas vs independent reference: max abs gap {worst:.3e}")
+
+
+def test_curve_builds_in_the_swap_request_refusals(client):
+    request = json.loads((ROOT / "examples" / "data" / "commodity_swap"
+                          / "synthetic_fixed_vs_contract_built_from_quotes_in_request.json"
+                          ).read_text())
+    entry = request["pricing"]["commodity"]["curve_builds"][0]
+    # The same id given as a finished contract and built.
+    bad = copy.deepcopy(request)
+    bad["pricing"]["commodity"]["contracts"] = [copy.deepcopy(entry["contract"])]
+    for m in bad["pricing"]["commodity"]["contracts"][0]["months"]:
+        m.setdefault("price", 60.0)
+    status, text = _post(client, "commodity_swap", bad)
+    assert status == 400 and ("pricing.commodity.curve_builds[0].contract.id: 'SYN_CL' is also "
+                              "given in pricing.commodity.contracts") in text, text[:400]
+    # Built twice.
+    bad = copy.deepcopy(request)
+    bad["pricing"]["commodity"]["curve_builds"].append(copy.deepcopy(entry))
+    status, text = _post(client, "commodity_swap", bad)
+    assert status == 400 and "curve_builds[1].contract.id: 'SYN_CL' is built twice" in text
+    # A build error names the entry in the swap request.
+    bad = copy.deepcopy(request)
+    bad["pricing"]["commodity"]["curve_builds"][0]["average_quotes"][3]["price"] += 5.0
+    bad["pricing"]["commodity"]["curve_builds"][0]["average_quotes"].append(
+        copy.deepcopy(request["pricing"]["commodity"]["curve_builds"][0]["average_quotes"][3]))
+    status, text = _post(client, "commodity_swap", bad)
+    body = json.loads(text)
+    assert status == 400 and body["error"].startswith(
+        "pricing.commodity.curve_builds[0].average_quotes[11]: conflicts"), text[:400]
+    assert body["details"]["reason"] == "QuoteConflict"
+    # Without curve builds the response has neither field.
+    plain = _price_plain(client)
+    assert "curve_builds" not in plain and "quote_deltas" not in plain["swaps"][0]
+
+
+def _price_plain(client):
+    request = json.loads((ROOT / "tests" / "contract" / "data" / "commodity"
+                          / "price_commodity_swap_benchmark_request.json").read_text())
+    status, text = _post(client, "commodity_swap", request)
+    assert status == 200
+    return json.loads(text)

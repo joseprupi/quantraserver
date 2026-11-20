@@ -5059,6 +5059,56 @@ CASES = [
                       "flow paid on the valuation date", "per-period quantities"],
     },
     {
+        "id": "commodity_swap_synthetic_futures_vs_spot_common_pricing",
+        "product": "commodity_swap",
+        "family": "Commodities",
+        "title": "Synthetic futures against spot, without and with common pricing",
+        "description": (
+            "The same floating/floating swap twice: each leg on its own pricing "
+            "days, then common_pricing (only the days both the futures contract and "
+            "the spot price publish; the spot has three extra days off). Synthetic "
+            "data."
+        ),
+        "request": "commodity_swap/synthetic_futures_vs_spot_common_pricing.json",
+        "ql_pricer": "price_commodity_swap_ql",
+        "tolerance": COMMODITY_SWAP_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["commodity swap", "two floating legs", "common pricing"],
+    },
+    {
+        "id": "commodity_swap_synthetic_fixed_vs_averaging_contract_one_price_per_period",
+        "product": "commodity_swap",
+        "family": "Commodities",
+        "title": "Synthetic swaps on a calendar-month averaging contract, one price per period",
+        "description": (
+            "observation OnePricePerPeriod: each period reads the month of its last "
+            "day on the earlier of the payment date and that month's last trading "
+            "date; the October period reads its final settlement (a fixing), mid- "
+            "month periods read on their payment dates. Synthetic data."
+        ),
+        "request": "commodity_swap/synthetic_fixed_vs_averaging_contract_one_price_per_period.json",
+        "ql_pricer": "price_commodity_swap_ql",
+        "tolerance": COMMODITY_SWAP_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["commodity swap", "averaging contract", "one price per period", "fixings"],
+    },
+    {
+        "id": "commodity_swap_synthetic_fixed_vs_contract_built_from_quotes_in_request",
+        "product": "commodity_swap",
+        "family": "Commodities",
+        "title": "Synthetic swaps on a contract built in the request from average quotes",
+        "description": (
+            "pricing.commodity.curve_builds: the contract is built from a pinned "
+            "month and eleven monthly average quotes inside the swap request; the "
+            "response adds the NPV's sensitivity to every quote. Synthetic data."
+        ),
+        "request": "commodity_swap/synthetic_fixed_vs_contract_built_from_quotes_in_request.json",
+        "ql_pricer": "price_commodity_swap_ql",
+        "tolerance": COMMODITY_SWAP_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["commodity swap", "curve builds in the request", "quote deltas"],
+    },
+    {
         "id": "commodity_swap_synthetic_two_month_fixed_vs_front_month",
         "product": "commodity_swap",
         "family": "Commodities",
@@ -5216,7 +5266,7 @@ CASES = [
         "description": (
             "January and the first quarter only: three months, two equations. Flat "
             "gives February and March one price (54.5076); Smooth puts the three "
-            "months on a line (53.0069, 56.0139). Both reprice the quarter exactly. "
+            "months on a line in time (52.8382, 56.1832). Both reprice the quarter exactly. "
             "Synthetic data."
         ),
         "request": "commodity_curve/synthetic_average_quotes_quarter_flat_and_smooth.json",
@@ -5398,6 +5448,38 @@ CASES = [
         "tolerance": COMMODITY_CURVE_TOLERANCE,
         "compare": "fields",
         "exercises": ["commodity curve build", "basis", "average quotes"],
+    },
+    {
+        "id": "build_commodity_curves_synthetic_spot_basis_by_date_with_spread_quote",
+        "product": "build_commodity_curves",
+        "family": "Commodities",
+        "title": "Synthetic spot price built as a basis to another spot price, with a spread quote",
+        "description": (
+            "Basis quotes on three month-end points, December quoted as an average "
+            "spread to the base (versus_base); the other points filled on their "
+            "basis. Synthetic data."
+        ),
+        "request": "commodity_curve/synthetic_spot_basis_by_date_with_spread_quote.json",
+        "ql_pricer": "build_commodity_curves_ql",
+        "tolerance": COMMODITY_CURVE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["commodity curve build", "spot price build", "basis", "spread quote"],
+    },
+    {
+        "id": "build_commodity_curves_synthetic_basis_quarter_spread_to_base",
+        "product": "build_commodity_curves",
+        "family": "Commodities",
+        "title": "Synthetic basis contract with a quarter quoted as a spread of averages",
+        "description": (
+            "Basis quotes on two months and the first quarter quoted as this "
+            "contract's front-month average minus the base's, completed Smooth. "
+            "Synthetic data."
+        ),
+        "request": "commodity_curve/synthetic_basis_quarter_spread_to_base.json",
+        "ql_pricer": "build_commodity_curves_ql",
+        "tolerance": COMMODITY_CURVE_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["commodity curve build", "basis", "spread quote", "rule Smooth"],
     },
     # ------------------------------------------------------------------
     # Structured Notes — worst-of autocallables on index baskets, Monte Carlo

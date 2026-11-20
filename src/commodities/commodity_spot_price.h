@@ -47,14 +47,21 @@ struct SpotPointWeight {
 };
 
 /// A date read outside the points while extrapolate_flat is false: the
-/// invalid argument SpotPrice::weights raises, with the date as data.
-class SpotDateOutsidePoints : public QuantraInvalidArgument {
+/// invalid argument SpotPrice::weights raises, with the date as data
+/// (reason DateOutsidePoints).
+class SpotDateOutsidePoints : public CommodityReadError {
 public:
-    SpotDateOutsidePoints(const std::string& message, const QuantLib::Date& date)
-        : QuantraInvalidArgument(message), date_(date) {}
+    SpotDateOutsidePoints(
+        const std::string& message,
+        const QuantLib::Date& date,
+        const std::string& spotId,
+        const std::string& path = "")
+        : CommodityReadError(message, dataFor(date, spotId, path)), date_(date) {}
     const QuantLib::Date& date() const { return date_; }
 
 private:
+    static CommodityReadData dataFor(
+        const QuantLib::Date& date, const std::string& spotId, const std::string& path);
     QuantLib::Date date_;
 };
 

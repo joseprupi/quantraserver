@@ -7774,6 +7774,12 @@ def commodity_swap_ql(request: dict, index: int = 0) -> dict:
       delta(price) = sum over the days reading it of
                      s x quantity x weight / pricing days x DF
 
+    common_pricing (two floating legs): a period's pricing days are those of
+    its own leg that are also pricing days of the other leg.
+    observation OnePricePerPeriod (futures): one price per period, the month
+    "YYYY-MM" of the period's last day, read on min(payment date, its last
+    trading date) (a fixing before the valuation date); pricing_days 1.
+
     Returns the response row as a dict shaped like the wire JSON (every
     flow and observation, whatever the include flags). Errors raise
     ValueError."""
@@ -7784,10 +7790,25 @@ def commodity_swap_ql(request: dict, index: int = 0) -> dict:
     commodity = pricing.get("commodity") or {}
     contracts = {c["id"]: c for c in commodity.get("contracts") or []}
     spots = {s["id"]: s for s in commodity.get("spot_prices") or []}
+    # Curves built in the request: the build twin on the same entries, then
+    # registered under their ids.
+    builds = commodity.get("curve_builds") or []
+    if builds:
+        build_request = {"pricing": {k: v for k, v in pricing.items() if k != "commodity"},
+                         "curves": builds}
+        for j, entry in enumerate(builds):
+            row = commodity_curve_build_ql(build_request, j)
+            if "spot" in row:
+                spots[row["spot"]["id"]] = row["spot"]
+            else:
+                contracts[row["contract"]["id"]] = row["contract"]
     swap = request["swaps"][index]["commodity_swap"]
     legs = [swap["leg1"], swap["leg2"]]
     if legs[0]["pay_receive"] == legs[1]["pay_receive"]:
         raise ValueError("CommoditySwap: pay_receive must be opposite on the two legs")
+    common = bool(swap.get("common_pricing", False))
+    if common and any(leg["price_type"] == "CommodityFixedPrice" for leg in legs):
+        raise ValueError("common_pricing needs two floating legs")
 
     curves = {}
 
@@ -7860,8 +7881,40 @@ def commodity_swap_ql(request: dict, index: int = 0) -> dict:
                     days = other["calendar"].days(first, last)
                 flow["pricing_days"] = len(days)
                 flow["realised_days"] = 0
+            elif leg["price"].get("observation") == "OnePricePerPeriod":
+                fut = view["source"]
+                month = f"{last.year():04d}-{last.month():02d}"
+                mi = next((i for i, m in enumerate(fut.months) if m["month"] == month), None)
+                if mi is None:
+                    raise ValueError(f"contract {fut.id} does not list {month}")
+                m = fut.months[mi]
+                ltd = parse_date(m["last_trade_date"])
+                d = payment if payment < ltd else ltd
+                while not fut.calendar.is_pricing_day(d):
+                    d = d - 1
+
+                def today(m=m):
+                    if m.get("price") is None:
+                        raise ValueError(f"month {m['month']} has no price")
+                    return float(m["price"])
+                p, src = _commodity_observe(d, as_of, fut.fixings.get((month, d.serialNumber())),
+                                            today)
+                spread = float(leg["price"].get("spread", 0.0))
+                day_reads.append((d, p, src, month,
+                                  [(("F", fut.id, month), 1.0, month)] if src == "Curve" else []))
+                flow["pricing_days"] = 1
+                flow["realised_days"] = 1 if src == "Fixing" else 0
+                flow["average"] = p
+                flow["realised_average" if src == "Fixing" else "expected_average"] = p
+                flow["spread"] = spread
+                price = p + spread
+                flow["observations"] = [{"date": d.ISO(), "contract_month": month, "price": p,
+                                         "source": src}]
             else:
                 days = view["calendar"].days(first, last)
+                if common:
+                    theirs = set(x.serialNumber() for x in other["calendar"].days(first, last))
+                    days = [x for x in days if x.serialNumber() in theirs]
                 if not days:
                     raise ValueError(f"period {first.ISO()}..{last.ISO()} has no pricing days")
                 spread = float(leg["price"].get("spread", 0.0))
@@ -8262,6 +8315,30 @@ def _gauss_solve(a, b):
     return x
 
 
+def _commodity_base_entry(request: dict, index: int):
+    """The twin-built base of a basis entry: (index, built contract or spot)."""
+    build = request["curves"][index]
+    kind = "spot" if "spot" in build else "contract"
+    j = next(k for k, c in enumerate(request["curves"])
+             if kind in c and c[kind]["id"] == build["basis"]["base"])
+    return j, commodity_curve_build_ql(request, j)[kind]
+
+
+def _commodity_base_side(request: dict, index: int, quote: dict, curves: list) -> float:
+    """A spread quote's (versus_base) base side: the fair fixed price of the
+    same quote on the twin-built base (a contract read with base_nearby /
+    base_roll_days_before_expiry, or a spot price)."""
+    as_of_iso = request["pricing"]["as_of_date"]
+    _, base = _commodity_base_entry(request, index)
+    if "spot" in request["curves"][index]:
+        req = _curve_build_quote_request(as_of_iso, None, quote, 0.0, curves, spot=base)
+    else:
+        on_base = dict(quote, nearby=quote["base_nearby"],
+                       roll_days_before_expiry=quote["base_roll_days_before_expiry"])
+        req = _curve_build_quote_request(as_of_iso, base, on_base, 0.0, curves)
+    return commodity_swap_ql(req)["fair_fixed_price"]
+
+
 def _commodity_spot_build_ql(request: dict, index: int) -> dict:
     """The spot-price build (`curves[index].spot`): the spot's points are the
     nodes; a point with a price is a direct quote; each average quote is the
@@ -8281,6 +8358,23 @@ def _commodity_spot_build_ql(request: dict, index: int) -> dict:
     for q in quotes:
         if "nearby" in q or "roll_days_before_expiry" in q:
             raise ValueError("nearby / roll_days_before_expiry on a spot build")
+    base_at, basis_dates = None, set()
+    if "basis" in build:
+        # A point's base price is the base spot read on its date; a basis
+        # quote is a direct price base + value.
+        _, base = _commodity_base_entry(request, index)
+        base_at = {}
+        for pt in points:
+            weights = _commodity_spot_weights(
+                base["points"], parse_date(pt["date"]), base["interpolation"],
+                bool(base.get("extrapolate_flat", False)), base["id"])
+            base_at[pt["date"]] = sum(w * float(base["points"][i]["price"]) for i, w in weights)
+        for bq in build["basis"].get("quotes") or []:
+            pt = next(p for p in points if p["date"] == bq["date"])
+            if pt.get("price") is not None:
+                raise ValueError("a point with a price and a basis quote")
+            pt["price"] = base_at[bq["date"]] + float(bq["value"])
+            basis_dates.add(bq["date"])
 
     zero = json.loads(json.dumps(spot))
     for pt in zero["points"]:
@@ -8295,6 +8389,9 @@ def _commodity_spot_build_ql(request: dict, index: int) -> dict:
         if not weights:
             raise ValueError("the quote reads no live point")
         equations.append((weights, row["legs"][1]["npv"] / annuity))
+    base_sides = [_commodity_base_side(request, index, q, curves) if q.get("versus_base") else 0.0
+                  for q in quotes]
+    equations = [(w, c - s) for (w, c), s in zip(equations, base_sides)]
 
     unknowns = [pt["date"] for pt in points
                 if pt.get("price") is not None or any(pt["date"] in w for w, _ in equations)]
@@ -8402,11 +8499,15 @@ def _commodity_spot_build_ql(request: dict, index: int) -> dict:
         if not nodes:
             raise ValueError("no point is priced or read by a quote")
         flat = bool(spot.get("extrapolate_flat", False))
+        if base_at is not None:
+            # The fill reads the basis of the determined points.
+            nodes = [dict(pt, price=float(pt["price"]) - base_at[pt["date"]]) for pt in nodes]
         values = []
         for pt in missing:
             d = parse_date(pt["date"])
             weights = _commodity_spot_weights(nodes, d, spot["interpolation"], flat, spot["id"])
-            values.append(sum(w * float(nodes[i]["price"]) for i, w in weights))
+            values.append(sum(w * float(nodes[i]["price"]) for i, w in weights)
+                          + (base_at[pt["date"]] if base_at is not None else 0.0))
             if pt["date"] < nodes[0]["date"] or pt["date"] > nodes[-1]["date"]:
                 outside.add(pt["date"])
         for pt, v in zip(missing, values):
@@ -8416,18 +8517,24 @@ def _commodity_spot_build_ql(request: dict, index: int) -> dict:
     point_rows = []
     for pt in points:
         date = pt["date"]
-        if date in col:
+        if date in basis_dates:
+            source = "Basis"
+        elif date in col:
             source = ("Quoted" if sent[date] is not None
                       else "Solved" if determined[col[date]] else "Assumed")
         else:
             source = "Extrapolated" if date in outside else "Interpolated"
-        point_rows.append({"date": date, "price": pt["price"], "source": source})
+        point_row = {"date": date, "price": pt["price"], "source": source}
+        if base_at is not None:
+            point_row["base_price"] = base_at[date]
+            point_row["basis"] = pt["price"] - base_at[date]
+        point_rows.append(point_row)
 
     quote_rows = []
     for k, q in enumerate(quotes):
         priced = commodity_swap_ql(_curve_build_quote_request(
             as_of_iso, None, q, float(q["price"]), curves, spot=spot))
-        repriced = priced["fair_fixed_price"]
+        repriced = priced["fair_fixed_price"] - base_sides[k]
         quote_rows.append({"repriced": repriced, "difference": repriced - float(q["price"]),
                            "status": statuses[k],
                            "weights": [{"date": d, "weight": w}
@@ -8450,9 +8557,7 @@ def _commodity_basis_base_prices(request: dict, index: int, live: list) -> dict:
     as_of_iso = request["pricing"]["as_of_date"]
     as_of = _iso_to_date(as_of_iso)
     basis = request["curves"][index]["basis"]
-    j = next(k for k, c in enumerate(request["curves"])
-             if "contract" in c and c["contract"]["id"] == basis["base"])
-    base = commodity_curve_build_ql(request, j)["contract"]
+    _, base = _commodity_base_entry(request, index)
     out = {}
     for m in live:
         if basis["base_price"] == "SameMonth":
@@ -8524,6 +8629,9 @@ def commodity_curve_build_ql(request: dict, index: int = 0) -> dict:
         if _iso_to_date(m["last_trade_date"]) >= as_of:
             m["price"] = 0.0
     equations = [_curve_build_quote_equation(as_of_iso, zero, q, curves) for q in quotes]
+    base_sides = [_commodity_base_side(request, index, q, curves) if q.get("versus_base") else 0.0
+                  for q in quotes]
+    equations = [(w, c - s) for (w, c), s in zip(equations, base_sides)]
 
     unknowns = [m["month"] for m in live
                 if m.get("price") is not None or any(m["month"] in w for w, _ in equations)]
@@ -8600,8 +8708,15 @@ def commodity_curve_build_ql(request: dict, index: int = 0) -> dict:
             cons = [(v, beta) for v, beta, _ in ech.rows]
             r = len(cons)
             kkt = [[0.0] * (n + r) for _ in range(n + r)]
+            # Second divided differences on the months' last trading dates,
+            # x = days from the valuation date / 365.
+            ltd = {mm["month"]: mm["last_trade_date"] for mm in months}
+            t = [(_iso_to_date(ltd[name]) - as_of).days / 365.0 for name in unknowns]
             for i in range(1, n - 1):        # 2 D'D
-                d = {i - 1: 1.0, i: -2.0, i + 1: 1.0}
+                left = 1.0 / (t[i] - t[i - 1])
+                right = 1.0 / (t[i + 1] - t[i])
+                span = t[i + 1] - t[i - 1]
+                d = {i - 1: left / span, i: -(left + right) / span, i + 1: right / span}
                 for a, da in d.items():
                     for b2, db in d.items():
                         kkt[a][b2] += 2.0 * da * db
@@ -8650,7 +8765,7 @@ def commodity_curve_build_ql(request: dict, index: int = 0) -> dict:
     for k, q in enumerate(quotes):
         priced = commodity_swap_ql(
             _curve_build_quote_request(as_of_iso, contract, q, float(q["price"]), curves))
-        repriced = priced["fair_fixed_price"]
+        repriced = priced["fair_fixed_price"] - base_sides[k]
         quote_rows.append({"repriced": repriced, "difference": repriced - float(q["price"]),
                            "status": statuses[k],
                            "weights": [{"month": mo, "weight": w}

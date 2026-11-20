@@ -985,3 +985,77 @@ TEST(CommodityMonths, IsYearMonth) {
         EXPECT_FALSE(IsYearMonth(bad)) << "'" << bad << "'";
     }
 }
+
+// ---------------------------------------------------------------------------
+// Common pricing and one price per period
+// ---------------------------------------------------------------------------
+
+TEST(CommoditySwapCommonPricing, DaysOfBothLegsOnly) {
+    // The spot publishes on the reference days minus 29 January 2027.
+    auto spotHolidays = kReferenceHolidays;
+    spotHolidays.push_back(D(2027, 1, 29));
+    const auto spot = std::make_shared<SpotPrice>(
+        "SYN_SPOT", PricingCalendar(QuantLib::WeekendsOnly(), spotHolidays),
+        SpotInterpolation::Linear, true, referenceSpotPoints(), referenceSpotFixings());
+    const auto futures = futuresLeg(referenceContract(ownHolidaysPricingCalendar()), 0);
+    const auto paid = spotLeg(spot, PayReceive::Pay);
+    const auto own = PriceCommoditySwap(futures, paid, D(2026, 11, 13));
+    SwapOptions common;
+    common.commonPricing = true;
+    const auto both = PriceCommoditySwap(futures, paid, D(2026, 11, 13), common);
+    // January (third period): the futures leg loses 29 January.
+    EXPECT_EQ(own.legs[0].flows[2].pricingDays, 19);
+    EXPECT_EQ(both.legs[0].flows[2].pricingDays, 18);
+    EXPECT_EQ(both.legs[1].flows[2].pricingDays, 18);
+    for (const auto& obs : both.legs[0].flows[2].observations) {
+        EXPECT_NE(obs.date, D(2027, 1, 29));
+    }
+    EXPECT_EQ(own.legs[0].flows[0].pricingDays, both.legs[0].flows[0].pricingDays);
+    expectInvalid(
+        [&] { PriceCommoditySwap(fixedPayLeg(), futures, D(2026, 11, 13), common); },
+        "common_pricing needs two floating legs (leg1 is fixed)");
+}
+
+TEST(CommoditySwapOnePricePerPeriod, MonthOfThePeriodEnd) {
+    // A contract whose months last trade on the last weekday of the month.
+    std::vector<ContractMonth> months = {
+        {"2026-10", D(2026, 10, 30), std::nullopt}, {"2026-11", D(2026, 11, 30), 60.3},
+        {"2026-12", D(2026, 12, 31), 60.55},        {"2027-01", D(2027, 1, 29), 60.8},
+        {"2027-02", D(2027, 2, 26), 61.0},          {"2027-03", D(2027, 3, 31), 61.15}};
+    const auto contract = std::make_shared<FuturesContract>(
+        "SYN_AVG", ownHolidaysPricingCalendar(), months,
+        std::vector<ContractFixing>{{"2026-10", D(2026, 10, 30), 59.85}});
+    FuturesFloatingPrice fl;
+    fl.contract = contract;
+    fl.observation = FuturesObservation::OnePricePerPeriod;
+    auto floating = monthlyLeg(PayReceive::Receive, fl);
+    auto fixed = fixedPayLeg();
+    // October to March; paid 15 US business days after each period's end.
+    for (auto* leg : {&floating, &fixed}) {
+        leg->periods = GeneratePeriods(D(2026, 10, 1), D(2027, 3, 31), QuantLib::Monthly, "p");
+        leg->paymentLag = 15;
+    }
+    const auto r = PriceCommoditySwap(fixed, floating, D(2026, 11, 13));
+    const auto& flows = r.legs[1].flows;
+    ASSERT_EQ(flows.size(), 6u);
+    // October: read on its last trading date, before the valuation date.
+    EXPECT_EQ(flows[0].observations.at(0).date, D(2026, 10, 30));
+    EXPECT_EQ(flows[0].observations.at(0).source, PriceSource::Fixing);
+    EXPECT_DOUBLE_EQ(*flows[0].average, 59.85);
+    // January: paid after 29 January, read on the last trading date.
+    EXPECT_EQ(flows[3].observations.at(0).date, D(2027, 1, 29));
+    EXPECT_DOUBLE_EQ(*flows[3].average, 60.8);
+    EXPECT_EQ(flows[3].pricingDays, 1);
+    // One delta per live month: quantity x discount.
+    EXPECT_EQ(r.deltas.size(), 5u);
+    for (const auto& d : r.deltas) {
+        bool found = false;
+        for (const auto& f : flows) {
+            if (f.observations.at(0).contractMonth == d.month) {
+                EXPECT_NEAR(d.delta, f.quantity * f.discount, 1e-9);
+                found = true;
+            }
+        }
+        EXPECT_TRUE(found) << d.month;
+    }
+}

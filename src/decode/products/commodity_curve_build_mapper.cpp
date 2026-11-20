@@ -2,11 +2,14 @@
 
 #include "commodity_parsers.h"
 #include "commodity_swap_mapper.h"
+#include "curve_cache.h"
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
 #include "request_validation.h"
 
+#include <algorithm>
+#include <cmath>
 #include <optional>
 #include <string>
 #include <vector>
@@ -89,13 +92,61 @@ commodities::AverageQuote decodeQuote(
     if (q->discounting_curve() != nullptr) {
         curveId = requireNonEmptyString(q->discounting_curve(), path + ".discounting_curve");
     }
+    // Spread to the base: the library checks the fields against the build.
+    out.versusBase = q->versus_base();
+    if (q->base_nearby().has_value()) {
+        out.baseNearby = q->base_nearby().value();
+    }
+    if (q->base_roll_days_before_expiry().has_value()) {
+        out.baseRollDaysBeforeExpiry = q->base_roll_days_before_expiry().value();
+    }
     return out;
 }
 
 commodities::BasisInputs decodeBasis(
-    const quantra::CommodityCurveBasis* basis, const std::string& path, std::string& baseId) {
+    const quantra::CommodityCurveBasis* basis,
+    const std::string& path,
+    std::string& baseId,
+    bool spot) {
     commodities::BasisInputs out;
     baseId = requireNonEmptyString(basis->base(), path + ".base");
+    if (spot) {
+        // A point's base price is the base spot read on the point's date:
+        // nothing chooses a base month.
+        for (const auto& [given, name] :
+             {std::make_pair(basis->base_price().has_value(), std::string("base_price")),
+              std::make_pair(basis->base_month_offset() != 0, std::string("base_month_offset")),
+              std::make_pair(basis->base_nearby().has_value(), std::string("base_nearby")),
+              std::make_pair(
+                  basis->base_roll_days_before_expiry().has_value(),
+                  std::string("base_roll_days_before_expiry"))}) {
+            if (given) {
+                QuantraInvalidArgumentAt(
+                    path + "." + name, path + "." + name +
+                                           " is not used on a spot price build (a point's base "
+                                           "price is the base spot read on its date)");
+            }
+        }
+        if (const auto* quotes = basis->quotes()) {
+            for (flatbuffers::uoffset_t k = 0; k < quotes->size(); ++k) {
+                const auto* q = quotes->Get(k);
+                const std::string at = path + ".quotes[" + std::to_string(k) + "]";
+                if (q == nullptr) {
+                    QuantraInvalidArgumentAt(at, at + " is null");
+                }
+                if (q->month() != nullptr) {
+                    QuantraInvalidArgumentAt(
+                        at + ".month",
+                        at + ".month is not used on a spot price build; name the point by date");
+                }
+                commodities::BasisQuote quote;
+                quote.date = requireIsoDate(q->date(), at + ".date");
+                quote.value = requireScalarPresent(q->value(), at + ".value");
+                out.quotes.push_back(quote);
+            }
+        }
+        return out;
+    }
     const std::string priceField = path + ".base_price";
     switch (requireEnum(basis->base_price(), priceField)) {
         case quantra::enums::CommodityBasisBasePrice_SameMonth:
@@ -120,6 +171,11 @@ commodities::BasisInputs decodeBasis(
             const std::string at = path + ".quotes[" + std::to_string(k) + "]";
             if (q == nullptr) {
                 QuantraInvalidArgumentAt(at, at + " is null");
+            }
+            if (q->date() != nullptr) {
+                QuantraInvalidArgumentAt(
+                    at + ".date",
+                    at + ".date is not used on a contract build; name the month by month");
             }
             commodities::BasisQuote quote;
             quote.month = requireNonEmptyString(q->month(), at + ".month");
@@ -169,6 +225,9 @@ flatbuffers::Offset<flatbuffers::Vector<SensOffset>> serializeSensitivities(
         sb.add_value(s.value);
         if (s.date) {
             sb.add_date(date);
+        }
+        if (s.curve) {
+            sb.add_curve(static_cast<int>(*s.curve));
         }
         rows.push_back(sb.Finish());
     }
@@ -220,6 +279,12 @@ flatbuffers::Offset<quantra::CommodityCurveReport> serializeReport(
             pb.add_source(wireSource(pt.source));
             if (!pt.sensitivities.empty()) {
                 pb.add_sensitivities(sens);
+            }
+            if (pt.basePrice) {
+                pb.add_base_price(*pt.basePrice);
+            }
+            if (pt.basis) {
+                pb.add_basis(*pt.basis);
             }
             points.push_back(pb.Finish());
         }
@@ -314,8 +379,10 @@ auto withInputDetails(
     throw QuantraInvalidArgument(message, CurveBuildRefusalJson(r, curve));
 }
 
-CommodityCurveBuildSpec extractBuild(const quantra::CommodityCurveBuild* entry, std::size_t index) {
-    const std::string base = "curves[" + std::to_string(index) + "]";
+} // namespace
+
+CommodityCurveBuildSpec DecodeCommodityCurveBuild(
+    const quantra::CommodityCurveBuild* entry, const std::string& base, std::size_t index) {
     if (entry == nullptr) {
         invalidAt(base, base + " is null", index);
     }
@@ -379,15 +446,9 @@ CommodityCurveBuildSpec extractBuild(const quantra::CommodityCurveBuild* entry, 
         }
     }
     if (const auto* basis = entry->basis()) {
-        if (spotSpec != nullptr) {
-            invalidAt(
-                base + ".basis",
-                base + ".basis is not used by a spot price build (basis curves are contract "
-                       "builds)",
-                index);
-        }
-        out.basis = withInputDetails(
-            index, std::nullopt, [&] { return decodeBasis(basis, base + ".basis", out.baseId); });
+        out.basis = withInputDetails(index, std::nullopt, [&] {
+            return decodeBasis(basis, base + ".basis", out.baseId, spotSpec != nullptr);
+        });
     }
     if (entry->rule().has_value()) {
         switch (entry->rule().value()) {
@@ -402,6 +463,8 @@ CommodityCurveBuildSpec extractBuild(const quantra::CommodityCurveBuild* entry, 
     }
     return out;
 }
+
+namespace {
 
 flatbuffers::Offset<quantra::CommodityContractSpec> serializeContract(
     flatbuffers::grpc::MessageBuilder& builder, const BuiltCommodityCurveResult& curve) {
@@ -545,7 +608,8 @@ CommodityCurveBuildInputs CommodityCurveBuildMapper::toInputs(
     inputs.includeDetails = req->include_details();
     inputs.builds.reserve(curves->size());
     for (flatbuffers::uoffset_t i = 0; i < curves->size(); ++i) {
-        inputs.builds.push_back(extractBuild(curves->Get(i), i));
+        inputs.builds.push_back(
+            DecodeCommodityCurveBuild(curves->Get(i), "curves[" + std::to_string(i) + "]", i));
     }
     return inputs;
 }
@@ -576,6 +640,83 @@ flatbuffers::Offset<quantra::BuildCommodityCurvesResponse> CommodityCurveBuildMa
     quantra::BuildCommodityCurvesResponseBuilder rb(builder);
     rb.add_curves(rowsVec);
     return rb.Finish();
+}
+
+void RegisterCommodityCurveBuilds(
+    CommodityRegistry& commodity,
+    const RatesRegistry& rates,
+    const flatbuffers::Vector<flatbuffers::Offset<quantra::CommodityCurveBuild>>* builds,
+    const QuantLib::Date& asOf,
+    const RequestBudget& budget,
+    const std::string& requestKey) {
+    const std::string list = "pricing.commodity.curve_builds";
+    commodity.hasBuilds = true;
+    if (builds == nullptr) {
+        return;
+    }
+    std::vector<CommodityCurveBuildSpec> specs;
+    specs.reserve(builds->size());
+    for (flatbuffers::uoffset_t i = 0; i < builds->size(); ++i) {
+        specs.push_back(
+            DecodeCommodityCurveBuild(builds->Get(i), list + "[" + std::to_string(i) + "]", i));
+    }
+    CommodityCurveSetOptions options;
+    options.listPath = list;
+    options.jacobians = true;
+    options.cache = CurveCache::instance().enabled();
+    options.requestKey = requestKey;
+    const auto built = BuildCommodityCurveSet(specs, asOf, rates, &budget, options);
+    for (std::size_t i = 0; i < built.size(); ++i) {
+        const auto& b = built[i];
+        const std::string path = list + "[" + std::to_string(i) + "]";
+        const std::string& id = b.row.id;
+        const bool spot = b.row.isSpot;
+        const bool given =
+            spot ? commodity.spotPrices.count(id) > 0 : commodity.contracts.count(id) > 0;
+        if (given) {
+            bool earlierBuild = false;
+            for (std::size_t j = 0; j < i; ++j) {
+                earlierBuild =
+                    earlierBuild || (built[j].row.isSpot == spot && built[j].row.id == id);
+            }
+            commodities::CurveBuildRefusal r;
+            r.reason = commodities::CurveBuildRefusal::Reason::InvalidInput;
+            r.path = spot ? "spot.id" : "contract.id";
+            throw QuantraInvalidArgument(
+                path + "." + r.path + ": '" + id + "' is " +
+                    (earlierBuild ? "built twice in " + list
+                                  : std::string("also given in pricing.commodity.") +
+                                        (spot ? "spot_prices" : "contracts")) +
+                    "; an id is given once",
+                CurveBuildRefusalJson(r, i, path + "."));
+        }
+        if (spot) {
+            commodity.spotPrices[id] = b.spot;
+        } else {
+            commodity.contracts[id] = b.contract;
+        }
+        BuiltCommodityCurveInfo info;
+        info.id = id;
+        info.spot = spot;
+        if (spot) {
+            for (const auto& p : b.row.report.points) {
+                info.outputs.push_back(DateToIso(p.date));
+            }
+        } else {
+            for (const auto& m : b.row.report.months) {
+                info.outputs.push_back(m.month);
+            }
+        }
+        info.jacobian = b.jacobian;
+        info.status = b.row.report.status;
+        info.maxRepricingDifference = b.row.report.maxRepricingDifference;
+        for (const auto& row : b.jacobian.rows) {
+            for (const double v : row) {
+                info.maxSensitivity = std::max(info.maxSensitivity, std::fabs(v));
+            }
+        }
+        commodity.built.push_back(std::move(info));
+    }
 }
 
 } // namespace quantra

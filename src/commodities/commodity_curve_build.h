@@ -114,7 +114,20 @@ struct CurveBuildRefusal {
         /// Basis builds: a month with both a price and a basis quote.
         BasisAndPrice,
         /// Basis builds: a basis quote on an expired month.
-        BasisOnExpiredMonth
+        BasisOnExpiredMonth,
+        /// Spot basis builds: the base is not a spot price build, or names
+        /// more than one entry.
+        BaseNotSpot,
+        /// The swap pricer, on a quote's days: a day before the valuation
+        /// date without its fixing (`date`, `month`), a month read without a
+        /// price, a day that needs a month after the last listed one, a
+        /// period without a pricing day.
+        MissingFixing,
+        MonthWithoutPrice,
+        MonthNotListed,
+        NoPricingDay,
+        /// A `discounting_curve` not in pricing.rates.curves (a 404).
+        UnknownDiscountingCurve
     };
     /// One input of the build: a direct price (a month, or a spot point's
     /// date) or an average quote.
@@ -210,8 +223,9 @@ FuturesCurveBuildResult BuildFuturesCurve(
 // rule picks the solution:
 //   Flat    months touched by the same set of quotes share one price;
 //   Smooth  among the exact solutions, the one with the least sum of squared
-//           second differences p[i-1] - 2 p[i] + p[i+1] over the unknowns in
-//           month order (index spacing).
+//           second divided differences over the unknowns on their last
+//           trading dates (x = days from the valuation date / 365), as for a
+//           spot build.
 // A month is Solved when the quotes alone determine it (its unit vector is in
 // the span of the equations), Assumed when the rule decides it. The months
 // are then the nodes of the fill (BuildFuturesCurve) for the live months no
@@ -233,19 +247,30 @@ struct AverageQuote {
     std::optional<QuantLib::BusinessDayConvention> paymentConvention;
     /// Resolved by the caller from `discounting_curve`; empty when not given.
     QuantLib::Handle<QuantLib::YieldTermStructure> discountCurve;
+    /// Basis builds: `price` is a spread, this curve's average minus the
+    /// base's average over the same periods (the difference of the two fair
+    /// fixed prices). The base side's fair price is a constant (the base is
+    /// built first), so the quote stays one linear equation on this curve.
+    bool versusBase = false;
+    /// Contract builds with versusBase: the base month averaged and its roll.
+    std::optional<int> baseNearby;
+    std::optional<int> baseRollDaysBeforeExpiry;
 };
 
 enum class CurveStatus { Unique, Underdetermined };
 enum class MonthSource { Quoted, Solved, Assumed, Interpolated, Extrapolated, Basis };
 enum class QuoteStatus { Used, Redundant };
 
-/// d price / d quote: a direct price (`month`, or `date` for a spot point)
-/// or an average quote (index).
+/// d price / d quote: a direct price (`month`, or `date` for a spot point;
+/// a basis quote counts as its month's or point's direct price) or an
+/// average quote (index). `curve`: the request index of the entry the input
+/// belongs to when it is an input of a base; absent for the entry's own.
 struct QuoteSensitivity {
     std::optional<std::string> month;
     std::optional<std::size_t> averageQuote;
     double value = 0.0;
     std::optional<std::string> date;
+    std::optional<std::size_t> curve;
 };
 
 struct MonthReport {
@@ -275,6 +300,9 @@ struct PointReport {
     MonthSource source = MonthSource::Quoted;
     /// As MonthReport::sensitivities.
     std::vector<QuoteSensitivity> sensitivities;
+    /// Basis builds: the point's base price and price - base price.
+    std::optional<double> basePrice;
+    std::optional<double> basis;
 };
 
 struct AverageQuoteReport {
@@ -325,15 +353,19 @@ struct CurveBuildReport {
 enum class BasisBasePrice { SameMonth, MonthAverage };
 
 struct BasisQuote {
-    /// A month of the contract, "YYYY-MM".
+    /// Contract builds: a month of the contract, "YYYY-MM".
     std::string month;
     double value = 0.0;
+    /// Spot builds: the date of one of the spot's points.
+    std::optional<QuantLib::Date> date;
 };
 
 struct BasisInputs {
     /// The built base contract (every live month priced) and its index in
     /// the request; set by the caller.
     std::shared_ptr<const FuturesContract> base;
+    /// Spot builds: the built base spot price; set by the caller.
+    std::shared_ptr<const SpotPrice> baseSpot;
     std::size_t baseCurve = 0;
     BasisBasePrice basePrice = BasisBasePrice::SameMonth;
     int baseMonthOffset = 0;
@@ -348,13 +380,30 @@ struct CurveBuildInputs {
     std::vector<AverageQuote> averageQuotes;
     std::optional<CurveRule> rule;
     bool includeDetails = false;
-    /// Contract builds only.
     std::optional<BasisInputs> basis;
+    /// Also return the jacobian of every live month (spot: every point) to
+    /// every input of the build.
+    bool fullJacobian = false;
+};
+
+/// d output / d input for every output of a build (contract: the live months
+/// in contract order; spot: the points) and every input of the build (direct
+/// prices, basis quotes counted as their month's or point's direct price,
+/// then the average quotes; labelled in `inputs`, value 0). A determined
+/// output's row is the solve's exact sensitivity; a filled output's row is
+/// the solve's sensitivities of the nodes times the fill's derivative to its
+/// nodes, by central differences on the fill (step 1e-6 x max(1, |node|)),
+/// exact to rounding for the piecewise-linear fills.
+struct BuildJacobian {
+    std::vector<QuoteSensitivity> inputs;
+    std::vector<std::vector<double>> rows;
 };
 
 struct CommodityCurveBuildResult {
     std::vector<ContractMonth> months;
     CurveBuildReport report;
+    /// With CurveBuildInputs::fullJacobian.
+    BuildJacobian jacobian;
 };
 
 /// Build the contract from its direct prices and average quotes (rules
@@ -410,8 +459,18 @@ struct SpotCurveBuildResult {
     /// Every point with its price.
     std::vector<SpotNode> points;
     CurveBuildReport report;
+    /// With CurveBuildInputs::fullJacobian.
+    BuildJacobian jacobian;
 };
 
+/// Basis on a spot build: the base is another spot price (built first); a
+/// point's base price is the base read on the point's date (its
+/// interpolation and extrapolate_flat; outside its points without
+/// extrapolation: BaseNotDetermined naming the date). A basis quote names a
+/// point by date and gives it base + value (source Basis); the points no
+/// quote determines are filled on their basis with the spot's own
+/// interpolation, then the base is added back.
+///
 /// Build a spot price from its priced points and average quotes (rules
 /// above). `inputs.interpolation` is not read (the spot's own interpolation
 /// is used); quotes' nearby / roll are not read. Invalid argument naming the

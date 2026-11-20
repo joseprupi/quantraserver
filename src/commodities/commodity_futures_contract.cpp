@@ -28,51 +28,50 @@ FuturesContract::FuturesContract(
     std::vector<ContractMonth> months,
     const std::vector<ContractFixing>& fixings)
     : id_(std::move(id)), pricingCalendar_(std::move(pricingCalendar)), months_(std::move(months)) {
-    const std::string where = "commodity contract '" + id_ + "'";
+    // Messages start with the field, relative to the contract (the caller
+    // puts the contract's path in front): `months[3].last_trade_date ...`.
     if (months_.empty()) {
-        QuantraInvalidArgumentAt("months", where + ": at least one month is required");
+        QuantraInvalidArgumentAt("months", "months: at least one month is required");
     }
     for (std::size_t i = 0; i < months_.size(); ++i) {
         const auto& m = months_[i];
-        const std::string at = where + " months[" + std::to_string(i) + "]";
         const std::string field = "months[" + std::to_string(i) + "]";
         if (!IsYearMonth(m.month)) {
             QuantraInvalidArgumentAt(
-                field + ".month", at + ": month '" + m.month + "' is not YYYY-MM");
+                field + ".month", field + ".month '" + m.month + "' is not YYYY-MM");
         }
         if (m.price && !std::isfinite(*m.price)) {
-            QuantraInvalidArgumentAt(field + ".price", at + ": price must be finite");
+            QuantraInvalidArgumentAt(field + ".price", field + ".price must be finite");
         }
         if (i > 0) {
             const auto& prev = months_[i - 1];
             if (m.month <= prev.month) {
                 QuantraInvalidArgumentAt(
-                    field + ".month", at + ": month " + m.month + " is not after " + prev.month +
+                    field + ".month", field + ".month " + m.month + " is not after " + prev.month +
                                           "; months must be in ascending order");
             }
             if (m.lastTradeDate <= prev.lastTradeDate) {
                 QuantraInvalidArgumentAt(
                     field + ".last_trade_date",
-                    at + ": last_trade_date " + DateToIso(m.lastTradeDate) + " of " + m.month +
+                    field + ".last_trade_date " + DateToIso(m.lastTradeDate) + " of " + m.month +
                         " is not after " + DateToIso(prev.lastTradeDate) + " of " + prev.month);
             }
         }
     }
     for (std::size_t i = 0; i < fixings.size(); ++i) {
         const auto& f = fixings[i];
-        const std::string at = where + " fixings[" + std::to_string(i) + "]";
         const std::string field = "fixings[" + std::to_string(i) + "]";
         // A settlement of a month not in the list is accepted and never read.
         if (!IsYearMonth(f.month)) {
             QuantraInvalidArgumentAt(
-                field + ".month", at + ": month '" + f.month + "' is not YYYY-MM");
+                field + ".month", field + ".month '" + f.month + "' is not YYYY-MM");
         }
         if (!std::isfinite(f.value)) {
-            QuantraInvalidArgumentAt(field + ".value", at + ": value must be finite");
+            QuantraInvalidArgumentAt(field + ".value", field + ".value must be finite");
         }
         if (!fixings_.emplace(std::make_pair(f.month, f.date), f.value).second) {
             QuantraInvalidArgumentAt(
-                field, at + ": a second fixing of " + f.month + " on " + DateToIso(f.date));
+                field, field + ": a second fixing of " + f.month + " on " + DateToIso(f.date));
         }
     }
 }
@@ -100,9 +99,14 @@ std::size_t FuturesContract::selectMonth(
     }
     const std::size_t index = front + static_cast<std::size_t>(nearby - 1);
     if (index >= months_.size()) {
-        QUANTRA_INVALID_ARGUMENT(
+        CommodityReadData data;
+        data.reason = "MonthNotListed";
+        data.date = DateToIso(day);
+        data.contractId = id_;
+        throw CommodityReadError(
             "commodity contract '" + id_ + "': pricing day " + DateToIso(day) + " needs nearby " +
-            std::to_string(nearby) + " after the last listed month " + months_.back().month);
+                std::to_string(nearby) + " after the last listed month " + months_.back().month,
+            data);
     }
     return index;
 }

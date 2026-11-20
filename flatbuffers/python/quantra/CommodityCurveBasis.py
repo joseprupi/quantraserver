@@ -6,8 +6,8 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# A contract priced as another contract of the request (the base) plus a
-# basis.
+# A contract (or spot price) priced as another contract (spot price) of the
+# request, the base, plus a basis.
 class CommodityCurveBasis(object):
     __slots__ = ['_tab']
 
@@ -26,9 +26,10 @@ class CommodityCurveBasis(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # The contract id of another `curves[]` entry, a contract build, built
-    # first whatever the order (404 when no entry has that id). A fully
-    # priced contract entry is how a finished base is given. Required.
+    # The id of another entry of the same kind (a contract build for a
+    # contract, a spot build for a spot price), built first whatever the
+    # order (404 when no entry has that id). A fully priced entry is how a
+    # finished base is given. Required.
     # CommodityCurveBasis
     def Base(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -36,8 +37,9 @@ class CommodityCurveBasis(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # How the base price of a month is read: SameMonth or MonthAverage.
-    # Presence-required.
+    # Contract builds: how the base price of a month is read, SameMonth or
+    # MonthAverage. Presence-required there; refused on spot builds (a
+    # point's base price is the base spot read on the point's date).
     # CommodityCurveBasis
     def BasePrice(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))

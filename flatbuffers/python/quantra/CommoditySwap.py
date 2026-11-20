@@ -49,8 +49,19 @@ class CommoditySwap(object):
             return obj
         return None
 
+    # Two floating legs only (a 400 otherwise): a day is a pricing day of a
+    # period of either leg only when it is a pricing day of both legs'
+    # contracts or spot prices. Default false: each leg averages over its
+    # own pricing days.
+    # CommoditySwap
+    def CommonPricing(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def CommoditySwapStart(builder):
-    builder.StartObject(2)
+    builder.StartObject(3)
 
 def Start(builder):
     CommoditySwapStart(builder)
@@ -66,6 +77,12 @@ def CommoditySwapAddLeg2(builder, leg2):
 
 def AddLeg2(builder, leg2):
     CommoditySwapAddLeg2(builder, leg2)
+
+def CommoditySwapAddCommonPricing(builder, commonPricing):
+    builder.PrependBoolSlot(2, commonPricing, 0)
+
+def AddCommonPricing(builder, commonPricing):
+    CommoditySwapAddCommonPricing(builder, commonPricing)
 
 def CommoditySwapEnd(builder):
     return builder.EndObject()
@@ -84,6 +101,7 @@ class CommoditySwapT(object):
     def __init__(self):
         self.leg1 = None  # type: Optional[CommoditySwapLegT]
         self.leg2 = None  # type: Optional[CommoditySwapLegT]
+        self.commonPricing = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -110,6 +128,7 @@ class CommoditySwapT(object):
             self.leg1 = CommoditySwapLegT.InitFromObj(commoditySwap.Leg1())
         if commoditySwap.Leg2() is not None:
             self.leg2 = CommoditySwapLegT.InitFromObj(commoditySwap.Leg2())
+        self.commonPricing = commoditySwap.CommonPricing()
 
     # CommoditySwapT
     def Pack(self, builder):
@@ -122,5 +141,6 @@ class CommoditySwapT(object):
             CommoditySwapAddLeg1(builder, leg1)
         if self.leg2 is not None:
             CommoditySwapAddLeg2(builder, leg2)
+        CommoditySwapAddCommonPricing(builder, self.commonPricing)
         commoditySwap = CommoditySwapEnd(builder)
         return commoditySwap
