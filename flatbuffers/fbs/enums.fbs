@@ -599,3 +599,118 @@ enum CorrelationShrinkage : byte {
     LedoitWolf = 1,
     Fixed = 2
 }
+
+/// How `CommodityQuantity` is read. PerPeriod: the quantity is the amount
+/// delivered over the whole calculation period. PerPricingDay: the quantity
+/// is the amount for each pricing day of the period, so the period's amount
+/// is the quantity times its number of pricing days.
+enum CommodityQuantityBasis : byte {
+    PerPeriod = 0,
+    PerPricingDay = 1
+}
+
+/// Where a commodity price used in a flow came from. Fixing: a published
+/// price on or before the valuation date, taken from the request's fixings.
+/// Curve: a price read from today's market data (a futures price or a spot
+/// forward price).
+enum CommodityPriceSource : byte {
+    Fixing = 0,
+    Curve = 1
+}
+
+/// How `/build-commodity-curves` fills a live futures month without a price
+/// from the quoted live months. Axis for every method: x = calendar days from
+/// the valuation date to the month's last trading date, divided by 365 (any
+/// affine change of x gives the same prices). The nodes are all the quoted
+/// live months of the contract. Outside the first and last quote the method
+/// is never continued: `extrapolate_flat` decides (nearest quote or a 400).
+enum CommodityCurveInterpolation : byte {
+    /// Straight line between the two neighbouring quotes.
+    Linear = 0,
+    /// Straight line in log(price) between the two neighbouring quotes.
+    /// Every quoted live price must be > 0 (400 naming the month otherwise).
+    LogLinear = 1,
+    /// The next quoted month's price.
+    BackwardFlat = 2,
+    /// The previous quoted month's price.
+    ForwardFlat = 3,
+    /// Piecewise cubic through all the quotes that limits overshoot between
+    /// them: the slope at a quote is the harmonic mean of the two
+    /// neighbouring slopes (0 where they change sign); at the first and the
+    /// last quote it is (3 x end slope - next quote's slope) / 2. With two
+    /// quotes it is the straight line.
+    KrugerCubic = 4,
+    /// Natural cubic spline through all the quotes: smooth (continuous
+    /// second derivative, 0 at the first and the last quote) but it can
+    /// overshoot between quotes. With two quotes it is the straight line.
+    NaturalCubic = 5
+}
+
+/// How `/build-commodity-curves` picks one solution when its quotes do not
+/// determine every month they touch.
+enum CommodityCurveRule : byte {
+    /// Months touched by the same set of quotes share one price.
+    Flat = 0,
+    /// Among the solutions that reprice every quote exactly, the one with the
+    /// least sum of squared second differences of the touched months' prices
+    /// in month order.
+    Smooth = 1
+}
+
+/// Whether a commodity curve build's quotes determine every month they
+/// touch.
+enum CommodityCurveStatus : byte {
+    /// The quotes determine every touched month.
+    Unique = 0,
+    /// They do not; the rule chose the solution.
+    Underdetermined = 1
+}
+
+/// Where a built month's price comes from.
+enum CommodityMonthSource : byte {
+    /// The month's own price was given (a futures quote).
+    Quoted = 0,
+    /// Determined by the quotes alone.
+    Solved = 1,
+    /// Touched by the quotes but not determined by them: set by the rule.
+    Assumed = 2,
+    /// Not touched by any quote: read between the determined months with the
+    /// build's interpolation.
+    Interpolated = 3,
+    /// Not touched by any quote, outside the determined months: the nearest
+    /// one (extrapolate_flat).
+    Extrapolated = 4,
+    /// A basis quote: the base price plus the basis.
+    Basis = 5
+}
+
+/// How a basis build reads the base price of a month M.
+enum CommodityBasisBasePrice : byte {
+    /// The base contract's month M - base_month_offset months: its price when
+    /// live, its fixing on its last trading date when expired.
+    SameMonth = 0,
+    /// The average over the pricing days of calendar month M of the base
+    /// contract read with base_nearby / base_roll_days_before_expiry.
+    MonthAverage = 1
+}
+
+/// How a futures leg reads its contract in each calculation period.
+enum CommodityFuturesObservation : byte {
+    /// The average, over the period's pricing days, of the nearby contract
+    /// month (nearby and roll_days_before_expiry required).
+    DailyAverage = 0,
+    /// One price per period, for a contract whose settlement price is itself
+    /// a period average: the month containing the period's last day, read on
+    /// the earlier of the payment date and that month's last trading date (a
+    /// fixing when that day is before the valuation date). nearby and
+    /// roll_days_before_expiry are refused.
+    OnePricePerPeriod = 1
+}
+
+/// How an average quote entered a commodity curve build.
+enum CommodityQuoteStatus : byte {
+    /// It adds information to the earlier quotes.
+    Used = 0,
+    /// The earlier quotes already imply its value (it agrees with them).
+    Redundant = 1
+}

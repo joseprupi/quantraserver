@@ -1,0 +1,66 @@
+{
+ "note": "d NPV / d quote of the first benchmark swap (Nov-26..Oct-27 monthly, 10,000 per period, 61.00 paid against the front month, roll 0) on the contract of examples/data/commodity_curve/synthetic_average_quotes_monthly_strip.json built from its quotes. Independent reference values: central differences (step 1e-4 in price) of an independent implementation re-run with one quote moved, the curve rebuilt each time. Order: the direct 2027-01 price, then average_quotes[0..10].",
+ "base_npv": 37235.68697633222,
+ "quote_deltas": [
+  {
+   "month": "2027-01",
+   "value": 60.4,
+   "central_difference": 5485.553261823952
+  },
+  {
+   "average_quote": 0,
+   "value": 60.495454545455,
+   "central_difference": 9938.818071968853
+  },
+  {
+   "average_quote": 1,
+   "value": 60.810526315789,
+   "central_difference": 9908.367618918419
+  },
+  {
+   "average_quote": 2,
+   "value": 61.042105263158,
+   "central_difference": 9878.010456450284
+  },
+  {
+   "average_quote": 3,
+   "value": 61.254545454545,
+   "central_difference": 9842.351749539375
+  },
+  {
+   "average_quote": 4,
+   "value": 61.436363636364,
+   "central_difference": 9810.046474449337
+  },
+  {
+   "average_quote": 5,
+   "value": 61.53,
+   "central_difference": 9776.775734499097
+  },
+  {
+   "average_quote": 6,
+   "value": 61.627272727273,
+   "central_difference": 9743.61783824861
+  },
+  {
+   "average_quote": 7,
+   "value": 61.738095238095,
+   "central_difference": 9712.700969539583
+  },
+  {
+   "average_quote": 8,
+   "value": 61.831818181818,
+   "central_difference": 9677.63902619481
+  },
+  {
+   "average_quote": 9,
+   "value": 61.933333333333,
+   "central_difference": 9646.931518800557
+  },
+  {
+   "average_quote": 10,
+   "value": 62.033333333333,
+   "central_difference": 9616.321446374059
+  }
+ ]
+}

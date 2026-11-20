@@ -1,0 +1,120 @@
+{
+  "pricing": {
+    "as_of_date": "2026-11-13",
+    "rates": {
+      "curves": [
+        {
+          "id": "USD_OIS",
+          "reference_date": "2026-11-13",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "bootstrap_trait": "InterpolatedDiscount",
+          "points": [
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2026-11-13",
+                "discount_factor": 1.0
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-02-13",
+                "discount_factor": 0.99
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-05-13",
+                "discount_factor": 0.98
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "commodity": {
+      "contracts": [
+        {
+          "id": "SYN_CL",
+          "pricing_calendar": "WeekendsOnly",
+          "pricing_holidays": [
+            "2026-12-25",
+            "2027-01-01",
+            "2027-01-18"
+          ],
+          "months": [
+            {
+              "month": "2027-01",
+              "last_trade_date": "2026-12-21",
+              "price": 60.0
+            },
+            {
+              "month": "2027-02",
+              "last_trade_date": "2027-01-20",
+              "price": 61.0
+            },
+            {
+              "month": "2027-03",
+              "last_trade_date": "2027-02-22",
+              "price": 62.0
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "swaps": [
+    {
+      "commodity_swap": {
+        "leg1": {
+          "pay_receive": "Pay",
+          "periods": {
+            "start_date": "2026-12-01",
+            "end_date": "2027-01-31",
+            "frequency": "Monthly"
+          },
+          "quantity": {
+            "value": 10000.0,
+            "basis": "PerPeriod"
+          },
+          "price_type": "CommodityFixedPrice",
+          "price": {
+            "price": 60.5
+          },
+          "payment_calendar": "UnitedStatesSettlement",
+          "payment_lag": 5,
+          "payment_convention": "Following",
+          "discounting_curve": "USD_OIS"
+        },
+        "leg2": {
+          "pay_receive": "Receive",
+          "periods": {
+            "start_date": "2026-12-01",
+            "end_date": "2027-01-31",
+            "frequency": "Monthly"
+          },
+          "quantity": {
+            "value": 10000.0,
+            "basis": "PerPeriod"
+          },
+          "price_type": "FuturesFloatingPrice",
+          "price": {
+            "contract_id": "SYN_CL",
+            "nearby": 1,
+            "roll_days_before_expiry": 0,
+            "spread": 0.0
+          },
+          "payment_calendar": "UnitedStatesSettlement",
+          "payment_lag": 5,
+          "payment_convention": "Following",
+          "discounting_curve": "USD_OIS"
+        }
+      }
+    }
+  ],
+  "include_flows": true,
+  "include_observations": false
+}

@@ -1,0 +1,78 @@
+{
+  "pricing": {
+    "as_of_date": "2026-11-13"
+  },
+  "curves": [
+    {
+      "spot": {
+        "id": "SYN_SPOT_BACKWARDFLAT",
+        "pricing_calendar": "WeekendsOnly",
+        "interpolation": "BackwardFlat",
+        "extrapolate_flat": true,
+        "points": [
+          {
+            "date": "2026-11-30",
+            "price": 60.0
+          },
+          {
+            "date": "2026-12-31"
+          },
+          {
+            "date": "2027-01-31"
+          },
+          {
+            "date": "2027-02-28"
+          },
+          {
+            "date": "2027-03-31"
+          },
+          {
+            "date": "2027-04-15"
+          }
+        ]
+      },
+      "average_quotes": [
+        {
+          "periods": {
+            "start_date": "2026-12-01",
+            "end_date": "2026-12-31",
+            "frequency": "Once"
+          },
+          "price": 60.40000000000001
+        },
+        {
+          "periods": {
+            "start_date": "2027-01-01",
+            "end_date": "2027-01-31",
+            "frequency": "Once"
+          },
+          "price": 60.799999999999976
+        },
+        {
+          "periods": {
+            "start_date": "2027-02-01",
+            "end_date": "2027-02-28",
+            "frequency": "Once"
+          },
+          "price": 61.1
+        },
+        {
+          "periods": {
+            "start_date": "2027-03-01",
+            "end_date": "2027-03-31",
+            "frequency": "Once"
+          },
+          "price": 61.299999999999976
+        },
+        {
+          "periods": {
+            "start_date": "2027-01-01",
+            "end_date": "2027-03-31",
+            "frequency": "Once"
+          },
+          "price": 61.07343750000003
+        }
+      ]
+    }
+  ]
+}

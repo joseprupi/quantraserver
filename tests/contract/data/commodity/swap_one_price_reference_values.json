@@ -1,0 +1,591 @@
+{
+ "note": "Swaps on a futures contract whose settlement price is a calendar-month average, read as one price per period (observation OnePricePerPeriod), with independent reference values. The contract is built by /build-commodity-curves from the request of the same case in curve_build_basis_reference_values.json.",
+ "cases": {
+  "basis_avg_base": {
+   "swaps": [
+    {
+     "id": "SWAP_C_MONTHLY",
+     "npv": 36316.523145862855,
+     "periods": [
+      {
+       "price": 61.24545454545455,
+       "fixing_date": "2026-12-31",
+       "payment_date": "2027-01-08"
+      },
+      {
+       "price": 61.510526315789484,
+       "fixing_date": "2027-01-29",
+       "payment_date": "2027-02-05"
+      },
+      {
+       "price": 61.762105263157906,
+       "fixing_date": "2027-02-26",
+       "payment_date": "2027-03-05"
+      },
+      {
+       "price": 62.034545454545494,
+       "fixing_date": "2027-03-31",
+       "payment_date": "2027-04-07"
+      },
+      {
+       "price": 62.28636363636363,
+       "fixing_date": "2027-04-30",
+       "payment_date": "2027-05-07"
+      },
+      {
+       "price": 62.429999999999986,
+       "fixing_date": "2027-05-28",
+       "payment_date": "2027-06-07"
+      },
+      {
+       "price": 62.57727272727275,
+       "fixing_date": "2027-06-30",
+       "payment_date": "2027-07-08"
+      },
+      {
+       "price": 62.65809523809523,
+       "fixing_date": "2027-07-30",
+       "payment_date": "2027-08-06"
+      },
+      {
+       "price": 62.711818181818195,
+       "fixing_date": "2027-08-31",
+       "payment_date": "2027-09-08"
+      },
+      {
+       "price": 62.78333333333333,
+       "fixing_date": "2027-09-30",
+       "payment_date": "2027-10-07"
+      },
+      {
+       "price": 62.863333333333316,
+       "fixing_date": "2027-10-29",
+       "payment_date": "2027-11-05"
+      },
+      {
+       "price": 62.92857142857145,
+       "fixing_date": "2027-11-30",
+       "payment_date": "2027-12-07"
+      }
+     ],
+     "commodity_swap": {
+      "leg1": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2026-12-01",
+          "end_date": "2026-12-31"
+         },
+         {
+          "start_date": "2027-01-01",
+          "end_date": "2027-01-31"
+         },
+         {
+          "start_date": "2027-02-01",
+          "end_date": "2027-02-28"
+         },
+         {
+          "start_date": "2027-03-01",
+          "end_date": "2027-03-31"
+         },
+         {
+          "start_date": "2027-04-01",
+          "end_date": "2027-04-30"
+         },
+         {
+          "start_date": "2027-05-01",
+          "end_date": "2027-05-31"
+         },
+         {
+          "start_date": "2027-06-01",
+          "end_date": "2027-06-30"
+         },
+         {
+          "start_date": "2027-07-01",
+          "end_date": "2027-07-31"
+         },
+         {
+          "start_date": "2027-08-01",
+          "end_date": "2027-08-31"
+         },
+         {
+          "start_date": "2027-09-01",
+          "end_date": "2027-09-30"
+         },
+         {
+          "start_date": "2027-10-01",
+          "end_date": "2027-10-31"
+         },
+         {
+          "start_date": "2027-11-01",
+          "end_date": "2027-11-30"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Pay",
+       "price_type": "CommodityFixedPrice",
+       "price": {
+        "price": 62.0
+       }
+      },
+      "leg2": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2026-12-01",
+          "end_date": "2026-12-31"
+         },
+         {
+          "start_date": "2027-01-01",
+          "end_date": "2027-01-31"
+         },
+         {
+          "start_date": "2027-02-01",
+          "end_date": "2027-02-28"
+         },
+         {
+          "start_date": "2027-03-01",
+          "end_date": "2027-03-31"
+         },
+         {
+          "start_date": "2027-04-01",
+          "end_date": "2027-04-30"
+         },
+         {
+          "start_date": "2027-05-01",
+          "end_date": "2027-05-31"
+         },
+         {
+          "start_date": "2027-06-01",
+          "end_date": "2027-06-30"
+         },
+         {
+          "start_date": "2027-07-01",
+          "end_date": "2027-07-31"
+         },
+         {
+          "start_date": "2027-08-01",
+          "end_date": "2027-08-31"
+         },
+         {
+          "start_date": "2027-09-01",
+          "end_date": "2027-09-30"
+         },
+         {
+          "start_date": "2027-10-01",
+          "end_date": "2027-10-31"
+         },
+         {
+          "start_date": "2027-11-01",
+          "end_date": "2027-11-30"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Receive",
+       "price_type": "FuturesFloatingPrice",
+       "price": {
+        "contract_id": "SYN_BAS",
+        "observation": "OnePricePerPeriod"
+       }
+      }
+     }
+    },
+    {
+     "id": "SWAP_C_MID",
+     "npv": 7366.740911456756,
+     "periods": [
+      {
+       "price": 62.034545454545494,
+       "fixing_date": "2027-03-19",
+       "payment_date": "2027-03-19"
+      },
+      {
+       "price": 62.28636363636363,
+       "fixing_date": "2027-04-21",
+       "payment_date": "2027-04-21"
+      },
+      {
+       "price": 62.429999999999986,
+       "fixing_date": "2027-05-21",
+       "payment_date": "2027-05-21"
+      }
+     ],
+     "commodity_swap": {
+      "leg1": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2027-02-15",
+          "end_date": "2027-03-14"
+         },
+         {
+          "start_date": "2027-03-15",
+          "end_date": "2027-04-14"
+         },
+         {
+          "start_date": "2027-04-15",
+          "end_date": "2027-05-14"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Pay",
+       "price_type": "CommodityFixedPrice",
+       "price": {
+        "price": 62.0
+       }
+      },
+      "leg2": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2027-02-15",
+          "end_date": "2027-03-14"
+         },
+         {
+          "start_date": "2027-03-15",
+          "end_date": "2027-04-14"
+         },
+         {
+          "start_date": "2027-04-15",
+          "end_date": "2027-05-14"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Receive",
+       "price_type": "FuturesFloatingPrice",
+       "price": {
+        "contract_id": "SYN_BAS",
+        "observation": "OnePricePerPeriod"
+       }
+      }
+     }
+    }
+   ]
+  },
+  "basis_avg_nobaseavg": {
+   "swaps": [
+    {
+     "id": "SWAP_C_MONTHLY",
+     "npv": 10192.727491239086,
+     "periods": [
+      {
+       "price": 60.75,
+       "fixing_date": "2026-12-31",
+       "payment_date": "2027-01-08"
+      },
+      {
+       "price": 61.1,
+       "fixing_date": "2027-01-29",
+       "payment_date": "2027-02-05"
+      },
+      {
+       "price": 61.42,
+       "fixing_date": "2027-02-26",
+       "payment_date": "2027-03-05"
+      },
+      {
+       "price": 61.78,
+       "fixing_date": "2027-03-31",
+       "payment_date": "2027-04-07"
+      },
+      {
+       "price": 62.050000000000004,
+       "fixing_date": "2027-04-30",
+       "payment_date": "2027-05-07"
+      },
+      {
+       "price": 62.3,
+       "fixing_date": "2027-05-28",
+       "payment_date": "2027-06-07"
+      },
+      {
+       "price": 62.45,
+       "fixing_date": "2027-06-30",
+       "payment_date": "2027-07-08"
+      },
+      {
+       "price": 62.52,
+       "fixing_date": "2027-07-30",
+       "payment_date": "2027-08-06"
+      },
+      {
+       "price": 62.580000000000005,
+       "fixing_date": "2027-08-31",
+       "payment_date": "2027-09-08"
+      },
+      {
+       "price": 62.65,
+       "fixing_date": "2027-09-30",
+       "payment_date": "2027-10-07"
+      },
+      {
+       "price": 62.73,
+       "fixing_date": "2027-10-29",
+       "payment_date": "2027-11-05"
+      },
+      {
+       "price": 62.8,
+       "fixing_date": "2027-11-30",
+       "payment_date": "2027-12-07"
+      }
+     ],
+     "commodity_swap": {
+      "leg1": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2026-12-01",
+          "end_date": "2026-12-31"
+         },
+         {
+          "start_date": "2027-01-01",
+          "end_date": "2027-01-31"
+         },
+         {
+          "start_date": "2027-02-01",
+          "end_date": "2027-02-28"
+         },
+         {
+          "start_date": "2027-03-01",
+          "end_date": "2027-03-31"
+         },
+         {
+          "start_date": "2027-04-01",
+          "end_date": "2027-04-30"
+         },
+         {
+          "start_date": "2027-05-01",
+          "end_date": "2027-05-31"
+         },
+         {
+          "start_date": "2027-06-01",
+          "end_date": "2027-06-30"
+         },
+         {
+          "start_date": "2027-07-01",
+          "end_date": "2027-07-31"
+         },
+         {
+          "start_date": "2027-08-01",
+          "end_date": "2027-08-31"
+         },
+         {
+          "start_date": "2027-09-01",
+          "end_date": "2027-09-30"
+         },
+         {
+          "start_date": "2027-10-01",
+          "end_date": "2027-10-31"
+         },
+         {
+          "start_date": "2027-11-01",
+          "end_date": "2027-11-30"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Pay",
+       "price_type": "CommodityFixedPrice",
+       "price": {
+        "price": 62.0
+       }
+      },
+      "leg2": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2026-12-01",
+          "end_date": "2026-12-31"
+         },
+         {
+          "start_date": "2027-01-01",
+          "end_date": "2027-01-31"
+         },
+         {
+          "start_date": "2027-02-01",
+          "end_date": "2027-02-28"
+         },
+         {
+          "start_date": "2027-03-01",
+          "end_date": "2027-03-31"
+         },
+         {
+          "start_date": "2027-04-01",
+          "end_date": "2027-04-30"
+         },
+         {
+          "start_date": "2027-05-01",
+          "end_date": "2027-05-31"
+         },
+         {
+          "start_date": "2027-06-01",
+          "end_date": "2027-06-30"
+         },
+         {
+          "start_date": "2027-07-01",
+          "end_date": "2027-07-31"
+         },
+         {
+          "start_date": "2027-08-01",
+          "end_date": "2027-08-31"
+         },
+         {
+          "start_date": "2027-09-01",
+          "end_date": "2027-09-30"
+         },
+         {
+          "start_date": "2027-10-01",
+          "end_date": "2027-10-31"
+         },
+         {
+          "start_date": "2027-11-01",
+          "end_date": "2027-11-30"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Receive",
+       "price_type": "FuturesFloatingPrice",
+       "price": {
+        "contract_id": "SYN_BAS",
+        "observation": "OnePricePerPeriod"
+       }
+      }
+     }
+    },
+    {
+     "id": "SWAP_C_MID",
+     "npv": 1260.0345422104,
+     "periods": [
+      {
+       "price": 61.78,
+       "fixing_date": "2027-03-19",
+       "payment_date": "2027-03-19"
+      },
+      {
+       "price": 62.050000000000004,
+       "fixing_date": "2027-04-21",
+       "payment_date": "2027-04-21"
+      },
+      {
+       "price": 62.3,
+       "fixing_date": "2027-05-21",
+       "payment_date": "2027-05-21"
+      }
+     ],
+     "commodity_swap": {
+      "leg1": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2027-02-15",
+          "end_date": "2027-03-14"
+         },
+         {
+          "start_date": "2027-03-15",
+          "end_date": "2027-04-14"
+         },
+         {
+          "start_date": "2027-04-15",
+          "end_date": "2027-05-14"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Pay",
+       "price_type": "CommodityFixedPrice",
+       "price": {
+        "price": 62.0
+       }
+      },
+      "leg2": {
+       "periods": {
+        "periods": [
+         {
+          "start_date": "2027-02-15",
+          "end_date": "2027-03-14"
+         },
+         {
+          "start_date": "2027-03-15",
+          "end_date": "2027-04-14"
+         },
+         {
+          "start_date": "2027-04-15",
+          "end_date": "2027-05-14"
+         }
+        ]
+       },
+       "quantity": {
+        "value": 10000.0,
+        "basis": "PerPeriod"
+       },
+       "payment_calendar": "UnitedStatesSettlement",
+       "payment_lag": 5,
+       "payment_convention": "Following",
+       "discounting_curve": "USD_DISC",
+       "pay_receive": "Receive",
+       "price_type": "FuturesFloatingPrice",
+       "price": {
+        "contract_id": "SYN_BAS",
+        "observation": "OnePricePerPeriod"
+       }
+      }
+     }
+    }
+   ]
+  }
+ }
+}

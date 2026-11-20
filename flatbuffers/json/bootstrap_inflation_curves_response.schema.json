@@ -233,6 +233,42 @@
       "type" : "string",
       "enum": ["None", "LedoitWolf", "Fixed"]
     },
+    "quantra_enums_CommodityQuantityBasis" : {
+      "type" : "string",
+      "enum": ["PerPeriod", "PerPricingDay"]
+    },
+    "quantra_enums_CommodityPriceSource" : {
+      "type" : "string",
+      "enum": ["Fixing", "Curve"]
+    },
+    "quantra_enums_CommodityCurveInterpolation" : {
+      "type" : "string",
+      "enum": ["Linear", "LogLinear", "BackwardFlat", "ForwardFlat", "KrugerCubic", "NaturalCubic"]
+    },
+    "quantra_enums_CommodityCurveRule" : {
+      "type" : "string",
+      "enum": ["Flat", "Smooth"]
+    },
+    "quantra_enums_CommodityCurveStatus" : {
+      "type" : "string",
+      "enum": ["Unique", "Underdetermined"]
+    },
+    "quantra_enums_CommodityMonthSource" : {
+      "type" : "string",
+      "enum": ["Quoted", "Solved", "Assumed", "Interpolated", "Extrapolated", "Basis"]
+    },
+    "quantra_enums_CommodityBasisBasePrice" : {
+      "type" : "string",
+      "enum": ["SameMonth", "MonthAverage"]
+    },
+    "quantra_enums_CommodityFuturesObservation" : {
+      "type" : "string",
+      "enum": ["DailyAverage", "OnePricePerPeriod"]
+    },
+    "quantra_enums_CommodityQuoteStatus" : {
+      "type" : "string",
+      "enum": ["Used", "Redundant"]
+    },
     "quantra_Flow" : {
       "type" : "string",
       "enum": ["NONE", "FlowInterest", "FlowPastInterest", "FlowNotional"]

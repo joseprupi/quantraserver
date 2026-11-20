@@ -37,6 +37,7 @@ Priced instruments:
 - Equity options
 - FX forwards
 - Cross-currency swaps (two `SwapLeg` legs in two currencies: fixed, IBOR or overnight coupons, principal exchanges)
+- Commodity swaps (`/price-commodity-swap`: fixed or floating legs averaging a nearby futures month with a roll rule or a spot price over each period's pricing days; past fixings, own exchange holidays, fair fixed price or fair spread, deltas to every input price)
 - Structured notes on equity-index baskets by Monte Carlo (worst-of / best-of / average autocallables, Phoenix and snowball coupons, low hurdles, step-downs, reverse convertibles, European or daily capital barriers, geared puts, upside participation; quanto underlyings; bump-and-reprice Greeks on common random numbers; opt-in diagnostics)
 
 Utility endpoints cover yield- and inflation-curve bootstrapping, volatility
@@ -48,7 +49,12 @@ pricers: implied forwards and dividends from listed option quotes
 validation against the quotes (`/validate-vol-surface`: fit, local-vol
 arbitrage scan, Monte Carlo repricing) and a correlation matrix from price
 histories (`/calibrate-correlation`, aligned returns, Ledoit-Wolf shrinkage,
-eigenvalue floor).
+eigenvalue floor). For commodity swaps, `/build-commodity-curves`
+builds a futures contract's month prices from futures prices and
+average-price quotes (one linear system, `Flat` or `Smooth` when the quotes
+leave months open, a report with each quote repriced and the sensitivity of
+each month to each quote), then fills the untouched months (`Linear`,
+`LogLinear`, `BackwardFlat`, `ForwardFlat`, `KrugerCubic` or `NaturalCubic`).
 
 Features that apply across products:
 
@@ -250,7 +256,9 @@ upgrade shipped in a release is documented in `docs/quantlib-upgrades/`
   `flatbuffers/grpc/` holds the gRPC service definition and its generated bindings
 - `examples/data/`: example JSON requests, one folder per product family
   (`structured_note/` holds the two factsheet transcriptions with placeholder
-  market data and their README)
+  market data and their README; `commodity_swap/` holds synthetic commodity
+  swap requests and a README listing them; `commodity_curve/` synthetic
+  futures contracts to complete with `/build-commodity-curves`)
 - `examples/structured_note_workflow/`: a structured note priced at three levels
   of market data, with a script that runs the option quotes → forwards → vol
   surface → note chain

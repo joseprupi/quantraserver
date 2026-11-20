@@ -79,6 +79,8 @@ Quantra provides a high-performance JSON HTTP API for pricing financial instrume
 | Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |
 | FX Forward | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount curves |
 | Cross-Currency Swap | `/price-cross-currency-swap` | Price cross-currency swaps (two SwapLeg entries in two currencies, fixed / IBOR / overnight coupons, principal exchanges) |
+| Commodity Swap | `/price-commodity-swap` | Price commodity swaps (fixed price against the average of a futures contract or a spot price, or two floating legs) |
+| Build Commodity Curves | `/build-commodity-curves` | Build a futures contract's month prices from futures prices and average-price quotes (one linear system, then interpolation of the untouched months), ready to paste into a commodity swap request, with a build report |
 | Structured Note | `/price-structured-note` | Price structured notes on equity-index baskets (autocallables, Phoenix / Athena coupons, capital barriers) by Monte Carlo |
 | Calibrate Implied Forwards | `/calibrate-implied-forwards` | Implied forwards, funding and dividend yields per expiry from listed-option quotes (put-call parity fit), with a ready-to-use dividend curve |
 | Calibrate Vol Surface | `/calibrate-vol-surface` | Black implied-vol surface from listed-option quotes (Andreasen-Huge, SVI per expiry or eSSVI), as ready-to-paste payloads with one arbitrage-free flag each |
@@ -234,6 +236,67 @@ ENDPOINT_METADATA = {
         "summary": "Price Cross-Currency Swap",
         "description": "Calculate the NPV in a reporting currency, each leg's NPV in its own currency and in the reporting currency, the fair fixed rate (exactly one fixed leg) or the fair spread on leg2 (no fixed leg), and optional per-leg flows (coupons and notional exchanges) for cross-currency swaps: two SwapLeg entries in two currencies, each paying or receiving fixed, IBOR or compounded/averaged overnight coupons (FixedCoupons / IborCoupons / OvernightCoupons), discounted on its own curve, with initial and/or final principal exchanges, converted at the as-of exchange rate implied by an FX spot (pricing.fx.spots) and the two discount curves. QuantLib leg cash-flow primitives only (the same leg builder as the single-currency swap endpoints); no currency is inferred from curve or index ids.",
         "tags": ["FX"]
+    },
+    "commodity_swap": {
+        "summary": "Price Commodity Swap",
+        "description": "Calculate the NPV, the fair fixed price (a fixed leg against a floating leg) or the fair spread on leg2 (two floating legs), each leg's NPV, optional per-period flows with optional per-day observations, and the sensitivity of the NPV to every futures or spot forward price read from today's market data, for commodity swaps: two legs, one paid and one received, each a fixed price or the average over each calculation period's pricing days of a futures contract (nearby contract with a roll a given number of pricing days before the last trading date) or of a spot price assessment (forward prices interpolated by date), plus a spread. Periods are generated (calendar months, quarters, half-years, years or one period) or explicit; quantities are per period or per pricing day. Pricing days are the business days of the contract's or spot price's pricing calendar (after pricing.calendar_overrides) minus its own pricing_holidays. Past pricing days read the request's fixings (a missing one is a 400 naming the day and the month); later days read today's prices from pricing.commodity. Each period pays its quantity times its price on the payment calendar after the payment lag, discounted on a pricing.rates curve; a period paid on or before the valuation date is left out. common_pricing (two floating legs) keeps only the days that are pricing days of both legs. A futures leg with observation OnePricePerPeriod (a contract whose settlement price is a period average) reads one price per period: the month of the period's last day on the earlier of the payment date and its last trading date (a fixing before the valuation date). pricing.commodity.curve_builds builds contracts and spot prices from quotes in the request (as /build-commodity-curves) and registers them under their ids; the response then adds quote_deltas per swap (the NPV's sensitivity to every input of the builds it reads) and one curve_builds summary per entry.",
+        "tags": ["Commodities"],
+        "error_details": {
+            "type": "object",
+            "description": "Present on the engine's 400 and 404 errors of this endpoint: structured fields, only those that apply. The same object reaches gRPC callers in the trailing metadata key quantra-error-details-bin (UTF-8 JSON).",
+            "properties": {
+                "reason": {"type": "string", "enum": [
+                    "MissingFixing", "MonthWithoutPrice", "MonthNotListed", "DateOutsidePoints",
+                    "NoPricingDay", "NoCommonPricingDay", "UnknownContract", "UnknownSpotPrice",
+                    "UnknownDiscountingCurve", "NotFinite", "InvalidInput"]},
+                "swap": {"type": "integer", "description": "Index in swaps."},
+                "path": {"type": "string", "description": "The request field (for a refusal about the data read, the period)."},
+                "date": {"type": "string", "description": "YYYY-MM-DD"},
+                "month": {"type": "string", "description": "YYYY-MM"},
+                "contract_id": {"type": "string"},
+                "spot_id": {"type": "string"}
+            },
+            "required": ["reason"]
+        }
+    },
+    "build_commodity_curves": {
+        "summary": "Build Commodity Curves",
+        "description": "Build futures contracts from futures prices, average-price quotes and basis quotes to another contract of the request, and spot prices from average-price quotes. Each entry of curves is a contract in the shape pricing.commodity.contracts of /price-commodity-swap takes. A month whose last trading date is on or after pricing.as_of_date is live; a live month with a price is a futures quote and is returned unchanged; average_quotes (the fixed price of an average swap over one or several periods, read through the swap pricer: pricing days, quantities, discounting, fixings) are equations on the months they read, solved with the direct prices as one linear system; a redundant quote that agrees is flagged, a conflicting one is a 400 with the implied value and the gap, and when the quotes leave months open rule (Flat: one price per group of months touched by the same quotes; Smooth: least squared second differences) is required. A live month no quote touches is filled from the determined months, placed on their last trading dates and read on the missing month's last trading date with the chosen interpolation on x = calendar days from the valuation date / 365 (Actual/365 Fixed): Linear, LogLinear (straight in log price; quotes must be > 0), BackwardFlat (the next quote), ForwardFlat (the previous quote), KrugerCubic (a cubic through all the quotes that limits overshoot: node slope = harmonic mean of the neighbouring slopes, 0 where they change sign) or NaturalCubic (natural cubic spline through all the quotes: smooth, can overshoot). A month outside the quoted live months is a 400 naming it unless extrapolate_flat, which takes the nearest quote (no method is continued beyond the quotes). Expired months, fixings, the pricing calendar and the pricing holidays are returned as sent. The response returns, in request order, each complete contract (paste it into a swap request as is) and a report: status (Unique or Underdetermined), counts, every live month's price and source (Quoted, Solved, Assumed, Interpolated, Extrapolated), every average quote repriced on the built contract, and with include_details the weights of each quote and the sensitivity of each month to each quote (max_sensitivity shows a fragile build). pricing.commodity is a 400 (the contracts are given under curves); pricing.rates.curves is read only when a quote names a discounting_curve. An entry with spot instead of contract builds a spot price: its points are the nodes (priced = direct price), the quotes average the spot read with its own interpolation, Smooth uses second divided differences on the date axis, unread points are filled with the spot's interpolation, and the report lists points instead of months. A contract entry with basis prices each month as a base price (SameMonth: base month minus base_month_offset, its price or its final fixing; MonthAverage: the base contract averaged over the calendar month with base_nearby and base_roll_days_before_expiry) plus the quoted basis (source Basis); the base entry is built first, the remaining months are filled on the basis and the base added back, and report months carry base_price and basis. An unknown base is a 404, a cycle a 400. A spot entry with basis prices each point as the base spot read on its date plus a basis quoted by date. An average quote with versus_base quotes this curve's average minus the base's average over the same periods. With include_details, a basis entry's sensitivities also list its base's inputs (with curve, the base's index). Smooth minimises second divided differences on the last trading dates (contracts) or the point dates (spot prices).",
+        "tags": ["Commodities"],
+        "error_details": {
+            "type": "object",
+            "description": "Present on a refused build and on the engine's 404s (an unknown base or discounting curve): structured fields of the refusal, only those that apply. The same object reaches gRPC callers in the trailing metadata key quantra-error-details-bin (UTF-8 JSON).",
+            "properties": {
+                "reason": {"type": "string", "enum": [
+                    "QuoteConflict", "RuleRequired", "FlatCannotResolve", "SmoothNotUnique",
+                    "MonthOutsideRange", "QuoteHasNoLiveMonth", "NonPositivePrice",
+                    "InterpolationRequired", "NoPricedMonth", "NotFinite", "DateOutsideRange",
+                    "NoPricedPoint", "UnknownBase", "BaseNotContract", "BasisCycle",
+                    "BaseNotDetermined", "BasisAndPrice", "BasisOnExpiredMonth", "BaseNotSpot",
+                    "MissingFixing", "MonthWithoutPrice", "MonthNotListed", "NoPricingDay",
+                    "UnknownDiscountingCurve", "InvalidInput"]},
+                "curve": {"type": "integer", "description": "Index in curves."},
+                "path": {"type": "string", "description": "The request field, as named in the message."},
+                "average_quote": {"type": "integer", "description": "Index in average_quotes."},
+                "month": {"type": "string", "description": "YYYY-MM"},
+                "months": {"type": "array", "items": {"type": "string"}},
+                "implied_value": {"type": "number"},
+                "quoted_value": {"type": "number"},
+                "gap": {"type": "number", "description": "quoted_value - implied_value"},
+                "depends_on": {"type": "array", "items": {
+                    "type": "object",
+                    "properties": {"month": {"type": "string"},
+                                   "date": {"type": "string"},
+                                   "average_quote": {"type": "integer"}}}},
+                "rule": {"type": "string", "enum": ["Flat", "Smooth"]},
+                "date": {"type": "string", "description": "YYYY-MM-DD (spot builds)"},
+                "dates": {"type": "array", "items": {"type": "string"}},
+                "base_curve": {"type": "integer", "description": "Index in curves of the base entry."},
+                "base_month": {"type": "string", "description": "YYYY-MM"},
+                "cycle": {"type": "array", "items": {"type": "integer"}}
+            },
+            "required": ["reason"]
+        }
     },
     "structured_note": {
         "summary": "Price Structured Note",
@@ -490,9 +553,10 @@ def build_path_item(endpoint_config: Dict[str, Any], schemas: Dict[str, Any]) ->
                         "application/json": {
                             "schema": {
                                 "type": "object",
-                                "properties": {
-                                    "error": {"type": "string", "description": "Error message"}
-                                }
+                                "properties": dict(
+                                    {"error": {"type": "string", "description": "Error message"}},
+                                    **({"details": endpoint_config["error_details"]}
+                                       if "error_details" in endpoint_config else {}))
                             }
                         }
                     }
@@ -609,6 +673,7 @@ def generate_openapi() -> Dict[str, Any]:
             {"name": "Credit Derivatives", "description": "Credit default swaps"},
             {"name": "Equity Derivatives", "description": "Equity option and structured-note (basket autocallable) pricing"},
             {"name": "FX", "description": "FX forwards and cross-currency swaps priced off FX spots and per-currency discount curves"},
+            {"name": "Commodities", "description": "Commodity swaps priced off futures contracts and spot price assessments; futures contracts completed from partial quotes"},
             {"name": "Curves", "description": "Yield curve bootstrapping and rate extraction"},
             {"name": "Inflation", "description": "Inflation curve bootstrap and sampling"},
             {"name": "Volatility", "description": "Volatility surface creation and sampling"},

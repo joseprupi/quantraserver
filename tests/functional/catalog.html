@@ -1481,6 +1481,222 @@
 </tr>
 </tbody>
 </table>
+<h2>Commodities</h2>
+<table>
+<thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib value</th></tr></thead>
+<tbody>
+<tr>
+<td><div class="title">Synthetic 12-month swap, 61.00 fixed vs front-month futures (roll 0, roll 2) and vs a spot price</div><div class="desc">Three swaps on one synthetic market (as-of 2026-11-13): 10,000 per month from November 2026 to October 2027, 61.00 paid fixed against the front futures month read to its last trading date, against the front month rolled two pricing days before it, and against a spot price interpolated linearly between monthly forward points. Pricing calendar WeekendsOnly plus nine own pricing_holidays, nine past fixings in the first period, payment five US business days after each period end, dated discount factors. The request of the contract test&#x27;s pinned reference values.</div></td>
+<td><code>commodity swap</code> <code>fixed vs futures</code> <code>fixed vs spot</code> <code>roll_days_before_expiry</code> <code>past fixings</code> <code>pricing_holidays</code> <code>fair fixed price</code> <code>deltas</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_benchmark_fixed_vs_futures_and_spot.json">synthetic_benchmark_fixed_vs_futures_and_spot.json</a></td>
+<td class="npv">npv=36038.8, fair_fixed_price=61.3066, npv=-7.16904e+06, npv=7.20508e+06, npv=38048.1, fair_fixed_price=61.3237, npv=-7.16904e+06, npv=7.20709e+06, npv=-15486.2, fair_fixed_price=60.8682, npv=-7.16904e+06, npv=7.15356e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic five-month swap, 60.50 fixed received vs the front futures month, first month partly elapsed</div><div class="desc">Receive 60.50 fixed, pay the average of the front futures month on 5,000 per calendar month from November 2026 to March 2027. On the valuation date (13 November) nine pricing days of November are fixings, the rest read today&#x27;s prices; the contract rolls on each month&#x27;s last trading date. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>fixed received</code> <code>monthly periods</code> <code>partly elapsed period</code> <code>realised / expected average</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_fixed_vs_front_month_monthly_partly_elapsed.json">synthetic_fixed_vs_front_month_monthly_partly_elapsed.json</a></td>
+<td class="npv">npv=-5537.77, fair_fixed_price=60.7236, npv=1.49862e+06, npv=-1.50416e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic swap from 16 November, front month rolled two pricing days before its last trading date</div><div class="desc">Monthly periods from 16 November 2026 to April 2027: the first period is the balance of November (16-30). The floating leg reads the front month until two pricing days before its last trading date (18 November for the December month, last traded 20 November) and the next month from the following pricing day. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>roll_days_before_expiry 2</code> <code>balance-of-month first period</code> <code>generated periods cut to the start date</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_fixed_vs_front_month_roll2_mid_month_start.json">synthetic_fixed_vs_front_month_roll2_mid_month_start.json</a></td>
+<td class="npv">npv=-5811.01, fair_fixed_price=60.9021, npv=-3.62043e+06, npv=3.61462e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic six-month swap on the second nearby futures month</div><div class="desc">Pay 61.00 fixed against the average of the second nearby month (nearby 2: the month after the front month) from December 2026 to May 2027, roll 0. Every pricing day reads today&#x27;s prices. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>nearby 2</code> <code>monthly periods</code> <code>futures deltas by month</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_fixed_vs_second_nearby_monthly.json">synthetic_fixed_vs_second_nearby_monthly.json</a></td>
+<td class="npv">npv=16715.2, fair_fixed_price=61.2826, npv=-3.60842e+06, npv=3.62513e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic swaps on spot prices: BackwardFlat monthly prices, ForwardFlat mid-month prices, Linear</div><div class="desc">Three swaps paying 60.00 fixed against a spot price from November 2026 to March 2027. BackwardFlat: one price per month on its last day, a day reads the next point on or after it (the October point is never read; extrapolate_flat false). ForwardFlat: points on the 15th, a day reads the last point on or before it, the valuation day held flat before the first point. Linear: straight line in days between points. Past days read the spot fixings. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>spot price</code> <code>BackwardFlat</code> <code>ForwardFlat</code> <code>Linear</code> <code>extrapolate_flat</code> <code>spot deltas by point</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_fixed_vs_spot_backward_forward_flat_and_linear.json">synthetic_fixed_vs_spot_backward_forward_flat_and_linear.json</a></td>
+<td class="npv">npv=21699.4, fair_fixed_price=60.438, npv=-2.97248e+06, npv=2.99418e+06, npv=18624.3, fair_fixed_price=60.3759, npv=-2.97248e+06, npv=2.9911e+06, npv=-211.389, fair_fixed_price=59.9957, npv=-2.97248e+06, npv=2.97227e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic floating vs floating swap: front futures month received vs spot price + 0.25 paid</div><div class="desc">Receive the front futures month, pay the spot price plus 0.25, 10,000 per month from January to June 2027. Each leg averages over its own pricing days. Reports fair_spread, the spread on leg 2 that zeroes the NPV, and deltas to both the futures months and the spot points. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>float vs float</code> <code>spread</code> <code>fair spread</code> <code>futures and spot deltas</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_futures_vs_spot_plus_spread.json">synthetic_futures_vs_spot_plus_spread.json</a></td>
+<td class="npv">npv=23978.5, fair_spread=0.656696, npv=3.61313e+06, npv=-3.58915e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic swap on explicit periods with per-period quantities and prices, quantity per pricing day</div><div class="desc">Four explicit periods (December, January, 1-15 March, 16 March-30 April; February left out) with one quantity per pricing day for each period (1,000 / 1,200 / 800 / 1,500) and one fixed price per period (60.00 / 60.50 / 61.00 / 61.25) against the front futures month. The fixed leg counts the pricing days of the floating leg&#x27;s period with the same dates. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>explicit periods</code> <code>gap between periods</code> <code>PerPricingDay</code> <code>per-period quantities</code> <code>per-period fixed prices</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_explicit_periods_per_pricing_day.json">synthetic_explicit_periods_per_pricing_day.json</a></td>
+<td class="npv">npv=26573.4, fair_fixed_price=61.0546, npv=-6.18223e+06, npv=6.20881e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic quarterly swap from 15 January to 30 September 2027</div><div class="desc">Quarterly periods (calendar quarters, the first cut to start on 15 January): 30,000 per quarter, 61.25 fixed against the front futures month, paid two US business days after each quarter end, ModifiedFollowing. Each quarter averages over 51 to 64 pricing days across three or four contract months. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>quarterly periods</code> <code>payment lag 2</code> <code>ModifiedFollowing</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_fixed_vs_front_month_quarterly.json">synthetic_fixed_vs_front_month_quarterly.json</a></td>
+<td class="npv">npv=20944.6, fair_fixed_price=61.4887, npv=-5.3743e+06, npv=5.39524e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic swap priced on two contracts that differ only by two own pricing holidays</div><div class="desc">The same December 2026-January 2027 swap (1,000 per pricing day, 60.50 fixed vs the front month) on a contract and on a copy with 24 and 31 December added to pricing_holidays: the copy&#x27;s December has 20 pricing days instead of 22, which changes the quantity, the average and the NPV. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>pricing_holidays</code> <code>pricing-day count</code> <code>PerPricingDay</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_own_pricing_holidays.json">synthetic_own_pricing_holidays.json</a></td>
+<td class="npv">npv=5746.55, fair_fixed_price=60.6412, npv=-2.46182e+06, npv=2.46757e+06, npv=5349, fair_fixed_price=60.6382, npv=-2.34156e+06, npv=2.34691e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic swap with a holiday added to the pricing calendar through calendar_overrides</div><div class="desc">pricing.calendar_overrides adds 4 January 2027 to WeekendsOnly, the contract&#x27;s pricing calendar: January has 18 pricing days (the contract&#x27;s own holidays 1 and 18 January and the override). 1,000 per pricing day, 60.50 fixed vs the front month. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>calendar_overrides</code> <code>pricing calendar</code> <code>PerPricingDay</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_pricing_calendar_override.json">synthetic_pricing_calendar_override.json</a></td>
+<td class="npv">npv=15822.1, fair_fixed_price=60.9323, npv=-2.2145e+06, npv=2.23032e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic swap whose first two periods are paid on or before the valuation date</div><div class="desc">Explicit periods October, 1-6 November, 7-30 November and December 2026, paid four US business days after each period end: October is paid on 5 November and 1-6 November on the valuation date (13 November), so both are left out (no flow, no price read: October has no fixings in the request). One quantity per period is still given for all four periods. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>flows paid before the valuation date</code> <code>flow paid on the valuation date</code> <code>per-period quantities</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_flows_paid_before_valuation_dropped.json">synthetic_flows_paid_before_valuation_dropped.json</a></td>
+<td class="npv">npv=6521.09, fair_fixed_price=60.3639, npv=-1.07529e+06, npv=1.08181e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic futures against spot, without and with common pricing</div><div class="desc">The same floating/floating swap twice: each leg on its own pricing days, then common_pricing (only the days both the futures contract and the spot price publish; the spot has three extra days off). Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>two floating legs</code> <code>common pricing</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_futures_vs_spot_common_pricing.json">synthetic_futures_vs_spot_common_pricing.json</a></td>
+<td class="npv">npv=27974.7, fair_spread=0.72134, npv=3.61102e+06, npv=-3.58304e+06, npv=27769.2, fair_spread=0.717879, npv=3.61081e+06, npv=-3.58304e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic swaps on a calendar-month averaging contract, one price per period</div><div class="desc">observation OnePricePerPeriod: each period reads the month of its last day on the earlier of the payment date and that month&#x27;s last trading date; the October period reads its final settlement (a fixing), mid- month periods read on their payment dates. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>averaging contract</code> <code>one price per period</code> <code>fixings</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_fixed_vs_averaging_contract_one_price_per_period.json">synthetic_fixed_vs_averaging_contract_one_price_per_period.json</a></td>
+<td class="npv">npv=-11867.3, fair_fixed_price=60.5502, npv=-3.60856e+06, npv=3.59669e+06, npv=26033.3, fair_fixed_price=61.6329, npv=-1.79122e+06, npv=1.81726e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic swaps on a contract built in the request from average quotes</div><div class="desc">pricing.commodity.curve_builds: the contract is built from a pinned month and eleven monthly average quotes inside the swap request; the response adds the NPV&#x27;s sensitivity to every quote. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>curve builds in the request</code> <code>quote deltas</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_fixed_vs_contract_built_from_quotes_in_request.json">synthetic_fixed_vs_contract_built_from_quotes_in_request.json</a></td>
+<td class="npv">npv=37235.7, fair_fixed_price=61.3168, npv=-7.16904e+06, npv=7.20628e+06, npv=38846, fair_fixed_price=61.3305, npv=-7.16904e+06, npv=7.20789e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic two-month swap, the documentation example</div><div class="desc">The complete request of the commodity swap section of docs/http-api.md: December 2026 and January 2027, 10,000 per month, 60.50 fixed paid against the front futures month, three discount factors, three contract months. Flows without observations. Synthetic data.</div></td>
+<td><code>commodity swap</code> <code>documentation example</code> <code>flows without observations</code></td>
+<td><a href="../../examples/data/commodity_swap/synthetic_two_month_fixed_vs_front_month.json">synthetic_two_month_fixed_vs_front_month.json</a></td>
+<td class="npv">npv=6797.79, fair_fixed_price=60.8425, npv=-1.20078e+06, npv=1.20758e+06</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic futures contract with gaps, filled linearly in days between last trading dates</div><div class="desc">Thirteen live months (December 2026 to December 2027) of which five are quoted (60.00, 60.40, 61.00, 61.50, 62.10); the eight others are filled on the straight line between the surrounding quotes, placed on their last trading dates, in calendar days. The November month expired before the valuation date (13 November) and comes back without a price; fixings, pricing calendar and pricing holidays come back as sent. The request of the documentation example. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>Linear</code> <code>expired month</code> <code>fixings and holidays echoed</code> <code>months[].source</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_linear_gaps.json">synthetic_linear_gaps.json</a></td>
+<td class="npv">price=60, price=60.4, price=60.6857, price=61, price=61.1609, price=61.3276, price=61.5, price=61.6082, price=61.7, price=61.8016, price=61.9066, price=62.0016, price=62.1</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic futures contract filled BackwardFlat and ForwardFlat</div><div class="desc">The same five quotes (December, March, June, September, December) completed twice in one request: BackwardFlat (a missing month takes the next quote) and ForwardFlat (the previous quote). Two builds, results in request order. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>BackwardFlat</code> <code>ForwardFlat</code> <code>two builds</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_backward_and_forward_flat.json">synthetic_backward_and_forward_flat.json</a></td>
+<td class="npv">price=60, price=61, price=61, price=61, price=61.5, price=61.5, price=61.5, price=61.8, price=61.8, price=61.8, price=62.1, price=62.1, price=62.1, price=60, price=60, price=60, price=61, price=61, price=61, price=61.5, price=61.5, price=61.5, price=61.8, price=61.8, price=61.8, price=62.1</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic futures contract with missing months before and after the quotes, held flat</div><div class="desc">Three quotes (February, April and August 2027) as of 20 November 2026: the December month, last traded on the valuation date and so still live, and January take the February quote; September to December take the August quote (extrapolate_flat); March, May, June and July are linear between the quotes. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>extrapolate_flat</code> <code>month last traded on the valuation date</code> <code>Linear</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_extrapolate_flat_both_ends.json">synthetic_extrapolate_flat_both_ends.json</a></td>
+<td class="npv">price=60.7, price=60.7, price=60.7, price=60.9705, price=61.2, price=61.3208, price=61.4458, price=61.5833, price=61.7, price=61.7, price=61.7, price=61.7, price=61.7</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic futures contract with gaps, filled LogLinear</div><div class="desc">The five quotes of the Linear example (December, January, March, June and December) with the eight other live months filled on a straight line in log price between the neighbouring quotes, on the axis of the last trading dates in calendar days / 365. Every quoted price must be positive. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>LogLinear</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_log_linear.json">synthetic_log_linear.json</a></td>
+<td class="npv">price=60, price=60.4, price=60.685, price=61, price=61.1605, price=61.3271, price=61.5, price=61.6078, price=61.6994, price=61.8009, price=61.9059, price=62.0012, price=62.1</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic futures contract with gaps, filled KrugerCubic</div><div class="desc">The same five quotes filled with a cubic through all of them that limits overshoot: the slope at a quote is the harmonic mean of the two neighbouring slopes (0 where they change sign), at the first and last quote (3 x end slope - next slope) / 2. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>KrugerCubic</code> <code>global cubic</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_kruger_cubic.json">synthetic_kruger_cubic.json</a></td>
+<td class="npv">price=60, price=60.4, price=60.7152, price=61, price=61.1888, price=61.3575, price=61.5, price=61.6303, price=61.7304, price=61.8323, price=61.9303, price=62.0147, price=62.1</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic futures contract filled NaturalCubic, flat after the last quote</div><div class="desc">Five quotes from December 2026 to September 2027 filled with the natural cubic spline through all of them (continuous second derivative, 0 at both end quotes; it can overshoot between quotes). October to December 2027 lie after the last quote and take it (extrapolate_flat): the spline is never continued. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>NaturalCubic</code> <code>extrapolate_flat</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_natural_cubic_flat_after_last_quote.json">synthetic_natural_cubic_flat_after_last_quote.json</a></td>
+<td class="npv">price=60, price=60.4, price=60.7204, price=61, price=61.1938, price=61.36, price=61.5, price=61.6237, price=61.7116, price=61.8, price=61.8, price=61.8, price=61.8</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic average quotes: January 50, February 52, Q1 53 determine March</div><div class="desc">A contract whose months expire on the last pricing day of their own calendar month, so a calendar month reads one contract month. One-month average quotes for January (50) and February (52) and a first-quarter quote (53) paid monthly and discounted: three equations, three months, one solution. March is 57.0246, not 57: the quarter weighs its months by their discount factors. Weights and sensitivities included. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>average quotes</code> <code>Unique</code> <code>quarter quote paid monthly</code> <code>include_details</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_average_quotes_months_and_quarter_unique.json">synthetic_average_quotes_months_and_quarter_unique.json</a></td>
+<td class="npv">price=50, price=52, price=57.0246</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic average quotes: January 50 and Q1 53, completed Flat and Smooth</div><div class="desc">January and the first quarter only: three months, two equations. Flat gives February and March one price (54.5076); Smooth puts the three months on a line in time (52.8382, 56.1832). Both reprice the quarter exactly. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>average quotes</code> <code>Underdetermined</code> <code>rule Flat</code> <code>rule Smooth</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_average_quotes_quarter_flat_and_smooth.json">synthetic_average_quotes_quarter_flat_and_smooth.json</a></td>
+<td class="npv">price=50, price=54.5076, price=54.5076, price=50, price=52.8382, price=56.1832</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic monthly average quotes on a futures strip: one price and eleven quotes</div><div class="desc">The swap examples&#x27; contract with only January 2027 priced (60.40) and eleven one-month average quotes, December 2026 to October 2027: each calendar month reads two contract months, so the quotes chain through the strip and determine February to December 2027. The quotes were made from a known strip, which comes back. Independent reference values in tests/contract/data/commodity/curve_build_reference_values.json. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>average quotes</code> <code>chained monthly quotes</code> <code>independent reference values</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_average_quotes_monthly_strip.json">synthetic_average_quotes_monthly_strip.json</a></td>
+<td class="npv">price=60.4, price=60.4, price=60.7, price=61, price=61.2, price=61.4, price=61.5, price=61.6, price=61.7, price=61.8, price=61.9, price=62, price=62.1, price=62.1</td>
+</tr>
+<tr>
+<td><div class="title">The same strip with the quotes rounded to cents: a fragile build</div><div class="desc">The previous build with every quote rounded to the cent. The solve is exact and reprices every quote, but the back months swing from 42.62 to 100.84: a month price moves up to ~8,000 times a change in a quote (max_sensitivity). Shown on purpose: a strip bootstrapped from chained monthly averages is ill-conditioned. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>average quotes</code> <code>ill-conditioned</code> <code>max_sensitivity</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_average_quotes_monthly_strip_rounded_fragile.json">synthetic_average_quotes_monthly_strip_rounded_fragile.json</a></td>
+<td class="npv">price=60.4, price=60.4, price=60.7143, price=60.9741, price=61.2872, price=61.1508, price=61.9461, price=60.5592, price=64.4856, price=57.2785, price=71.5833, price=42.6235, price=100.843, price=100.843</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic futures contract with every month priced: the build returns it unchanged</div><div class="desc">Every month quoted, the expired November month included, and no interpolation given (none is needed): the response contract equals the request&#x27;s and every live month is reported Quoted. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>identity</code> <code>interpolation not needed</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_fully_priced_identity.json">synthetic_fully_priced_identity.json</a></td>
+<td class="npv">price=59.8, price=60, price=60.4, price=60.7, price=61, price=61.2, price=61.4, price=61.5, price=61.6, price=61.7, price=61.8, price=61.9, price=62, price=62.1</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic spot price from monthly average quotes, three readings</div><div class="desc">A spot price built from one-month average quotes, one point per month, the first pinned: Linear and BackwardFlat on month ends, ForwardFlat on month starts. Each build reprices its quotes exactly. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>spot price build</code> <code>average quotes</code> <code>Linear</code> <code>BackwardFlat</code> <code>ForwardFlat</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_spot_monthly_strip_three_readings.json">synthetic_spot_monthly_strip_three_readings.json</a></td>
+<td class="npv">price=60, price=60.4, price=60.8, price=61.1, price=61.3, price=60, price=60.4, price=60.8, price=61.1, price=61.3, price=60, price=60.4, price=60.8, price=61.1, price=61.3</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic spot price: a month and a quarter quote, completed Flat and Smooth</div><div class="desc">Fewer quotes than points: rule Flat gives the points of the same quotes one price, rule Smooth minimises the second divided differences on the date axis. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>spot price build</code> <code>Underdetermined</code> <code>rule Flat</code> <code>rule Smooth</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_spot_quarter_flat_and_smooth.json">synthetic_spot_quarter_flat_and_smooth.json</a></td>
+<td class="npv">price=60.4, price=61, price=61, price=61, price=60.4, price=60.7104, price=60.9907, price=61.301</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic spot price: a consistent quarter quote reported Redundant, tail held flat</div><div class="desc">A quarter quote equal to the average its months already give is reported Redundant; a point after the last quote is filled flat (extrapolate_flat). Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>spot price build</code> <code>Redundant</code> <code>extrapolate_flat</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_spot_redundant_quarter_and_flat_tail.json">synthetic_spot_redundant_quarter_and_flat_tail.json</a></td>
+<td class="npv">price=60, price=60.4, price=60.8, price=61.1, price=61.3, price=61.3</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic basis contract: every month quoted as a basis to another contract</div><div class="desc">A contract priced month by month as the same month of a base contract in the same request plus a basis quote; the base is built first. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>basis</code> <code>SameMonth</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_basis_full_strip.json">synthetic_basis_full_strip.json</a></td>
+<td class="npv">price=60, price=60.4, price=60.7, price=61, price=61.2, price=61.4, price=61.5, price=61.6, price=61.7, price=60.8, price=61.15, price=61.4, price=61.72, price=61.98, price=62.25, price=62.4</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic basis contract with gaps: the basis is interpolated, then the base added</div><div class="desc">Three basis quotes among seven months: the missing months take the basis interpolated Linear on the last-trading-date axis (held flat outside), plus their base price. The basis entry comes before its base in the request. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>basis</code> <code>Linear</code> <code>extrapolate_flat</code> <code>build order</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_basis_gaps_linear_on_the_basis.json">synthetic_basis_gaps_linear_on_the_basis.json</a></td>
+<td class="npv">price=60.75, price=61.15, price=61.4599, price=61.7708, price=61.98, price=62.25, price=62.35, price=60, price=60.4, price=60.7, price=61, price=61.2, price=61.4, price=61.5, price=61.6, price=61.7</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic averaging basis: basis to the calendar-month average of the base front month</div><div class="desc">Each month&#x27;s base price is the average of the base contract&#x27;s front month (roll on expiry) over the pricing days of that calendar month, the November fixings included. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>basis</code> <code>MonthAverage</code> <code>fixings</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_basis_month_average.json">synthetic_basis_month_average.json</a></td>
+<td class="npv">price=60, price=60.4, price=60.7, price=61, price=61.2, price=61.4, price=61.5, price=61.6, price=61.7, price=60.825, price=61.2455, price=61.5105, price=61.7621, price=62.0345, price=62.2864, price=62.43</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic basis contract: two basis quotes and an average quote solved on top</div><div class="desc">January and March are basis quotes; a one-month average quote solves February and is repriced exactly. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>basis</code> <code>average quotes</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_basis_with_average_quote_on_top.json">synthetic_basis_with_average_quote_on_top.json</a></td>
+<td class="npv">price=60, price=60.4, price=60.7, price=61, price=61.2, price=61.4, price=61.5, price=61.6, price=61.7, price=60.75, price=61.15, price=61.2179, price=61.72, price=61.92, price=62.12, price=62.22</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic spot price built as a basis to another spot price, with a spread quote</div><div class="desc">Basis quotes on three month-end points, December quoted as an average spread to the base (versus_base); the other points filled on their basis. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>spot price build</code> <code>basis</code> <code>spread quote</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_spot_basis_by_date_with_spread_quote.json">synthetic_spot_basis_by_date_with_spread_quote.json</a></td>
+<td class="npv">price=60.025, price=60.3805, price=60.63, price=60.8804, price=61.179, price=61.4415, price=61.6867, price=61.975, price=59.5, price=59.75, price=60, price=60.25, price=60.5, price=60.75, price=61, price=61.25, price=61.5</td>
+</tr>
+<tr>
+<td><div class="title">Synthetic basis contract with a quarter quoted as a spread of averages</div><div class="desc">Basis quotes on two months and the first quarter quoted as this contract&#x27;s front-month average minus the base&#x27;s, completed Smooth. Synthetic data.</div></td>
+<td><code>commodity curve build</code> <code>basis</code> <code>spread quote</code> <code>rule Smooth</code></td>
+<td><a href="../../examples/data/commodity_curve/synthetic_basis_quarter_spread_to_base.json">synthetic_basis_quarter_spread_to_base.json</a></td>
+<td class="npv">price=60, price=60.4, price=60.7, price=61, price=61.2, price=61.4, price=61.5, price=60.75, price=61.15, price=61.4886, price=61.8185, price=62.0475, price=62.25, price=62.35</td>
+</tr>
+</tbody>
+</table>
 <h2>Structured Notes</h2>
 <table>
 <thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib value</th></tr></thead>
@@ -1553,6 +1769,6 @@
 </tr>
 </tbody>
 </table>
-<footer>238 cases across 16 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<footer>273 cases across 17 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

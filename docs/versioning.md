@@ -26,6 +26,119 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Unreleased
+
+## Version 0.17.0 (November 2026) — commodity swaps and commodity curves
+
+Two new endpoints, `POST /price-commodity-swap` and
+`POST /build-commodity-curves`, and a new `pricing.commodity` block. Nothing
+else changes: every other endpoint's requests and responses are those of
+0.16.11.
+
+### Commodity swaps: `POST /price-commodity-swap`
+
+Prices commodity swaps: two legs, one paid and one received, each a fixed
+price or a floating price read from a futures contract or a spot price, plus
+a spread.
+
+- **Market data**, new `pricing.commodity` block: `contracts` (delivery
+  months with last trading dates and today's prices, past settlements, a
+  pricing calendar and the contract's own `pricing_holidays`),
+  `spot_prices` (forward prices by date read `Linear`, `BackwardFlat` or
+  `ForwardFlat`, optional flat extrapolation, past published prices, a
+  pricing calendar and own holidays) and `curve_builds` (below). The prices
+  are supplied by the caller or built from quotes.
+- **The swap**: periods generated (calendar months, quarters, half-years,
+  years or one period, cut to the start and end dates) or listed; quantity
+  per period or per pricing day, one value or one per period; fixed price
+  one value or one per period; payment a number of business days after the
+  period's last day; one discounting curve per leg.
+- **Floating prices**: the average over each period's pricing days of a
+  nearby futures month rolled before its last trading date, or of a spot
+  price. `FuturesFloatingPrice.observation` `OnePricePerPeriod` is for a
+  contract whose settlement price is itself a period average: each period
+  reads the month of its last day, once, on the earlier of the payment date
+  and that month's last trading date.
+- **Common pricing**: `CommoditySwap.common_pricing` (default `false`). With
+  two floating legs, a period's pricing days are the days both legs price.
+  Without it each leg averages over its own pricing days.
+- **Curve builds in the request**: `pricing.commodity.curve_builds` takes
+  `/build-commodity-curves` entries, builds them and registers them under
+  their ids (through the curve cache when it is enabled). The response then
+  adds `quote_deltas` per swap, the change of the NPV per unit change of
+  each input quote, and a `curve_builds` summary per built entry.
+- **Response**: NPV, the fair fixed price (fixed against floating) or the
+  fair spread on `leg2` (floating against floating), the leg NPVs, optional
+  flows (averages split into fixings and today's prices) with optional
+  per-day observations, and the delta of the NPV to every input price read
+  from today's market data.
+- **Not included**: units and currencies (quantities are in the unit of the
+  price; the discounting curve decides the currency), rounding of averages,
+  expiry rules and exchange holiday tables (the caller lists months, last
+  trading dates and holidays), options. Flows paid on or before the
+  valuation date are not valued.
+
+### Commodity curves: `POST /build-commodity-curves`
+
+Builds the prices of a futures contract or of a spot price from market
+quotes, in the shape the swap request takes: the result can be pasted into
+`pricing.commodity.contracts` or `spot_prices` unchanged.
+
+- **Request**: `pricing.as_of_date` and `curves`, each exactly one of
+  `contract` (a contract in the shape of `pricing.commodity.contracts[]`)
+  or `spot` (a `CommoditySpotSpec` whose points are the nodes).
+- **Futures prices and gaps**: a live month with a price is a quote and is
+  returned unchanged; a live month without one is read from the determined
+  months placed on their last trading dates with `interpolation`
+  (`CommodityCurveInterpolation`: `Linear`, `LogLinear`, `BackwardFlat`,
+  `ForwardFlat`, `KrugerCubic` or `NaturalCubic`). A month outside the
+  determined months is a `400` naming it, unless `extrapolate_flat`.
+- **Average-price quotes**: `average_quotes` (the fixed price of an average
+  swap over one or several periods) are equations on the months or points
+  they read, with weights taken from the swap pricer. Direct prices and
+  quotes are solved as one linear system: a redundant quote that agrees is
+  flagged, a conflicting one is a `400` with the implied value and the gap;
+  when the quotes leave months open a `rule` is required: `Flat`, or
+  `Smooth` (least squared second divided differences on the date axis).
+- **Basis**: `basis` on an entry prices it as another entry of the request
+  (a contract for a contract, read on the same month or as a month average;
+  a spot price for a spot price) plus quoted values; the base is built
+  first and gaps are filled on the basis. An average quote with
+  `versus_base` quotes the difference between this curve's average and the
+  base's.
+- **Response**: per build, in request order, the complete contract or spot
+  price and a `report`: status, counts, every live month's or point's price
+  and source (`Quoted`, `Solved`, `Assumed`, `Interpolated`,
+  `Extrapolated`, `Basis`), every quote repriced on the result, and with
+  `include_details` the weights and the sensitivity of each price to each
+  input, bases' inputs included; the largest (`max_sensitivity`) shows a
+  fragile build.
+
+### Error details on the two commodity endpoints
+
+A `400` or `404` raised by the engine on these two endpoints keeps `error`,
+`code`, `code_name` and `message` and adds a `details` object: `reason`,
+`path` (the request field, a plain request path such as
+`curves[0].contract.months[3].last_trade_date`) and, per reason, the quote,
+the months or dates, the implied and quoted values and the gap, the inputs
+a conflicting quote depends on. gRPC callers read the same object from the
+trailing metadata key `quantra-error-details-bin`; the C++ client exposes
+it with `QuantraClient::ErrorDetails`, the Python client on
+`QuantraError.details`. Other endpoints' error bodies are unchanged.
+
+### Preview builds
+
+Four preview images, `0.17.0-commodities.1` to `0.17.0-commodities.4`, came
+before this release. 0.17.0 has the content of the fourth. Against the
+earlier three: `Smooth` on a contract build uses the months' last trading
+dates (it used their positions), error messages use plain field paths, and
+the swap pricer's refusals name the period.
+
+Described in `docs/http-api.md` ("Commodity swaps", "Commodity curves from
+futures quotes"); synthetic examples in `examples/data/commodity_swap/` and
+`examples/data/commodity_curve/`, each checked in the gate against an
+independent implementation.
+
 ## Version 0.16.11 (November 2026) — eSSVI as the default fit method, one quote weighting option, safe defaults for supplied grids, digitals and barriers refused on a smile, 30 s gateway deadline, curves read by date under a simulation
 
 `v0.16.11` is described change by change; each change has its own part

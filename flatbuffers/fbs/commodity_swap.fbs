@@ -1,0 +1,110 @@
+include "enums.fbs";
+include "commodity_periods.fbs";
+
+namespace quantra;
+
+/// Quantity delivered by a commodity swap leg. The quantity is in the price
+/// unit of the contract or spot price it is priced against.
+table CommodityQuantity {
+    /// One quantity for every period. Exactly one of `value` and `values`
+    /// is given.
+    value:double = null;
+    /// One quantity per period, in period order. The count must equal the
+    /// number of periods (400 otherwise).
+    values:[double];
+    /// Whether the quantity is per period or per pricing day.
+    /// Presence-required.
+    basis:enums.CommodityQuantityBasis = null;
+}
+
+/// Fixed price of a commodity swap leg.
+table CommodityFixedPrice {
+    /// One price for every period, per unit of the quantity. Exactly one of
+    /// `price` and `prices` is given.
+    price:double = null;
+    /// One price per period, in period order. The count must equal the
+    /// number of periods (400 otherwise).
+    prices:[double];
+}
+
+/// Floating price from a futures contract: the average, over the period's
+/// pricing days, of the nearby contract's price; or, with `observation`
+/// OnePricePerPeriod, one price per period.
+table FuturesFloatingPrice {
+    /// Id of a `pricing.commodity.contracts` entry. Required.
+    contract_id:string (required);
+    /// Which contract is read: 1 is the front month, 2 the next one.
+    /// Presence-required with DailyAverage; a 400 with OnePricePerPeriod.
+    nearby:int = null;
+    /// A pricing day rolls to the next contract this many pricing days
+    /// before the last trading date: 0 reads the front month on its last
+    /// trading date. Presence-required with DailyAverage; a 400 with
+    /// OnePricePerPeriod.
+    roll_days_before_expiry:int = null;
+    /// Added to each period's average, in price units. Defaults to 0.
+    spread:double = 0;
+    /// DailyAverage (the default): the average over the period's pricing
+    /// days. OnePricePerPeriod: one price per period, the contract month
+    /// containing the period's last day read on the earlier of the payment
+    /// date and its last trading date (a quantity per pricing day on either
+    /// leg is then a 400).
+    observation:enums.CommodityFuturesObservation = DailyAverage;
+}
+
+/// Floating price from a spot assessment: the average, over the period's
+/// pricing days, of the published price.
+table SpotFloatingPrice {
+    /// Id of a `pricing.commodity.spot_prices` entry. Required.
+    spot_id:string (required);
+    /// Added to each period's average, in price units. Defaults to 0.
+    spread:double = 0;
+}
+
+/// The price side of a commodity swap leg: fixed, or floating from futures
+/// or from a spot assessment.
+union CommodityLegPrice {
+    CommodityFixedPrice,
+    FuturesFloatingPrice,
+    SpotFloatingPrice
+}
+
+/// One leg of a commodity swap.
+table CommoditySwapLeg {
+    /// Pay or receive this leg. The two legs must be opposite (400
+    /// otherwise). Presence-required.
+    pay_receive:enums.PayReceive = null;
+    /// Calculation periods, generated or explicit (see `CommodityPeriods`).
+    /// Required.
+    periods:CommodityPeriods (required);
+    /// Quantity of the leg, per period or per pricing day. Required.
+    quantity:CommodityQuantity (required);
+    /// Fixed price or floating price definition. Required.
+    price:CommodityLegPrice (required);
+    /// Calendar for the payment date. Presence-required.
+    payment_calendar:enums.Calendar = null;
+    /// Business days of `payment_calendar` after the period's end date to
+    /// its payment date. Presence-required.
+    payment_lag:int = null;
+    /// Business day convention of the payment date. Presence-required.
+    payment_convention:enums.BusinessDayConvention = null;
+    /// Id of a `pricing.rates.curves` curve the leg's payments are
+    /// discounted on. Required. It decides the discounting; the caller is
+    /// responsible for it matching the currency of the prices supplied.
+    discounting_curve:string (required);
+}
+
+/// Commodity swap: two legs, one paid and one received (`pay_receive`),
+/// each a fixed price or a floating price on futures or a spot assessment.
+table CommoditySwap {
+    /// First leg. Required. Reported as `legs[0]`.
+    leg1:CommoditySwapLeg (required);
+    /// Second leg. Required. Reported as `legs[1]`.
+    leg2:CommoditySwapLeg (required);
+    /// Two floating legs only (a 400 otherwise): a day is a pricing day of a
+    /// period of either leg only when it is a pricing day of both legs'
+    /// contracts or spot prices. Default false: each leg averages over its
+    /// own pricing days.
+    common_pricing:bool = false;
+}
+
+root_type CommoditySwap;

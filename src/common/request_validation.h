@@ -10,15 +10,17 @@
  * the validated plain value for the caller to lift into a domain struct.
  *
  * This is the home for reusable request-field validation: single-field presence
- * (scalars / enums / ints / bools), the `Period` sub-table, and the per-period
- * notionals vector. It is FlatBuffers-aware on purpose and must only ever be
- * included from decode/market and decode/products, never from the FlatBuffers-free evaluators.
+ * (scalars / enums / ints / bools), non-empty strings, ISO dates, the `Period`
+ * sub-table, and the per-period notionals vector. It is FlatBuffers-aware on
+ * purpose and must only ever be included from decode/market and
+ * decode/products, never from the FlatBuffers-free evaluators.
  *
- * Not covered here (they need a different check than single-field presence):
- * string identity fields, which also reject an empty string; and the
- * `price | rate | quote_id` "exactly one of" rule. Those keep their own guards.
+ * Not covered here: the `price | rate | quote_id` "exactly one of" rule, which
+ * keeps its own guards. Some older mappers keep file-local string and date
+ * guards of their own.
  */
 
+#include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
 
@@ -47,10 +49,10 @@ namespace quantra {
  */
 inline double requireFinite(flatbuffers::Optional<double> v, const std::string& name) {
     if (!v.has_value()) {
-        QUANTRA_INVALID_ARGUMENT(name + " is required");
+        QuantraInvalidArgumentAt(name, name + " is required");
     }
     if (!std::isfinite(v.value())) {
-        QUANTRA_INVALID_ARGUMENT(name + " must be finite");
+        QuantraInvalidArgumentAt(name, name + " must be finite");
     }
     return v.value();
 }
@@ -62,13 +64,13 @@ inline double requireFinite(flatbuffers::Optional<double> v, const std::string& 
  */
 inline double requirePositive(flatbuffers::Optional<double> v, const std::string& name) {
     if (!v.has_value()) {
-        QUANTRA_INVALID_ARGUMENT(name + " is required");
+        QuantraInvalidArgumentAt(name, name + " is required");
     }
     if (!std::isfinite(v.value())) {
-        QUANTRA_INVALID_ARGUMENT(name + " must be finite");
+        QuantraInvalidArgumentAt(name, name + " must be finite");
     }
     if (!(v.value() > 0.0)) {
-        QUANTRA_INVALID_ARGUMENT(name + " must be positive");
+        QuantraInvalidArgumentAt(name, name + " must be positive");
     }
     return v.value();
 }
@@ -81,7 +83,19 @@ inline double requirePositive(flatbuffers::Optional<double> v, const std::string
  */
 template <typename T> inline T requireEnum(flatbuffers::Optional<T> v, const std::string& name) {
     if (!v.has_value()) {
-        QUANTRA_INVALID_ARGUMENT(name + " is required");
+        QuantraInvalidArgumentAt(name, name + " is required");
+    }
+    return v.value();
+}
+
+/**
+ * Require an optional scalar to be present, with no rule on its value (the
+ * value rules belong to whoever consumes it).
+ */
+template <typename T>
+inline T requireScalarPresent(flatbuffers::Optional<T> v, const std::string& name) {
+    if (!v.has_value()) {
+        QuantraInvalidArgumentAt(name, name + " is required");
     }
     return v.value();
 }
@@ -93,7 +107,7 @@ template <typename T> inline T requireEnum(flatbuffers::Optional<T> v, const std
  */
 inline int requireInt(flatbuffers::Optional<int> v, const std::string& name) {
     if (!v.has_value()) {
-        QUANTRA_INVALID_ARGUMENT(name + " is required");
+        QuantraInvalidArgumentAt(name, name + " is required");
     }
     return v.value();
 }
@@ -106,10 +120,10 @@ inline int requireInt(flatbuffers::Optional<int> v, const std::string& name) {
  */
 inline int requireNonNegativeInt(flatbuffers::Optional<int> v, const std::string& name) {
     if (!v.has_value()) {
-        QUANTRA_INVALID_ARGUMENT(name + " is required");
+        QuantraInvalidArgumentAt(name, name + " is required");
     }
     if (v.value() < 0) {
-        QUANTRA_INVALID_ARGUMENT(name + " must be non-negative");
+        QuantraInvalidArgumentAt(name, name + " must be non-negative");
     }
     return v.value();
 }
@@ -122,7 +136,7 @@ inline int requireNonNegativeInt(flatbuffers::Optional<int> v, const std::string
  */
 inline int requireNonNegative(int v, const std::string& name) {
     if (v < 0) {
-        QUANTRA_INVALID_ARGUMENT(name + " must be non-negative");
+        QuantraInvalidArgumentAt(name, name + " must be non-negative");
     }
     return v;
 }
@@ -134,9 +148,36 @@ inline int requireNonNegative(int v, const std::string& name) {
  */
 inline bool requireBool(flatbuffers::Optional<bool> v, const std::string& name) {
     if (!v.has_value()) {
-        QUANTRA_INVALID_ARGUMENT(name + " is required");
+        QuantraInvalidArgumentAt(name, name + " is required");
     }
     return v.value();
+}
+
+/**
+ * Require a string field to be present and non-empty (ids, contract months).
+ */
+inline std::string requireNonEmptyString(
+    const flatbuffers::String* value, const std::string& name) {
+    if (value == nullptr || value->str().empty()) {
+        QuantraInvalidArgumentAt(name, name + " is required");
+    }
+    return value->str();
+}
+
+/**
+ * Require a date field to be present and a valid YYYY-MM-DD date; a bad date
+ * is a 400 naming the field once (`<name>: Invalid date '...'`).
+ */
+inline QuantLib::Date requireIsoDate(const flatbuffers::String* value, const std::string& name) {
+    if (value == nullptr) {
+        QuantraInvalidArgumentAt(name, name + " is required");
+    }
+    try {
+        return DateToQL(value->str());
+    } catch (const QuantraInvalidArgument& e) {
+        QuantraInvalidArgumentAt(name, name + ": " + e.what());
+    }
+    return QuantLib::Date(); // unreachable
 }
 
 // ---------------------------------------------------------------------------
@@ -150,13 +191,13 @@ inline bool requireBool(flatbuffers::Optional<bool> v, const std::string& name) 
  */
 inline QuantLib::Period requirePeriod(const quantra::Period* p, const std::string& name) {
     if (p == nullptr) {
-        QUANTRA_INVALID_ARGUMENT(name + " is required");
+        QuantraInvalidArgumentAt(name, name + " is required");
     }
     if (!p->n().has_value()) {
-        QUANTRA_INVALID_ARGUMENT(name + ".n is required");
+        QuantraInvalidArgumentAt(name + ".n", name + ".n is required");
     }
     if (!p->unit().has_value()) {
-        QUANTRA_INVALID_ARGUMENT(name + ".unit is required");
+        QuantraInvalidArgumentAt(name + ".unit", name + ".unit is required");
     }
     return QuantLib::Period(p->n().value(), TimeUnitToQL(p->unit().value()));
 }

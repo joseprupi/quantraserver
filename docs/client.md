@@ -58,6 +58,7 @@ Pricing:
 - equity options
 - FX forwards
 - cross-currency swaps
+- commodity swaps (preview)
 
 Utility:
 
@@ -65,6 +66,7 @@ Utility:
 - sample vol surfaces
 - calendar business days, calendar holidays, calendar advance
 - calibrate swaption model (Hull-White), calibrate swaption vol (SABR)
+- build commodity curves (preview)
 
 This mirrors the served endpoints in `src/transport/product_catalog.h`; when that
 catalog gains an entry, the client header gains the matching pair (see

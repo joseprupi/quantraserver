@@ -6,6 +6,7 @@
 
 #include "pricing_registry.h"
 
+#include "commodity_curve_build_mapper.h"
 #include "curve_bootstrapper.h"
 #include "date_convert.h"
 #include "enum_convert.h"
@@ -96,6 +97,14 @@ PricingRegistry PricingRegistryBuilder::build(
     reg.correlations = correlationBuilder.build(pricing->correlations(), reg.quoteRegistry);
 
     // ==========================================================================
+    // Parse commodity domain (optional) — futures contracts and spot prices,
+    // independent of the curves. Their pricing calendars come from the shared
+    // calendar factory, so pricing.calendar_overrides (applied before the
+    // registry is built) hold for them.
+    // ==========================================================================
+    reg.commodity = BuildCommodityRegistry(pricing->commodity());
+
+    // ==========================================================================
     // Parse Curves (dependency-aware via CurveBootstrapper)
     // ==========================================================================
     if (!rates || !rates->curves()) {
@@ -110,6 +119,36 @@ PricingRegistry PricingRegistryBuilder::build(
     reg.rates.curveKeys = booted.keys;
     for (auto& kv : booted.handles) {
         reg.rates.curves.emplace(kv.first, kv.second);
+    }
+
+    // ==========================================================================
+    // Commodity curves built in the request (pricing.commodity.curve_builds):
+    // after the rate curves, which their average quotes discount on.
+    // ==========================================================================
+    if (pricing->commodity() && pricing->commodity()->curve_builds()) {
+        // The calendar overrides change pricing days: part of the cache key.
+        std::string overrides;
+        if (const auto* list = pricing->calendar_overrides()) {
+            for (const auto* o : *list) {
+                if (o == nullptr) {
+                    continue;
+                }
+                overrides += "|" + std::to_string(
+                                       static_cast<int>(o->calendar().value_or(
+                                           static_cast<quantra::enums::Calendar>(0))));
+                for (const auto* list2 : {o->added_holidays(), o->removed_holidays()}) {
+                    overrides += ";";
+                    if (list2 != nullptr) {
+                        for (const auto* h : *list2) {
+                            overrides += h->str() + ",";
+                        }
+                    }
+                }
+            }
+        }
+        RegisterCommodityCurveBuilds(
+            reg.commodity, reg.rates, pricing->commodity()->curve_builds(), asOf, budget,
+            overrides);
     }
 
     // ==========================================================================

@@ -2310,6 +2310,362 @@ inline const char *EnumNameCorrelationShrinkage(CorrelationShrinkage e) {
   return EnumNamesCorrelationShrinkage()[index];
 }
 
+/// How `CommodityQuantity` is read. PerPeriod: the quantity is the amount
+/// delivered over the whole calculation period. PerPricingDay: the quantity
+/// is the amount for each pricing day of the period, so the period's amount
+/// is the quantity times its number of pricing days.
+enum CommodityQuantityBasis : int8_t {
+  CommodityQuantityBasis_PerPeriod = 0,
+  CommodityQuantityBasis_PerPricingDay = 1,
+  CommodityQuantityBasis_MIN = CommodityQuantityBasis_PerPeriod,
+  CommodityQuantityBasis_MAX = CommodityQuantityBasis_PerPricingDay
+};
+
+inline const CommodityQuantityBasis (&EnumValuesCommodityQuantityBasis())[2] {
+  static const CommodityQuantityBasis values[] = {
+    CommodityQuantityBasis_PerPeriod,
+    CommodityQuantityBasis_PerPricingDay
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCommodityQuantityBasis() {
+  static const char * const names[3] = {
+    "PerPeriod",
+    "PerPricingDay",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCommodityQuantityBasis(CommodityQuantityBasis e) {
+  if (::flatbuffers::IsOutRange(e, CommodityQuantityBasis_PerPeriod, CommodityQuantityBasis_PerPricingDay)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCommodityQuantityBasis()[index];
+}
+
+/// Where a commodity price used in a flow came from. Fixing: a published
+/// price on or before the valuation date, taken from the request's fixings.
+/// Curve: a price read from today's market data (a futures price or a spot
+/// forward price).
+enum CommodityPriceSource : int8_t {
+  CommodityPriceSource_Fixing = 0,
+  CommodityPriceSource_Curve = 1,
+  CommodityPriceSource_MIN = CommodityPriceSource_Fixing,
+  CommodityPriceSource_MAX = CommodityPriceSource_Curve
+};
+
+inline const CommodityPriceSource (&EnumValuesCommodityPriceSource())[2] {
+  static const CommodityPriceSource values[] = {
+    CommodityPriceSource_Fixing,
+    CommodityPriceSource_Curve
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCommodityPriceSource() {
+  static const char * const names[3] = {
+    "Fixing",
+    "Curve",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCommodityPriceSource(CommodityPriceSource e) {
+  if (::flatbuffers::IsOutRange(e, CommodityPriceSource_Fixing, CommodityPriceSource_Curve)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCommodityPriceSource()[index];
+}
+
+/// How `/build-commodity-curves` fills a live futures month without a price
+/// from the quoted live months. Axis for every method: x = calendar days from
+/// the valuation date to the month's last trading date, divided by 365 (any
+/// affine change of x gives the same prices). The nodes are all the quoted
+/// live months of the contract. Outside the first and last quote the method
+/// is never continued: `extrapolate_flat` decides (nearest quote or a 400).
+enum CommodityCurveInterpolation : int8_t {
+  /// Straight line between the two neighbouring quotes.
+  CommodityCurveInterpolation_Linear = 0,
+  /// Straight line in log(price) between the two neighbouring quotes.
+  /// Every quoted live price must be > 0 (400 naming the month otherwise).
+  CommodityCurveInterpolation_LogLinear = 1,
+  /// The next quoted month's price.
+  CommodityCurveInterpolation_BackwardFlat = 2,
+  /// The previous quoted month's price.
+  CommodityCurveInterpolation_ForwardFlat = 3,
+  /// Piecewise cubic through all the quotes that limits overshoot between
+  /// them: the slope at a quote is the harmonic mean of the two
+  /// neighbouring slopes (0 where they change sign); at the first and the
+  /// last quote it is (3 x end slope - next quote's slope) / 2. With two
+  /// quotes it is the straight line.
+  CommodityCurveInterpolation_KrugerCubic = 4,
+  /// Natural cubic spline through all the quotes: smooth (continuous
+  /// second derivative, 0 at the first and the last quote) but it can
+  /// overshoot between quotes. With two quotes it is the straight line.
+  CommodityCurveInterpolation_NaturalCubic = 5,
+  CommodityCurveInterpolation_MIN = CommodityCurveInterpolation_Linear,
+  CommodityCurveInterpolation_MAX = CommodityCurveInterpolation_NaturalCubic
+};
+
+inline const CommodityCurveInterpolation (&EnumValuesCommodityCurveInterpolation())[6] {
+  static const CommodityCurveInterpolation values[] = {
+    CommodityCurveInterpolation_Linear,
+    CommodityCurveInterpolation_LogLinear,
+    CommodityCurveInterpolation_BackwardFlat,
+    CommodityCurveInterpolation_ForwardFlat,
+    CommodityCurveInterpolation_KrugerCubic,
+    CommodityCurveInterpolation_NaturalCubic
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCommodityCurveInterpolation() {
+  static const char * const names[7] = {
+    "Linear",
+    "LogLinear",
+    "BackwardFlat",
+    "ForwardFlat",
+    "KrugerCubic",
+    "NaturalCubic",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCommodityCurveInterpolation(CommodityCurveInterpolation e) {
+  if (::flatbuffers::IsOutRange(e, CommodityCurveInterpolation_Linear, CommodityCurveInterpolation_NaturalCubic)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCommodityCurveInterpolation()[index];
+}
+
+/// How `/build-commodity-curves` picks one solution when its quotes do not
+/// determine every month they touch.
+enum CommodityCurveRule : int8_t {
+  /// Months touched by the same set of quotes share one price.
+  CommodityCurveRule_Flat = 0,
+  /// Among the solutions that reprice every quote exactly, the one with the
+  /// least sum of squared second differences of the touched months' prices
+  /// in month order.
+  CommodityCurveRule_Smooth = 1,
+  CommodityCurveRule_MIN = CommodityCurveRule_Flat,
+  CommodityCurveRule_MAX = CommodityCurveRule_Smooth
+};
+
+inline const CommodityCurveRule (&EnumValuesCommodityCurveRule())[2] {
+  static const CommodityCurveRule values[] = {
+    CommodityCurveRule_Flat,
+    CommodityCurveRule_Smooth
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCommodityCurveRule() {
+  static const char * const names[3] = {
+    "Flat",
+    "Smooth",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCommodityCurveRule(CommodityCurveRule e) {
+  if (::flatbuffers::IsOutRange(e, CommodityCurveRule_Flat, CommodityCurveRule_Smooth)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCommodityCurveRule()[index];
+}
+
+/// Whether a commodity curve build's quotes determine every month they
+/// touch.
+enum CommodityCurveStatus : int8_t {
+  /// The quotes determine every touched month.
+  CommodityCurveStatus_Unique = 0,
+  /// They do not; the rule chose the solution.
+  CommodityCurveStatus_Underdetermined = 1,
+  CommodityCurveStatus_MIN = CommodityCurveStatus_Unique,
+  CommodityCurveStatus_MAX = CommodityCurveStatus_Underdetermined
+};
+
+inline const CommodityCurveStatus (&EnumValuesCommodityCurveStatus())[2] {
+  static const CommodityCurveStatus values[] = {
+    CommodityCurveStatus_Unique,
+    CommodityCurveStatus_Underdetermined
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCommodityCurveStatus() {
+  static const char * const names[3] = {
+    "Unique",
+    "Underdetermined",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCommodityCurveStatus(CommodityCurveStatus e) {
+  if (::flatbuffers::IsOutRange(e, CommodityCurveStatus_Unique, CommodityCurveStatus_Underdetermined)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCommodityCurveStatus()[index];
+}
+
+/// Where a built month's price comes from.
+enum CommodityMonthSource : int8_t {
+  /// The month's own price was given (a futures quote).
+  CommodityMonthSource_Quoted = 0,
+  /// Determined by the quotes alone.
+  CommodityMonthSource_Solved = 1,
+  /// Touched by the quotes but not determined by them: set by the rule.
+  CommodityMonthSource_Assumed = 2,
+  /// Not touched by any quote: read between the determined months with the
+  /// build's interpolation.
+  CommodityMonthSource_Interpolated = 3,
+  /// Not touched by any quote, outside the determined months: the nearest
+  /// one (extrapolate_flat).
+  CommodityMonthSource_Extrapolated = 4,
+  /// A basis quote: the base price plus the basis.
+  CommodityMonthSource_Basis = 5,
+  CommodityMonthSource_MIN = CommodityMonthSource_Quoted,
+  CommodityMonthSource_MAX = CommodityMonthSource_Basis
+};
+
+inline const CommodityMonthSource (&EnumValuesCommodityMonthSource())[6] {
+  static const CommodityMonthSource values[] = {
+    CommodityMonthSource_Quoted,
+    CommodityMonthSource_Solved,
+    CommodityMonthSource_Assumed,
+    CommodityMonthSource_Interpolated,
+    CommodityMonthSource_Extrapolated,
+    CommodityMonthSource_Basis
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCommodityMonthSource() {
+  static const char * const names[7] = {
+    "Quoted",
+    "Solved",
+    "Assumed",
+    "Interpolated",
+    "Extrapolated",
+    "Basis",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCommodityMonthSource(CommodityMonthSource e) {
+  if (::flatbuffers::IsOutRange(e, CommodityMonthSource_Quoted, CommodityMonthSource_Basis)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCommodityMonthSource()[index];
+}
+
+/// How a basis build reads the base price of a month M.
+enum CommodityBasisBasePrice : int8_t {
+  /// The base contract's month M - base_month_offset months: its price when
+  /// live, its fixing on its last trading date when expired.
+  CommodityBasisBasePrice_SameMonth = 0,
+  /// The average over the pricing days of calendar month M of the base
+  /// contract read with base_nearby / base_roll_days_before_expiry.
+  CommodityBasisBasePrice_MonthAverage = 1,
+  CommodityBasisBasePrice_MIN = CommodityBasisBasePrice_SameMonth,
+  CommodityBasisBasePrice_MAX = CommodityBasisBasePrice_MonthAverage
+};
+
+inline const CommodityBasisBasePrice (&EnumValuesCommodityBasisBasePrice())[2] {
+  static const CommodityBasisBasePrice values[] = {
+    CommodityBasisBasePrice_SameMonth,
+    CommodityBasisBasePrice_MonthAverage
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCommodityBasisBasePrice() {
+  static const char * const names[3] = {
+    "SameMonth",
+    "MonthAverage",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCommodityBasisBasePrice(CommodityBasisBasePrice e) {
+  if (::flatbuffers::IsOutRange(e, CommodityBasisBasePrice_SameMonth, CommodityBasisBasePrice_MonthAverage)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCommodityBasisBasePrice()[index];
+}
+
+/// How a futures leg reads its contract in each calculation period.
+enum CommodityFuturesObservation : int8_t {
+  /// The average, over the period's pricing days, of the nearby contract
+  /// month (nearby and roll_days_before_expiry required).
+  CommodityFuturesObservation_DailyAverage = 0,
+  /// One price per period, for a contract whose settlement price is itself
+  /// a period average: the month containing the period's last day, read on
+  /// the earlier of the payment date and that month's last trading date (a
+  /// fixing when that day is before the valuation date). nearby and
+  /// roll_days_before_expiry are refused.
+  CommodityFuturesObservation_OnePricePerPeriod = 1,
+  CommodityFuturesObservation_MIN = CommodityFuturesObservation_DailyAverage,
+  CommodityFuturesObservation_MAX = CommodityFuturesObservation_OnePricePerPeriod
+};
+
+inline const CommodityFuturesObservation (&EnumValuesCommodityFuturesObservation())[2] {
+  static const CommodityFuturesObservation values[] = {
+    CommodityFuturesObservation_DailyAverage,
+    CommodityFuturesObservation_OnePricePerPeriod
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCommodityFuturesObservation() {
+  static const char * const names[3] = {
+    "DailyAverage",
+    "OnePricePerPeriod",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCommodityFuturesObservation(CommodityFuturesObservation e) {
+  if (::flatbuffers::IsOutRange(e, CommodityFuturesObservation_DailyAverage, CommodityFuturesObservation_OnePricePerPeriod)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCommodityFuturesObservation()[index];
+}
+
+/// How an average quote entered a commodity curve build.
+enum CommodityQuoteStatus : int8_t {
+  /// It adds information to the earlier quotes.
+  CommodityQuoteStatus_Used = 0,
+  /// The earlier quotes already imply its value (it agrees with them).
+  CommodityQuoteStatus_Redundant = 1,
+  CommodityQuoteStatus_MIN = CommodityQuoteStatus_Used,
+  CommodityQuoteStatus_MAX = CommodityQuoteStatus_Redundant
+};
+
+inline const CommodityQuoteStatus (&EnumValuesCommodityQuoteStatus())[2] {
+  static const CommodityQuoteStatus values[] = {
+    CommodityQuoteStatus_Used,
+    CommodityQuoteStatus_Redundant
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCommodityQuoteStatus() {
+  static const char * const names[3] = {
+    "Used",
+    "Redundant",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCommodityQuoteStatus(CommodityQuoteStatus e) {
+  if (::flatbuffers::IsOutRange(e, CommodityQuoteStatus_Used, CommodityQuoteStatus_Redundant)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCommodityQuoteStatus()[index];
+}
+
 }  // namespace enums
 }  // namespace quantra
 

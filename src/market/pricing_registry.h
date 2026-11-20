@@ -1,6 +1,7 @@
 #ifndef QUANTRA_PRICING_REGISTRY_H
 #define QUANTRA_PRICING_REGISTRY_H
 
+#include "commodity_parsers.h"
 #include "correlation_registry.h"
 #include "coupon_pricer_domain.h"
 #include "credit_curve_domain.h"
@@ -135,6 +136,11 @@ struct PricingRegistry {
     /// a product references them). Basket products resolve their
     /// `correlation_id` here with `subMatrix(id, underlyingIds)`.
     CorrelationRegistry correlations;
+    /// Commodity futures contracts and spot prices keyed by id, populated
+    /// from pricing.commodity via BuildCommodityRegistry on every request
+    /// that carries the block. Commodity swap legs resolve their
+    /// `contract_id` / `spot_id` here (404 when absent).
+    CommodityRegistry commodity;
     PricingRequestOptions options;
 };
 

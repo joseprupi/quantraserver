@@ -12,6 +12,8 @@
 #include "basis_swap_response_generated.h"
 #include "bootstrap_inflation_curves_request_generated.h"
 #include "bootstrap_inflation_curves_response_generated.h"
+#include "build_commodity_curves_request_generated.h"
+#include "build_commodity_curves_response_generated.h"
 #include "calendar_advance_request_generated.h"
 #include "calendar_advance_response_generated.h"
 #include "calendar_business_days_request_generated.h"
@@ -19,6 +21,7 @@
 #include "calendar_holidays_request_generated.h"
 #include "calendar_holidays_response_generated.h"
 #include "cds_response_generated.h"
+#include "commodity_swap_response_generated.h"
 #include "cross_currency_swap_response_generated.h"
 #include "fixed_rate_bond_response_generated.h"
 #include "fx_forward_response_generated.h"
@@ -28,6 +31,7 @@
 #include "ois_swap_response_generated.h"
 #include "price_basis_swap_request_generated.h"
 #include "price_cds_request_generated.h"
+#include "price_commodity_swap_request_generated.h"
 #include "price_cross_currency_swap_request_generated.h"
 #include "price_fixed_rate_bond_request_generated.h"
 #include "price_fx_forward_request_generated.h"
@@ -872,6 +876,242 @@ TEST_F(ServerClientTest, CrossCurrencySwap_RoundTrip) {
     EXPECT_DOUBLE_EQ(l1r->flows()->Get(5)->amount(), -eurNotional);
     std::cout << "  npv (USD): " << r->npv() << ", fair rate: " << r->fair_rate().value()
               << std::endl;
+}
+
+TEST_F(ServerClientTest, CommoditySwap_RoundTrip) {
+    std::cout << "\n=== Server-Client: Commodity Swap ===" << std::endl;
+    flatbuffers::grpc::MessageBuilder b;
+    const double quantity = 1000.0, fixedPrice = 70.0;
+
+    auto ts = buildCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    auto indices = buildIndicesVector(b);
+    auto rates = quantra::CreateRatesMarketData(b, indices, 0, curves, 0);
+
+    // One contract on weekdays: the 2025-03 month is the front month up to
+    // its last trading date (20 Feb), then the 2025-04 month.
+    std::vector<flatbuffers::Offset<quantra::CommodityContractMonth>> months{
+        quantra::CreateCommodityContractMonthDirect(b, "2025-03", "2025-02-20", 70.0),
+        quantra::CreateCommodityContractMonthDirect(b, "2025-04", "2025-03-20", 72.0)};
+    std::vector<flatbuffers::Offset<quantra::CommodityContractSpec>> contracts{
+        quantra::CreateCommodityContractSpecDirect(
+            b, "SYN_C", quantra::enums::Calendar_WeekendsOnly, nullptr, &months, nullptr)};
+    auto commodity = quantra::CreateCommodityMarketDataDirect(b, &contracts, nullptr);
+    auto asof = b.CreateString("2025-01-15");
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    pb.add_rates(rates);
+    pb.add_commodity(commodity);
+    auto pricing = pb.Finish();
+
+    // One period, February 2025: 20 pricing days, 14 on the 2025-03 month
+    // (3-20 Feb) and 6 on the 2025-04 month (21-28 Feb).
+    auto leg = [&](quantra::enums::PayReceive side, quantra::CommodityLegPrice type,
+                   flatbuffers::Offset<void> price) {
+        auto periods = quantra::CreateCommodityPeriodsDirect(
+            b, "2025-02-01", "2025-02-28", quantra::enums::Frequency_Once, nullptr);
+        auto qty = quantra::CreateCommodityQuantity(
+            b, quantity, 0, quantra::enums::CommodityQuantityBasis_PerPeriod);
+        return quantra::CreateCommoditySwapLegDirect(
+            b, side, periods, qty, type, price, quantra::enums::Calendar_WeekendsOnly, 5,
+            quantra::enums::BusinessDayConvention_Following, "discount");
+    };
+    auto fixed = quantra::CreateCommodityFixedPrice(b, fixedPrice, 0);
+    auto floating = quantra::CreateFuturesFloatingPriceDirect(b, "SYN_C", 1, 0, 0.0);
+    auto leg1 =
+        leg(quantra::enums::PayReceive_Pay, quantra::CommodityLegPrice_CommodityFixedPrice,
+            fixed.Union());
+    auto leg2 =
+        leg(quantra::enums::PayReceive_Receive, quantra::CommodityLegPrice_FuturesFloatingPrice,
+            floating.Union());
+    auto swap = quantra::CreateCommoditySwap(b, leg1, leg2);
+    std::vector<flatbuffers::Offset<quantra::PriceCommoditySwap>> entries{
+        quantra::CreatePriceCommoditySwap(b, swap)};
+    b.Finish(quantra::CreatePriceCommoditySwapRequestDirect(b, pricing, &entries, true, false));
+    auto request = b.ReleaseMessage<quantra::PriceCommoditySwapRequest>();
+    ASSERT_TRUE(request.Verify());
+
+    grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+    flatbuffers::grpc::Message<quantra::PriceCommoditySwapResponse> response;
+    auto status = stub_->PriceCommoditySwap(&context, request, &response);
+    ASSERT_TRUE(status.ok()) << "gRPC failed: " << status.error_message();
+    ASSERT_EQ(response.GetRoot()->swaps()->size(), 1u);
+    auto r = response.GetRoot()->swaps()->Get(0);
+    ASSERT_EQ(r->legs()->size(), 2u);
+    const auto* fixedLeg = r->legs()->Get(0);
+    const auto* floatLeg = r->legs()->Get(1);
+    ASSERT_TRUE(fixedLeg->flows() && floatLeg->flows());
+    ASSERT_EQ(floatLeg->flows()->size(), 1u);
+    const auto* flow = floatLeg->flows()->Get(0);
+    const double average = (14 * 70.0 + 6 * 72.0) / 20.0;
+    EXPECT_EQ(flow->pricing_days(), 20);
+    EXPECT_EQ(flow->realised_days(), 0);
+    ASSERT_TRUE(flow->average().has_value());
+    EXPECT_NEAR(flow->average().value(), average, 1e-12);
+    EXPECT_FALSE(flow->realised_average().has_value());
+    EXPECT_FALSE(flow->price().has_value());
+    EXPECT_FALSE(flow->observations());
+    EXPECT_EQ(flow->payment_date()->str(), "2025-03-07");
+    const double df = flow->discount();
+    EXPECT_GT(df, 0.0);
+    EXPECT_LT(df, 1.0);
+    EXPECT_NEAR(r->npv(), quantity * (average - fixedPrice) * df, 1e-8);
+    EXPECT_NEAR(r->npv(), fixedLeg->npv() + floatLeg->npv(), 1e-8);
+    ASSERT_TRUE(r->fair_fixed_price().has_value());
+    EXPECT_NEAR(r->fair_fixed_price().value(), average, 1e-10);
+    EXPECT_FALSE(r->fair_spread().has_value());
+    ASSERT_TRUE(r->deltas());
+    ASSERT_EQ(r->deltas()->size(), 2u);
+    EXPECT_EQ(r->deltas()->Get(0)->month()->str(), "2025-03");
+    EXPECT_NEAR(r->deltas()->Get(0)->delta(), quantity * 14.0 / 20.0 * df, 1e-8);
+    EXPECT_EQ(r->deltas()->Get(1)->month()->str(), "2025-04");
+    EXPECT_NEAR(r->deltas()->Get(1)->delta(), quantity * 6.0 / 20.0 * df, 1e-8);
+    std::cout << "  npv: " << r->npv() << ", fair fixed price: " << r->fair_fixed_price().value()
+              << std::endl;
+}
+
+TEST_F(ServerClientTest, BuildCommodityCurves_RoundTrip) {
+    std::cout << "\n=== Server-Client: Build Commodity Curves ===" << std::endl;
+    flatbuffers::grpc::MessageBuilder b;
+
+    // Synthetic months: 2025-03 (last traded 20 Feb, 70.00), 2025-04 (20 Mar,
+    // no price), 2025-05 (21 Apr, 73.00); one expired month without a price.
+    // Linear in calendar days: 28 of 60 days -> 70 + 3 * 28 / 60. No curve
+    // is sent: the endpoint needs none.
+    std::vector<flatbuffers::Offset<quantra::CommodityContractMonth>> months{
+        quantra::CreateCommodityContractMonthDirect(b, "2025-01", "2024-12-19"),
+        quantra::CreateCommodityContractMonthDirect(b, "2025-03", "2025-02-20", 70.0),
+        quantra::CreateCommodityContractMonthDirect(b, "2025-04", "2025-03-20"),
+        quantra::CreateCommodityContractMonthDirect(b, "2025-05", "2025-04-21", 73.0)};
+    auto contract = quantra::CreateCommodityContractSpecDirect(
+        b, "SYN_C", quantra::enums::Calendar_WeekendsOnly, nullptr, &months, nullptr);
+    std::vector<flatbuffers::Offset<quantra::CommodityCurveBuild>> builds{
+        quantra::CreateCommodityCurveBuild(
+            b, contract, quantra::enums::CommodityCurveInterpolation_Linear, false)};
+    auto asof = b.CreateString("2025-01-15");
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    auto pricing = pb.Finish();
+    b.Finish(quantra::CreateBuildCommodityCurvesRequestDirect(b, pricing, &builds));
+    auto request = b.ReleaseMessage<quantra::BuildCommodityCurvesRequest>();
+    ASSERT_TRUE(request.Verify());
+
+    grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+    flatbuffers::grpc::Message<quantra::BuildCommodityCurvesResponse> response;
+    auto status = stub_->BuildCommodityCurves(&context, request, &response);
+    ASSERT_TRUE(status.ok()) << "gRPC failed: " << status.error_message();
+    ASSERT_EQ(response.GetRoot()->curves()->size(), 1u);
+    const auto* curve = response.GetRoot()->curves()->Get(0);
+    const auto* built = curve->contract();
+    ASSERT_EQ(built->id()->str(), "SYN_C");
+    ASSERT_TRUE(built->pricing_calendar().has_value());
+    EXPECT_EQ(built->pricing_calendar().value(), quantra::enums::Calendar_WeekendsOnly);
+    EXPECT_EQ(built->pricing_holidays(), nullptr);
+    EXPECT_EQ(built->fixings(), nullptr);
+    ASSERT_EQ(built->months()->size(), 4u);
+    EXPECT_FALSE(built->months()->Get(0)->price().has_value());
+    EXPECT_EQ(built->months()->Get(1)->price().value(), 70.0);
+    ASSERT_TRUE(built->months()->Get(2)->price().has_value());
+    EXPECT_NEAR(built->months()->Get(2)->price().value(), 70.0 + 3.0 * 28.0 / 60.0, 1e-12);
+    EXPECT_EQ(built->months()->Get(2)->last_trade_date()->str(), "2025-03-20");
+    EXPECT_EQ(built->months()->Get(3)->price().value(), 73.0);
+    const auto* report = curve->report();
+    ASSERT_TRUE(report && report->months());
+    EXPECT_EQ(report->status(), quantra::enums::CommodityCurveStatus_Unique);
+    ASSERT_EQ(report->months()->size(), 3u); // the live months
+    EXPECT_EQ(report->months()->Get(1)->month()->str(), "2025-04");
+    EXPECT_EQ(
+        report->months()->Get(1)->source(), quantra::enums::CommodityMonthSource_Interpolated);
+    EXPECT_EQ(report->months()->Get(0)->source(), quantra::enums::CommodityMonthSource_Quoted);
+    std::cout << "  filled 2025-04: " << built->months()->Get(2)->price().value() << std::endl;
+}
+
+TEST_F(ServerClientTest, BuildCommodityCurves_ConflictDetailsOverGrpc) {
+    // Two one-month quotes on March 2025, whose contract month is read for
+    // the whole month: 70 and 71 conflict. The details are read from the gRPC
+    // call itself (trailing metadata "quantra-error-details-bin"), no gateway.
+    flatbuffers::grpc::MessageBuilder b;
+    std::vector<flatbuffers::Offset<quantra::CommodityContractMonth>> months{
+        quantra::CreateCommodityContractMonthDirect(b, "2025-03", "2025-03-31")};
+    auto contract = quantra::CreateCommodityContractSpecDirect(
+        b, "SYN_C", quantra::enums::Calendar_WeekendsOnly, nullptr, &months, nullptr);
+    auto quote = [&](double price) {
+        auto periods = quantra::CreateCommodityPeriodsDirect(
+            b, "2025-03-01", "2025-03-31", quantra::enums::Frequency_Once, nullptr);
+        quantra::CommodityAverageQuoteBuilder qb(b);
+        qb.add_price(price);
+        qb.add_periods(periods);
+        qb.add_nearby(1);
+        qb.add_roll_days_before_expiry(0);
+        return qb.Finish();
+    };
+    std::vector<flatbuffers::Offset<quantra::CommodityAverageQuote>> quotes{
+        quote(70.0), quote(71.0)};
+    auto quotesVec = b.CreateVector(quotes);
+    quantra::CommodityCurveBuildBuilder cb(b);
+    cb.add_contract(contract);
+    cb.add_average_quotes(quotesVec);
+    std::vector<flatbuffers::Offset<quantra::CommodityCurveBuild>> builds{cb.Finish()};
+    auto asof = b.CreateString("2025-01-15");
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    auto pricing = pb.Finish();
+    b.Finish(quantra::CreateBuildCommodityCurvesRequestDirect(b, pricing, &builds));
+    auto request = b.ReleaseMessage<quantra::BuildCommodityCurvesRequest>();
+    ASSERT_TRUE(request.Verify());
+
+    grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+    flatbuffers::grpc::Message<quantra::BuildCommodityCurvesResponse> response;
+    auto status = stub_->BuildCommodityCurves(&context, request, &response);
+    ASSERT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
+    EXPECT_EQ(
+        status.error_message(),
+        "curves[0].average_quotes[1]: conflicts with the other quotes: they imply 70, it quotes "
+        "71, a gap of 1 (it is determined by average_quotes[0])");
+    const auto& trailers = context.GetServerTrailingMetadata();
+    const auto it = trailers.find("quantra-error-details-bin");
+    ASSERT_NE(it, trailers.end());
+    EXPECT_EQ(
+        std::string(it->second.data(), it->second.size()),
+        "{\"reason\": \"QuoteConflict\", \"curve\": 0, \"path\": \"curves[0].average_quotes[1]\", "
+        "\"average_quote\": 1, \"implied_value\": 70, \"quoted_value\": 71, \"gap\": 1, "
+        "\"depends_on\": [{\"average_quote\": 0}]}");
+}
+
+TEST_F(ServerClientTest, BuildCommodityCurves_RefusalDetails) {
+    // The same contract without an interpolation: refused, and the details
+    // travel in the trailing metadata next to the unchanged status.
+    flatbuffers::grpc::MessageBuilder b;
+    std::vector<flatbuffers::Offset<quantra::CommodityContractMonth>> months{
+        quantra::CreateCommodityContractMonthDirect(b, "2025-03", "2025-02-20", 70.0),
+        quantra::CreateCommodityContractMonthDirect(b, "2025-04", "2025-03-20"),
+        quantra::CreateCommodityContractMonthDirect(b, "2025-05", "2025-04-21", 73.0)};
+    auto contract = quantra::CreateCommodityContractSpecDirect(
+        b, "SYN_C", quantra::enums::Calendar_WeekendsOnly, nullptr, &months, nullptr);
+    std::vector<flatbuffers::Offset<quantra::CommodityCurveBuild>> builds{
+        quantra::CreateCommodityCurveBuild(b, contract)};
+    auto asof = b.CreateString("2025-01-15");
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    auto pricing = pb.Finish();
+    b.Finish(quantra::CreateBuildCommodityCurvesRequestDirect(b, pricing, &builds));
+    auto request = b.ReleaseMessage<quantra::BuildCommodityCurvesRequest>();
+    ASSERT_TRUE(request.Verify());
+
+    grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+    flatbuffers::grpc::Message<quantra::BuildCommodityCurvesResponse> response;
+    auto status = stub_->BuildCommodityCurves(&context, request, &response);
+    ASSERT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
+    EXPECT_NE(
+        status.error_message().find("curves[0].interpolation is required"), std::string::npos);
+    EXPECT_EQ(
+        quantra::QuantraClient::ErrorDetails(context),
+        "{\"reason\": \"InterpolationRequired\", \"curve\": 0, \"path\": "
+        "\"curves[0].interpolation\", \"months\": [\"2025-04\"]}");
 }
 
 TEST_F(ServerClientTest, BasisSwap_RoundTrip) {

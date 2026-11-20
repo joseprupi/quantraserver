@@ -1,0 +1,26 @@
+include "enums.fbs";
+include "pricing.fbs";
+include "commodity.fbs";
+include "commodity_periods.fbs";
+
+namespace quantra;
+
+/// Request to build one or more futures contracts from futures prices and
+/// average-price quotes. Each result is the contract with every live month
+/// priced, ready to paste into `pricing.commodity.contracts` of a
+/// `/price-commodity-swap` request, and a report of the build.
+table BuildCommodityCurvesRequest {
+    /// `as_of_date` (the valuation date that decides which months are live),
+    /// `calendar_overrides`, and `rates.curves` when an average quote names a
+    /// `discounting_curve` (then required) are read. `commodity` is a 400:
+    /// the contracts to build are given under `curves`.
+    pricing:Pricing (required);
+    /// The contracts to build; results come back in request order.
+    /// Required, non-empty.
+    curves:[CommodityCurveBuild] (required);
+    /// When true every report adds the weights of each average quote and
+    /// the sensitivity of each determined month to each input quote.
+    include_details:bool = false;
+}
+
+root_type BuildCommodityCurvesRequest;

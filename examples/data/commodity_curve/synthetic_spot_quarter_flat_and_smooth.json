@@ -1,0 +1,120 @@
+{
+  "pricing": {
+    "as_of_date": "2026-11-13",
+    "rates": {
+      "curves": [
+        {
+          "id": "USD_OIS",
+          "reference_date": "2026-11-13",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "bootstrap_trait": "InterpolatedDiscount",
+          "points": [
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2026-11-13",
+                "discount_factor": 1.0
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-02-13",
+                "discount_factor": 0.99
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-05-13",
+                "discount_factor": 0.98
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "curves": [
+    {
+      "spot": {
+        "id": "SYN_SPOT",
+        "pricing_calendar": "WeekendsOnly",
+        "interpolation": "BackwardFlat",
+        "extrapolate_flat": false,
+        "points": [
+          {
+            "date": "2026-12-31",
+            "price": 60.4
+          },
+          {
+            "date": "2027-01-31"
+          },
+          {
+            "date": "2027-02-28"
+          },
+          {
+            "date": "2027-03-31"
+          }
+        ]
+      },
+      "average_quotes": [
+        {
+          "price": 61.0,
+          "periods": {
+            "start_date": "2027-01-01",
+            "end_date": "2027-03-31",
+            "frequency": "Monthly"
+          },
+          "quantity_basis": "PerPeriod",
+          "payment_calendar": "UnitedStatesSettlement",
+          "payment_lag": 5,
+          "payment_convention": "Following",
+          "discounting_curve": "USD_OIS"
+        }
+      ],
+      "rule": "Flat"
+    },
+    {
+      "spot": {
+        "id": "SYN_SPOT",
+        "pricing_calendar": "WeekendsOnly",
+        "interpolation": "BackwardFlat",
+        "extrapolate_flat": false,
+        "points": [
+          {
+            "date": "2026-12-31",
+            "price": 60.4
+          },
+          {
+            "date": "2027-01-31"
+          },
+          {
+            "date": "2027-02-28"
+          },
+          {
+            "date": "2027-03-31"
+          }
+        ]
+      },
+      "average_quotes": [
+        {
+          "price": 61.0,
+          "periods": {
+            "start_date": "2027-01-01",
+            "end_date": "2027-03-31",
+            "frequency": "Monthly"
+          },
+          "quantity_basis": "PerPeriod",
+          "payment_calendar": "UnitedStatesSettlement",
+          "payment_lag": 5,
+          "payment_convention": "Following",
+          "discounting_curve": "USD_OIS"
+        }
+      ],
+      "rule": "Smooth"
+    }
+  ],
+  "include_details": true
+}
