@@ -1,7 +1,6 @@
-# Commodity swaps — examples (preview)
+# Commodity swaps — examples
 
-`POST /price-commodity-swap` requests. The endpoint is a preview: the request
-and response formats may still change. The fields, the rules and the
+`POST /price-commodity-swap` requests. The fields, the rules and the
 response are described in `docs/http-api.md`, section "Commodity swaps".
 
 Every number in these files is synthetic: the contract `SYN_CL`, the spot

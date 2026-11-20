@@ -10,7 +10,7 @@ This directory is the canonical home for project documentation.
 - `http-api.md`: request rules, HTTP status codes, error body, headers,
   per-request calendar holiday overrides, and the per-product sections (FX
   forwards, swap legs, cross-currency swaps, commodity swaps and commodity
-  curves from futures quotes (preview),
+  curves from futures quotes,
   structured notes with their
   Greeks and diagnostic blocks, implied forwards and dividends from option
   quotes, the volatility surface from option quotes)
@@ -57,7 +57,7 @@ bash tests/run_all_tests.sh
 | --- | --- |
 | `build.md` | Docker, devcontainer, local dependencies, build commands, troubleshooting |
 | `configuration.md` | Runtime environment variables: workers, ports, request budget, caches |
-| `http-api.md` | Cross-product HTTP contract: presence rules, dates, status codes, headers, calendar holiday overrides; product sections incl. "Commodity swaps" (preview), "Structured notes", "Implied forwards and dividends from option quotes", "Volatility surface from option quotes" and "Correlation from price histories" |
+| `http-api.md` | Cross-product HTTP contract: presence rules, dates, status codes, headers, calendar holiday overrides; product sections incl. "Commodity swaps", "Structured notes", "Implied forwards and dividends from option quotes", "Volatility surface from option quotes" and "Correlation from price histories" |
 | `scripts.md` | `generate_schemas.sh`, `generate_openapi.py`, `build.sh`, `scripts/quantra`, `envoy_config.py` |
 | `testing.md` | Full suite behavior, direct test entrypoints, CI expectations |
 | `process-manager.md` | Envoy-backed runtime model and installable process manager tooling |

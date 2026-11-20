@@ -4843,7 +4843,7 @@ CASES = [
                       "fixed leg received", "reporting in base ccy", "fair rate"],
     },
     # ------------------------------------------------------------------
-    # Commodities — commodity swaps on futures and spot prices (preview)
+    # Commodities — commodity swaps on futures and spot prices
     # ------------------------------------------------------------------
     {
         "id": "commodity_swap_synthetic_benchmark_fixed_vs_futures_and_spot",

@@ -1,7 +1,6 @@
-# Commodity curve builds — examples (preview)
+# Commodity curve builds — examples
 
-`POST /build-commodity-curves` requests. The endpoint is a preview: the
-request and response formats may still change. The fields, the rule and the
+`POST /build-commodity-curves` requests. The fields, the rule and the
 response are described in `docs/http-api.md`, section "Commodity curves from
 futures quotes".
 

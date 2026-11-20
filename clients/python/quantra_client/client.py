@@ -290,7 +290,7 @@ class Client:
     ) -> BuildCommodityCurvesResponse:
         """Complete futures contracts whose months are only partly priced:
         every live month without a price is interpolated from the quoted live
-        months (preview). Each result contract pastes into
+        months. Each result contract pastes into
         pricing.commodity.contracts of a commodity swap request."""
         return self._call(
             'build_commodity_curves',

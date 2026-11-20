@@ -1074,10 +1074,6 @@ and USD 4.10% fixed vs EUR Euribor 3M received, reported in EUR.
 
 ## Commodity swaps
 
-**Preview.** `POST /price-commodity-swap` is a preview: its request and
-response formats may still change before the release that makes them
-stable.
-
 The endpoint prices commodity swaps with two legs, one paid and one
 received. Each leg is a fixed price, or the average over each period's
 pricing days of a futures contract (a chosen nearby month, rolled before its
@@ -1266,7 +1262,7 @@ For a futures month, `delta = sum over the days reading it of s x quantity
 in the input prices, so the delta is exact, and repricing with a price moved
 by `h` moves `npv` by `delta x h`.
 
-### Limits of the preview
+### Limits
 
 - No units and no currency on the request: quantities are in the unit of the
   price and the discounting curve decides the currency. There is no unit
@@ -1418,10 +1414,6 @@ implementation in the gate, are in `examples/data/commodity_swap/` (see its
 README).
 
 ## Commodity curves from futures quotes
-
-**Preview.** `POST /build-commodity-curves` is a preview: its request and
-response formats may still change before the release that makes them
-stable.
 
 The endpoint builds a futures contract's month prices from futures prices
 (a quote sheet with gaps, illiquid back months), from average-price
