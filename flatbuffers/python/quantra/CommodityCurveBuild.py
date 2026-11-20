@@ -128,10 +128,10 @@ class CommodityCurveBuild(object):
             return obj
         return None
 
-    # Contract builds: the contract is a basis to another contract of the
-    # request. The live months no quote touches are then filled on their
-    # basis (price - base price) with `interpolation` / `extrapolate_flat`,
-    # and the base price is added back.
+    # The contract (spot price) is a basis to another contract (spot price)
+    # of the request. The live months (points) no quote touches are then
+    # filled on their basis (price - base price) with the interpolation and
+    # extrapolate_flat of the build, and the base price is added back.
     # CommodityCurveBuild
     def Basis(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))

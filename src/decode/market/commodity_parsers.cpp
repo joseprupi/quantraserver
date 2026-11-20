@@ -35,24 +35,47 @@ commodities::PricingCalendar parsePricingCalendar(
     return commodities::PricingCalendar(named, own);
 }
 
+/// A value rule of the library's constructor, named from the request:
+/// `<base>.<field> ...` with InvalidInput details.
+/// A decode error (its path already starts with `base`) keeps its message.
+[[noreturn]] void rethrowAt(const QuantraInvalidArgument& e, const std::string& base) {
+    if (e.path().empty()) {
+        // A decode message without a recorded path already names the field.
+        throw QuantraInvalidArgument(e.what());
+    }
+    const bool decoded = e.path().rfind(base, 0) == 0;
+    const std::string path = decoded ? e.path() : base + "." + e.path();
+    throw QuantraInvalidArgument(
+        decoded ? std::string(e.what()) : base + "." + e.what(),
+        "{\"reason\": \"InvalidInput\", \"path\": \"" + path + "\"}");
+}
+
 std::shared_ptr<const commodities::FuturesContract> parseContract(
     const quantra::CommodityContractSpec* spec, const std::string& base) {
-    auto data = DecodeCommodityContract(spec, base);
-    return std::make_shared<const commodities::FuturesContract>(
-        std::move(data.id), std::move(data.calendar), std::move(data.months), data.fixings);
+    try {
+        auto data = DecodeCommodityContract(spec, base);
+        return std::make_shared<const commodities::FuturesContract>(
+            std::move(data.id), std::move(data.calendar), std::move(data.months), data.fixings);
+    } catch (const QuantraInvalidArgument& e) {
+        rethrowAt(e, base);
+    }
 }
 
 std::shared_ptr<const commodities::SpotPrice> parseSpot(
     const quantra::CommoditySpotSpec* spec, const std::string& base) {
-    auto data = DecodeCommoditySpot(spec, base, true);
-    std::vector<commodities::SpotPoint> points;
-    points.reserve(data.points.size());
-    for (const auto& p : data.points) {
-        points.push_back({p.date, *p.price});
+    try {
+        auto data = DecodeCommoditySpot(spec, base, true);
+        std::vector<commodities::SpotPoint> points;
+        points.reserve(data.points.size());
+        for (const auto& p : data.points) {
+            points.push_back({p.date, *p.price});
+        }
+        return std::make_shared<const commodities::SpotPrice>(
+            std::move(data.id), std::move(data.calendar), data.interpolation, data.extrapolateFlat,
+            std::move(points), data.fixings);
+    } catch (const QuantraInvalidArgument& e) {
+        rethrowAt(e, base);
     }
-    return std::make_shared<const commodities::SpotPrice>(
-        std::move(data.id), std::move(data.calendar), data.interpolation, data.extrapolateFlat,
-        std::move(points), data.fixings);
 }
 
 } // namespace
@@ -63,7 +86,7 @@ CommodityContractData DecodeCommodityContract(
         QuantraInvalidArgumentAt(base, base + " is null");
     }
     const std::string id = requireNonEmptyString(spec->id(), base + ".id");
-    const std::string named = base + " ('" + id + "')";
+    const std::string& named = base;
     auto calendar = parsePricingCalendar(spec->pricing_calendar(), spec->pricing_holidays(), named);
 
     const auto* months = spec->months();
@@ -113,7 +136,7 @@ CommoditySpotData DecodeCommoditySpot(
         QuantraInvalidArgumentAt(base, base + " is null");
     }
     const std::string id = requireNonEmptyString(spec->id(), base + ".id");
-    const std::string named = base + " ('" + id + "')";
+    const std::string& named = base;
     auto calendar = parsePricingCalendar(spec->pricing_calendar(), spec->pricing_holidays(), named);
     const std::string interpolationField = named + ".interpolation";
     const auto interpolation = DecodeCommodityInterpolation(

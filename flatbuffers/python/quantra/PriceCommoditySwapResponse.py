@@ -50,8 +50,35 @@ class PriceCommoditySwapResponse(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         return o == 0
 
+    # Only when `pricing.commodity.curve_builds` is given: one summary per
+    # entry, in request order.
+    # PriceCommoditySwapResponse
+    def CurveBuilds(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra.CommodityBuiltCurveSummary import CommodityBuiltCurveSummary
+            obj = CommodityBuiltCurveSummary()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # PriceCommoditySwapResponse
+    def CurveBuildsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # PriceCommoditySwapResponse
+    def CurveBuildsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        return o == 0
+
 def PriceCommoditySwapResponseStart(builder):
-    builder.StartObject(1)
+    builder.StartObject(2)
 
 def Start(builder):
     PriceCommoditySwapResponseStart(builder)
@@ -67,6 +94,18 @@ def PriceCommoditySwapResponseStartSwapsVector(builder, numElems):
 
 def StartSwapsVector(builder, numElems):
     return PriceCommoditySwapResponseStartSwapsVector(builder, numElems)
+
+def PriceCommoditySwapResponseAddCurveBuilds(builder, curveBuilds):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(curveBuilds), 0)
+
+def AddCurveBuilds(builder, curveBuilds):
+    PriceCommoditySwapResponseAddCurveBuilds(builder, curveBuilds)
+
+def PriceCommoditySwapResponseStartCurveBuildsVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartCurveBuildsVector(builder, numElems):
+    return PriceCommoditySwapResponseStartCurveBuildsVector(builder, numElems)
 
 def PriceCommoditySwapResponseEnd(builder):
     return builder.EndObject()
@@ -84,6 +123,7 @@ class PriceCommoditySwapResponseT(object):
     # PriceCommoditySwapResponseT
     def __init__(self):
         self.swaps = None  # type: List[CommoditySwapResponseT]
+        self.curveBuilds = None  # type: List[CommodityBuiltCurveSummaryT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -114,6 +154,14 @@ class PriceCommoditySwapResponseT(object):
                 else:
                     commoditySwapResponse_ = CommoditySwapResponseT.InitFromObj(priceCommoditySwapResponse.Swaps(i))
                     self.swaps.append(commoditySwapResponse_)
+        if not priceCommoditySwapResponse.CurveBuildsIsNone():
+            self.curveBuilds = []
+            for i in range(priceCommoditySwapResponse.CurveBuildsLength()):
+                if priceCommoditySwapResponse.CurveBuilds(i) is None:
+                    self.curveBuilds.append(None)
+                else:
+                    commodityBuiltCurveSummary_ = CommodityBuiltCurveSummaryT.InitFromObj(priceCommoditySwapResponse.CurveBuilds(i))
+                    self.curveBuilds.append(commodityBuiltCurveSummary_)
 
     # PriceCommoditySwapResponseT
     def Pack(self, builder):
@@ -125,8 +173,18 @@ class PriceCommoditySwapResponseT(object):
             for i in reversed(range(len(self.swaps))):
                 builder.PrependUOffsetTRelative(swapslist[i])
             swaps = builder.EndVector()
+        if self.curveBuilds is not None:
+            curveBuildslist = []
+            for i in range(len(self.curveBuilds)):
+                curveBuildslist.append(self.curveBuilds[i].Pack(builder))
+            PriceCommoditySwapResponseStartCurveBuildsVector(builder, len(self.curveBuilds))
+            for i in reversed(range(len(self.curveBuilds))):
+                builder.PrependUOffsetTRelative(curveBuildslist[i])
+            curveBuilds = builder.EndVector()
         PriceCommoditySwapResponseStart(builder)
         if self.swaps is not None:
             PriceCommoditySwapResponseAddSwaps(builder, swaps)
+        if self.curveBuilds is not None:
+            PriceCommoditySwapResponseAddCurveBuilds(builder, curveBuilds)
         priceCommoditySwapResponse = PriceCommoditySwapResponseEnd(builder)
         return priceCommoditySwapResponse

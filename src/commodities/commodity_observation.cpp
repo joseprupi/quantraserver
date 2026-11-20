@@ -22,15 +22,27 @@ Observation ObserveFutures(
             return obs;
         }
         if (day < asOf) {
-            QUANTRA_INVALID_ARGUMENT(
+            CommodityReadData data;
+            data.reason = "MissingFixing";
+            data.date = DateToIso(day);
+            data.month = month.month;
+            data.contractId = contract.id();
+            throw CommodityReadError(
                 "commodity contract '" + contract.id() + "': no fixing of " + month.month +
-                " on pricing day " + DateToIso(day) + " (before the valuation date)");
+                    " on pricing day " + DateToIso(day) + " (before the valuation date)",
+                data);
         }
     }
     if (!month.price) {
-        QUANTRA_INVALID_ARGUMENT(
+        CommodityReadData data;
+        data.reason = "MonthWithoutPrice";
+        data.date = DateToIso(day);
+        data.month = month.month;
+        data.contractId = contract.id();
+        throw CommodityReadError(
             "commodity contract '" + contract.id() + "': month " + month.month +
-            " has no price and is read on " + DateToIso(day));
+                " has no price and is read on " + DateToIso(day),
+            data);
     }
     obs.price = *month.price;
     obs.source = PriceSource::Curve;
@@ -50,9 +62,14 @@ SpotObservation ObserveSpot(
             return out;
         }
         if (day < asOf) {
-            QUANTRA_INVALID_ARGUMENT(
+            CommodityReadData data;
+            data.reason = "MissingFixing";
+            data.date = DateToIso(day);
+            data.spotId = spot.id();
+            throw CommodityReadError(
                 "commodity spot price '" + spot.id() + "': no fixing on pricing day " +
-                DateToIso(day) + " (before the valuation date)");
+                    DateToIso(day) + " (before the valuation date)",
+                data);
         }
     }
     out.weights = spot.weights(day);

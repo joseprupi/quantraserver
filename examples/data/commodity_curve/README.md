@@ -36,7 +36,7 @@ contract (worth zero).
 | `synthetic_kruger_cubic.json` | The same quotes filled `KrugerCubic` (a cubic that limits overshoot between quotes). |
 | `synthetic_natural_cubic_flat_after_last_quote.json` | Five quotes to September 2027 filled `NaturalCubic` (smooth, can overshoot); October to December take the September quote (`extrapolate_flat`): the cubic is never continued beyond the quotes. |
 | `synthetic_average_quotes_months_and_quarter_unique.json` | Average quotes: January 50, February 52 and a first quarter at 53 paid monthly and discounted determine March (57.0246). Unique. Weights and sensitivities included. |
-| `synthetic_average_quotes_quarter_flat_and_smooth.json` | January 50 and the quarter 53 only: two builds, `Flat` (February = March = 54.5076) and `Smooth` (53.0069, 56.0139). |
+| `synthetic_average_quotes_quarter_flat_and_smooth.json` | January 50 and the quarter 53 only: two builds, `Flat` (February = March = 54.5076) and `Smooth` (52.8382, 56.1832; on a line in time). |
 | `synthetic_average_quotes_monthly_strip.json` | The swap examples' contract with only January 2027 priced and eleven one-month average quotes: the strip they were computed from comes back. |
 | `synthetic_average_quotes_monthly_strip_rounded_fragile.json` | The same quotes rounded to the cent: an exact but wildly oscillating strip, `max_sensitivity` about 8,171. |
 | `synthetic_fully_priced_identity.json` | Every month priced and no `interpolation`: the contract comes back unchanged. |
@@ -49,6 +49,8 @@ contract (worth zero).
 | `synthetic_basis_month_average.json` | An averaging basis: each month's base price is the calendar-month average of the base front month (`MonthAverage`), November fixings included. |
 | `synthetic_basis_with_average_quote_on_top.json` | Basis quotes on January and March, a one-month average quote solving February. |
 | `refused_basis_cycle.json` | Refused: two contracts each the base of the other (`400`, `BasisCycle`). Not a catalog row. |
+| `synthetic_spot_basis_by_date_with_spread_quote.json` | A spot price built as a basis to another spot price: basis quotes by date and December quoted as an average spread to the base (`versus_base`); with details, the sensitivities list the base's inputs. |
+| `synthetic_basis_quarter_spread_to_base.json` | A basis contract with the first quarter quoted as this contract's front-month average minus the base's (`versus_base`, `base_nearby`, `base_roll_days_before_expiry`), completed `Smooth`. |
 
 To build one against a running gateway:
 

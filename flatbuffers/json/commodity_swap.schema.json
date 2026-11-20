@@ -261,6 +261,10 @@
       "type" : "string",
       "enum": ["SameMonth", "MonthAverage"]
     },
+    "quantra_enums_CommodityFuturesObservation" : {
+      "type" : "string",
+      "enum": ["DailyAverage", "OnePricePerPeriod"]
+    },
     "quantra_enums_CommodityQuoteStatus" : {
       "type" : "string",
       "enum": ["Used", "Redundant"]
@@ -344,7 +348,7 @@
     },
     "quantra_FuturesFloatingPrice" : {
       "type" : "object",
-      "description" : "Floating price from a futures contract: the average, over the period's\npricing days, of the nearby contract's price.",
+      "description" : "Floating price from a futures contract: the average, over the period's\npricing days, of the nearby contract's price; or, with `observation`\nOnePricePerPeriod, one price per period.",
       "properties" : {
         "contract_id" : {
                 "type" : "string",
@@ -352,15 +356,19 @@
               },
         "nearby" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
-                "description" : "Which contract is read: 1 is the front month, 2 the next one.\nPresence-required."
+                "description" : "Which contract is read: 1 is the front month, 2 the next one.\nPresence-required with DailyAverage; a 400 with OnePricePerPeriod."
               },
         "roll_days_before_expiry" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
-                "description" : "A pricing day rolls to the next contract this many pricing days\nbefore the last trading date: 0 reads the front month on its last\ntrading date. Presence-required."
+                "description" : "A pricing day rolls to the next contract this many pricing days\nbefore the last trading date: 0 reads the front month on its last\ntrading date. Presence-required with DailyAverage; a 400 with\nOnePricePerPeriod."
               },
         "spread" : {
                 "type" : "number",
                 "description" : "Added to each period's average, in price units. Defaults to 0."
+              },
+        "observation" : {
+                "$ref" : "#/definitions/quantra_enums_CommodityFuturesObservation",
+                "description" : "DailyAverage (the default): the average over the period's pricing\ndays. OnePricePerPeriod: one price per period, the contract month\ncontaining the period's last day read on the earlier of the payment\ndate and its last trading date (a quantity per pricing day on either\nleg is then a 400)."
               }
       },
       "required" : ["contract_id"],
@@ -436,6 +444,10 @@
         "leg2" : {
                 "$ref" : "#/definitions/quantra_CommoditySwapLeg",
                 "description" : "Second leg. Required. Reported as `legs[1]`."
+              },
+        "common_pricing" : {
+                "type" : "boolean",
+                "description" : "Two floating legs only (a 400 otherwise): a day is a pricing day of a\nperiod of either leg only when it is a pricing day of both legs'\ncontracts or spot prices. Default false: each leg averages over its\nown pricing days."
               }
       },
       "required" : ["leg1", "leg2"],

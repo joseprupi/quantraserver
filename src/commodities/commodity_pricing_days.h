@@ -11,15 +11,43 @@
  */
 
 #include "commodity_periods.h"
+#include "error.h"
 
 #include <ql/time/calendar.hpp>
 #include <ql/time/date.hpp>
 
+#include <optional>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace quantra { namespace commodities {
+
+/// A refusal of the swap pricer about the market data or the days it reads,
+/// with its data (the error's details): `reason` MissingFixing,
+/// MonthWithoutPrice, MonthNotListed, DateOutsidePoints, NoPricingDay or
+/// NoCommonPricingDay; `path` the request field relative to the swap (a
+/// period: `leg2.periods[3]`), set by the pricer; the day, the contract
+/// month and the contract or spot id read when they apply.
+struct CommodityReadData {
+    std::string reason;
+    std::string path;
+    std::optional<std::string> date;
+    std::optional<std::string> month;
+    std::optional<std::string> contractId;
+    std::optional<std::string> spotId;
+};
+
+class CommodityReadError : public QuantraInvalidArgument {
+public:
+    CommodityReadError(const std::string& message, CommodityReadData data)
+        : QuantraInvalidArgument(message), data_(std::move(data)) {}
+    const CommodityReadData& data() const { return data_; }
+
+private:
+    CommodityReadData data_;
+};
 
 class PricingCalendar {
 public:

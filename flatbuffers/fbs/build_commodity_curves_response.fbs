@@ -15,6 +15,10 @@ table CommodityQuoteSensitivity {
     value:double;
     /// Date of a direct spot point price (YYYY-MM-DD), instead of `month`.
     date:string;
+    /// Basis builds: the index in `curves` of the entry the input belongs
+    /// to, when it is an input of the base (or of the base's base). Absent
+    /// for the entry's own inputs.
+    curve:int = null;
 }
 
 /// One live month of the built contract.
@@ -55,6 +59,10 @@ table CommodityCurvePoint {
     /// per input quote (direct point prices in date order, then average
     /// quotes).
     sensitivities:[CommodityQuoteSensitivity];
+    /// Basis builds: the point's base price (the base spot read on its date)
+    /// and price - base price.
+    base_price:double = null;
+    basis:double = null;
 }
 
 /// One average quote after the build.

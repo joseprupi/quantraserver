@@ -33,6 +33,14 @@ struct CommodityPriceDelta;
 struct CommodityPriceDeltaBuilder;
 struct CommodityPriceDeltaT;
 
+struct CommodityQuoteDelta;
+struct CommodityQuoteDeltaBuilder;
+struct CommodityQuoteDeltaT;
+
+struct CommodityBuiltCurveSummary;
+struct CommodityBuiltCurveSummaryBuilder;
+struct CommodityBuiltCurveSummaryT;
+
 struct CommoditySwapResponse;
 struct CommoditySwapResponseBuilder;
 struct CommoditySwapResponseT;
@@ -637,6 +645,243 @@ inline ::flatbuffers::Offset<CommodityPriceDelta> CreateCommodityPriceDeltaDirec
 
 ::flatbuffers::Offset<CommodityPriceDelta> CreateCommodityPriceDelta(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityPriceDeltaT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct CommodityQuoteDeltaT : public ::flatbuffers::NativeTable {
+  typedef CommodityQuoteDelta TableType;
+  std::string curve_id{};
+  std::string month{};
+  std::string date{};
+  ::flatbuffers::Optional<int32_t> average_quote = ::flatbuffers::nullopt;
+  double delta = 0.0;
+};
+
+/// Sensitivity of a swap's NPV to one input of a contract or spot price built
+/// in the request (`pricing.commodity.curve_builds`): the NPV's sensitivity
+/// to each built price read (`deltas`) times that price's sensitivity to the
+/// input, summed over every built price (and, through a basis, over the
+/// base's prices).
+struct CommodityQuoteDelta FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef CommodityQuoteDeltaT NativeTableType;
+  typedef CommodityQuoteDeltaBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_CURVE_ID = 4,
+    VT_MONTH = 6,
+    VT_DATE = 8,
+    VT_AVERAGE_QUOTE = 10,
+    VT_DELTA = 12
+  };
+  /// Id of the `pricing.commodity.curve_builds` entry the input belongs
+  /// to.
+  const ::flatbuffers::String *curve_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_CURVE_ID);
+  }
+  /// A direct price (or basis quote) of a contract month, "YYYY-MM".
+  const ::flatbuffers::String *month() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_MONTH);
+  }
+  /// A direct price (or basis quote) of a spot point, YYYY-MM-DD.
+  const ::flatbuffers::String *date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_DATE);
+  }
+  /// An average quote's index in the entry's `average_quotes`.
+  ::flatbuffers::Optional<int32_t> average_quote() const {
+    return GetOptional<int32_t, int32_t>(VT_AVERAGE_QUOTE);
+  }
+  /// Change of the swap's NPV per unit change of the input.
+  double delta() const {
+    return GetField<double>(VT_DELTA, 0.0);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_CURVE_ID) &&
+           verifier.VerifyString(curve_id()) &&
+           VerifyOffset(verifier, VT_MONTH) &&
+           verifier.VerifyString(month()) &&
+           VerifyOffset(verifier, VT_DATE) &&
+           verifier.VerifyString(date()) &&
+           VerifyField<int32_t>(verifier, VT_AVERAGE_QUOTE, 4) &&
+           VerifyField<double>(verifier, VT_DELTA, 8) &&
+           verifier.EndTable();
+  }
+  CommodityQuoteDeltaT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(CommodityQuoteDeltaT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<CommodityQuoteDelta> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityQuoteDeltaT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct CommodityQuoteDeltaBuilder {
+  typedef CommodityQuoteDelta Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_curve_id(::flatbuffers::Offset<::flatbuffers::String> curve_id) {
+    fbb_.AddOffset(CommodityQuoteDelta::VT_CURVE_ID, curve_id);
+  }
+  void add_month(::flatbuffers::Offset<::flatbuffers::String> month) {
+    fbb_.AddOffset(CommodityQuoteDelta::VT_MONTH, month);
+  }
+  void add_date(::flatbuffers::Offset<::flatbuffers::String> date) {
+    fbb_.AddOffset(CommodityQuoteDelta::VT_DATE, date);
+  }
+  void add_average_quote(int32_t average_quote) {
+    fbb_.AddElement<int32_t>(CommodityQuoteDelta::VT_AVERAGE_QUOTE, average_quote);
+  }
+  void add_delta(double delta) {
+    fbb_.AddElement<double>(CommodityQuoteDelta::VT_DELTA, delta, 0.0);
+  }
+  explicit CommodityQuoteDeltaBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<CommodityQuoteDelta> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<CommodityQuoteDelta>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<CommodityQuoteDelta> CreateCommodityQuoteDelta(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> curve_id = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> month = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> date = 0,
+    ::flatbuffers::Optional<int32_t> average_quote = ::flatbuffers::nullopt,
+    double delta = 0.0) {
+  CommodityQuoteDeltaBuilder builder_(_fbb);
+  builder_.add_delta(delta);
+  if(average_quote) { builder_.add_average_quote(*average_quote); }
+  builder_.add_date(date);
+  builder_.add_month(month);
+  builder_.add_curve_id(curve_id);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<CommodityQuoteDelta> CreateCommodityQuoteDeltaDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *curve_id = nullptr,
+    const char *month = nullptr,
+    const char *date = nullptr,
+    ::flatbuffers::Optional<int32_t> average_quote = ::flatbuffers::nullopt,
+    double delta = 0.0) {
+  auto curve_id__ = curve_id ? _fbb.CreateString(curve_id) : 0;
+  auto month__ = month ? _fbb.CreateString(month) : 0;
+  auto date__ = date ? _fbb.CreateString(date) : 0;
+  return quantra::CreateCommodityQuoteDelta(
+      _fbb,
+      curve_id__,
+      month__,
+      date__,
+      average_quote,
+      delta);
+}
+
+::flatbuffers::Offset<CommodityQuoteDelta> CreateCommodityQuoteDelta(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityQuoteDeltaT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct CommodityBuiltCurveSummaryT : public ::flatbuffers::NativeTable {
+  typedef CommodityBuiltCurveSummary TableType;
+  std::string id{};
+  quantra::enums::CommodityCurveStatus status = quantra::enums::CommodityCurveStatus_Unique;
+  double max_repricing_difference = 0.0;
+  double max_sensitivity = 0.0;
+};
+
+/// One contract or spot price built in the request.
+struct CommodityBuiltCurveSummary FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef CommodityBuiltCurveSummaryT NativeTableType;
+  typedef CommodityBuiltCurveSummaryBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_ID = 4,
+    VT_STATUS = 6,
+    VT_MAX_REPRICING_DIFFERENCE = 8,
+    VT_MAX_SENSITIVITY = 10
+  };
+  /// The entry's contract or spot id.
+  const ::flatbuffers::String *id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_ID);
+  }
+  /// Unique or Underdetermined (then the entry's rule decided).
+  quantra::enums::CommodityCurveStatus status() const {
+    return static_cast<quantra::enums::CommodityCurveStatus>(GetField<int8_t>(VT_STATUS, 0));
+  }
+  /// Largest |repriced - quoted| over the entry's average quotes.
+  double max_repricing_difference() const {
+    return GetField<double>(VT_MAX_REPRICING_DIFFERENCE, 0.0);
+  }
+  /// Largest |d price / d input| over every live month (point) and every
+  /// input, the bases' inputs included: a large value means a fragile
+  /// build.
+  double max_sensitivity() const {
+    return GetField<double>(VT_MAX_SENSITIVITY, 0.0);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_ID) &&
+           verifier.VerifyString(id()) &&
+           VerifyField<int8_t>(verifier, VT_STATUS, 1) &&
+           VerifyField<double>(verifier, VT_MAX_REPRICING_DIFFERENCE, 8) &&
+           VerifyField<double>(verifier, VT_MAX_SENSITIVITY, 8) &&
+           verifier.EndTable();
+  }
+  CommodityBuiltCurveSummaryT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(CommodityBuiltCurveSummaryT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<CommodityBuiltCurveSummary> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityBuiltCurveSummaryT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct CommodityBuiltCurveSummaryBuilder {
+  typedef CommodityBuiltCurveSummary Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_id(::flatbuffers::Offset<::flatbuffers::String> id) {
+    fbb_.AddOffset(CommodityBuiltCurveSummary::VT_ID, id);
+  }
+  void add_status(quantra::enums::CommodityCurveStatus status) {
+    fbb_.AddElement<int8_t>(CommodityBuiltCurveSummary::VT_STATUS, static_cast<int8_t>(status), 0);
+  }
+  void add_max_repricing_difference(double max_repricing_difference) {
+    fbb_.AddElement<double>(CommodityBuiltCurveSummary::VT_MAX_REPRICING_DIFFERENCE, max_repricing_difference, 0.0);
+  }
+  void add_max_sensitivity(double max_sensitivity) {
+    fbb_.AddElement<double>(CommodityBuiltCurveSummary::VT_MAX_SENSITIVITY, max_sensitivity, 0.0);
+  }
+  explicit CommodityBuiltCurveSummaryBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<CommodityBuiltCurveSummary> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<CommodityBuiltCurveSummary>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<CommodityBuiltCurveSummary> CreateCommodityBuiltCurveSummary(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> id = 0,
+    quantra::enums::CommodityCurveStatus status = quantra::enums::CommodityCurveStatus_Unique,
+    double max_repricing_difference = 0.0,
+    double max_sensitivity = 0.0) {
+  CommodityBuiltCurveSummaryBuilder builder_(_fbb);
+  builder_.add_max_sensitivity(max_sensitivity);
+  builder_.add_max_repricing_difference(max_repricing_difference);
+  builder_.add_id(id);
+  builder_.add_status(status);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<CommodityBuiltCurveSummary> CreateCommodityBuiltCurveSummaryDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *id = nullptr,
+    quantra::enums::CommodityCurveStatus status = quantra::enums::CommodityCurveStatus_Unique,
+    double max_repricing_difference = 0.0,
+    double max_sensitivity = 0.0) {
+  auto id__ = id ? _fbb.CreateString(id) : 0;
+  return quantra::CreateCommodityBuiltCurveSummary(
+      _fbb,
+      id__,
+      status,
+      max_repricing_difference,
+      max_sensitivity);
+}
+
+::flatbuffers::Offset<CommodityBuiltCurveSummary> CreateCommodityBuiltCurveSummary(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityBuiltCurveSummaryT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct CommoditySwapResponseT : public ::flatbuffers::NativeTable {
   typedef CommoditySwapResponse TableType;
   double npv = 0.0;
@@ -644,6 +889,7 @@ struct CommoditySwapResponseT : public ::flatbuffers::NativeTable {
   ::flatbuffers::Optional<double> fair_spread = ::flatbuffers::nullopt;
   std::vector<std::unique_ptr<quantra::CommoditySwapLegResultT>> legs{};
   std::vector<std::unique_ptr<quantra::CommodityPriceDeltaT>> deltas{};
+  std::vector<std::unique_ptr<quantra::CommodityQuoteDeltaT>> quote_deltas{};
   CommoditySwapResponseT() = default;
   CommoditySwapResponseT(const CommoditySwapResponseT &o);
   CommoditySwapResponseT(CommoditySwapResponseT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -664,7 +910,8 @@ struct CommoditySwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Ta
     VT_FAIR_FIXED_PRICE = 6,
     VT_FAIR_SPREAD = 8,
     VT_LEGS = 10,
-    VT_DELTAS = 12
+    VT_DELTAS = 12,
+    VT_QUOTE_DELTAS = 14
   };
   /// Total present value, in the currency of the prices supplied, positive
   /// in favour of the reported party.
@@ -689,6 +936,13 @@ struct CommoditySwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Ta
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityPriceDelta>> *deltas() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityPriceDelta>> *>(VT_DELTAS);
   }
+  /// Only when `pricing.commodity.curve_builds` is given: the sensitivity
+  /// of `npv` to every input of every built contract or spot price the
+  /// swap reads (in entry order, then the entry's inputs: direct prices
+  /// and basis quotes in month or date order, then average quotes).
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityQuoteDelta>> *quote_deltas() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityQuoteDelta>> *>(VT_QUOTE_DELTAS);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<double>(verifier, VT_NPV, 8) &&
@@ -700,6 +954,9 @@ struct CommoditySwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Ta
            VerifyOffset(verifier, VT_DELTAS) &&
            verifier.VerifyVector(deltas()) &&
            verifier.VerifyVectorOfTables(deltas()) &&
+           VerifyOffset(verifier, VT_QUOTE_DELTAS) &&
+           verifier.VerifyVector(quote_deltas()) &&
+           verifier.VerifyVectorOfTables(quote_deltas()) &&
            verifier.EndTable();
   }
   CommoditySwapResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -726,6 +983,9 @@ struct CommoditySwapResponseBuilder {
   void add_deltas(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityPriceDelta>>> deltas) {
     fbb_.AddOffset(CommoditySwapResponse::VT_DELTAS, deltas);
   }
+  void add_quote_deltas(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityQuoteDelta>>> quote_deltas) {
+    fbb_.AddOffset(CommoditySwapResponse::VT_QUOTE_DELTAS, quote_deltas);
+  }
   explicit CommoditySwapResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -744,11 +1004,13 @@ inline ::flatbuffers::Offset<CommoditySwapResponse> CreateCommoditySwapResponse(
     ::flatbuffers::Optional<double> fair_fixed_price = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<double> fair_spread = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommoditySwapLegResult>>> legs = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityPriceDelta>>> deltas = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityPriceDelta>>> deltas = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityQuoteDelta>>> quote_deltas = 0) {
   CommoditySwapResponseBuilder builder_(_fbb);
   if(fair_spread) { builder_.add_fair_spread(*fair_spread); }
   if(fair_fixed_price) { builder_.add_fair_fixed_price(*fair_fixed_price); }
   builder_.add_npv(npv);
+  builder_.add_quote_deltas(quote_deltas);
   builder_.add_deltas(deltas);
   builder_.add_legs(legs);
   return builder_.Finish();
@@ -760,16 +1022,19 @@ inline ::flatbuffers::Offset<CommoditySwapResponse> CreateCommoditySwapResponseD
     ::flatbuffers::Optional<double> fair_fixed_price = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<double> fair_spread = ::flatbuffers::nullopt,
     const std::vector<::flatbuffers::Offset<quantra::CommoditySwapLegResult>> *legs = nullptr,
-    const std::vector<::flatbuffers::Offset<quantra::CommodityPriceDelta>> *deltas = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::CommodityPriceDelta>> *deltas = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::CommodityQuoteDelta>> *quote_deltas = nullptr) {
   auto legs__ = legs ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommoditySwapLegResult>>(*legs) : 0;
   auto deltas__ = deltas ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityPriceDelta>>(*deltas) : 0;
+  auto quote_deltas__ = quote_deltas ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityQuoteDelta>>(*quote_deltas) : 0;
   return quantra::CreateCommoditySwapResponse(
       _fbb,
       npv,
       fair_fixed_price,
       fair_spread,
       legs__,
-      deltas__);
+      deltas__,
+      quote_deltas__);
 }
 
 ::flatbuffers::Offset<CommoditySwapResponse> CreateCommoditySwapResponse(::flatbuffers::FlatBufferBuilder &_fbb, const CommoditySwapResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -777,6 +1042,7 @@ inline ::flatbuffers::Offset<CommoditySwapResponse> CreateCommoditySwapResponseD
 struct PriceCommoditySwapResponseT : public ::flatbuffers::NativeTable {
   typedef PriceCommoditySwapResponse TableType;
   std::vector<std::unique_ptr<quantra::CommoditySwapResponseT>> swaps{};
+  std::vector<std::unique_ptr<quantra::CommodityBuiltCurveSummaryT>> curve_builds{};
   PriceCommoditySwapResponseT() = default;
   PriceCommoditySwapResponseT(const PriceCommoditySwapResponseT &o);
   PriceCommoditySwapResponseT(PriceCommoditySwapResponseT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -788,16 +1054,25 @@ struct PriceCommoditySwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffer
   typedef PriceCommoditySwapResponseT NativeTableType;
   typedef PriceCommoditySwapResponseBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_SWAPS = 4
+    VT_SWAPS = 4,
+    VT_CURVE_BUILDS = 6
   };
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommoditySwapResponse>> *swaps() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommoditySwapResponse>> *>(VT_SWAPS);
+  }
+  /// Only when `pricing.commodity.curve_builds` is given: one summary per
+  /// entry, in request order.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityBuiltCurveSummary>> *curve_builds() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityBuiltCurveSummary>> *>(VT_CURVE_BUILDS);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_SWAPS) &&
            verifier.VerifyVector(swaps()) &&
            verifier.VerifyVectorOfTables(swaps()) &&
+           VerifyOffset(verifier, VT_CURVE_BUILDS) &&
+           verifier.VerifyVector(curve_builds()) &&
+           verifier.VerifyVectorOfTables(curve_builds()) &&
            verifier.EndTable();
   }
   PriceCommoditySwapResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -811,6 +1086,9 @@ struct PriceCommoditySwapResponseBuilder {
   ::flatbuffers::uoffset_t start_;
   void add_swaps(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommoditySwapResponse>>> swaps) {
     fbb_.AddOffset(PriceCommoditySwapResponse::VT_SWAPS, swaps);
+  }
+  void add_curve_builds(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityBuiltCurveSummary>>> curve_builds) {
+    fbb_.AddOffset(PriceCommoditySwapResponse::VT_CURVE_BUILDS, curve_builds);
   }
   explicit PriceCommoditySwapResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -826,19 +1104,24 @@ struct PriceCommoditySwapResponseBuilder {
 
 inline ::flatbuffers::Offset<PriceCommoditySwapResponse> CreatePriceCommoditySwapResponse(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommoditySwapResponse>>> swaps = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommoditySwapResponse>>> swaps = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityBuiltCurveSummary>>> curve_builds = 0) {
   PriceCommoditySwapResponseBuilder builder_(_fbb);
+  builder_.add_curve_builds(curve_builds);
   builder_.add_swaps(swaps);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<PriceCommoditySwapResponse> CreatePriceCommoditySwapResponseDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<::flatbuffers::Offset<quantra::CommoditySwapResponse>> *swaps = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::CommoditySwapResponse>> *swaps = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::CommodityBuiltCurveSummary>> *curve_builds = nullptr) {
   auto swaps__ = swaps ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommoditySwapResponse>>(*swaps) : 0;
+  auto curve_builds__ = curve_builds ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityBuiltCurveSummary>>(*curve_builds) : 0;
   return quantra::CreatePriceCommoditySwapResponse(
       _fbb,
-      swaps__);
+      swaps__,
+      curve_builds__);
 }
 
 ::flatbuffers::Offset<PriceCommoditySwapResponse> CreatePriceCommoditySwapResponse(::flatbuffers::FlatBufferBuilder &_fbb, const PriceCommoditySwapResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -1063,6 +1346,79 @@ inline ::flatbuffers::Offset<CommodityPriceDelta> CreateCommodityPriceDelta(::fl
       _delta);
 }
 
+inline CommodityQuoteDeltaT *CommodityQuoteDelta::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<CommodityQuoteDeltaT>(new CommodityQuoteDeltaT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void CommodityQuoteDelta::UnPackTo(CommodityQuoteDeltaT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = curve_id(); if (_e) _o->curve_id = _e->str(); }
+  { auto _e = month(); if (_e) _o->month = _e->str(); }
+  { auto _e = date(); if (_e) _o->date = _e->str(); }
+  { auto _e = average_quote(); _o->average_quote = _e; }
+  { auto _e = delta(); _o->delta = _e; }
+}
+
+inline ::flatbuffers::Offset<CommodityQuoteDelta> CommodityQuoteDelta::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityQuoteDeltaT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateCommodityQuoteDelta(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<CommodityQuoteDelta> CreateCommodityQuoteDelta(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityQuoteDeltaT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CommodityQuoteDeltaT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _curve_id = _o->curve_id.empty() ? 0 : _fbb.CreateString(_o->curve_id);
+  auto _month = _o->month.empty() ? 0 : _fbb.CreateString(_o->month);
+  auto _date = _o->date.empty() ? 0 : _fbb.CreateString(_o->date);
+  auto _average_quote = _o->average_quote;
+  auto _delta = _o->delta;
+  return quantra::CreateCommodityQuoteDelta(
+      _fbb,
+      _curve_id,
+      _month,
+      _date,
+      _average_quote,
+      _delta);
+}
+
+inline CommodityBuiltCurveSummaryT *CommodityBuiltCurveSummary::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<CommodityBuiltCurveSummaryT>(new CommodityBuiltCurveSummaryT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void CommodityBuiltCurveSummary::UnPackTo(CommodityBuiltCurveSummaryT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = id(); if (_e) _o->id = _e->str(); }
+  { auto _e = status(); _o->status = _e; }
+  { auto _e = max_repricing_difference(); _o->max_repricing_difference = _e; }
+  { auto _e = max_sensitivity(); _o->max_sensitivity = _e; }
+}
+
+inline ::flatbuffers::Offset<CommodityBuiltCurveSummary> CommodityBuiltCurveSummary::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityBuiltCurveSummaryT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateCommodityBuiltCurveSummary(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<CommodityBuiltCurveSummary> CreateCommodityBuiltCurveSummary(::flatbuffers::FlatBufferBuilder &_fbb, const CommodityBuiltCurveSummaryT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CommodityBuiltCurveSummaryT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _id = _o->id.empty() ? 0 : _fbb.CreateString(_o->id);
+  auto _status = _o->status;
+  auto _max_repricing_difference = _o->max_repricing_difference;
+  auto _max_sensitivity = _o->max_sensitivity;
+  return quantra::CreateCommodityBuiltCurveSummary(
+      _fbb,
+      _id,
+      _status,
+      _max_repricing_difference,
+      _max_sensitivity);
+}
+
 inline CommoditySwapResponseT::CommoditySwapResponseT(const CommoditySwapResponseT &o)
       : npv(o.npv),
         fair_fixed_price(o.fair_fixed_price),
@@ -1071,6 +1427,8 @@ inline CommoditySwapResponseT::CommoditySwapResponseT(const CommoditySwapRespons
   for (const auto &legs_ : o.legs) { legs.emplace_back((legs_) ? new quantra::CommoditySwapLegResultT(*legs_) : nullptr); }
   deltas.reserve(o.deltas.size());
   for (const auto &deltas_ : o.deltas) { deltas.emplace_back((deltas_) ? new quantra::CommodityPriceDeltaT(*deltas_) : nullptr); }
+  quote_deltas.reserve(o.quote_deltas.size());
+  for (const auto &quote_deltas_ : o.quote_deltas) { quote_deltas.emplace_back((quote_deltas_) ? new quantra::CommodityQuoteDeltaT(*quote_deltas_) : nullptr); }
 }
 
 inline CommoditySwapResponseT &CommoditySwapResponseT::operator=(CommoditySwapResponseT o) FLATBUFFERS_NOEXCEPT {
@@ -1079,6 +1437,7 @@ inline CommoditySwapResponseT &CommoditySwapResponseT::operator=(CommoditySwapRe
   std::swap(fair_spread, o.fair_spread);
   std::swap(legs, o.legs);
   std::swap(deltas, o.deltas);
+  std::swap(quote_deltas, o.quote_deltas);
   return *this;
 }
 
@@ -1096,6 +1455,7 @@ inline void CommoditySwapResponse::UnPackTo(CommoditySwapResponseT *_o, const ::
   { auto _e = fair_spread(); _o->fair_spread = _e; }
   { auto _e = legs(); if (_e) { _o->legs.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->legs[_i]) { _e->Get(_i)->UnPackTo(_o->legs[_i].get(), _resolver); } else { _o->legs[_i] = std::unique_ptr<quantra::CommoditySwapLegResultT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->legs.resize(0); } }
   { auto _e = deltas(); if (_e) { _o->deltas.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->deltas[_i]) { _e->Get(_i)->UnPackTo(_o->deltas[_i].get(), _resolver); } else { _o->deltas[_i] = std::unique_ptr<quantra::CommodityPriceDeltaT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->deltas.resize(0); } }
+  { auto _e = quote_deltas(); if (_e) { _o->quote_deltas.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->quote_deltas[_i]) { _e->Get(_i)->UnPackTo(_o->quote_deltas[_i].get(), _resolver); } else { _o->quote_deltas[_i] = std::unique_ptr<quantra::CommodityQuoteDeltaT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->quote_deltas.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<CommoditySwapResponse> CommoditySwapResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CommoditySwapResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -1111,22 +1471,27 @@ inline ::flatbuffers::Offset<CommoditySwapResponse> CreateCommoditySwapResponse(
   auto _fair_spread = _o->fair_spread;
   auto _legs = _fbb.CreateVector<::flatbuffers::Offset<quantra::CommoditySwapLegResult>> (_o->legs.size(), [](size_t i, _VectorArgs *__va) { return CreateCommoditySwapLegResult(*__va->__fbb, __va->__o->legs[i].get(), __va->__rehasher); }, &_va );
   auto _deltas = _o->deltas.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityPriceDelta>> (_o->deltas.size(), [](size_t i, _VectorArgs *__va) { return CreateCommodityPriceDelta(*__va->__fbb, __va->__o->deltas[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _quote_deltas = _o->quote_deltas.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityQuoteDelta>> (_o->quote_deltas.size(), [](size_t i, _VectorArgs *__va) { return CreateCommodityQuoteDelta(*__va->__fbb, __va->__o->quote_deltas[i].get(), __va->__rehasher); }, &_va ) : 0;
   return quantra::CreateCommoditySwapResponse(
       _fbb,
       _npv,
       _fair_fixed_price,
       _fair_spread,
       _legs,
-      _deltas);
+      _deltas,
+      _quote_deltas);
 }
 
 inline PriceCommoditySwapResponseT::PriceCommoditySwapResponseT(const PriceCommoditySwapResponseT &o) {
   swaps.reserve(o.swaps.size());
   for (const auto &swaps_ : o.swaps) { swaps.emplace_back((swaps_) ? new quantra::CommoditySwapResponseT(*swaps_) : nullptr); }
+  curve_builds.reserve(o.curve_builds.size());
+  for (const auto &curve_builds_ : o.curve_builds) { curve_builds.emplace_back((curve_builds_) ? new quantra::CommodityBuiltCurveSummaryT(*curve_builds_) : nullptr); }
 }
 
 inline PriceCommoditySwapResponseT &PriceCommoditySwapResponseT::operator=(PriceCommoditySwapResponseT o) FLATBUFFERS_NOEXCEPT {
   std::swap(swaps, o.swaps);
+  std::swap(curve_builds, o.curve_builds);
   return *this;
 }
 
@@ -1140,6 +1505,7 @@ inline void PriceCommoditySwapResponse::UnPackTo(PriceCommoditySwapResponseT *_o
   (void)_o;
   (void)_resolver;
   { auto _e = swaps(); if (_e) { _o->swaps.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->swaps[_i]) { _e->Get(_i)->UnPackTo(_o->swaps[_i].get(), _resolver); } else { _o->swaps[_i] = std::unique_ptr<quantra::CommoditySwapResponseT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->swaps.resize(0); } }
+  { auto _e = curve_builds(); if (_e) { _o->curve_builds.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->curve_builds[_i]) { _e->Get(_i)->UnPackTo(_o->curve_builds[_i].get(), _resolver); } else { _o->curve_builds[_i] = std::unique_ptr<quantra::CommodityBuiltCurveSummaryT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->curve_builds.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<PriceCommoditySwapResponse> PriceCommoditySwapResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceCommoditySwapResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -1151,9 +1517,11 @@ inline ::flatbuffers::Offset<PriceCommoditySwapResponse> CreatePriceCommoditySwa
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceCommoditySwapResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _swaps = _fbb.CreateVector<::flatbuffers::Offset<quantra::CommoditySwapResponse>> (_o->swaps.size(), [](size_t i, _VectorArgs *__va) { return CreateCommoditySwapResponse(*__va->__fbb, __va->__o->swaps[i].get(), __va->__rehasher); }, &_va );
+  auto _curve_builds = _o->curve_builds.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityBuiltCurveSummary>> (_o->curve_builds.size(), [](size_t i, _VectorArgs *__va) { return CreateCommodityBuiltCurveSummary(*__va->__fbb, __va->__o->curve_builds[i].get(), __va->__rehasher); }, &_va ) : 0;
   return quantra::CreatePriceCommoditySwapResponse(
       _fbb,
-      _swaps);
+      _swaps,
+      _curve_builds);
 }
 
 inline const quantra::PriceCommoditySwapResponse *GetPriceCommoditySwapResponse(const void *buf) {

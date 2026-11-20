@@ -1,0 +1,186 @@
+{
+  "pricing": {
+    "as_of_date": "2026-11-13"
+  },
+  "curves": [
+    {
+      "contract": {
+        "id": "SYN_CL",
+        "pricing_calendar": "WeekendsOnly",
+        "pricing_holidays": [
+          "2026-11-26",
+          "2026-12-25",
+          "2027-01-01",
+          "2027-01-18",
+          "2027-02-15",
+          "2027-03-26",
+          "2027-05-31",
+          "2027-07-05"
+        ],
+        "months": [
+          {
+            "month": "2026-12",
+            "last_trade_date": "2026-11-20",
+            "price": 60.0
+          },
+          {
+            "month": "2027-01",
+            "last_trade_date": "2026-12-21",
+            "price": 60.4
+          },
+          {
+            "month": "2027-02",
+            "last_trade_date": "2027-01-20",
+            "price": 60.7
+          },
+          {
+            "month": "2027-03",
+            "last_trade_date": "2027-02-22",
+            "price": 61.0
+          },
+          {
+            "month": "2027-04",
+            "last_trade_date": "2027-03-22",
+            "price": 61.2
+          },
+          {
+            "month": "2027-05",
+            "last_trade_date": "2027-04-20",
+            "price": 61.4
+          },
+          {
+            "month": "2027-06",
+            "last_trade_date": "2027-05-20",
+            "price": 61.5
+          }
+        ],
+        "fixings": [
+          {
+            "month": "2026-12",
+            "date": "2026-11-02",
+            "value": 59.0
+          },
+          {
+            "month": "2026-12",
+            "date": "2026-11-03",
+            "value": 59.25
+          },
+          {
+            "month": "2026-12",
+            "date": "2026-11-04",
+            "value": 59.5
+          },
+          {
+            "month": "2026-12",
+            "date": "2026-11-05",
+            "value": 59.75
+          },
+          {
+            "month": "2026-12",
+            "date": "2026-11-06",
+            "value": 60.0
+          },
+          {
+            "month": "2026-12",
+            "date": "2026-11-09",
+            "value": 60.25
+          },
+          {
+            "month": "2026-12",
+            "date": "2026-11-10",
+            "value": 60.5
+          },
+          {
+            "month": "2026-12",
+            "date": "2026-11-11",
+            "value": 60.25
+          },
+          {
+            "month": "2026-12",
+            "date": "2026-11-12",
+            "value": 60.0
+          }
+        ]
+      }
+    },
+    {
+      "contract": {
+        "id": "SYN_BAS",
+        "pricing_calendar": "WeekendsOnly",
+        "pricing_holidays": [
+          "2026-11-26",
+          "2026-12-25",
+          "2027-01-01",
+          "2027-01-18",
+          "2027-02-15",
+          "2027-03-26",
+          "2027-05-31",
+          "2027-07-05"
+        ],
+        "months": [
+          {
+            "month": "2026-12",
+            "last_trade_date": "2026-11-24"
+          },
+          {
+            "month": "2027-01",
+            "last_trade_date": "2026-12-23"
+          },
+          {
+            "month": "2027-02",
+            "last_trade_date": "2027-01-22"
+          },
+          {
+            "month": "2027-03",
+            "last_trade_date": "2027-02-24"
+          },
+          {
+            "month": "2027-04",
+            "last_trade_date": "2027-03-24"
+          },
+          {
+            "month": "2027-05",
+            "last_trade_date": "2027-04-22"
+          },
+          {
+            "month": "2027-06",
+            "last_trade_date": "2027-05-24"
+          }
+        ]
+      },
+      "basis": {
+        "base": "SYN_CL",
+        "base_price": "SameMonth",
+        "quotes": [
+          {
+            "month": "2027-01",
+            "value": 0.75
+          },
+          {
+            "month": "2027-05",
+            "value": 0.85
+          }
+        ]
+      },
+      "average_quotes": [
+        {
+          "price": 0.8,
+          "versus_base": true,
+          "nearby": 1,
+          "roll_days_before_expiry": 0,
+          "base_nearby": 1,
+          "base_roll_days_before_expiry": 0,
+          "periods": {
+            "start_date": "2027-01-01",
+            "end_date": "2027-03-31",
+            "frequency": "Once"
+          }
+        }
+      ],
+      "rule": "Smooth",
+      "interpolation": "Linear",
+      "extrapolate_flat": true
+    }
+  ],
+  "include_details": true
+}

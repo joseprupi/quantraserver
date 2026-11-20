@@ -78,6 +78,39 @@ table CommodityPriceDelta {
     delta:double;
 }
 
+/// Sensitivity of a swap's NPV to one input of a contract or spot price built
+/// in the request (`pricing.commodity.curve_builds`): the NPV's sensitivity
+/// to each built price read (`deltas`) times that price's sensitivity to the
+/// input, summed over every built price (and, through a basis, over the
+/// base's prices).
+table CommodityQuoteDelta {
+    /// Id of the `pricing.commodity.curve_builds` entry the input belongs
+    /// to.
+    curve_id:string;
+    /// A direct price (or basis quote) of a contract month, "YYYY-MM".
+    month:string;
+    /// A direct price (or basis quote) of a spot point, YYYY-MM-DD.
+    date:string;
+    /// An average quote's index in the entry's `average_quotes`.
+    average_quote:int = null;
+    /// Change of the swap's NPV per unit change of the input.
+    delta:double;
+}
+
+/// One contract or spot price built in the request.
+table CommodityBuiltCurveSummary {
+    /// The entry's contract or spot id.
+    id:string;
+    /// Unique or Underdetermined (then the entry's rule decided).
+    status:enums.CommodityCurveStatus;
+    /// Largest |repriced - quoted| over the entry's average quotes.
+    max_repricing_difference:double;
+    /// Largest |d price / d input| over every live month (point) and every
+    /// input, the bases' inputs included: a large value means a fragile
+    /// build.
+    max_sensitivity:double;
+}
+
 /// Commodity swap pricing result, as of the valuation date. Each flow's
 /// `amount` is the leg's sign (-1 for `Pay`, +1 for `Receive`) times the
 /// period's quantity times its price (the fixed price, or the average plus
@@ -98,11 +131,19 @@ table CommoditySwapResponse {
     legs:[CommoditySwapLegResult] (required);
     /// Sensitivities of `npv` to each input price used.
     deltas:[CommodityPriceDelta];
+    /// Only when `pricing.commodity.curve_builds` is given: the sensitivity
+    /// of `npv` to every input of every built contract or spot price the
+    /// swap reads (in entry order, then the entry's inputs: direct prices
+    /// and basis quotes in month or date order, then average quotes).
+    quote_deltas:[CommodityQuoteDelta];
 }
 
 /// Response wrapper for multiple commodity swaps, in request order.
 table PriceCommoditySwapResponse {
     swaps:[CommoditySwapResponse] (required);
+    /// Only when `pricing.commodity.curve_builds` is given: one summary per
+    /// entry, in request order.
+    curve_builds:[CommodityBuiltCurveSummary];
 }
 
 root_type PriceCommoditySwapResponse;

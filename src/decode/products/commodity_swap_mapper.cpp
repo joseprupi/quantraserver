@@ -7,6 +7,7 @@
 #include "request_validation.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace quantra {
@@ -142,9 +143,27 @@ CommoditySwapLegSpec decodeLeg(const quantra::CommoditySwapLeg* leg, const std::
             const auto* f = leg->price_as_FuturesFloatingPrice();
             cm::FuturesFloatingPrice futures;
             spec.contractId = requireNonEmptyString(f->contract_id(), priceField + ".contract_id");
-            futures.nearby = requireInt(f->nearby(), priceField + ".nearby");
-            futures.rollDaysBeforeExpiry =
-                requireInt(f->roll_days_before_expiry(), priceField + ".roll_days_before_expiry");
+            if (f->observation() == quantra::enums::CommodityFuturesObservation_OnePricePerPeriod) {
+                futures.observation = cm::FuturesObservation::OnePricePerPeriod;
+                for (const auto& [given, field] :
+                     {std::pair<bool, const char*>{f->nearby().has_value(), "nearby"},
+                      {f->roll_days_before_expiry().has_value(), "roll_days_before_expiry"}}) {
+                    if (given) {
+                        QUANTRA_INVALID_ARGUMENT(
+                            priceField + "." + field +
+                            " is not used when observation is OnePricePerPeriod (the period "
+                            "reads the month of its last day)");
+                    }
+                }
+            } else if (
+                f->observation() == quantra::enums::CommodityFuturesObservation_DailyAverage) {
+                futures.nearby = requireInt(f->nearby(), priceField + ".nearby");
+                futures.rollDaysBeforeExpiry = requireInt(
+                    f->roll_days_before_expiry(), priceField + ".roll_days_before_expiry");
+            } else {
+                QUANTRA_INVALID_ARGUMENT(
+                    priceField + ".observation must be DailyAverage or OnePricePerPeriod");
+            }
             futures.spread = f->spread();
             out.price = futures;
             break;
@@ -186,6 +205,7 @@ CommoditySwapTrade extractTrade(const quantra::PriceCommoditySwap* entry, std::s
     CommoditySwapTrade trade;
     trade.legs[0] = decodeLeg(swap->leg1(), path + ".leg1");
     trade.legs[1] = decodeLeg(swap->leg2(), path + ".leg2");
+    trade.commonPricing = swap->common_pricing();
     return trade;
 }
 
@@ -299,7 +319,18 @@ CommoditySwapInputs CommoditySwapMapper::toInputs(
     inputs.includeObservations = req->include_observations();
     inputs.trades.reserve(swaps->size());
     for (flatbuffers::uoffset_t i = 0; i < swaps->size(); ++i) {
-        inputs.trades.push_back(extractTrade(swaps->Get(i), i));
+        try {
+            inputs.trades.push_back(extractTrade(swaps->Get(i), i));
+        } catch (const QuantraInvalidArgument& e) {
+            // A field missing or malformed: InvalidInput details naming it
+            // (the messages start with the field).
+            const std::string message = e.what();
+            const std::string path =
+                e.path().empty() ? message.substr(0, message.find_first_of(" :(")) : e.path();
+            throw QuantraInvalidArgument(
+                message, "{\"reason\": \"InvalidInput\", \"swap\": " + std::to_string(i) +
+                             ", \"path\": \"" + path + "\"}");
+        }
     }
     return inputs;
 }
@@ -309,7 +340,8 @@ flatbuffers::Offset<quantra::PriceCommoditySwapResponse> CommoditySwapMapper::to
     std::vector<flatbuffers::Offset<quantra::CommoditySwapResponse>> rows;
     rows.reserve(result.swaps.size());
 
-    for (const auto& swap : result.swaps) {
+    for (std::size_t s = 0; s < result.swaps.size(); ++s) {
+        const auto& swap = result.swaps[s];
         std::vector<flatbuffers::Offset<quantra::CommoditySwapLegResult>> legs;
         for (const auto& leg : swap.legs) {
             flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::CommodityFlow>>>
@@ -338,6 +370,37 @@ flatbuffers::Offset<quantra::PriceCommoditySwapResponse> CommoditySwapMapper::to
         }
         auto deltasVec = builder.CreateVector(deltas);
 
+        // Only with pricing.commodity.curve_builds: the deltas to the inputs.
+        flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::CommodityQuoteDelta>>>
+            quoteDeltasVec = 0;
+        if (result.hasBuilds) {
+            std::vector<flatbuffers::Offset<quantra::CommodityQuoteDelta>> qd;
+            for (const auto& row : result.quoteDeltas[s]) {
+                auto curveId = builder.CreateString(row.curveId);
+                flatbuffers::Offset<flatbuffers::String> month = 0, date = 0;
+                if (row.input.month) {
+                    month = builder.CreateString(*row.input.month);
+                }
+                if (row.input.date) {
+                    date = builder.CreateString(*row.input.date);
+                }
+                quantra::CommodityQuoteDeltaBuilder qb(builder);
+                qb.add_curve_id(curveId);
+                if (row.input.month) {
+                    qb.add_month(month);
+                }
+                if (row.input.date) {
+                    qb.add_date(date);
+                }
+                if (row.input.averageQuote) {
+                    qb.add_average_quote(static_cast<int>(*row.input.averageQuote));
+                }
+                qb.add_delta(row.delta);
+                qd.push_back(qb.Finish());
+            }
+            quoteDeltasVec = builder.CreateVector(qd);
+        }
+
         quantra::CommoditySwapResponseBuilder rb(builder);
         rb.add_npv(swap.npv);
         // Optional by construction: fair_fixed_price for a fixed leg against a
@@ -350,12 +413,37 @@ flatbuffers::Offset<quantra::PriceCommoditySwapResponse> CommoditySwapMapper::to
         }
         rb.add_legs(legsVec);
         rb.add_deltas(deltasVec);
+        if (result.hasBuilds) {
+            rb.add_quote_deltas(quoteDeltasVec);
+        }
         rows.push_back(rb.Finish());
     }
 
     auto rowsVec = builder.CreateVector(rows);
+    flatbuffers::Offset<
+        flatbuffers::Vector<flatbuffers::Offset<quantra::CommodityBuiltCurveSummary>>>
+        buildsVec = 0;
+    if (result.hasBuilds) {
+        std::vector<flatbuffers::Offset<quantra::CommodityBuiltCurveSummary>> summaries;
+        for (const auto& b : result.builds) {
+            auto id = builder.CreateString(b.id);
+            quantra::CommodityBuiltCurveSummaryBuilder sb(builder);
+            sb.add_id(id);
+            sb.add_status(
+                b.status == commodities::CurveStatus::Unique
+                    ? quantra::enums::CommodityCurveStatus_Unique
+                    : quantra::enums::CommodityCurveStatus_Underdetermined);
+            sb.add_max_repricing_difference(b.maxRepricingDifference);
+            sb.add_max_sensitivity(b.maxSensitivity);
+            summaries.push_back(sb.Finish());
+        }
+        buildsVec = builder.CreateVector(summaries);
+    }
     quantra::PriceCommoditySwapResponseBuilder rb(builder);
     rb.add_swaps(rowsVec);
+    if (result.hasBuilds) {
+        rb.add_curve_builds(buildsVec);
+    }
     return rb.Finish();
 }
 

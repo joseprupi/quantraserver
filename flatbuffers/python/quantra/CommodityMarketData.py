@@ -77,8 +77,39 @@ class CommodityMarketData(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         return o == 0
 
+    # Contracts and spot prices built in the request from quotes, exactly
+    # as `/build-commodity-curves` builds `curves` (same entries, same
+    # rules, `include_details` not read), then registered under their ids
+    # next to `contracts` and `spot_prices`. An id given twice across the
+    # three lists is a 400. A basis entry's base is another entry of this
+    # list.
+    # CommodityMarketData
+    def CurveBuilds(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra.CommodityCurveBuild import CommodityCurveBuild
+            obj = CommodityCurveBuild()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # CommodityMarketData
+    def CurveBuildsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # CommodityMarketData
+    def CurveBuildsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        return o == 0
+
 def CommodityMarketDataStart(builder):
-    builder.StartObject(2)
+    builder.StartObject(3)
 
 def Start(builder):
     CommodityMarketDataStart(builder)
@@ -107,6 +138,18 @@ def CommodityMarketDataStartSpotPricesVector(builder, numElems):
 def StartSpotPricesVector(builder, numElems):
     return CommodityMarketDataStartSpotPricesVector(builder, numElems)
 
+def CommodityMarketDataAddCurveBuilds(builder, curveBuilds):
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(curveBuilds), 0)
+
+def AddCurveBuilds(builder, curveBuilds):
+    CommodityMarketDataAddCurveBuilds(builder, curveBuilds)
+
+def CommodityMarketDataStartCurveBuildsVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartCurveBuildsVector(builder, numElems):
+    return CommodityMarketDataStartCurveBuildsVector(builder, numElems)
+
 def CommodityMarketDataEnd(builder):
     return builder.EndObject()
 
@@ -124,6 +167,7 @@ class CommodityMarketDataT(object):
     def __init__(self):
         self.contracts = None  # type: List[CommodityContractSpecT]
         self.spotPrices = None  # type: List[CommoditySpotSpecT]
+        self.curveBuilds = None  # type: List[CommodityCurveBuildT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -162,6 +206,14 @@ class CommodityMarketDataT(object):
                 else:
                     commoditySpotSpec_ = CommoditySpotSpecT.InitFromObj(commodityMarketData.SpotPrices(i))
                     self.spotPrices.append(commoditySpotSpec_)
+        if not commodityMarketData.CurveBuildsIsNone():
+            self.curveBuilds = []
+            for i in range(commodityMarketData.CurveBuildsLength()):
+                if commodityMarketData.CurveBuilds(i) is None:
+                    self.curveBuilds.append(None)
+                else:
+                    commodityCurveBuild_ = CommodityCurveBuildT.InitFromObj(commodityMarketData.CurveBuilds(i))
+                    self.curveBuilds.append(commodityCurveBuild_)
 
     # CommodityMarketDataT
     def Pack(self, builder):
@@ -181,10 +233,20 @@ class CommodityMarketDataT(object):
             for i in reversed(range(len(self.spotPrices))):
                 builder.PrependUOffsetTRelative(spotPriceslist[i])
             spotPrices = builder.EndVector()
+        if self.curveBuilds is not None:
+            curveBuildslist = []
+            for i in range(len(self.curveBuilds)):
+                curveBuildslist.append(self.curveBuilds[i].Pack(builder))
+            CommodityMarketDataStartCurveBuildsVector(builder, len(self.curveBuilds))
+            for i in reversed(range(len(self.curveBuilds))):
+                builder.PrependUOffsetTRelative(curveBuildslist[i])
+            curveBuilds = builder.EndVector()
         CommodityMarketDataStart(builder)
         if self.contracts is not None:
             CommodityMarketDataAddContracts(builder, contracts)
         if self.spotPrices is not None:
             CommodityMarketDataAddSpotPrices(builder, spotPrices)
+        if self.curveBuilds is not None:
+            CommodityMarketDataAddCurveBuilds(builder, curveBuilds)
         commodityMarketData = CommodityMarketDataEnd(builder)
         return commodityMarketData

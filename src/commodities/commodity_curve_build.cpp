@@ -279,6 +279,12 @@ std::string CurveBuildRefusalReasonName(CurveBuildRefusal::Reason reason) {
         case CurveBuildRefusal::Reason::BaseNotDetermined: return "BaseNotDetermined";
         case CurveBuildRefusal::Reason::BasisAndPrice: return "BasisAndPrice";
         case CurveBuildRefusal::Reason::BasisOnExpiredMonth: return "BasisOnExpiredMonth";
+        case CurveBuildRefusal::Reason::BaseNotSpot: return "BaseNotSpot";
+        case CurveBuildRefusal::Reason::MissingFixing: return "MissingFixing";
+        case CurveBuildRefusal::Reason::MonthWithoutPrice: return "MonthWithoutPrice";
+        case CurveBuildRefusal::Reason::MonthNotListed: return "MonthNotListed";
+        case CurveBuildRefusal::Reason::NoPricingDay: return "NoPricingDay";
+        case CurveBuildRefusal::Reason::UnknownDiscountingCurve: return "UnknownDiscountingCurve";
     }
     return "Unknown";
 }
@@ -373,9 +379,30 @@ CommoditySwapResult priceQuoteLegs(
         // the quote and the date as data.
         CurveBuildRefusal r;
         r.reason = CurveBuildRefusal::Reason::DateOutsideRange;
-        r.path = quotePath(k);
+        const auto& d = e.data();
+        r.path = d.path.rfind("leg", 0) == 0 && d.path.size() > 5
+                     ? quotePath(k) + "." + d.path.substr(5)
+                     : quotePath(k);
         r.averageQuote = k;
         r.date = DateToIso(e.date());
+        refuse(quoteMessage(k, e.what()), r);
+    } catch (const CommodityReadError& e) {
+        // The swap pricer's refusal about the quote's days, with its data.
+        const auto& d = e.data();
+        using Reason = CurveBuildRefusal::Reason;
+        const Reason reason = d.reason == "MissingFixing"       ? Reason::MissingFixing
+                              : d.reason == "MonthWithoutPrice" ? Reason::MonthWithoutPrice
+                              : d.reason == "MonthNotListed"    ? Reason::MonthNotListed
+                              : d.reason == "NoPricingDay"      ? Reason::NoPricingDay
+                                                                : Reason::InvalidInput;
+        auto r = refusalOf(reason);
+        // `leg2.periods[3]` is the quote's own `periods[3]`.
+        r.path = d.path.rfind("leg", 0) == 0 && d.path.size() > 5
+                     ? quotePath(k) + "." + d.path.substr(5)
+                     : quotePath(k);
+        r.averageQuote = k;
+        r.date = d.date;
+        r.month = d.month;
         refuse(quoteMessage(k, e.what()), r);
     } catch (const QuantraInvalidArgument& e) {
         QUANTRA_INVALID_ARGUMENT(quoteMessage(k, e.what()));
@@ -453,6 +480,70 @@ QuoteEquation quoteEquation(
     return eq;
 }
 
+/// Spread quotes (versus_base): the base side's fair price of each quote, 0
+/// for the others. The rules of the quote's base fields are checked here.
+Vector baseSides(const CurveBuildInputs& inputs, bool spot, const QuantLib::Date& asOf) {
+    const auto& quotes = inputs.averageQuotes;
+    Vector out(quotes.size(), 0.0);
+    for (std::size_t k = 0; k < quotes.size(); ++k) {
+        const auto& q = quotes[k];
+        const std::string path = quotePath(k);
+        auto invalid = [&](const std::string& field, const std::string& message) {
+            auto r = refusalOf(CurveBuildRefusal::Reason::InvalidInput);
+            r.path = path + "." + field;
+            r.averageQuote = k;
+            refuse(path + "." + field + " " + message, r);
+        };
+        if (!q.versusBase) {
+            if (q.baseNearby) {
+                invalid("base_nearby", "is only used with versus_base");
+            }
+            if (q.baseRollDaysBeforeExpiry) {
+                invalid("base_roll_days_before_expiry", "is only used with versus_base");
+            }
+            continue;
+        }
+        if (!inputs.basis) {
+            invalid(
+                "versus_base",
+                "needs basis: a spread to the base is quoted on a build that has a base");
+        }
+        CommoditySwapResult r;
+        if (spot) {
+            if (q.baseNearby) {
+                invalid("base_nearby", "is not used on a spot price build");
+            }
+            if (q.baseRollDaysBeforeExpiry) {
+                invalid("base_roll_days_before_expiry", "is not used on a spot price build");
+            }
+            r = priceQuote(q, k, inputs.basis->baseSpot, 0.0, asOf);
+        } else {
+            if (!q.baseNearby) {
+                invalid(
+                    "base_nearby",
+                    "is required with versus_base on a contract build (the base month averaged)");
+            }
+            if (!q.baseRollDaysBeforeExpiry) {
+                invalid(
+                    "base_roll_days_before_expiry",
+                    "is required with versus_base on a contract build");
+            }
+            if (*q.baseNearby < 1) {
+                invalid("base_nearby", "must be >= 1 (1 = front month)");
+            }
+            if (*q.baseRollDaysBeforeExpiry < 0) {
+                invalid("base_roll_days_before_expiry", "must be >= 0");
+            }
+            AverageQuote onBase = q;
+            onBase.nearby = *q.baseNearby;
+            onBase.rollDaysBeforeExpiry = *q.baseRollDaysBeforeExpiry;
+            r = priceQuote(onBase, k, inputs.basis->base, 0.0, asOf);
+        }
+        out[k] = r.fairFixedPrice.value_or(0.0);
+    }
+    return out;
+}
+
 std::string formatNumber(double value) {
     std::ostringstream os;
     os.precision(12);
@@ -468,14 +559,20 @@ std::string joinNames(const std::vector<std::string>& names) {
     return out;
 }
 
-/// Second differences over n unknowns in index order ((n-2) x n).
-std::vector<Vector> secondDifferences(std::size_t n) {
+/// Second divided differences over n unknowns at the abscissas x
+/// ((n-2) x n): (p[i+1] - p[i]) / (x[i+1] - x[i]) - (p[i] - p[i-1]) / (x[i] -
+/// x[i-1]), divided by x[i+1] - x[i-1].
+std::vector<Vector> secondDividedDifferences(const Vector& x) {
+    const std::size_t n = x.size();
     std::vector<Vector> d;
-    for (std::size_t i = 1; i + 1 < n; ++i) {
+    for (std::size_t c = 1; c + 1 < n; ++c) {
+        const double h0 = x[c] - x[c - 1];
+        const double h1 = x[c + 1] - x[c];
+        const double span = x[c + 1] - x[c - 1];
         Vector row(n, 0.0);
-        row[i - 1] = 1.0;
-        row[i] = -2.0;
-        row[i + 1] = 1.0;
+        row[c - 1] = 1.0 / (h0 * span);
+        row[c] = -(1.0 / h0 + 1.0 / h1) / span;
+        row[c + 1] = 1.0 / (h1 * span);
         d.push_back(std::move(row));
     }
     return d;
@@ -988,6 +1085,12 @@ CommodityCurveBuildResult BuildCommodityCurve(
         }
     }
 
+    // Spread quotes: the base side is a constant.
+    const Vector baseSide = baseSides(inputs, false, asOf);
+    for (std::size_t k = 0; k < quotes.size(); ++k) {
+        equations[k].constant -= baseSide[k];
+    }
+
     // Unknowns: live months with a price or a weight, in month order.
     std::vector<std::size_t> unknowns; // month indexes
     std::map<std::size_t, std::size_t> column;
@@ -1038,9 +1141,15 @@ CommodityCurveBuildResult BuildCommodityCurve(
     for (const std::size_t i : unknowns) {
         labels.push_back(months[i].month);
     }
-    SystemInputs system{
-        rows,       rhs, quoted, rowNames, rowQuote, labels, false, "months", secondDifferences(n),
-        inputs.rule};
+    // Smooth: second divided differences on the last trading dates.
+    Vector abscissas;
+    for (const std::size_t i : unknowns) {
+        abscissas.push_back(static_cast<double>(months[i].lastTradeDate - asOf) / 365.0);
+    }
+    SystemInputs system{rows,       rhs,      quoted,
+                        rowNames,   rowQuote, labels,
+                        false,      "months", secondDividedDifferences(abscissas),
+                        inputs.rule};
     for (std::size_t k = 0; k < quotes.size(); ++k) {
         system.constants.push_back(equations[k].constant);
         system.quotePrices.push_back(quotes[k].price);
@@ -1111,7 +1220,7 @@ CommodityCurveBuildResult BuildCommodityCurve(
 
     // Sensitivities: one solve per unit right-hand side.
     std::vector<Vector> sens; // sens[e][c] = d x_c / d quote e
-    if (inputs.includeDetails) {
+    if (inputs.includeDetails || inputs.fullJacobian) {
         for (std::size_t e = 0; e < rows.size(); ++e) {
             Vector unit(rows.size(), 0.0);
             unit[e] = 1.0;
@@ -1123,7 +1232,9 @@ CommodityCurveBuildResult BuildCommodityCurve(
                 largest = std::max(largest, std::fabs(s));
             }
         }
-        report.maxSensitivity = largest;
+        if (inputs.includeDetails) {
+            report.maxSensitivity = largest;
+        }
     }
 
     for (const std::size_t i : live) {
@@ -1163,6 +1274,70 @@ CommodityCurveBuildResult BuildCommodityCurve(
         report.months.push_back(std::move(mr));
     }
 
+    if (inputs.fullJacobian) {
+        auto& jac = result.jacobian;
+        for (std::size_t e = 0; e < rows.size(); ++e) {
+            QuoteSensitivity qs;
+            if (rowQuote[e]) {
+                qs.averageQuote = *rowQuote[e];
+            } else {
+                qs.month = rowNames[e];
+            }
+            jac.inputs.push_back(qs);
+        }
+        // The fill's nodes: the determined months' prices, or their basis.
+        std::vector<std::optional<double>> nodes(nm);
+        for (std::size_t i = 0; i < nm; ++i) {
+            nodes[i] = prices[i];
+            const auto it = baseOf.find(i);
+            if (it != baseOf.end() && prices[i]) {
+                nodes[i] = *prices[i] - it->second;
+            }
+        }
+        // d filled month / d node, by central differences on the fill.
+        std::map<std::size_t, Vector> dfill;
+        for (const std::size_t i : live) {
+            if (column.count(i) == 0) {
+                dfill[i] = Vector(n, 0.0);
+            }
+        }
+        if (!dfill.empty()) {
+            for (std::size_t c = 0; c < n; ++c) {
+                const std::size_t i = unknowns[c];
+                const double h = 1e-6 * std::max(1.0, std::fabs(*nodes[i]));
+                auto up = nodes;
+                auto down = nodes;
+                *up[i] += h;
+                *down[i] -= h;
+                const auto mu =
+                    BuildFuturesCurve(
+                        contract.withPrices(up), inputs.interpolation, inputs.extrapolateFlat, asOf)
+                        .months;
+                const auto md = BuildFuturesCurve(
+                                    contract.withPrices(down), inputs.interpolation,
+                                    inputs.extrapolateFlat, asOf)
+                                    .months;
+                for (auto& [m, row] : dfill) {
+                    row[c] = (*mu[m].price - *md[m].price) / (2.0 * h);
+                }
+            }
+        }
+        for (const std::size_t i : live) {
+            Vector row(rows.size(), 0.0);
+            const auto it = column.find(i);
+            for (std::size_t e = 0; e < rows.size(); ++e) {
+                if (it != column.end()) {
+                    row[e] = sens[e][it->second];
+                } else {
+                    for (std::size_t c = 0; c < n; ++c) {
+                        row[e] += dfill[i][c] * sens[e][c];
+                    }
+                }
+            }
+            jac.rows.push_back(std::move(row));
+        }
+    }
+
     // Every quote repriced by the swap pricer on the built contract.
     const auto built = std::make_shared<const FuturesContract>(contract.withPrices([&] {
         std::vector<std::optional<double>> p(nm);
@@ -1174,7 +1349,7 @@ CommodityCurveBuildResult BuildCommodityCurve(
     for (std::size_t k = 0; k < quotes.size(); ++k) {
         const auto r = priceQuote(quotes[k], k, built, quotes[k].price, asOf);
         auto& qr = report.averageQuotes[k];
-        qr.repriced = r.fairFixedPrice.value_or(0.0);
+        qr.repriced = r.fairFixedPrice.value_or(0.0) - baseSide[k];
         qr.difference = qr.repriced - quotes[k].price;
         report.maxRepricingDifference =
             std::max(report.maxRepricingDifference, std::fabs(qr.difference));
@@ -1190,7 +1365,8 @@ CommodityCurveBuildResult BuildCommodityCurve(
 
 SpotCurveBuildResult BuildSpotCurve(
     const SpotCurveSpec& spec, const CurveBuildInputs& inputs, const QuantLib::Date& asOf) {
-    const auto& points = spec.points;
+    // A working copy: basis quotes become the points' direct prices.
+    std::vector<SpotNode> points = spec.points;
     const std::size_t np = points.size();
     const auto& quotes = inputs.averageQuotes;
 
@@ -1208,7 +1384,7 @@ SpotCurveBuildResult BuildSpotCurve(
     } catch (const QuantraInvalidArgument& e) {
         auto r = refusalOf(CurveBuildRefusal::Reason::InvalidInput);
         r.path = e.path().empty() ? "spot" : "spot." + e.path();
-        refuse(std::string("spot: ") + e.what(), r);
+        refuse(std::string("spot.") + e.what(), r);
     }
     for (std::size_t k = 0; k < quotes.size(); ++k) {
         if (!std::isfinite(quotes[k].price)) {
@@ -1218,6 +1394,76 @@ SpotCurveBuildResult BuildSpotCurve(
             refuse(quotePath(k) + ".price must be finite", r);
         }
     }
+    // Basis: every point's base price (the base read on its date), then the
+    // basis quotes as direct prices.
+    std::vector<double> baseAt;
+    std::set<std::size_t> basisPoints;
+    if (inputs.basis) {
+        const auto& b = *inputs.basis;
+        const auto& base = *b.baseSpot;
+        baseAt.resize(np);
+        for (std::size_t i = 0; i < np; ++i) {
+            try {
+                baseAt[i] = base.forward(points[i].date);
+            } catch (const SpotDateOutsidePoints& e) {
+                auto r = refusalOf(CurveBuildRefusal::Reason::BaseNotDetermined);
+                r.path = "basis.base";
+                r.date = DateToIso(points[i].date);
+                r.baseCurve = b.baseCurve;
+                refuse(
+                    "basis.base: no base price for " + DateToIso(points[i].date) +
+                        ": the base spot price '" + base.id() +
+                        "' cannot be read there: " + e.what(),
+                    r);
+            }
+        }
+        std::map<QuantLib::Date, std::size_t> at;
+        for (std::size_t i = 0; i < np; ++i) {
+            at[points[i].date] = i;
+        }
+        for (std::size_t k = 0; k < b.quotes.size(); ++k) {
+            const auto& quote = b.quotes[k];
+            const std::string path = "basis.quotes[" + std::to_string(k) + "]";
+            auto invalid = [&](const std::string& field, const std::string& message) {
+                auto r = refusalOf(CurveBuildRefusal::Reason::InvalidInput);
+                r.path = path + field;
+                if (quote.date) {
+                    r.date = DateToIso(*quote.date);
+                }
+                refuse(path + field + " " + message, r);
+            };
+            if (!quote.date) {
+                invalid(".date", "is required on a spot price build");
+            }
+            const std::string iso = DateToIso(*quote.date);
+            const auto it = at.find(*quote.date);
+            if (it == at.end()) {
+                invalid(".date", iso + " is not the date of a point of the spot price");
+            }
+            const std::size_t i = it->second;
+            if (!std::isfinite(quote.value)) {
+                invalid(".value", "must be finite");
+            }
+            if (basisPoints.count(i) > 0) {
+                invalid(".date", iso + " has a second basis quote");
+            }
+            if (points[i].price) {
+                auto r = refusalOf(CurveBuildRefusal::Reason::BasisAndPrice);
+                r.path = path;
+                r.date = iso;
+                refuse(
+                    path + ": point " + iso +
+                        " also has a price; give either the price or the basis",
+                    r);
+            }
+            basisPoints.insert(i);
+        }
+        for (const auto& quote : b.quotes) {
+            const std::size_t i = at[*quote.date];
+            points[i].price = baseAt[i] + quote.value;
+        }
+    }
+
     // Every point at 0 (also the priced ones): the weights do not depend on
     // the prices, and the constant is the realised part only.
     for (auto& p : zero) {
@@ -1242,6 +1488,12 @@ SpotCurveBuildResult BuildSpotCurve(
             r.averageQuote = k;
             refuse(e.what(), r);
         }
+    }
+
+    // Spread quotes: the base side is a constant.
+    const Vector baseSide = baseSides(inputs, true, asOf);
+    for (std::size_t k = 0; k < quotes.size(); ++k) {
+        equations[k].constant -= baseSide[k];
     }
 
     // Unknowns: points with a price or a weight, in date order.
@@ -1295,20 +1547,11 @@ SpotCurveBuildResult BuildSpotCurve(
 
     // Smooth: second divided differences on x = days from the valuation date
     // / 365 over the unknowns in date order.
-    std::vector<Vector> divided;
-    for (std::size_t c = 1; c + 1 < n; ++c) {
-        auto x = [&](std::size_t j) {
-            return static_cast<double>(points[unknowns[j]].date - asOf) / 365.0;
-        };
-        const double h0 = x(c) - x(c - 1);
-        const double h1 = x(c + 1) - x(c);
-        const double span = x(c + 1) - x(c - 1);
-        Vector row(n, 0.0);
-        row[c - 1] = 1.0 / (h0 * span);
-        row[c] = -(1.0 / h0 + 1.0 / h1) / span;
-        row[c + 1] = 1.0 / (h1 * span);
-        divided.push_back(std::move(row));
+    Vector pointAbscissas;
+    for (const std::size_t i : unknowns) {
+        pointAbscissas.push_back(static_cast<double>(points[i].date - asOf) / 365.0);
     }
+    const std::vector<Vector> divided = secondDividedDifferences(pointAbscissas);
 
     SpotCurveBuildResult result;
     auto& report = result.report;
@@ -1347,7 +1590,7 @@ SpotCurveBuildResult BuildSpotCurve(
     std::vector<SpotPoint> nodes;
     for (std::size_t i = 0; i < np; ++i) {
         if (prices[i]) {
-            nodes.push_back({points[i].date, *prices[i]});
+            nodes.push_back({points[i].date, *prices[i] - (baseAt.empty() ? 0.0 : baseAt[i])});
         } else {
             missing.push_back(i);
         }
@@ -1400,7 +1643,7 @@ SpotCurveBuildResult BuildSpotCurve(
                         "): the filled price is not finite",
                     r);
             }
-            prices[i] = price;
+            prices[i] = price + (baseAt.empty() ? 0.0 : baseAt[i]);
         }
     }
     result.points.reserve(np);
@@ -1411,7 +1654,7 @@ SpotCurveBuildResult BuildSpotCurve(
     }
 
     std::vector<Vector> sens;
-    if (inputs.includeDetails) {
+    if (inputs.includeDetails || inputs.fullJacobian) {
         for (std::size_t e = 0; e < rows.size(); ++e) {
             Vector unit(rows.size(), 0.0);
             unit[e] = 1.0;
@@ -1423,18 +1666,25 @@ SpotCurveBuildResult BuildSpotCurve(
                 largest = std::max(largest, std::fabs(s));
             }
         }
-        report.maxSensitivity = largest;
+        if (inputs.includeDetails) {
+            report.maxSensitivity = largest;
+        }
     }
     for (std::size_t i = 0; i < np; ++i) {
         PointReport pr;
         pr.date = points[i].date;
         pr.price = *prices[i];
+        if (!baseAt.empty()) {
+            pr.basePrice = baseAt[i];
+            pr.basis = pr.price - baseAt[i];
+        }
         const auto it = column.find(i);
         if (it != column.end()) {
             const std::size_t c = it->second;
-            pr.source = points[i].price ? MonthSource::Quoted
-                        : determined[c] ? MonthSource::Solved
-                                        : MonthSource::Assumed;
+            pr.source = basisPoints.count(i) > 0 ? MonthSource::Basis
+                        : points[i].price        ? MonthSource::Quoted
+                        : determined[c]          ? MonthSource::Solved
+                                                 : MonthSource::Assumed;
             if (inputs.includeDetails) {
                 for (std::size_t e = 0; e < rows.size(); ++e) {
                     QuoteSensitivity qs;
@@ -1453,13 +1703,62 @@ SpotCurveBuildResult BuildSpotCurve(
         report.points.push_back(std::move(pr));
     }
 
+    if (inputs.fullJacobian) {
+        auto& jac = result.jacobian;
+        for (std::size_t e = 0; e < rows.size(); ++e) {
+            QuoteSensitivity qs;
+            if (rowQuote[e]) {
+                qs.averageQuote = *rowQuote[e];
+            } else {
+                qs.date = rowNames[e];
+            }
+            jac.inputs.push_back(qs);
+        }
+        // d filled point / d node (nodes = the determined points in date
+        // order, their basis on a basis build), by central differences.
+        std::map<std::size_t, Vector> dfill;
+        for (const std::size_t i : missing) {
+            dfill[i] = Vector(n, 0.0);
+        }
+        if (!dfill.empty()) {
+            for (std::size_t c = 0; c < n; ++c) {
+                const double h = 1e-6 * std::max(1.0, std::fabs(nodes[c].price));
+                auto up = nodes;
+                auto down = nodes;
+                up[c].price += h;
+                down[c].price -= h;
+                const SpotPrice lu(
+                    spec.id, spec.calendar, spec.interpolation, spec.extrapolateFlat, up, {});
+                const SpotPrice ld(
+                    spec.id, spec.calendar, spec.interpolation, spec.extrapolateFlat, down, {});
+                for (auto& [i, row] : dfill) {
+                    row[c] = (lu.forward(points[i].date) - ld.forward(points[i].date)) / (2.0 * h);
+                }
+            }
+        }
+        for (std::size_t i = 0; i < np; ++i) {
+            Vector row(rows.size(), 0.0);
+            const auto it = column.find(i);
+            for (std::size_t e = 0; e < rows.size(); ++e) {
+                if (it != column.end()) {
+                    row[e] = sens[e][it->second];
+                } else {
+                    for (std::size_t c = 0; c < n; ++c) {
+                        row[e] += dfill[i][c] * sens[e][c];
+                    }
+                }
+            }
+            jac.rows.push_back(std::move(row));
+        }
+    }
+
     // Every quote repriced by the swap pricer on the built spot price.
     const auto builtSpot = std::make_shared<const SpotPrice>(
         spec.id, spec.calendar, spec.interpolation, spec.extrapolateFlat, built, spec.fixings);
     for (std::size_t k = 0; k < quotes.size(); ++k) {
         const auto r = priceQuote(quotes[k], k, builtSpot, quotes[k].price, asOf);
         auto& qr = report.averageQuotes[k];
-        qr.repriced = r.fairFixedPrice.value_or(0.0);
+        qr.repriced = r.fairFixedPrice.value_or(0.0) - baseSide[k];
         qr.difference = qr.repriced - quotes[k].price;
         report.maxRepricingDifference =
             std::max(report.maxRepricingDifference, std::fabs(qr.difference));

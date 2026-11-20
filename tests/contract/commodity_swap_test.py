@@ -577,8 +577,13 @@ def test_missing_fixing_for_past_day_400(client):
     request = _single()
     contract = _contract(request)
     contract["fixings"] = [f for f in contract["fixings"] if f["date"] != "2026-11-05"]
-    _assert_status(client, request, 400, "swaps[0].commodity_swap: commodity contract",
-                   "2026-11-05", "2026-12")
+    text = _assert_status(client, request, 400,
+                          "swaps[0].commodity_swap.leg2.periods[0] (2026-11-01 to 2026-11-30): "
+                          "commodity contract 'SYN_CL': no fixing of 2026-12 on pricing day "
+                          "2026-11-05")
+    assert json.loads(text)["details"] == {
+        "reason": "MissingFixing", "swap": 0, "path": "swaps[0].commodity_swap.leg2.periods[0]",
+        "date": "2026-11-05", "month": "2026-12", "contract_id": "SYN_CL"}
 
 
 def test_missing_fixing_value_400(client):
@@ -681,3 +686,217 @@ def test_pricing_calendar_required_400(client):
     request = _single()
     del _contract(request)["pricing_calendar"]
     _assert_status(client, request, 400, "pricing_calendar")
+
+
+# ---------------------------------------------------------------------------
+# one price per period (a contract whose settlement price is a period average)
+# ---------------------------------------------------------------------------
+
+ONE_PRICE = DATA / "swap_one_price_reference_values.json"
+BASIS_BUILDS = DATA / "curve_build_basis_reference_values.json"
+ONE_PRICE_EXAMPLE = (Path(__file__).resolve().parents[2] / "examples" / "data" / "commodity_swap"
+                     / "synthetic_fixed_vs_averaging_contract_one_price_per_period.json")
+COMMON_EXAMPLE = (Path(__file__).resolve().parents[2] / "examples" / "data" / "commodity_swap"
+                  / "synthetic_futures_vs_spot_common_pricing.json")
+
+
+def _load_json(path):
+    with open(path) as f:
+        return json.load(f)
+
+
+@pytest.mark.parametrize("case", ["basis_avg_base", "basis_avg_nobaseavg"])
+def test_one_price_per_period_independent_reference_values(client, case):
+    # The averaging basis contract is built from its quotes, pasted into a
+    # swap request and read as one price per period: the month of each
+    # period's last day on min(payment date, its last trading date).
+    build = _load_json(BASIS_BUILDS)["cases"][case]["request"]
+    r = client.session.post(f"{client.base_url}/{client.ENDPOINTS['build_commodity_curves']}",
+                            json=build)
+    assert r.status_code == 200, r.text[:400]
+    contract = r.json()["curves"][0]["contract"]
+    for swap in _load_json(ONE_PRICE)["cases"][case]["swaps"]:
+        request = {"pricing": {"as_of_date": build["pricing"]["as_of_date"],
+                               "rates": build["pricing"]["rates"],
+                               "commodity": {"contracts": [contract]}},
+                   "swaps": [{"commodity_swap": swap["commodity_swap"]}],
+                   "include_flows": True, "include_observations": True}
+        row = _price(client, request)["swaps"][0]
+        assert abs(row["npv"] - swap["npv"]) < 1e-6, (case, swap["id"], row["npv"], swap["npv"])
+        flows = row["legs"][1]["flows"]
+        assert len(flows) == len(swap["periods"])
+        for flow, ref in zip(flows, swap["periods"]):
+            assert flow["pricing_days"] == 1 and len(flow["observations"]) == 1
+            obs = flow["observations"][0]
+            assert obs["date"] == ref["fixing_date"] and flow["payment_date"] == ref["payment_date"]
+            assert obs["contract_month"] == flow["end_date"][:7]
+            assert abs(flow["average"] - ref["price"]) < 1e-9
+        ref_row = commodity_swap_ql(request, 0)
+        _compare_row(f"{case}.{swap['id']}", row, ref_row, request, {})
+
+
+def test_one_price_per_period_fixing_and_deltas(client):
+    request = _load_json(ONE_PRICE_EXAMPLE)
+    row = _price(client, request)["swaps"][0]
+    october = row["legs"][1]["flows"][0]
+    # Read on its last trading date 30 October, before the valuation date: the
+    # fixing; paid 20 US business days after 31 October, after it.
+    assert october["observations"] == [{"date": "2026-10-30", "contract_month": "2026-10",
+                                        "price": 59.62, "source": "Fixing"}]
+    assert october["realised_days"] == 1 and october["realised_average"] == 59.62
+    assert "expected_average" not in october
+    # One delta per month read from today's prices: quantity x discount.
+    by_month = {d["month"]: d["delta"] for d in row["deltas"]}
+    assert "2026-10" not in by_month
+    for flow in row["legs"][1]["flows"][1:]:
+        # The discount is printed to 12 decimals.
+        assert abs(by_month[flow["end_date"][:7]] - flow["quantity"] * flow["discount"]) < 1e-6
+
+
+def test_one_price_per_period_refusals(client):
+    request = _load_json(ONE_PRICE_EXAMPLE)
+    request["swaps"] = request["swaps"][:1]
+    price = _leg(request, 0, 2)["price"]
+    bad = copy.deepcopy(request)
+    _leg(bad, 0, 2)["price"]["nearby"] = 1
+    _assert_status(client, bad, 400, "swaps[0].commodity_swap.leg2.price.nearby is not used when "
+                                     "observation is OnePricePerPeriod")
+    bad = copy.deepcopy(request)
+    _leg(bad, 0, 2)["quantity"]["basis"] = "PerPricingDay"
+    _assert_status(client, bad, 400, "swaps[0].commodity_swap.leg2.quantity.basis: PerPricingDay")
+    bad = copy.deepcopy(request)
+    _leg(bad, 0, 1)["quantity"]["basis"] = "PerPricingDay"
+    _assert_status(client, bad, 400, "swaps[0].commodity_swap.leg1.quantity.basis: PerPricingDay")
+    bad = copy.deepcopy(request)
+    bad["pricing"]["commodity"]["contracts"][0]["fixings"] = []
+    _assert_status(client, bad, 400, "no fixing of 2026-10 on pricing day 2026-10-30")
+    bad = copy.deepcopy(request)
+    _leg(bad, 0, 2)["periods"]["end_date"] = "2027-06-30"
+    _assert_status(client, bad, 400, "leg2.periods[8] (2027-06-01 to 2027-06-30): commodity "
+                                     "contract 'SYN_AVG' does not list 2027-06")
+    assert price["observation"] == "OnePricePerPeriod"
+
+
+# ---------------------------------------------------------------------------
+# common pricing (two floating legs)
+# ---------------------------------------------------------------------------
+
+def test_common_pricing_uses_the_days_both_legs_price(client):
+    request = _load_json(COMMON_EXAMPLE)
+    rows = _price(client, request)["swaps"]
+    own, common = rows
+    spot_holidays = set(request["pricing"]["commodity"]["spot_prices"][0]["pricing_holidays"])
+    for leg in range(2):
+        for f_own, f_common in zip(own["legs"][leg]["flows"], common["legs"][leg]["flows"]):
+            dates = [o["date"] for o in f_common["observations"]]
+            assert f_common["pricing_days"] == len(dates)
+            assert not spot_holidays & set(dates)
+            # The futures leg loses the spot's extra days off; the spot leg
+            # keeps its own days (they are all futures pricing days here).
+            own_dates = [o["date"] for o in f_own["observations"]]
+            assert set(dates) == set(own_dates) - spot_holidays
+    # January: 29 January is a futures pricing day but no spot publication.
+    jan_futures = common["legs"][0]["flows"][2]
+    assert jan_futures["start_date"] == "2027-01-01"
+    assert own["legs"][0]["flows"][2]["pricing_days"] == jan_futures["pricing_days"] + 1
+    assert own["npv"] != common["npv"]
+    for i in range(2):
+        _compare_row(f"swaps[{i}]", rows[i], commodity_swap_ql(request, i), request, {})
+
+
+def test_common_pricing_refusals(client):
+    request = _load_json(COMMON_EXAMPLE)
+    request["swaps"] = request["swaps"][1:]
+    bad = _benchmark()
+    bad["swaps"] = bad["swaps"][:1]
+    bad["swaps"][0]["commodity_swap"]["common_pricing"] = True
+    _assert_status(client, bad, 400, "swaps[0].commodity_swap.common_pricing needs two floating "
+                                     "legs (leg1 is fixed)")
+    bad = copy.deepcopy(request)
+    _leg(bad, 0, 1)["price"] = {"contract_id": "SYN_CL", "observation": "OnePricePerPeriod"}
+    _assert_status(client, bad, 400, "swaps[0].commodity_swap.common_pricing needs pricing days "
+                                     "on both legs; leg1 reads one price per period")
+    bad = copy.deepcopy(request)
+    bad["pricing"]["commodity"]["spot_prices"][0]["pricing_holidays"] += [
+        f"2027-04-{d:02d}" for d in range(1, 31)]
+    _assert_status(client, bad, 400, "leg1.periods[5] (2027-04-01 to 2027-04-30) has no common "
+                                     "pricing day")
+
+
+# ---------------------------------------------------------------------------
+# independent reference values: two floating legs, averaging contracts
+# ---------------------------------------------------------------------------
+
+FF_AVGC = DATA / "swap_two_floating_and_averaging_reference_values.json"
+
+
+def _ff_case(name):
+    return _load_json(FF_AVGC)["cases"][name]
+
+
+def _ff_request(case, swap, common=False):
+    body = copy.deepcopy(swap["commodity_swap"])
+    if common:
+        body["common_pricing"] = True
+    return {"pricing": case["pricing"], "swaps": [{"commodity_swap": body}],
+            "include_flows": True, "include_observations": True}
+
+
+@pytest.mark.parametrize("name", ["ff_cl_vs_bas", "ff_fut_vs_spot", "ff_cal"])
+def test_two_floating_legs_independent_reference_values(client, name):
+    # Without common_pricing each leg averages over its own pricing days
+    # (the reference prices them the same way): NPV, leg NPVs and the
+    # number of pricing days of every period of every leg.
+    case = _ff_case(name)
+    for swap in case["swaps"]:
+        request = _ff_request(case, swap)
+        row = _price(client, request)["swaps"][0]
+        assert abs(row["npv"] - swap["npv"]) < 1e-6, (swap["id"], row["npv"], swap["npv"])
+        for k in range(2):
+            assert abs(row["legs"][k]["npv"] - swap["leg_npvs"][k]) < 1e-6
+            if swap["pricing_days"][k] is not None:
+                assert [f["pricing_days"] for f in row["legs"][k]["flows"]] == \
+                    swap["pricing_days"][k], (swap["id"], k)
+        _compare_row(swap["id"], row, commodity_swap_ql(request, 0), request, {})
+
+
+def test_common_pricing_equals_both_legs_on_the_joint_calendar(client):
+    # Cross-check, not a reference implementation: the reference has no
+    # common pricing; with both legs priced on the joint calendar of the two
+    # exchanges it gives the value common_pricing should give when a common
+    # day is a business day of both calendars.
+    case = _ff_case("ff_cal")
+    check = case["joint_calendar_cross_check"]
+    swap = next(s for s in case["swaps"] if s["id"] == check["swap"])
+    request = _ff_request(case, swap, common=True)
+    row = _price(client, request)["swaps"][0]
+    assert abs(row["npv"] - check["npv"]) < 1e-6, (row["npv"], check["npv"])
+    for k in range(2):
+        assert abs(row["legs"][k]["npv"] - check["leg_npvs"][k]) < 1e-6
+        assert [f["pricing_days"] for f in row["legs"][k]["flows"]] == check["pricing_days"][k]
+    _compare_row("common", row, commodity_swap_ql(request, 0), request, {})
+
+
+def test_averaging_contract_independent_reference_values(client):
+    # One price per period: the month of the period's last day, read on
+    # min(payment date, its last trading date); a quarter reads only its last
+    # month; a period partly in the past reads the contract as quoted; an
+    # expired month reads its fixing.
+    case = _ff_case("avgc_base")
+    for swap in case["swaps"]:
+        request = _ff_request(case, swap)
+        row = _price(client, request)["swaps"][0]
+        assert abs(row["npv"] - swap["npv"]) < 1e-6, (swap["id"], row["npv"], swap["npv"])
+        flows = row["legs"][1]["flows"]
+        assert len(flows) == len(swap["periods"])
+        for flow, ref in zip(flows, swap["periods"]):
+            assert flow["observations"][0]["date"] == ref["fixing_date"], (swap["id"], flow)
+            assert flow["payment_date"] == ref["payment_date"]
+            assert abs(flow["average"] - ref["price"]) < 1e-12
+        _compare_row(swap["id"], row, commodity_swap_ql(request, 0), request, {})
+    # Without the fixing of the expired month: refused, naming the day.
+    expired = next(s for s in case["swaps"] if s["id"] == "AVGC_EXPIRED")
+    request = _ff_request(case, expired)
+    request["pricing"] = copy.deepcopy(request["pricing"])
+    request["pricing"]["commodity"]["contracts"][0]["fixings"] = []
+    _assert_status(client, request, 400, "no fixing of 2026-10 on pricing day 2026-10-30")

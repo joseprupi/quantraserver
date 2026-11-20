@@ -28,19 +28,27 @@ table CommodityFixedPrice {
 }
 
 /// Floating price from a futures contract: the average, over the period's
-/// pricing days, of the nearby contract's price.
+/// pricing days, of the nearby contract's price; or, with `observation`
+/// OnePricePerPeriod, one price per period.
 table FuturesFloatingPrice {
     /// Id of a `pricing.commodity.contracts` entry. Required.
     contract_id:string (required);
     /// Which contract is read: 1 is the front month, 2 the next one.
-    /// Presence-required.
+    /// Presence-required with DailyAverage; a 400 with OnePricePerPeriod.
     nearby:int = null;
     /// A pricing day rolls to the next contract this many pricing days
     /// before the last trading date: 0 reads the front month on its last
-    /// trading date. Presence-required.
+    /// trading date. Presence-required with DailyAverage; a 400 with
+    /// OnePricePerPeriod.
     roll_days_before_expiry:int = null;
     /// Added to each period's average, in price units. Defaults to 0.
     spread:double = 0;
+    /// DailyAverage (the default): the average over the period's pricing
+    /// days. OnePricePerPeriod: one price per period, the contract month
+    /// containing the period's last day read on the earlier of the payment
+    /// date and its last trading date (a quantity per pricing day on either
+    /// leg is then a 400).
+    observation:enums.CommodityFuturesObservation = DailyAverage;
 }
 
 /// Floating price from a spot assessment: the average, over the period's
@@ -92,6 +100,11 @@ table CommoditySwap {
     leg1:CommoditySwapLeg (required);
     /// Second leg. Required. Reported as `legs[1]`.
     leg2:CommoditySwapLeg (required);
+    /// Two floating legs only (a 400 otherwise): a day is a pricing day of a
+    /// period of either leg only when it is a pricing day of both legs'
+    /// contracts or spot prices. Default false: each leg averages over its
+    /// own pricing days.
+    common_pricing:bool = false;
 }
 
 root_type CommoditySwap;

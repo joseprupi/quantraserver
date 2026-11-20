@@ -6,7 +6,8 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# One basis quote: the month's price is its base price plus `value`.
+# One basis quote: the month's (point's) price is its base price plus
+# `value`.
 class CommodityBasisQuote(object):
     __slots__ = ['_tab']
 
@@ -25,7 +26,8 @@ class CommodityBasisQuote(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # A month of the contract being built, "YYYY-MM". Required.
+    # Contract builds: a month of the contract being built, "YYYY-MM".
+    # Required there; refused on spot builds.
     # CommodityBasisQuote
     def Month(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -42,8 +44,17 @@ class CommodityBasisQuote(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
 
+    # Spot builds: the date of one of the spot's points (YYYY-MM-DD).
+    # Required there; refused on contract builds.
+    # CommodityBasisQuote
+    def Date(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
 def CommodityBasisQuoteStart(builder):
-    builder.StartObject(2)
+    builder.StartObject(3)
 
 def Start(builder):
     CommodityBasisQuoteStart(builder)
@@ -60,6 +71,12 @@ def CommodityBasisQuoteAddValue(builder, value):
 def AddValue(builder, value):
     CommodityBasisQuoteAddValue(builder, value)
 
+def CommodityBasisQuoteAddDate(builder, date):
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(date), 0)
+
+def AddDate(builder, date):
+    CommodityBasisQuoteAddDate(builder, date)
+
 def CommodityBasisQuoteEnd(builder):
     return builder.EndObject()
 
@@ -73,6 +90,7 @@ class CommodityBasisQuoteT(object):
     def __init__(self):
         self.month = None  # type: str
         self.value = None  # type: Optional[float]
+        self.date = None  # type: str
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -97,14 +115,19 @@ class CommodityBasisQuoteT(object):
             return
         self.month = commodityBasisQuote.Month()
         self.value = commodityBasisQuote.Value()
+        self.date = commodityBasisQuote.Date()
 
     # CommodityBasisQuoteT
     def Pack(self, builder):
         if self.month is not None:
             month = builder.CreateString(self.month)
+        if self.date is not None:
+            date = builder.CreateString(self.date)
         CommodityBasisQuoteStart(builder)
         if self.month is not None:
             CommodityBasisQuoteAddMonth(builder, month)
         CommodityBasisQuoteAddValue(builder, self.value)
+        if self.date is not None:
+            CommodityBasisQuoteAddDate(builder, date)
         commodityBasisQuote = CommodityBasisQuoteEnd(builder)
         return commodityBasisQuote

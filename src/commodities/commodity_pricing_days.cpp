@@ -52,9 +52,13 @@ std::vector<QuantLib::Date> PeriodPricingDays(
     const PricingCalendar& calendar, const CommodityPeriod& period, const std::string& path) {
     auto days = calendar.pricingDays(period.start, period.end);
     if (days.empty()) {
-        QUANTRA_INVALID_ARGUMENT(
+        CommodityReadData data;
+        data.reason = "NoPricingDay";
+        data.path = path;
+        throw CommodityReadError(
             path + " (" + DateToIso(period.start) + " to " + DateToIso(period.end) +
-            ") has no pricing day");
+                ") has no pricing day",
+            data);
     }
     return days;
 }

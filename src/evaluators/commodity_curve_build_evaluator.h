@@ -95,6 +95,47 @@ struct CommodityCurveBuildResultSet {
     std::vector<BuiltCommodityCurveResult> curves;
 };
 
+/// One entry of a set of builds, built.
+struct BuiltCommodityEntry {
+    BuiltCommodityCurveResult row;
+    /// The built object (one of the two), as a swap reads it.
+    std::shared_ptr<const commodities::FuturesContract> contract;
+    std::shared_ptr<const commodities::SpotPrice> spot;
+    /// With CommodityCurveSetOptions::jacobians: d output / d input for every
+    /// output (contract: live months in contract order; spot: points) and
+    /// every input of the entry (its own, `curve` unset) and of its bases
+    /// (`curve` = the base entry's index). Own inputs: the build's exact
+    /// solve times the fill's derivative; a base's inputs: central
+    /// differences of the chain rebuilt with the input moved by
+    /// 1e-6 x max(1, |input|).
+    commodities::BuildJacobian jacobian;
+};
+
+struct CommodityCurveSetOptions {
+    /// The list's path in the request (`curves`, `pricing.commodity.curve_builds`).
+    std::string listPath = "curves";
+    /// Reports with weights and sensitivities (and the bases' inputs in the
+    /// sensitivities of a basis entry).
+    bool includeDetails = false;
+    /// Fill BuiltCommodityEntry::jacobian.
+    bool jacobians = false;
+    /// Reuse built entries across requests (key = everything a build reads);
+    /// `requestKey` holds what the specs do not (the calendar overrides).
+    bool cache = false;
+    std::string requestKey;
+};
+
+/// Build every entry of `builds` (bases first, results in request order).
+/// `rates` resolves the average quotes' discounting curves (404 naming
+/// `<listPath>[i].average_quotes[k].discounting_curve`). Errors name
+/// `<listPath>[i]`.
+std::vector<BuiltCommodityEntry> BuildCommodityCurveSet(
+    const std::vector<CommodityCurveBuildSpec>& builds,
+    const QuantLib::Date& asOf,
+    const RatesRegistry& rates,
+    const RequestBudget* budget,
+    const CommodityCurveSetOptions& options);
+
 /// A refusal of the solve or the fill as the JSON object the error carries
 /// as `details` (snake_case fields, enums as strings, numbers to full double
 /// precision, only the fields that apply): reason, curve (the index in

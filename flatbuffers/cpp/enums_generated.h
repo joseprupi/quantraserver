@@ -2595,6 +2595,44 @@ inline const char *EnumNameCommodityBasisBasePrice(CommodityBasisBasePrice e) {
   return EnumNamesCommodityBasisBasePrice()[index];
 }
 
+/// How a futures leg reads its contract in each calculation period.
+enum CommodityFuturesObservation : int8_t {
+  /// The average, over the period's pricing days, of the nearby contract
+  /// month (nearby and roll_days_before_expiry required).
+  CommodityFuturesObservation_DailyAverage = 0,
+  /// One price per period, for a contract whose settlement price is itself
+  /// a period average: the month containing the period's last day, read on
+  /// the earlier of the payment date and that month's last trading date (a
+  /// fixing when that day is before the valuation date). nearby and
+  /// roll_days_before_expiry are refused.
+  CommodityFuturesObservation_OnePricePerPeriod = 1,
+  CommodityFuturesObservation_MIN = CommodityFuturesObservation_DailyAverage,
+  CommodityFuturesObservation_MAX = CommodityFuturesObservation_OnePricePerPeriod
+};
+
+inline const CommodityFuturesObservation (&EnumValuesCommodityFuturesObservation())[2] {
+  static const CommodityFuturesObservation values[] = {
+    CommodityFuturesObservation_DailyAverage,
+    CommodityFuturesObservation_OnePricePerPeriod
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCommodityFuturesObservation() {
+  static const char * const names[3] = {
+    "DailyAverage",
+    "OnePricePerPeriod",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCommodityFuturesObservation(CommodityFuturesObservation e) {
+  if (::flatbuffers::IsOutRange(e, CommodityFuturesObservation_DailyAverage, CommodityFuturesObservation_OnePricePerPeriod)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCommodityFuturesObservation()[index];
+}
+
 /// How an average quote entered a commodity curve build.
 enum CommodityQuoteStatus : int8_t {
   /// It adds information to the earlier quotes.

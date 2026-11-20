@@ -29,6 +29,9 @@ on every flow field, observation and delta.
 | `synthetic_own_pricing_holidays.json` | The same swap on two contracts that differ by two own pricing holidays (22 against 20 pricing days in December). |
 | `synthetic_pricing_calendar_override.json` | A holiday added to the pricing calendar through `pricing.calendar_overrides`. |
 | `synthetic_flows_paid_before_valuation_dropped.json` | Periods paid before and on the valuation date are left out. |
+| `synthetic_futures_vs_spot_common_pricing.json` | Futures against spot, the same swap without and with `common_pricing` (the spot has three extra days off). |
+| `synthetic_fixed_vs_averaging_contract_one_price_per_period.json` | A calendar-month averaging contract read one price per period (`observation: OnePricePerPeriod`): monthly periods, the first read on its expired month's final settlement, and mid-month periods read on their payment dates. |
+| `synthetic_fixed_vs_contract_built_from_quotes_in_request.json` | The contract built inside the swap request from a pinned month and eleven monthly average quotes (`pricing.commodity.curve_builds`); the response adds `quote_deltas` and `curve_builds`. |
 
 To price one against a running gateway:
 

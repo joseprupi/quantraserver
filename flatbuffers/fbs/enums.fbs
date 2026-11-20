@@ -694,6 +694,19 @@ enum CommodityBasisBasePrice : byte {
     MonthAverage = 1
 }
 
+/// How a futures leg reads its contract in each calculation period.
+enum CommodityFuturesObservation : byte {
+    /// The average, over the period's pricing days, of the nearby contract
+    /// month (nearby and roll_days_before_expiry required).
+    DailyAverage = 0,
+    /// One price per period, for a contract whose settlement price is itself
+    /// a period average: the month containing the period's last day, read on
+    /// the earlier of the payment date and that month's last trading date (a
+    /// fixing when that day is before the valuation date). nearby and
+    /// roll_days_before_expiry are refused.
+    OnePricePerPeriod = 1
+}
+
 /// How an average quote entered a commodity curve build.
 enum CommodityQuoteStatus : byte {
     /// It adds information to the earlier quotes.

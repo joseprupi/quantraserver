@@ -4,7 +4,9 @@
 #include "date_convert.h"
 #include "error.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <map>
 #include <tuple>
 
@@ -14,6 +16,12 @@ namespace {
 
 bool isFixed(const CommoditySwapLeg& leg) {
     return std::holds_alternative<FixedPrice>(leg.price);
+}
+
+/// A futures leg reading one price per period.
+bool isOnePricePerPeriod(const CommoditySwapLeg& leg) {
+    const auto* f = std::get_if<FuturesFloatingPrice>(&leg.price);
+    return f != nullptr && f->observation == FuturesObservation::OnePricePerPeriod;
 }
 
 const PricingCalendar& floatingCalendar(const CommoditySwapLeg& leg) {
@@ -96,7 +104,14 @@ void validateLeg(const CommoditySwapLeg& leg, const std::string& name) {
         if (!f->contract) {
             QUANTRA_INVALID_ARGUMENT(name + ".price.contract_id: no futures contract given");
         }
-        ValidateNearbyAndRoll(f->nearby, f->rollDaysBeforeExpiry, name + ".price");
+        if (f->observation == FuturesObservation::DailyAverage) {
+            ValidateNearbyAndRoll(f->nearby, f->rollDaysBeforeExpiry, name + ".price");
+        } else if (leg.quantity.basis == QuantityBasis::PerPricingDay) {
+            QUANTRA_INVALID_ARGUMENT(
+                name +
+                ".quantity.basis: PerPricingDay needs pricing days; a leg reading one price per "
+                "period has none");
+        }
         if (!std::isfinite(f->spread)) {
             QUANTRA_INVALID_ARGUMENT(name + ".price.spread must be finite");
         }
@@ -201,13 +216,40 @@ QuantLib::Date paymentDate(const CommoditySwapLeg& leg, const CommodityPeriod& p
 /// fixed leg with quantity per pricing day, those of the floating leg's
 /// period with the same dates; none for a fixed leg with quantity per period.
 std::vector<QuantLib::Date> countedPricingDays(
-    const LegInputs& leg, std::size_t i, const LegInputs& other) {
+    const LegInputs& leg, std::size_t i, const LegInputs& other, bool commonPricing) {
     const auto& period = leg.leg->periods[i];
     if (!isFixed(*leg.leg)) {
-        return PeriodPricingDays(floatingCalendar(*leg.leg), period, periodPath(leg.name, i));
+        if (!commonPricing) {
+            return PeriodPricingDays(floatingCalendar(*leg.leg), period, periodPath(leg.name, i));
+        }
+        // Common pricing: the days both legs price.
+        const auto& mine = floatingCalendar(*leg.leg);
+        const auto& theirs = floatingCalendar(*other.leg);
+        std::vector<QuantLib::Date> days;
+        for (const auto& d : mine.pricingDays(period.start, period.end)) {
+            if (theirs.isPricingDay(d)) {
+                days.push_back(d);
+            }
+        }
+        if (days.empty()) {
+            CommodityReadData data;
+            data.reason = "NoCommonPricingDay";
+            data.path = periodPath(leg.name, i);
+            throw CommodityReadError(
+                periodPath(leg.name, i) + " (" + periodDates(period) +
+                    ") has no common pricing day (a pricing day of both legs)",
+                data);
+        }
+        return days;
     }
     if (leg.leg->quantity.basis != QuantityBasis::PerPricingDay) {
         return {};
+    }
+    if (isOnePricePerPeriod(*other.leg)) {
+        QUANTRA_INVALID_ARGUMENT(
+            leg.name +
+            ".quantity.basis: PerPricingDay needs the floating leg's pricing days; a leg reading "
+            "one price per period has none");
     }
     const auto& otherPeriods = other.leg->periods;
     for (std::size_t j = 0; j < otherPeriods.size(); ++j) {
@@ -264,13 +306,75 @@ struct LegOutcome {
     double annuity = 0.0;
 };
 
+/// One price per period: the month containing the period's last day, read on
+/// min(payment date, its last trading date). Fills the flow's single
+/// observation and average and books the delta to that month.
+void observeOnePrice(
+    const LegInputs& inputs,
+    std::size_t i,
+    const QuantLib::Date& asOf,
+    double perUnit,
+    CommodityFlow& flow,
+    DeltaMap& deltas) {
+    const auto& futures = std::get<FuturesFloatingPrice>(inputs.leg->price);
+    const auto& contract = *futures.contract;
+    const auto& period = inputs.leg->periods[i];
+    char month[16];
+    std::snprintf(
+        month, sizeof(month), "%04d-%02d", static_cast<int>(period.end.year()),
+        static_cast<int>(period.end.month()));
+    const auto& months = contract.months();
+    std::size_t m = 0;
+    while (m < months.size() && months[m].month != month) {
+        ++m;
+    }
+    if (m == months.size()) {
+        CommodityReadData data;
+        data.reason = "MonthNotListed";
+        data.path = periodPath(inputs.name, i);
+        data.month = month;
+        data.contractId = contract.id();
+        throw CommodityReadError(
+            periodPath(inputs.name, i) + " (" + periodDates(period) + "): commodity contract '" +
+                contract.id() + "' does not list " + month +
+                ", the month of the period's last day (one price per period)",
+            data);
+    }
+    // The earlier of the payment date and the last trading date, moved back
+    // to a pricing day of the contract when it is not one.
+    QuantLib::Date day = std::min(flow.paymentDate, months[m].lastTradeDate);
+    while (!contract.pricingCalendar().isPricingDay(day)) {
+        --day;
+    }
+    Observation obs = ObserveFutures(contract, m, day, asOf);
+    flow.pricingDays = 1;
+    flow.average = obs.price;
+    if (obs.source == PriceSource::Fixing) {
+        flow.realisedDays = 1;
+        flow.realisedAverage = obs.price;
+    } else {
+        flow.expectedAverage = obs.price;
+        auto& d = deltas[DeltaKey{CommodityPriceDelta::Kind::Futures, contract.id(), m}];
+        d.kind = CommodityPriceDelta::Kind::Futures;
+        d.contractId = contract.id();
+        d.month = months[m].month;
+        d.delta += perUnit;
+    }
+    flow.observations.push_back(std::move(obs));
+}
+
 LegOutcome priceLeg(
-    const LegInputs& inputs, const LegInputs& other, const QuantLib::Date& asOf, DeltaMap& deltas) {
+    const LegInputs& inputs,
+    const LegInputs& other,
+    const QuantLib::Date& asOf,
+    bool commonPricing,
+    DeltaMap& deltas) {
     const CommoditySwapLeg& leg = *inputs.leg;
     const bool fixed = isFixed(leg);
     const double sign = leg.payReceive == PayReceive::Pay ? -1.0 : 1.0;
+    const bool onePrice = isOnePricePerPeriod(leg);
     std::optional<FloatingReader> reader;
-    if (!fixed) {
+    if (!fixed && !onePrice) {
         reader.emplace(leg);
     }
 
@@ -286,25 +390,49 @@ LegOutcome priceLeg(
             continue;
         }
 
-        const auto days = countedPricingDays(inputs, i, other);
-        const int dayCount = static_cast<int>(days.size());
-        flow.pricingDays = dayCount;
-        flow.quantity = inputs.quantities[i];
-        if (leg.quantity.basis == QuantityBasis::PerPricingDay) {
-            flow.quantity *= dayCount;
-        }
-        flow.discount = leg.discountCurve->discount(flow.paymentDate);
+        // A refusal about the data read names the period first.
+        try {
+            std::vector<QuantLib::Date> days;
+            if (!onePrice) {
+                days = countedPricingDays(inputs, i, other, commonPricing);
+            }
+            const int dayCount = static_cast<int>(days.size());
+            flow.pricingDays = dayCount;
+            flow.quantity = inputs.quantities[i];
+            if (leg.quantity.basis == QuantityBasis::PerPricingDay) {
+                flow.quantity *= dayCount;
+            }
+            flow.discount = leg.discountCurve->discount(flow.paymentDate);
 
-        if (fixed) {
-            flow.price = inputs.fixedPrices[i];
-            flow.amount = sign * flow.quantity * inputs.fixedPrices[i];
-        } else {
-            const double spread = floatingSpread(leg);
-            // NPV change per unit change of one day's price.
-            const double perDay = sign * flow.quantity * flow.discount / days.size();
-            averageFloating(*reader, days, asOf, perDay, flow, deltas);
-            flow.spread = spread;
-            flow.amount = sign * flow.quantity * (*flow.average + spread);
+            if (onePrice) {
+                const double spread = floatingSpread(leg);
+                observeOnePrice(
+                    inputs, i, asOf, sign * flow.quantity * flow.discount, flow, deltas);
+                flow.spread = spread;
+                flow.amount = sign * flow.quantity * (*flow.average + spread);
+            } else if (fixed) {
+                flow.price = inputs.fixedPrices[i];
+                flow.amount = sign * flow.quantity * inputs.fixedPrices[i];
+            } else {
+                const double spread = floatingSpread(leg);
+                // NPV change per unit change of one day's price.
+                const double perDay = sign * flow.quantity * flow.discount / days.size();
+                averageFloating(*reader, days, asOf, perDay, flow, deltas);
+                flow.spread = spread;
+                flow.amount = sign * flow.quantity * (*flow.average + spread);
+            }
+        } catch (const SpotDateOutsidePoints& e) {
+            throw SpotDateOutsidePoints(
+                periodPath(inputs.name, i) + " (" + periodDates(period) + "): " + e.what(),
+                e.date(), *e.data().spotId, periodPath(inputs.name, i));
+        } catch (const CommodityReadError& e) {
+            if (!e.data().path.empty()) {
+                throw;
+            }
+            CommodityReadData data = e.data();
+            data.path = periodPath(inputs.name, i);
+            throw CommodityReadError(
+                periodPath(inputs.name, i) + " (" + periodDates(period) + "): " + e.what(), data);
         }
         flow.presentValue = flow.amount * flow.discount;
         if (!std::isfinite(flow.amount) || !std::isfinite(flow.presentValue)) {
@@ -320,7 +448,10 @@ LegOutcome priceLeg(
 } // namespace
 
 CommoditySwapResult PriceCommoditySwap(
-    const CommoditySwapLeg& leg1, const CommoditySwapLeg& leg2, const QuantLib::Date& asOf) {
+    const CommoditySwapLeg& leg1,
+    const CommoditySwapLeg& leg2,
+    const QuantLib::Date& asOf,
+    const SwapOptions& options) {
     if (asOf == QuantLib::Date()) {
         QUANTRA_INVALID_ARGUMENT("valuation date is required");
     }
@@ -343,11 +474,24 @@ CommoditySwapResult PriceCommoditySwap(
         }
     }
 
+    if (options.commonPricing) {
+        if (fixed1 || fixed2) {
+            QUANTRA_INVALID_ARGUMENT(
+                "common_pricing needs two floating legs (leg" + std::string(fixed1 ? "1" : "2") +
+                " is fixed)");
+        }
+        if (isOnePricePerPeriod(leg1) || isOnePricePerPeriod(leg2)) {
+            QUANTRA_INVALID_ARGUMENT(
+                "common_pricing needs pricing days on both legs; leg" +
+                std::string(isOnePricePerPeriod(leg1) ? "1" : "2") + " reads one price per period");
+        }
+    }
+
     CommoditySwapResult result;
     DeltaMap deltas;
     std::array<double, 2> annuity = {0.0, 0.0};
     for (std::size_t k = 0; k < 2; ++k) {
-        auto outcome = priceLeg(inputs[k], inputs[1 - k], asOf, deltas);
+        auto outcome = priceLeg(inputs[k], inputs[1 - k], asOf, options.commonPricing, deltas);
         result.legs[k] = std::move(outcome.result);
         annuity[k] = outcome.annuity;
     }
@@ -386,7 +530,8 @@ CommoditySwapResult PriceCommoditySwap(
 }
 
 std::string QualifySwapMessage(const std::string& swap, const std::string& message) {
-    const bool legPath = message.rfind("leg1", 0) == 0 || message.rfind("leg2", 0) == 0;
+    const bool legPath = message.rfind("leg1", 0) == 0 || message.rfind("leg2", 0) == 0 ||
+                         message.rfind("common_pricing", 0) == 0;
     return swap + (legPath ? "." : ": ") + message;
 }
 

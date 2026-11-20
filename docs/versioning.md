@@ -28,6 +28,56 @@ first release that promises wire stability.
 
 ## Unreleased
 
+## Version 0.17.0-commodities.4 (November 2026) — commodities: two floating legs, averaging contracts, quotes in the swap request (preview)
+
+Preview build from the `commodities` branch: the image is published only as
+`0.17.0-commodities.4`; `latest` and `0.16` stay on 0.16.11.
+
+### Commodities: two floating legs, averaging contracts, quotes in the swap request (preview)
+
+- **Common pricing**: `CommoditySwap.common_pricing` (default `false`, the
+  previous behaviour). With two floating legs, a period's pricing days are
+  the days both legs price; a fixed leg, or a leg reading one price per
+  period, is a `400`.
+- **One price per period**: `FuturesFloatingPrice.observation`
+  (`DailyAverage`, the default, or `OnePricePerPeriod`). For a contract
+  whose settlement price is a period average: each period reads the month
+  of its last day on the earlier of the payment date and that month's last
+  trading date (moved back to a pricing day), a fixing before the valuation
+  date. `nearby`, `roll_days_before_expiry` and quantities per pricing day
+  are a `400` in this mode.
+- **Basis on spot builds** (`basis` on a `spot` entry, base = another spot
+  entry, quotes by `date`) and **spread quotes** (`versus_base` on an
+  average quote of a basis build, with `base_nearby` /
+  `base_roll_days_before_expiry` on contracts). A basis entry's
+  sensitivities (`include_details`) also list its bases' inputs, each with
+  `curve`.
+- **Curve builds in the swap request**: `pricing.commodity.curve_builds`
+  takes `/build-commodity-curves` entries, builds and registers them (curve
+  cache when enabled); the response adds `quote_deltas` per swap and
+  `curve_builds` summaries. Requests without it get the same response as
+  before.
+- **Changed for existing requests**:
+  - `Smooth` on contract builds minimises second divided differences on the
+    months' last trading dates (was: index differences). The Smooth example
+    (`synthetic_average_quotes_quarter_flat_and_smooth.json`) moves February
+    2027 from 53.006935 to 52.838206 and March from 56.013870 to 56.183235.
+  - Error messages use plain field paths: `curves[0].contract.months[2]...`
+    (was `curves[0].contract ('SYN_CL').months[2]...`),
+    `curves[0].contract.months[3].last_trade_date ...` (was
+    `curves[0].contract: commodity contract 'SYN_CL' months[3]: last_trade_date ...`),
+    the same for spot prices and for `pricing.commodity.contracts` /
+    `spot_prices` on the swap endpoint (which named no request path
+    before); the swap pricer's refusals about the data read name the period
+    (`swaps[0].commodity_swap.leg2.periods[0] (...): commodity contract ...`,
+    `curves[0].average_quotes[1].periods[0] (...): ...`).
+  - `details` on every engine 400 / 404 of `/price-commodity-swap`, on the
+    swap pricer's refusals and unknown discounting curves of
+    `/build-commodity-curves`, and on InvalidInput errors of
+    `pricing.commodity`.
+  - Basis entries with `include_details` list more sensitivities (their
+    bases' inputs).
+
 ## Version 0.17.0-commodities.3 (November 2026) — commodity curves: spot prices and basis contracts (preview)
 
 Preview build from the `commodities` branch: the image is published only as

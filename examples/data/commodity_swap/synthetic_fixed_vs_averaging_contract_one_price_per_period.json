@@ -1,0 +1,308 @@
+{
+  "pricing": {
+    "as_of_date": "2026-11-13",
+    "rates": {
+      "curves": [
+        {
+          "id": "USD_OIS",
+          "reference_date": "2026-11-13",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "bootstrap_trait": "InterpolatedDiscount",
+          "points": [
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2026-11-13",
+                "discount_factor": 1.0
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2026-12-13",
+                "discount_factor": 0.996717727240435
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-01-13",
+                "discount_factor": 0.993337362941161
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-02-12",
+                "discount_factor": 0.990076958773721
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-03-15",
+                "discount_factor": 0.9867191166149
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-04-14",
+                "discount_factor": 0.983480435337093
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-05-14",
+                "discount_factor": 0.980252384294621
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-06-14",
+                "discount_factor": 0.976927862141973
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-07-14",
+                "discount_factor": 0.973721318432005
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-08-14",
+                "discount_factor": 0.970418946363854
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-09-13",
+                "discount_factor": 0.967233766690838
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-10-14",
+                "discount_factor": 0.96395339712921
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-11-13",
+                "discount_factor": 0.960789439152323
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-12-13",
+                "discount_factor": 0.957635866148516
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2028-01-13",
+                "discount_factor": 0.954388047829286
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "commodity": {
+      "contracts": [
+        {
+          "id": "SYN_AVG",
+          "pricing_calendar": "WeekendsOnly",
+          "pricing_holidays": [
+            "2026-11-26",
+            "2026-12-25",
+            "2027-01-01",
+            "2027-01-18",
+            "2027-02-15",
+            "2027-03-26",
+            "2027-05-31",
+            "2027-07-05",
+            "2027-09-06"
+          ],
+          "months": [
+            {
+              "month": "2026-10",
+              "last_trade_date": "2026-10-30"
+            },
+            {
+              "month": "2026-11",
+              "last_trade_date": "2026-11-30",
+              "price": 60.1
+            },
+            {
+              "month": "2026-12",
+              "last_trade_date": "2026-12-31",
+              "price": 60.45
+            },
+            {
+              "month": "2027-01",
+              "last_trade_date": "2027-01-29",
+              "price": 60.8
+            },
+            {
+              "month": "2027-02",
+              "last_trade_date": "2027-02-26",
+              "price": 61.05
+            },
+            {
+              "month": "2027-03",
+              "last_trade_date": "2027-03-31",
+              "price": 61.3
+            },
+            {
+              "month": "2027-04",
+              "last_trade_date": "2027-04-30",
+              "price": 61.5
+            },
+            {
+              "month": "2027-05",
+              "last_trade_date": "2027-05-28",
+              "price": 61.65
+            }
+          ],
+          "fixings": [
+            {
+              "month": "2026-10",
+              "date": "2026-10-30",
+              "value": 59.62
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "swaps": [
+    {
+      "commodity_swap": {
+        "leg1": {
+          "pay_receive": "Pay",
+          "periods": {
+            "start_date": "2026-10-01",
+            "end_date": "2027-03-31",
+            "frequency": "Monthly"
+          },
+          "quantity": {
+            "value": 10000.0,
+            "basis": "PerPeriod"
+          },
+          "price_type": "CommodityFixedPrice",
+          "price": {
+            "price": 60.75
+          },
+          "payment_calendar": "UnitedStatesSettlement",
+          "payment_lag": 20,
+          "payment_convention": "Following",
+          "discounting_curve": "USD_OIS"
+        },
+        "leg2": {
+          "pay_receive": "Receive",
+          "periods": {
+            "start_date": "2026-10-01",
+            "end_date": "2027-03-31",
+            "frequency": "Monthly"
+          },
+          "quantity": {
+            "value": 10000.0,
+            "basis": "PerPeriod"
+          },
+          "price_type": "FuturesFloatingPrice",
+          "price": {
+            "contract_id": "SYN_AVG",
+            "observation": "OnePricePerPeriod",
+            "spread": 0.0
+          },
+          "payment_calendar": "UnitedStatesSettlement",
+          "payment_lag": 20,
+          "payment_convention": "Following",
+          "discounting_curve": "USD_OIS"
+        }
+      }
+    },
+    {
+      "commodity_swap": {
+        "leg1": {
+          "pay_receive": "Pay",
+          "periods": {
+            "periods": [
+              {
+                "start_date": "2027-02-15",
+                "end_date": "2027-03-14"
+              },
+              {
+                "start_date": "2027-03-15",
+                "end_date": "2027-04-14"
+              },
+              {
+                "start_date": "2027-04-15",
+                "end_date": "2027-05-14"
+              }
+            ]
+          },
+          "quantity": {
+            "value": 10000.0,
+            "basis": "PerPeriod"
+          },
+          "price_type": "CommodityFixedPrice",
+          "price": {
+            "price": 60.75
+          },
+          "payment_calendar": "UnitedStatesSettlement",
+          "payment_lag": 5,
+          "payment_convention": "Following",
+          "discounting_curve": "USD_OIS"
+        },
+        "leg2": {
+          "pay_receive": "Receive",
+          "periods": {
+            "periods": [
+              {
+                "start_date": "2027-02-15",
+                "end_date": "2027-03-14"
+              },
+              {
+                "start_date": "2027-03-15",
+                "end_date": "2027-04-14"
+              },
+              {
+                "start_date": "2027-04-15",
+                "end_date": "2027-05-14"
+              }
+            ]
+          },
+          "quantity": {
+            "value": 10000.0,
+            "basis": "PerPeriod"
+          },
+          "price_type": "FuturesFloatingPrice",
+          "price": {
+            "contract_id": "SYN_AVG",
+            "observation": "OnePricePerPeriod",
+            "spread": 0.15
+          },
+          "payment_calendar": "UnitedStatesSettlement",
+          "payment_lag": 5,
+          "payment_convention": "Following",
+          "discounting_curve": "USD_OIS"
+        }
+      }
+    }
+  ],
+  "include_flows": true,
+  "include_observations": true
+}
