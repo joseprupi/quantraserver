@@ -208,8 +208,11 @@ RUN echo "=== Available abseil libraries ===" && \
     echo "=== pkg-config grpc++ ===" && \
     pkg-config --libs grpc++ || echo "pkg-config for grpc++ failed"
 
-# Build using the same entrypoint as local and CI.
-RUN ./scripts/build.sh Release
+# Build using the same entrypoint as local and CI. The build context has no
+# .git, so the commit is passed in (the release workflow sets it); /meta and
+# the Meta RPC report it as git_sha ("unknown" when not passed).
+ARG QUANTRA_GIT_SHA=
+RUN QUANTRA_GIT_SHA="${QUANTRA_GIT_SHA}" ./scripts/build.sh Release
 
 # =============================================================================
 # Stage: production - Minimal runtime image with multi-process support

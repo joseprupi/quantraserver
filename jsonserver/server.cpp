@@ -386,6 +386,69 @@ void FillEnvoyClusterHealth(crow::json::wvalue& status_out, const std::string& e
     status_out["envoy"] = std::move(envoy);
 }
 
+// Value of the stat or admin line `name<sep>value` in an Envoy admin text body.
+std::optional<long long> EnvoyAdminValue(
+    const std::string& body, const std::string& name, const std::string& sep) {
+    std::istringstream ss(body);
+    std::string line;
+    const std::string prefix = name + sep;
+    while (std::getline(ss, line)) {
+        if (line.compare(0, prefix.size(), prefix) != 0) {
+            continue;
+        }
+        try {
+            return std::stoll(line.substr(prefix.size()));
+        } catch (...) {
+            return std::nullopt;
+        }
+    }
+    return std::nullopt;
+}
+
+// The `capacity` block of GET /meta, read from the Envoy admin interface:
+// workers and healthy workers in the cluster, calls in flight on the workers
+// and calls waiting for a connection (both counted by Envoy for callers still
+// waiting), and the cluster's max_requests limit. Null when the admin cannot
+// be read; short timeouts keep /meta fast either way.
+crow::json::wvalue EnvoyCapacity(const std::string& envoy_admin_target) {
+    if (envoy_admin_target.empty()) {
+        return crow::json::wvalue(nullptr);
+    }
+    auto hp = ParseEnvoyAdminTarget(envoy_admin_target);
+    if (!hp) {
+        return crow::json::wvalue(nullptr);
+    }
+    constexpr auto kTimeout = std::chrono::milliseconds(200);
+    std::string err;
+    auto stats = HttpGetWithTimeout(
+        hp->first, hp->second, "/stats?filter=cluster.quantra_workers.", kTimeout, err);
+    if (!stats) {
+        return crow::json::wvalue(nullptr);
+    }
+    const std::string prefix = "cluster.quantra_workers.";
+    auto workers = EnvoyAdminValue(*stats, prefix + "membership_total", ": ");
+    auto healthy = EnvoyAdminValue(*stats, prefix + "membership_healthy", ": ");
+    auto in_flight = EnvoyAdminValue(*stats, prefix + "upstream_rq_active", ": ");
+    auto pending = EnvoyAdminValue(*stats, prefix + "upstream_rq_pending_active", ": ");
+    if (!workers || !healthy || !in_flight || !pending) {
+        return crow::json::wvalue(nullptr);
+    }
+    crow::json::wvalue capacity;
+    capacity["workers"] = *workers;
+    capacity["healthy"] = *healthy;
+    capacity["in_flight"] = *in_flight;
+    capacity["pending"] = *pending;
+    capacity["max_requests"] = nullptr;
+    auto clusters = HttpGetWithTimeout(hp->first, hp->second, "/clusters", kTimeout, err);
+    if (clusters) {
+        if (auto limit = EnvoyAdminValue(
+                *clusters, "quantra_workers::default_priority::max_requests", "::")) {
+            capacity["max_requests"] = *limit;
+        }
+    }
+    return capacity;
+}
+
 } // namespace
 
 void PrintUsage(const char* program) {
@@ -554,6 +617,7 @@ int main(int argc, char** argv) {
             dependencies["flatbuffers"] = QUANTRA_FLATBUFFERS_VERSION;
             dependencies["quantlib"] = QUANTRA_QUANTLIB_VERSION;
             out["dependencies"] = std::move(dependencies);
+            out["capacity"] = EnvoyCapacity(envoy_admin_target);
 
             return crow::response(200, out.dump());
         });

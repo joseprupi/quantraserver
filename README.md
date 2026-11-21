@@ -144,6 +144,14 @@ docker run --rm \
   ghcr.io/joseprupi/quantra-server:0.16.11
 ```
 
+To have a full cluster refuse calls at once instead of queueing them behind
+busy workers, set `QUANTRA_MAX_REQUESTS` to the worker count: the next call
+then gets gRPC `RESOURCE_EXHAUSTED` / HTTP `429`, and `GET /meta` reports the
+load in its `capacity` block. The other load-control variables
+(`QUANTRA_MAX_PENDING`, `QUANTRA_RETRIES`, `QUANTRA_STATS_BIND`,
+`QUANTRA_STATS_PORT`, `QUANTRA_ENVOY_CONFIG`) are described in
+`docs/configuration.md`, "Load control".
+
 See `docs/process-manager.md` for the full scaling model (load balancing, health
 checks, and per-worker caches), and `docs/configuration.md` for every
 environment variable the image reads.

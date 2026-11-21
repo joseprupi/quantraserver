@@ -53,6 +53,8 @@ jobs:
           context: .
           file: ./Dockerfile
           target: production
+          build-args: |
+            QUANTRA_GIT_SHA=${{ github.sha }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

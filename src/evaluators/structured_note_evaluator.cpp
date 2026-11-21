@@ -957,6 +957,9 @@ NoteResultRow priceNote(
                        : mc::PathEngineConfig::Sequence::PseudoRandom;
     cfg.antithetic = trade.monteCarlo.antithetic;
     cfg.brownianBridge = trade.monteCarlo.brownianBridge;
+    // Every run (base, Greeks bumps, diagnostics) stops inside its sample loop
+    // once the request's time budget is over.
+    cfg.interruptCheck = [&budget = ctx.budget]() { budget.check(); };
 
     // One run on the stream over the note's grid: `totals` (optional)
     // receives every simulated path's acc[TOTAL] in simulation order (the

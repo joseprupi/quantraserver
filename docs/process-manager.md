@@ -45,6 +45,20 @@ up separately, so the same request may be recomputed once per worker. Sharing a
 cache across workers (for example an out-of-process L2/Redis tier) is a known
 future option, not implemented today.
 
+## Load control
+
+By default Envoy sends every call to a worker, and a call that arrives while
+every worker is busy waits inside one of them. `quantra start` / `restart`
+take `--max-requests N` (refuse calls beyond N in flight with
+`RESOURCE_EXHAUSTED` / HTTP 429), `--max-pending N`, `--retries N` (resend a
+call whose worker died), `--stats-bind ADDR` / `--stats-port N` (a read-only
+Prometheus stats listener) and `--envoy-config PATH` (run Envoy with your own
+file, validated first). Each has a `QUANTRA_*` environment twin, which is how
+the container sets them; `./scripts/quantra` reads the variables only. What
+each does and does not do is in `configuration.md`, "Load control". The
+manager does not restart a worker that dies: Envoy's health check ejects it
+(on a cluster that has had no traffic yet, the check runs once a minute).
+
 ## In-Repo CLI
 
 For local development inside the repository, use:

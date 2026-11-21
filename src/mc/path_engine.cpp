@@ -148,7 +148,11 @@ PathEngineResult reduce(
         result.runningMeans.push_back(std::move(rm));
     };
 
+    const QuantLib::Size interruptEvery = std::max<QuantLib::Size>(config.interruptEvery, 1);
     for (QuantLib::Size s = 0; s < samples; ++s) {
+        if (config.interruptCheck && s != 0 && s % interruptEvery == 0) {
+            config.interruptCheck();
+        }
         {
             const QuantLib::MultiPath& path = stepper.next();
             if (simulated < config.samplePaths) {

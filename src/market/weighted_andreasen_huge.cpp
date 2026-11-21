@@ -292,9 +292,10 @@ WeightedAndreasenHuge::WeightedAndreasenHuge(
     QuantLib::Handle<QuantLib::YieldTermStructure> rTS,
     QuantLib::Handle<QuantLib::YieldTermStructure> qTS,
     std::size_t nGridPoints,
-    double vegaFloor)
+    double vegaFloor,
+    std::function<void()> interruptCheck)
     : expiries_(std::move(expiries)), spot_(spot), rTS_(std::move(rTS)), qTS_(std::move(qTS)),
-      nGridPoints_(nGridPoints), vegaFloor_(vegaFloor) {
+      nGridPoints_(nGridPoints), vegaFloor_(vegaFloor), interruptCheck_(std::move(interruptCheck)) {
     QL_REQUIRE(nGridPoints_ > 2 && !expiries_.empty(), "undefined grid or calibration set");
 
     std::sort(expiries_.begin(), expiries_.end(), [](const Expiry& a, const Expiry& b) {
@@ -435,6 +436,9 @@ void WeightedAndreasenHuge::calibrate() {
     const QuantLib::EndCriteria endCriteria(500, 100, 1e-12, 1e-10, 1e-10);
 
     for (Size i = 0; i < expiries_.size(); ++i) {
+        // The caller's time budget: both stages of an expiry run to the end,
+        // the next expiry does not start once it is over.
+        if (interruptCheck_) interruptCheck_();
         QuantLib::PositiveConstraint positiveConstraint;
 
         ExpiryFit fit;

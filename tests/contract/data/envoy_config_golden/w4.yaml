@@ -1,0 +1,85 @@
+admin:
+  address:
+    socket_address:
+      address: 127.0.0.1
+      port_value: 9901
+static_resources:
+  clusters:
+  - circuit_breakers:
+      thresholds:
+      - max_connections: 10000
+        max_pending_requests: 10000
+        max_requests: 10000
+        priority: DEFAULT
+    connect_timeout: 0.25s
+    health_checks:
+    - grpc_health_check: {}
+      healthy_threshold: 1
+      interval: 1s
+      timeout: 1s
+      unhealthy_threshold: 2
+    lb_policy: LEAST_REQUEST
+    least_request_lb_config:
+      choice_count: 16
+    load_assignment:
+      cluster_name: quantra_workers
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: 127.0.0.1
+                port_value: 50055
+        - endpoint:
+            address:
+              socket_address:
+                address: 127.0.0.1
+                port_value: 50056
+        - endpoint:
+            address:
+              socket_address:
+                address: 127.0.0.1
+                port_value: 50057
+        - endpoint:
+            address:
+              socket_address:
+                address: 127.0.0.1
+                port_value: 50058
+    name: quantra_workers
+    type: STATIC
+    typed_extension_protocol_options:
+      envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+        '@type': type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+        explicit_http_config:
+          http2_protocol_options: {}
+  listeners:
+  - address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 50051
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          '@type': type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          codec_type: AUTO
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config:
+              '@type': type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+          route_config:
+            name: local_route
+            virtual_hosts:
+            - domains:
+              - '*'
+              name: quantra_service
+              routes:
+              - match:
+                  prefix: /
+                route:
+                  cluster: quantra_workers
+                  max_stream_duration:
+                    grpc_timeout_header_max: 60s
+                  timeout: 30s
+          stat_prefix: quantra_grpc
+    name: quantra_listener

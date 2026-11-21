@@ -37,11 +37,11 @@ The gateway maps the engine's gRPC status onto HTTP:
 | `413` | Body over the 10 MiB cap, or a gRPC message over the transport cap. |
 | `415` | `Content-Type` is not `application/json`. |
 | `422` | Well-formed request the pricing engine could not evaluate — a QuantLib-level failure such as a degenerate schedule or an unbootstrappable curve. |
-| `429` | Resource exhausted for a reason other than payload size. |
+| `429` | Resource exhausted for a reason other than payload size: in particular, every worker is busy and the deployment limits calls in flight (`QUANTRA_MAX_REQUESTS`, see "Load control" below). Back off and send the call again. |
 | `500` | Unexpected server fault. |
 | `501` | A field or combination that is on the wire but not implemented. |
 | `503` | No worker available. |
-| `504` | The request's deadline or server-side budget expired (see `QUANTRA_REQUEST_BUDGET_MS` in `configuration.md`). |
+| `504` | The request's deadline or server-side budget expired (see `QUANTRA_REQUEST_BUDGET_MS` and "What stops at the deadline" in `configuration.md`). |
 
 The distinction that matters most: **`400` means the request is wrong, `422`
 means the request is well-formed but unpriceable.** Retrying either without
@@ -3541,14 +3541,50 @@ default `0.0`.
 | Endpoint | Returns |
 | --- | --- |
 | `GET /health` | Liveness. Cheap; no engine round-trip. |
-| `GET /meta` | Service and version metadata: API version, build info, the product list, and the endpoint list. |
+| `GET /meta` | Service and version metadata: API version, build info, the product list, the endpoint list, and `capacity` (below). |
 | `GET /status` | Runtime status, including Envoy worker membership when `QUANTRA_ENVOY_ADMIN` is set. |
+
+### Load control and `capacity`
+
+`GET /meta` carries a `capacity` block read from Envoy's admin interface
+(`QUANTRA_ENVOY_ADMIN`):
+
+```json
+"capacity": {"workers": 4, "healthy": 4, "in_flight": 3, "pending": 0, "max_requests": 4}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `workers` | Engine workers behind Envoy. |
+| `healthy` | Workers passing Envoy's health check. |
+| `in_flight` | Calls Envoy has sent to workers and is still waiting on. |
+| `pending` | Calls waiting for a connection to a worker. |
+| `max_requests` | Envoy's limit on calls in flight (`QUANTRA_MAX_REQUESTS`); `10000` when no limit was set. |
+
+`capacity` is `null` when the admin interface is not configured or cannot be
+read; `/meta` does not fail and stays fast (each admin read gives up after
+200 ms). The counts are Envoy's: they count callers still waiting, not
+computations. A worker stops a call whose caller has given up at its next
+checkpoint (`configuration.md`, "What stops at the deadline"); for the few
+computations that run to their end once started (a QuantLib optimiser or
+finite-difference pricing), the worker can still be busy on a call that no
+longer appears in `in_flight`.
+
+With `QUANTRA_MAX_REQUESTS` set (see `configuration.md`, "Load control"), a
+call that arrives while that many calls are in flight is refused at once with
+`429` and `code_name` `RESOURCE_EXHAUSTED`. The engine does not queue calls:
+back off and send the call again. Without the setting, a call that arrives
+while every worker is busy waits behind one of them.
 
 ## gRPC callers
 
 The same contract applies, minus the HTTP mapping: the engine returns the gRPC
 status directly (`INVALID_ARGUMENT`, `ABORTED`, `UNIMPLEMENTED`,
 `DEADLINE_EXCEEDED`, …) with the real cause in the status message.
+
+A gRPC caller refused by the limit on calls in flight gets
+`RESOURCE_EXHAUSTED` from Envoy, at once; the advice is the same as for
+`429`.
 
 An error's structured details (the `details` object of the JSON body) travel
 in the trailing metadata key **`quantra-error-details-bin`**: the value is

@@ -17,13 +17,19 @@
 # Expects DEPS_PREFIX to be defined for dependency-version discovery.
 # =============================================================================
 
-# Short git sha (best effort; "unknown" outside a checkout).
-execute_process(
-    COMMAND git -C ${CMAKE_SOURCE_DIR} rev-parse --short HEAD
-    OUTPUT_VARIABLE QUANTRA_GIT_SHA
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_QUIET
-)
+# Git sha: the QUANTRA_GIT_SHA environment variable when set (the container
+# build passes it, since the image build context has no .git), else the short
+# sha of the checkout, else "unknown".
+set(QUANTRA_GIT_SHA "$ENV{QUANTRA_GIT_SHA}")
+string(STRIP "${QUANTRA_GIT_SHA}" QUANTRA_GIT_SHA)
+if(NOT QUANTRA_GIT_SHA)
+    execute_process(
+        COMMAND git -C ${CMAKE_SOURCE_DIR} rev-parse --short HEAD
+        OUTPUT_VARIABLE QUANTRA_GIT_SHA
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+endif()
 if(NOT QUANTRA_GIT_SHA)
     set(QUANTRA_GIT_SHA "unknown")
 endif()

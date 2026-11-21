@@ -666,13 +666,16 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
         std::shared_ptr<WeightedAndreasenHuge> ah;
         try {
             ah = std::make_shared<WeightedAndreasenHuge>(
-                std::move(set), spot, rTS, qTS, kAndreasenHugeGridPoints);
+                std::move(set), spot, rTS, qTS, kAndreasenHugeGridPoints,
+                WeightedAndreasenHuge::kVegaFloor, [&budget = ctx.budget]() { budget.check(); });
             const auto err = ah->calibrationError();
             AndreasenHugeErrorData ed;
             ed.minVol = std::get<0>(err);
             ed.maxVol = std::get<1>(err);
             ed.avgVol = std::get<2>(err);
             out.andreasenHugeError = ed;
+        } catch (const QuantraDeadlineExceeded&) {
+            throw;
         } catch (const std::exception& ex) {
             QUANTRA_INVALID_ARGUMENT(
                 std::string("Andreasen-Huge calibration failed: ") + trimMessage(ex.what()));
@@ -944,6 +947,7 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
 
     // Fit (or refit) slice i under the final slice i + 1.
     auto fitSlice = [&](std::size_t i) {
+        ctx.budget.check(); // every fit and refit of a slice
         auto& w = work[i];
         auto& e = reportOf(w.expiry);
         const SviParams p0 = independentFit(i);
@@ -1144,6 +1148,7 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
         std::string action;
         LocalVolCheckData check;
         for (unsigned iter = 0;; ++iter) {
+            ctx.budget.check();
             std::vector<std::pair<double, bool>> refusedAt;
             check = checkLocalVol(
                 Handle<QuantLib::BlackVolTermStructure>(sviSurface()), sviBands, std::nullopt,
@@ -1239,6 +1244,7 @@ VolSurfaceCalibrationResult VolSurfaceCalibrationEvaluator::evaluate(
                 origin.emplace_back(i, j);
             }
         }
+        ctx.budget.check();
         const ssvi::CalibrationResult fit = ssvi::calibrate(ci);
         // Quotes the fit left out: dropped with the calibrator's reason.
         std::vector<std::vector<bool>> keep(work.size());

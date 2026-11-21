@@ -642,7 +642,7 @@ def generate_openapi() -> Dict[str, Any]:
     paths["/meta"] = {
         "get": {
             "summary": "Service Metadata",
-            "description": "Service and build metadata including versions, git sha, endpoints, products, and dependency versions.",
+            "description": "Service and build metadata including versions, git sha, endpoints, products, and dependency versions, plus the cluster's capacity read from Envoy's admin interface (null when it cannot be read).",
             "tags": ["System"],
             "responses": {
                 "200": {
@@ -651,7 +651,22 @@ def generate_openapi() -> Dict[str, Any]:
                         "application/json": {
                             "schema": {
                                 "type": "object",
-                                "additionalProperties": True
+                                "additionalProperties": True,
+                                "properties": {
+                                    "capacity": {
+                                        "type": "object",
+                                        "nullable": True,
+                                        "description": "Envoy's view of the worker cluster. The counts are calls whose callers are still waiting; a worker keeps computing a call whose caller gave up, and that call is not counted. Null when the admin interface is not configured or cannot be read.",
+                                        "properties": {
+                                            "workers": {"type": "integer", "description": "Engine workers behind Envoy."},
+                                            "healthy": {"type": "integer", "description": "Workers passing Envoy's health check."},
+                                            "in_flight": {"type": "integer", "description": "Calls sent to workers and still waited on."},
+                                            "pending": {"type": "integer", "description": "Calls waiting for a connection to a worker."},
+                                            "max_requests": {"type": "integer", "nullable": True, "description": "Envoy's limit on calls in flight (QUANTRA_MAX_REQUESTS); 10000 when no limit was set. Over it a call gets HTTP 429."}
+                                        },
+                                        "required": ["workers", "healthy", "in_flight", "pending", "max_requests"]
+                                    }
+                                }
                             }
                         }
                     }

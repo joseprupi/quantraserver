@@ -1,6 +1,7 @@
 #ifndef QUANTRASERVER_PRODUCT_REGISTRY_H
 #define QUANTRASERVER_PRODUCT_REGISTRY_H
 
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <string>
@@ -29,11 +30,32 @@ public:
         names_.push_back(name);
     }
 
-    // Initialize all products (called once at server startup)
-    void initializeAll(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) {
+    // Initialize all products (called once at server startup), except the
+    // names in `skip`, which the caller starts on another queue with
+    // initialize().
+    void initializeAll(
+        QuantraServer::AsyncService* service,
+        grpc::ServerCompletionQueue* cq,
+        const std::vector<std::string>& skip = {}) {
         for (const auto& [name, factory] : factories_) {
-            factory(service, cq);
+            if (std::find(skip.begin(), skip.end(), name) == skip.end()) {
+                factory(service, cq);
+            }
         }
+    }
+
+    // Initialize one registered product on the given queue. Returns false when
+    // no product has that name.
+    bool initialize(
+        const std::string& name,
+        QuantraServer::AsyncService* service,
+        grpc::ServerCompletionQueue* cq) {
+        auto it = factories_.find(name);
+        if (it == factories_.end()) {
+            return false;
+        }
+        it->second(service, cq);
+        return true;
     }
 
     // Get registered product names (for logging)

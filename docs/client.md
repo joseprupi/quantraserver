@@ -97,7 +97,14 @@ gateway has its own `GET /meta` and `GET /health`.
 
 Everything is assembled from compile-time build metadata and the shared product
 catalog: `Meta` touches no market data and does no pricing, so it is safe to
-call on a hot server.
+call on a hot server. Each worker answers `Meta` on its own thread, beside its
+pricing thread, so the reply does not wait for a running calculation. When
+the deployment limits calls in flight (`QUANTRA_MAX_REQUESTS`), Envoy routes
+`Meta` outside that limit, so it is never refused for capacity.
+
+`MetaResponse` has no capacity fields: the load of the cluster (workers, calls
+in flight, the limit) is in the `capacity` block of the JSON gateway's
+`GET /meta`, read from Envoy's admin interface.
 
 ### Health checking
 
