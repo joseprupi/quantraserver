@@ -28,6 +28,78 @@ first release that promises wire stability.
 
 ## Unreleased
 
+## Version 0.17.1 (November 2026) — load control for the container's Envoy, computations stop at the deadline
+
+Optional settings on the Envoy front of the container, a `capacity` block in
+`GET /meta`, the `Meta` RPC answered beside the pricing thread, and long
+computations that stop when the request's time is over. No request or
+response of a pricing endpoint changes, no price changes, and with none of
+the new settings the generated Envoy config is byte-for-byte the one of
+0.17.0.
+
+Each setting is an environment variable read by the process manager (the
+container passes it with `docker run -e`) and a `quantra start` flag of the
+same name; `scripts/envoy_config.py` takes the flags too.
+
+- **`QUANTRA_MAX_REQUESTS` / `--max-requests N`** (default `10000`, no limit
+  in practice): calls in flight across all workers. Once `N` calls are in
+  flight the next one is refused at once with gRPC `RESOURCE_EXHAUSTED`,
+  which the JSON gateway answers as HTTP `429`. Envoy's own answer to that
+  refusal is `UNAVAILABLE` / `503`; the generated config rewrites it only
+  when the limit is set. The `Meta` RPC then goes to a second cluster on the
+  same workers, outside the limit.
+- **`QUANTRA_MAX_PENDING` / `--max-pending N`** (default `10000`): Envoy's
+  limit on calls waiting for a connection to a worker. It does not queue
+  calls for busy workers.
+- **`QUANTRA_RETRIES` / `--retries N`** (default `0`): a call whose worker
+  dies or cannot be reached is resent to another worker, up to `N` times.
+  That is all it covers: a call refused by the limit is not retried, a busy
+  worker returns no error, and the route timeout covers all attempts.
+- **`QUANTRA_STATS_BIND` / `--stats-bind ADDR`** and **`QUANTRA_STATS_PORT` /
+  `--stats-port N`** (default unset / `9902`): a listener that serves only
+  `GET /stats/prometheus` and `GET /ready` from Envoy's admin interface and
+  answers `404` to everything else. The admin interface stays on
+  `127.0.0.1`.
+- **`QUANTRA_ENVOY_CONFIG` / `--envoy-config PATH`**: run Envoy with your own
+  file. It is checked with `envoy --mode validate` first and refused, with
+  Envoy's message, when invalid; a missing gRPC listener or admin port gives
+  a warning.
+- **`GET /meta` `capacity`**: `workers`, `healthy`, `in_flight`, `pending`,
+  `max_requests`, read from Envoy's admin interface; `null` when it cannot be
+  read. The counts are callers still waiting: a worker keeps computing a call
+  whose caller has given up, and that call is no longer counted.
+- **`Meta` RPC**: each worker answers it on its own thread, so it no longer
+  waits for a running calculation. The response is unchanged (no capacity
+  fields; those are in the JSON `/meta`).
+- **`git_sha`** in `/meta` and the `Meta` RPC: the container build now
+  receives the commit (it reported `unknown`, the image build has no `.git`).
+
+### Computations stop at the deadline
+
+The request's time (the earlier of the caller's deadline and
+`QUANTRA_REQUEST_BUDGET_MS`) was checked only between curves, trades and
+runs, so a worker kept computing one long Monte Carlo run or calibration
+after its caller had been answered 504. It is now also checked inside the
+Monte Carlo simulation (every 32 samples: every run of a structured note,
+the simulation check of `/validate-vol-surface`), before each SVI slice fit
+and refit, each Andreasen-Huge expiry, the eSSVI fit and each implied-forward
+expiry. The answer is the same `DEADLINE_EXCEEDED` / 504 as before, the
+worker is free for the next call, and a run that is not stopped gives the
+same numbers bit for bit. Measured with a 1 s deadline: a 6 s local-vol note
+left its worker busy about 5 s after the 504, now about 0.3 s; a 10 s
+Andreasen-Huge calibration about 9 s, now under 0.5 s. Still running to
+their end once started: one QuantLib optimiser or pricing-engine call
+(Hull-White and SABR calibrations, one SVI or Andreasen-Huge expiry fit, the
+eSSVI fit, finite-difference and tree pricing, one curve's bootstrap).
+Described in `docs/configuration.md`, "What stops at the deadline".
+
+Envoy's adaptive-concurrency filter is not offered: it limits calls by the
+fastest response times it has seen, and with pricing calls from milliseconds
+to minutes it refused slow calls while workers were free.
+
+Described in `docs/configuration.md` ("Load control") and
+`docs/http-api.md` ("Load control and `capacity`").
+
 ## Version 0.17.0 (November 2026) — commodity swaps and commodity curves
 
 Two new endpoints, `POST /price-commodity-swap` and

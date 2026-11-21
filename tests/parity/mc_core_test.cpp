@@ -35,6 +35,7 @@
 #include "error.h"
 #include "path_engine.h"
 #include "quanto_builder.h"
+#include "request_budget.h"
 #include "smile_slice_vol_surface.h"
 #include "time_grid.h"
 
@@ -1247,6 +1248,98 @@ TEST(McCoreTest, RejectsBadInputs) {
         {"sample_paths (9) must be <= paths (8)"});
     EXPECT_THROW(
         mc::RunPaths(nullptr, grid.grid, config(8, kSobol, false, true), 1, noop), QuantraError);
+}
+
+// Interrupt check: the request's time budget stops a run inside its sample
+// loop, and a check that does not stop it leaves the result unchanged.
+namespace {
+
+struct InterruptSetup {
+    McMarket m;
+    std::shared_ptr<QuantLib::StochasticProcessArray> processes;
+    mc::SimulationGrid grid;
+    Size idx = 0;
+
+    InterruptSetup() {
+        const auto asset =
+            mc::MakeBasketAsset("SPX", m.spot(100.0), m.flat(0.02), m.flat(0.05), m.constVol(0.2));
+        processes = mc::BasketModel::build({asset}, identity(1));
+        grid = mc::BuildSimulationGrid(m.valuation, {m.plusDays(365)}, std::size_t{12});
+        idx = grid.size() - 1;
+    }
+};
+
+void expectIdentical(const mc::PathEngineResult& a, const mc::PathEngineResult& b) {
+    ASSERT_EQ(a.mean.size(), b.mean.size());
+    for (std::size_t k = 0; k < a.mean.size(); ++k) {
+        EXPECT_EQ(a.mean[k], b.mean[k]); // bit for bit, not within a tolerance
+        EXPECT_EQ(a.standardError[k], b.standardError[k]);
+    }
+    ASSERT_EQ(a.runningMeans.size(), b.runningMeans.size());
+    for (std::size_t i = 0; i < a.runningMeans.size(); ++i) {
+        EXPECT_EQ(a.runningMeans[i].means, b.runningMeans[i].means);
+        EXPECT_EQ(a.runningMeans[i].standardErrors, b.runningMeans[i].standardErrors);
+    }
+}
+
+} // namespace
+
+TEST(McCoreTest, InterruptCheckThatDoesNotStopLeavesTheResultBitIdentical) {
+    QuantLib::SavedSettings backup;
+    InterruptSetup s;
+    const mc::PathFunctor payoff = [&](const QuantLib::MultiPath& path, std::vector<Real>& acc) {
+        acc[0] = std::max(path[0][s.idx] - 100.0, 0.0);
+        acc[1] = path[0][s.idx];
+    };
+    for (const auto& base :
+         {config(5000, kSobol, true, true), config(5000, kPseudo, false, false)}) {
+        const auto plain = mc::RunPaths(s.processes, s.grid.grid, base, 2, payoff);
+
+        auto counted = base;
+        std::size_t calls = 0;
+        counted.interruptCheck = [&calls]() { ++calls; };
+        expectIdentical(plain, mc::RunPaths(s.processes, s.grid.grid, counted, 2, payoff));
+        const std::size_t samples = base.antithetic ? base.paths / 2 : base.paths;
+        EXPECT_EQ(calls, (samples - 1) / counted.interruptEvery);
+
+        // A real budget that has not run out.
+        auto budgeted = base;
+        const auto budget = quantra::RequestBudget::fromDeadlineAndCeiling(
+            std::chrono::system_clock::time_point::max(), std::chrono::system_clock::now(), 600000);
+        budgeted.interruptCheck = [&budget]() { budget.check(); };
+        expectIdentical(plain, mc::RunPaths(s.processes, s.grid.grid, budgeted, 2, payoff));
+    }
+}
+
+TEST(McCoreTest, InterruptCheckStopsTheRunWithinOneBatch) {
+    QuantLib::SavedSettings backup;
+    InterruptSetup s;
+    std::size_t functorCalls = 0;
+    const mc::PathFunctor payoff = [&](const QuantLib::MultiPath& path, std::vector<Real>& acc) {
+        ++functorCalls;
+        acc[0] = path[0][s.idx];
+    };
+
+    // A budget already over: the run stops at the first check, after one
+    // batch of interruptEvery samples, with the budget's own error.
+    auto cfg = config(1 << 16, kSobol, true, true);
+    quantra::RequestBudget expired;
+    expired.deadline = std::chrono::system_clock::now() - std::chrono::seconds(1);
+    cfg.interruptCheck = [&expired]() { expired.check(); };
+    EXPECT_THROW(mc::RunPaths(s.processes, s.grid.grid, cfg, 1, payoff), QuantraDeadlineExceeded);
+    EXPECT_EQ(functorCalls, 2 * cfg.interruptEvery); // antithetic: two paths per sample
+
+    // A check that stops on its third call: exactly three batches ran.
+    functorCalls = 0;
+    std::size_t checks = 0;
+    cfg.antithetic = false;
+    cfg.interruptEvery = 100;
+    cfg.interruptCheck = [&checks]() {
+        if (++checks == 3)
+            QUANTRA_DEADLINE_EXCEEDED("request deadline exceeded during computation");
+    };
+    EXPECT_THROW(mc::RunPaths(s.processes, s.grid.grid, cfg, 1, payoff), QuantraDeadlineExceeded);
+    EXPECT_EQ(functorCalls, 300u);
 }
 
 }} // namespace quantra::testing

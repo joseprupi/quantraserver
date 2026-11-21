@@ -271,6 +271,7 @@ ImpliedForwardsResult ImpliedForwardsEvaluator::evaluate(
     out.dividendCurveId = in.dividendCurveId;
 
     for (const auto& [expiry, lines] : byExpiry) {
+        ctx.budget.check();
         ImpliedForwardExpiryData e;
         e.expiry = expiry;
         e.expiryIso = lines.front()->expiryIso;

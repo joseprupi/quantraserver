@@ -931,6 +931,7 @@ VolSurfaceValidationResult VolSurfaceValidationEvaluator::evaluate(
                            : mc::PathEngineConfig::Sequence::PseudoRandom;
         cfg.antithetic = mcd.antithetic;
         cfg.brownianBridge = mcd.brownianBridge;
+        cfg.interruptCheck = [&budget = ctx.budget]() { budget.check(); };
         const QuantLib::Size n = opts.size();
         const mc::PathFunctor functor = [&](const QuantLib::MultiPath& path,
                                             std::vector<QuantLib::Real>& acc) {

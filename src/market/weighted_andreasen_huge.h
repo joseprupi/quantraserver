@@ -123,6 +123,7 @@
 #include <ql/time/date.hpp>
 
 #include <cstddef>
+#include <functional>
 #include <map>
 #include <memory>
 #include <tuple>
@@ -190,7 +191,8 @@ public:
         QuantLib::Handle<QuantLib::YieldTermStructure> rTS,
         QuantLib::Handle<QuantLib::YieldTermStructure> qTS,
         std::size_t nGridPoints = 500,
-        double vegaFloor = kVegaFloor);
+        double vegaFloor = kVegaFloor,
+        std::function<void()> interruptCheck = {});
     ~WeightedAndreasenHuge();
 
     double minStrike() const;
@@ -248,6 +250,7 @@ private:
     const QuantLib::Handle<QuantLib::YieldTermStructure> qTS_;
     const std::size_t nGridPoints_;
     const double vegaFloor_;
+    const std::function<void()> interruptCheck_;
 
     double minQuotedStrike_ = 0.0, maxQuotedStrike_ = 0.0;
     std::size_t nQuotes_ = 0;

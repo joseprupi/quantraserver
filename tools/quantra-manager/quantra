@@ -27,9 +27,19 @@ Environment:
     QUANTRA_STATE_DIR  Where to store runtime state: pid/logs/envoy.yaml (default: /workspace/.quantra)
     QUANTRA_FOREGROUND If set to 1/true/yes, `start` defaults to foreground when no mode is given.
     QUANTRA_ROUTE_TIMEOUT_MS  Envoy per-request route timeout in milliseconds (default: 30000).
+    QUANTRA_MAX_REQUESTS  Calls in flight across all workers before Envoy refuses the next
+                          with RESOURCE_EXHAUSTED / HTTP 429 (default: 10000, no such answer).
+    QUANTRA_MAX_PENDING   Calls waiting for a connection to a worker (default: 10000).
+    QUANTRA_RETRIES       Resend a call whose worker died or was unreachable (default: 0).
+    QUANTRA_STATS_BIND    Address of a read-only stats listener (default: none).
+    QUANTRA_STATS_PORT    Port of that listener (default: 9902).
+    QUANTRA_ENVOY_CONFIG  Start Envoy with this file instead of a generated one.
+    Each has a `start` / `restart` flag of the same name (--max-requests, ...); a flag
+    wins over its variable.
 """
 
 import argparse
+import copy
 import json
 import os
 import signal
@@ -127,6 +137,9 @@ def _port_in_use(port: int) -> bool:
     import socket
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
+        # Envoy and the workers bind with SO_REUSEADDR, so connections of an
+        # earlier run still closing on the port (TIME_WAIT) do not stop them.
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind(("0.0.0.0", port))
         return False
     except OSError:
@@ -138,8 +151,8 @@ def _port_in_use(port: int) -> bool:
             pass
 
 
-def preflight_ports(port: int, base_port: int, workers: int, admin_port: int):
-    needed = [port, admin_port] + list(range(base_port, base_port + workers))
+def preflight_ports(port: int, base_port: int, workers: int, admin_port: int, extra=()):
+    needed = [port, admin_port] + list(range(base_port, base_port + workers)) + list(extra)
     conflicts = [p for p in needed if _port_in_use(p)]
     if conflicts:
         print("Error: Some required ports are already in use:", file=sys.stderr)
@@ -214,8 +227,205 @@ def least_request_choice_count(workers: int) -> int:
     return max(2, 4 * workers)
 
 
+# --- BEGIN load control (identical in scripts/envoy_config.py and tools/quantra-manager/quantra) ---
+# Optional knobs on the generated Envoy config. With none of them set the
+# config is exactly the one generated before they existed (a golden test
+# holds that). Each knob is a keyword argument of generate_envoy_config and an
+# environment variable; an explicit argument wins over the variable.
+DEFAULT_MAX_REQUESTS = 10000
+DEFAULT_MAX_PENDING = 10000
+DEFAULT_RETRIES = 0
+DEFAULT_STATS_PORT = 9902
+WORKERS_CLUSTER = "quantra_workers"
+META_CLUSTER = "quantra_meta"
+ADMIN_CLUSTER = "envoy_admin"
+META_RPC_PATH = "/quantra.QuantraServer/Meta"
+
+
+def _int_knob(environ, name: str, default: int, minimum: int, maximum: Optional[int] = None) -> int:
+    """An integer environment knob: unset or empty keeps the default; a value
+    that is not an integer in [minimum, maximum] logs one line and keeps it."""
+    raw = str(environ.get(name, "")).strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        value = None
+    if value is None or value < minimum or (maximum is not None and value > maximum):
+        bound = f">= {minimum}" if maximum is None else f"in [{minimum}, {maximum}]"
+        print(f"{name}={raw!r} is not an integer {bound}; using {default}", file=sys.stderr)
+        return default
+    return value
+
+
+def load_control_from_env(environ=None) -> Dict[str, Any]:
+    """The load-control knobs read from QUANTRA_MAX_REQUESTS,
+    QUANTRA_MAX_PENDING, QUANTRA_RETRIES, QUANTRA_STATS_BIND and
+    QUANTRA_STATS_PORT."""
+    env = os.environ if environ is None else environ
+    return {
+        "max_requests": _int_knob(env, "QUANTRA_MAX_REQUESTS", DEFAULT_MAX_REQUESTS, 1),
+        "max_pending": _int_knob(env, "QUANTRA_MAX_PENDING", DEFAULT_MAX_PENDING, 1),
+        "retries": _int_knob(env, "QUANTRA_RETRIES", DEFAULT_RETRIES, 0),
+        "stats_bind": str(env.get("QUANTRA_STATS_BIND", "")).strip() or None,
+        "stats_port": _int_knob(env, "QUANTRA_STATS_PORT", DEFAULT_STATS_PORT, 1, 65535),
+    }
+
+
+def resolve_load_control(max_requests=None, max_pending=None, retries=None,
+                         stats_bind=None, stats_port=None, environ=None) -> Dict[str, Any]:
+    """Explicit arguments over environment knobs over defaults."""
+    knobs = load_control_from_env(environ)
+    for key, value in (("max_requests", max_requests), ("max_pending", max_pending),
+                       ("retries", retries), ("stats_bind", stats_bind),
+                       ("stats_port", stats_port)):
+        if value is not None:
+            knobs[key] = value
+    if knobs["max_requests"] < 1 or knobs["max_pending"] < 1:
+        raise ValueError("max_requests and max_pending must be >= 1")
+    if knobs["retries"] < 0:
+        raise ValueError("retries must be >= 0")
+    if not 1 <= knobs["stats_port"] <= 65535:
+        raise ValueError("stats_port must be in [1, 65535]")
+    return knobs
+
+
+def _router_filter() -> Dict[str, Any]:
+    return {
+        "name": "envoy.filters.http.router",
+        "typed_config": {
+            "@type": "type.googleapis.com/envoy.extensions.filters.http.router.v3.Router"
+        },
+    }
+
+
+def apply_load_control(config: Dict[str, Any], knobs: Dict[str, Any], admin_port: int) -> Dict[str, Any]:
+    """Apply the load-control knobs to a generated config, in place.
+
+    - max_requests (other than the default): the workers cluster refuses a call
+      over the limit at once. Envoy's own answer to that refusal (response flag
+      UO, "upstream overflow") is rewritten to grpc-status 8
+      RESOURCE_EXHAUSTED and HTTP 429, so the JSON gateway answers 429. The
+      remaining-capacity gauges are tracked. The Meta RPC is routed to a
+      second cluster on the same workers with the default limits, so the
+      pricing limit never refuses it.
+    - max_pending: the plain max_pending_requests breaker. It covers calls
+      waiting for a connection to a worker; it does not queue calls for a busy
+      worker.
+    - retries (> 0): a call whose worker dies or cannot be reached is resent
+      to another worker. Envoy does not retry its own overflow refusal, and a
+      busy worker returns no error, so neither is retried.
+    - stats_bind: an extra listener on stats_bind:stats_port that serves only
+      GET /stats/prometheus and GET /ready from the admin interface (which
+      itself stays on 127.0.0.1); every other path answers 404.
+    """
+    resources = config["static_resources"]
+    listener = resources["listeners"][0]
+    hcm = listener["filter_chains"][0]["filters"][0]["typed_config"]
+    routes = hcm["route_config"]["virtual_hosts"][0]["routes"]
+    workers = resources["clusters"][0]
+    thresholds = workers["circuit_breakers"]["thresholds"][0]
+
+    thresholds["max_pending_requests"] = knobs["max_pending"]
+
+    if knobs["max_requests"] != DEFAULT_MAX_REQUESTS:
+        meta = copy.deepcopy(workers)
+        meta["name"] = META_CLUSTER
+        meta["load_assignment"]["cluster_name"] = META_CLUSTER
+        meta["circuit_breakers"]["thresholds"][0]["max_requests"] = DEFAULT_MAX_REQUESTS
+        thresholds["max_requests"] = knobs["max_requests"]
+        thresholds["track_remaining"] = True
+        hcm["local_reply_config"] = {
+            "mappers": [{
+                "filter": {"response_flag_filter": {"flags": ["UO"]}},
+                "status_code": 429,
+                "headers_to_add": [{
+                    "header": {"key": "grpc-status", "value": "8"},
+                    "append_action": "OVERWRITE_IF_EXISTS_OR_ADD",
+                }],
+            }]
+        }
+        meta_route = copy.deepcopy(routes[0])
+        meta_route["match"] = {"path": META_RPC_PATH}
+        meta_route["route"]["cluster"] = META_CLUSTER
+        routes.insert(0, meta_route)
+        resources["clusters"].append(meta)
+
+    if knobs["retries"] > 0:
+        for route in routes:
+            route["route"]["retry_policy"] = {
+                "retry_on": "reset,connect-failure",
+                "num_retries": knobs["retries"],
+                "retry_host_predicate": [{
+                    "name": "envoy.retry_host_predicates.previous_hosts",
+                    "typed_config": {
+                        "@type": "type.googleapis.com/envoy.extensions.retry.host.previous_hosts.v3.PreviousHostsPredicate"
+                    },
+                }],
+                "host_selection_retry_max_attempts": 5,
+            }
+
+    if knobs["stats_bind"]:
+        get_only = [{"name": ":method", "string_match": {"exact": "GET"}}]
+        resources["listeners"].append({
+            "name": "quantra_stats_listener",
+            "address": {
+                "socket_address": {"address": knobs["stats_bind"], "port_value": knobs["stats_port"]}
+            },
+            "filter_chains": [{
+                "filters": [{
+                    "name": "envoy.filters.network.http_connection_manager",
+                    "typed_config": {
+                        "@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager",
+                        "codec_type": "AUTO",
+                        "stat_prefix": "quantra_stats",
+                        "route_config": {
+                            "name": "stats_route",
+                            "virtual_hosts": [{
+                                "name": "quantra_stats",
+                                "domains": ["*"],
+                                "routes": [
+                                    {"match": {"path": path, "headers": get_only},
+                                     "route": {"cluster": ADMIN_CLUSTER}}
+                                    for path in ("/stats/prometheus", "/ready")
+                                ],
+                            }],
+                        },
+                        "http_filters": [_router_filter()],
+                    },
+                }],
+            }],
+        })
+        resources["clusters"].append({
+            "name": ADMIN_CLUSTER,
+            "connect_timeout": "0.25s",
+            "type": "STATIC",
+            "load_assignment": {
+                "cluster_name": ADMIN_CLUSTER,
+                "endpoints": [{"lb_endpoints": [{"endpoint": {"address": {
+                    "socket_address": {"address": "127.0.0.1", "port_value": admin_port}
+                }}}]}],
+            },
+        })
+    return config
+# --- END load control ---
+
+
 def generate_envoy_config(port: int, base_port: int, workers: int, admin_port: int,
-                          route_timeout: Optional[str] = None) -> dict:
+                          route_timeout: Optional[str] = None,
+                          max_requests: Optional[int] = None,
+                          max_pending: Optional[int] = None,
+                          retries: Optional[int] = None,
+                          stats_bind: Optional[str] = None,
+                          stats_port: Optional[int] = None) -> dict:
+    knobs = resolve_load_control(max_requests, max_pending, retries, stats_bind, stats_port)
+    return apply_load_control(
+        _base_envoy_config(port, base_port, workers, admin_port, route_timeout), knobs, admin_port)
+
+
+def _base_envoy_config(port: int, base_port: int, workers: int, admin_port: int,
+                       route_timeout: Optional[str] = None) -> dict:
     if route_timeout is None:
         route_timeout = route_timeout_from_env()
     grpc_timeout_header_max = grpc_timeout_header_max_for(route_timeout)
@@ -419,6 +629,12 @@ def _terminate_pid(pid: int, name: str, force: bool, timeout_s: float = 3.0):
 
     t0 = time.time()
     while time.time() - t0 < timeout_s:
+        # A worker or Envoy started by this process stays a zombie (and looks
+        # alive to kill(pid, 0)) until it is reaped.
+        try:
+            os.waitpid(pid, os.WNOHANG)
+        except ChildProcessError:
+            pass
         if not is_process_running(pid):
             return
         time.sleep(0.1)
@@ -429,6 +645,51 @@ def _terminate_pid(pid: int, name: str, force: bool, timeout_s: float = 3.0):
             os.kill(pid, signal.SIGKILL)
         except OSError:
             pass
+
+
+# ----------------------------
+# A caller-supplied Envoy config (--envoy-config / QUANTRA_ENVOY_CONFIG)
+# ----------------------------
+def validate_envoy_config_file(config_path: Path) -> None:
+    """Run `envoy --mode validate` on the file; print Envoy's error and exit 1 when it fails."""
+    envoy_binary = find_envoy_binary()
+    if not envoy_binary:
+        print("Error: envoy not found in PATH", file=sys.stderr)
+        sys.exit(1)
+    if not config_path.is_file():
+        print(f"Error: Envoy config {config_path} not found", file=sys.stderr)
+        sys.exit(1)
+    result = subprocess.run(
+        [str(envoy_binary), "--mode", "validate", "-c", str(config_path), "--log-level", "error"],
+        capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"Error: Envoy rejected {config_path}:", file=sys.stderr)
+        print((result.stdout + result.stderr).strip(), file=sys.stderr)
+        sys.exit(1)
+
+
+def custom_envoy_config_warnings(config_path: Path, port: int, admin_port: int) -> List[str]:
+    """What a caller-supplied config lacks for the rest of the container to work."""
+    try:
+        with open(config_path) as f:
+            config = yaml.safe_load(f)
+        listeners = (config.get("static_resources") or {}).get("listeners") or []
+        listener_ports = {
+            ((l.get("address") or {}).get("socket_address") or {}).get("port_value")
+            for l in listeners
+        }
+        admin = ((config.get("admin") or {}).get("address") or {}).get("socket_address") or {}
+        admin_port_in_file = admin.get("port_value")
+    except Exception as e:  # not YAML/JSON, or not the expected shape
+        return [f"could not read {config_path} to check its ports ({e})"]
+    warnings = []
+    if port not in listener_ports:
+        warnings.append(f"no listener on the gRPC port {port}: the gateway and gRPC callers "
+                        f"will not reach the workers")
+    if admin_port_in_file != admin_port:
+        warnings.append(f"no admin interface on port {admin_port}: GET /status and the "
+                        f"capacity block of GET /meta will be empty")
+    return warnings
 
 
 # ----------------------------
@@ -474,7 +735,30 @@ def cmd_start(args):
     base_port = args.base_port
     admin_port = args.admin_port
 
-    preflight_ports(port, base_port, workers, admin_port)
+    try:
+        knobs = resolve_load_control(
+            getattr(args, "max_requests", None), getattr(args, "max_pending", None),
+            getattr(args, "retries", None), getattr(args, "stats_bind", None),
+            getattr(args, "stats_port", None))
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    custom_config = getattr(args, "envoy_config", None) or \
+        os.environ.get("QUANTRA_ENVOY_CONFIG", "").strip() or None
+    if custom_config:
+        custom_config = Path(custom_config)
+        validate_envoy_config_file(custom_config)
+        for warning in custom_envoy_config_warnings(custom_config, port, admin_port):
+            print(f"Warning: {warning}", file=sys.stderr)
+        if knobs != resolve_load_control(environ={}):
+            print("Warning: load-control settings (max requests, max pending, retries, stats "
+                  "listener) apply only to a generated config; ignored with an Envoy config "
+                  "file", file=sys.stderr)
+        preflight_ports(port, base_port, workers, admin_port)
+    else:
+        preflight_ports(port, base_port, workers, admin_port,
+                        extra=[knobs["stats_port"]] if knobs["stats_bind"] else [])
 
     print(f"Using binary: {binary}\n")
     print("Starting Quantra cluster:")
@@ -487,11 +771,24 @@ def cmd_start(args):
     print()
 
     # Envoy config
-    route_timeout = route_timeout_from_env()
-    envoy_config = generate_envoy_config(port, base_port, workers, admin_port, route_timeout)
-    with open(ENVOY_CONFIG, "w") as f:
-        yaml.dump(envoy_config, f, default_flow_style=False)
-    print(f"Generated Envoy config: {ENVOY_CONFIG}")
+    if custom_config:
+        envoy_config_path = custom_config
+        print(f"Using Envoy config: {envoy_config_path}")
+    else:
+        route_timeout = route_timeout_from_env()
+        envoy_config = generate_envoy_config(port, base_port, workers, admin_port, route_timeout,
+                                             **knobs)
+        with open(ENVOY_CONFIG, "w") as f:
+            yaml.dump(envoy_config, f, default_flow_style=False)
+        envoy_config_path = ENVOY_CONFIG
+        print(f"Generated Envoy config: {ENVOY_CONFIG}")
+        if knobs["max_requests"] != DEFAULT_MAX_REQUESTS:
+            print(f"  Max requests in flight: {knobs['max_requests']} "
+                  f"(over it: RESOURCE_EXHAUSTED / HTTP 429)")
+        if knobs["retries"] > 0:
+            print(f"  Retries on a dead or unreachable worker: {knobs['retries']}")
+        if knobs["stats_bind"]:
+            print(f"  Stats listener: {knobs['stats_bind']}:{knobs['stats_port']}")
 
     # Start workers
     print("\nStarting workers...")
@@ -501,7 +798,7 @@ def cmd_start(args):
 
     # Start Envoy
     print("\nStarting Envoy load balancer...")
-    envoy_proc = start_envoy(ENVOY_CONFIG, detach=detach)
+    envoy_proc = start_envoy(envoy_config_path, detach=detach)
     print(f"  Started Envoy (PID: {envoy_proc.pid})")
 
     # Fail fast if envoy exited immediately
@@ -522,6 +819,7 @@ def cmd_start(args):
             "port": port,
             "base_port": base_port,
             "admin_port": admin_port,
+            "envoy_config": str(envoy_config_path),
             "mode": ("foreground" if foreground else ("detach" if detach else "attached")),
         },
         "started_at": time.time(),
@@ -611,6 +909,7 @@ def cmd_status(_args):
     print(f"Admin port:   {config.get('admin_port', 'N/A')}")
     print(f"Workers:      {config.get('workers', 'N/A')}")
     print(f"Mode:         {config.get('mode', 'N/A')}")
+    print(f"Envoy config: {config.get('envoy_config', 'N/A')}")
     print()
 
     envoy_pid = pids.get("envoy", {}).get("pid")
@@ -637,6 +936,9 @@ def cmd_restart(args):
             args.base_port = cfg.get("base_port", DEFAULT_CONFIG["base_port"])
         if args.admin_port == DEFAULT_CONFIG["admin_port"]:
             args.admin_port = cfg.get("admin_port", DEFAULT_CONFIG["admin_port"])
+        if args.envoy_config is None and cfg.get("envoy_config") and \
+                Path(cfg["envoy_config"]) != ENVOY_CONFIG:
+            args.envoy_config = cfg["envoy_config"]
 
     cmd_stop(argparse.Namespace(force=True))
     time.sleep(1)
@@ -743,6 +1045,21 @@ Defaults:
     sp.add_argument("-p", "--port", type=int, default=DEFAULT_CONFIG["port"])
     sp.add_argument("--base-port", type=int, default=DEFAULT_CONFIG["base_port"])
     sp.add_argument("--admin-port", type=int, default=DEFAULT_CONFIG["admin_port"])
+    sp.add_argument("--max-requests", type=int, default=None,
+                    help="Calls in flight across all workers before Envoy refuses the next one "
+                         "with RESOURCE_EXHAUSTED / HTTP 429 (default: QUANTRA_MAX_REQUESTS, else 10000)")
+    sp.add_argument("--max-pending", type=int, default=None,
+                    help="Calls waiting for a connection to a worker (default: QUANTRA_MAX_PENDING, else 10000)")
+    sp.add_argument("--retries", type=int, default=None,
+                    help="Resend a call whose worker died or could not be reached "
+                         "(default: QUANTRA_RETRIES, else 0)")
+    sp.add_argument("--stats-bind", default=None,
+                    help="Address of a read-only stats listener (default: QUANTRA_STATS_BIND, else none)")
+    sp.add_argument("--stats-port", type=int, default=None,
+                    help="Port of the stats listener (default: QUANTRA_STATS_PORT, else 9902)")
+    sp.add_argument("--envoy-config", default=None,
+                    help="Start Envoy with this file, checked with `envoy --mode validate` "
+                         "(default: QUANTRA_ENVOY_CONFIG, else a generated config)")
     mode = sp.add_mutually_exclusive_group()
     mode.add_argument("--foreground", action="store_true", help="Run supervisor in foreground (recommended in containers)")
     mode.add_argument("--detach", action="store_true", help="Detach processes and return prompt")
@@ -760,6 +1077,21 @@ Defaults:
     sp.add_argument("-p", "--port", type=int, default=DEFAULT_CONFIG["port"])
     sp.add_argument("--base-port", type=int, default=DEFAULT_CONFIG["base_port"])
     sp.add_argument("--admin-port", type=int, default=DEFAULT_CONFIG["admin_port"])
+    sp.add_argument("--max-requests", type=int, default=None,
+                    help="Calls in flight across all workers before Envoy refuses the next one "
+                         "with RESOURCE_EXHAUSTED / HTTP 429 (default: QUANTRA_MAX_REQUESTS, else 10000)")
+    sp.add_argument("--max-pending", type=int, default=None,
+                    help="Calls waiting for a connection to a worker (default: QUANTRA_MAX_PENDING, else 10000)")
+    sp.add_argument("--retries", type=int, default=None,
+                    help="Resend a call whose worker died or could not be reached "
+                         "(default: QUANTRA_RETRIES, else 0)")
+    sp.add_argument("--stats-bind", default=None,
+                    help="Address of a read-only stats listener (default: QUANTRA_STATS_BIND, else none)")
+    sp.add_argument("--stats-port", type=int, default=None,
+                    help="Port of the stats listener (default: QUANTRA_STATS_PORT, else 9902)")
+    sp.add_argument("--envoy-config", default=None,
+                    help="Start Envoy with this file, checked with `envoy --mode validate` "
+                         "(default: QUANTRA_ENVOY_CONFIG, else a generated config)")
     mode = sp.add_mutually_exclusive_group()
     mode.add_argument("--foreground", action="store_true")
     mode.add_argument("--detach", action="store_true")

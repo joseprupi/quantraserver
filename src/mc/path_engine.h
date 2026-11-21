@@ -102,6 +102,13 @@ struct PathEngineConfig {
     /// Number of leading simulated paths returned in PathEngineResult::samplePaths
     /// (0 = none); must be <= paths.
     QuantLib::Size samplePaths = 0;
+    /// Called before every `interruptEvery`-th sample (not before the first);
+    /// it stops the run by throwing (the caller's time budget throws its
+    /// deadline error). Empty = never called. It does not touch the random
+    /// streams or the accumulation, so a run it does not stop is identical
+    /// to a run without it.
+    std::function<void()> interruptCheck;
+    QuantLib::Size interruptEvery = 32;
 };
 
 /// Running mean and standard error of every accumulator after `samples`

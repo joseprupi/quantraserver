@@ -52,6 +52,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <thread>
 
 using quantra::QuantraServer;
 
@@ -101,6 +102,9 @@ public:
         builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
         builder.RegisterService(&service_);
         cq_ = builder.AddCompletionQueue();
+        // The Meta RPC gets its own queue, drained by its own thread, so it
+        // answers while this worker's single pricing thread is busy.
+        meta_cq_ = builder.AddCompletionQueue();
         server_ = builder.BuildAndStart();
 
         // The default health service reports SERVING once the server is up; set
@@ -135,11 +139,31 @@ private:
         if (cq_) {
             cq_->Shutdown();
         }
+        if (meta_cq_) {
+            meta_cq_->Shutdown();
+        }
+        if (meta_thread_.joinable() && meta_thread_.get_id() != std::this_thread::get_id()) {
+            meta_thread_.join();
+        }
+    }
+
+    // Drains the Meta queue. Meta builds its reply from build metadata and the
+    // product catalog only (no pricing, no market data, no shared mutable
+    // state), so running it beside the pricing thread is safe.
+    void HandleMetaRpcs() {
+        void* tag = nullptr;
+        bool ok = false;
+        while (meta_cq_->Next(&tag, &ok)) {
+            static_cast<CallData*>(tag)->Proceed(ok);
+        }
     }
 
     void HandleRpcs() {
-        // Initialize all registered products
-        quantra::ProductRegistry::instance().initializeAll(&service_, cq_.get());
+        // Initialize all registered products; Meta on its own queue and thread
+        auto& registry = quantra::ProductRegistry::instance();
+        registry.initializeAll(&service_, cq_.get(), {kMetaRpcName});
+        registry.initialize(kMetaRpcName, &service_, meta_cq_.get());
+        meta_thread_ = std::thread([this] { HandleMetaRpcs(); });
 
         // Main event loop
         while (true) {
@@ -163,7 +187,11 @@ private:
         }
     }
 
+    static constexpr const char* kMetaRpcName = "Meta";
+
     std::unique_ptr<grpc::ServerCompletionQueue> cq_;
+    std::unique_ptr<grpc::ServerCompletionQueue> meta_cq_;
+    std::thread meta_thread_;
     QuantraServer::AsyncService service_;
     std::unique_ptr<grpc::Server> server_;
     bool shutdown_started_ = false;
