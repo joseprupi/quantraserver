@@ -44,6 +44,7 @@ class StructuredNoteLegs(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.StructuredNoteBucket import StructuredNoteBucket
             obj = StructuredNoteBucket()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -55,6 +56,7 @@ class StructuredNoteLegs(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.StructuredNoteBucket import StructuredNoteBucket
             obj = StructuredNoteBucket()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -125,10 +127,13 @@ class StructuredNoteLegsT(object):
         if structuredNoteLegs is None:
             return
         if structuredNoteLegs.BondRedemption() is not None:
+            from quantra.StructuredNoteBucket import StructuredNoteBucketT
             self.bondRedemption = StructuredNoteBucketT.InitFromObj(structuredNoteLegs.BondRedemption())
         if structuredNoteLegs.Coupons() is not None:
+            from quantra.StructuredNoteBucket import StructuredNoteBucketT
             self.coupons = StructuredNoteBucketT.InitFromObj(structuredNoteLegs.Coupons())
         if structuredNoteLegs.CapitalLoss() is not None:
+            from quantra.StructuredNoteBucket import StructuredNoteBucketT
             self.capitalLoss = StructuredNoteBucketT.InitFromObj(structuredNoteLegs.CapitalLoss())
 
     # StructuredNoteLegsT

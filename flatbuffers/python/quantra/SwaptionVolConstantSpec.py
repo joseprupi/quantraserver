@@ -87,6 +87,7 @@ class SwaptionVolConstantSpecT(object):
         if swaptionVolConstantSpec is None:
             return
         if swaptionVolConstantSpec.Base() is not None:
+            from quantra.IrVolBaseSpec import IrVolBaseSpecT
             self.base = IrVolBaseSpecT.InitFromObj(swaptionVolConstantSpec.Base())
 
     # SwaptionVolConstantSpecT

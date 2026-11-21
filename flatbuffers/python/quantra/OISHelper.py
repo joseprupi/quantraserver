@@ -319,8 +319,10 @@ class OISHelperT(object):
             return
         self.rate = oishelper.Rate()
         if oishelper.Tenor() is not None:
+            from quantra.Period import PeriodT
             self.tenor = PeriodT.InitFromObj(oishelper.Tenor())
         if oishelper.OvernightIndex() is not None:
+            from quantra.IndexRef import IndexRefT
             self.overnightIndex = IndexRefT.InitFromObj(oishelper.OvernightIndex())
         self.settlementDays = oishelper.SettlementDays()
         self.calendar = oishelper.Calendar()
@@ -333,6 +335,7 @@ class OISHelperT(object):
         self.lockoutDays = oishelper.LockoutDays()
         self.applyObservationShift = oishelper.ApplyObservationShift()
         if oishelper.Deps() is not None:
+            from quantra.HelperDependencies import HelperDependenciesT
             self.deps = HelperDependenciesT.InitFromObj(oishelper.Deps())
         self.quoteId = oishelper.QuoteId()
 

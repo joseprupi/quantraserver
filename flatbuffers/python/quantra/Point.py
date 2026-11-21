@@ -24,29 +24,42 @@ def PointCreator(unionType, table):
     if not isinstance(table, Table):
         return None
     if unionType == Point.DepositHelper:
+        from quantra.DepositHelper import DepositHelperT
         return DepositHelperT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == Point.FRAHelper:
+        from quantra.FRAHelper import FRAHelperT
         return FRAHelperT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == Point.FutureHelper:
+        from quantra.FutureHelper import FutureHelperT
         return FutureHelperT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == Point.SwapHelper:
+        from quantra.SwapHelper import SwapHelperT
         return SwapHelperT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == Point.BondHelper:
+        from quantra.BondHelper import BondHelperT
         return BondHelperT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == Point.OISHelper:
+        from quantra.OISHelper import OISHelperT
         return OISHelperT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == Point.DatedOISHelper:
+        from quantra.DatedOISHelper import DatedOISHelperT
         return DatedOISHelperT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == Point.ZeroRatePoint:
+        from quantra.ZeroRatePoint import ZeroRatePointT
         return ZeroRatePointT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == Point.TenorBasisSwapHelper:
+        from quantra.TenorBasisSwapHelper import TenorBasisSwapHelperT
         return TenorBasisSwapHelperT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == Point.FxSwapHelper:
+        from quantra.FxSwapHelper import FxSwapHelperT
         return FxSwapHelperT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == Point.CrossCcyBasisHelper:
+        from quantra.CrossCcyBasisHelper import CrossCcyBasisHelperT
         return CrossCcyBasisHelperT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == Point.DiscountFactorPoint:
+        from quantra.DiscountFactorPoint import DiscountFactorPointT
         return DiscountFactorPointT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == Point.ForwardRatePoint:
+        from quantra.ForwardRatePoint import ForwardRatePointT
         return ForwardRatePointT.InitFromBuf(table.Bytes, table.Pos)
     return None

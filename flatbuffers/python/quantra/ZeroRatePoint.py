@@ -177,6 +177,7 @@ class ZeroRatePointT(object):
             return
         self.date = zeroRatePoint.Date()
         if zeroRatePoint.Tenor() is not None:
+            from quantra.Period import PeriodT
             self.tenor = PeriodT.InitFromObj(zeroRatePoint.Tenor())
         self.calendar = zeroRatePoint.Calendar()
         self.businessDayConvention = zeroRatePoint.BusinessDayConvention()

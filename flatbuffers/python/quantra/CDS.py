@@ -294,6 +294,7 @@ class CDST(object):
         self.notional = cds.Notional()
         self.runningCoupon = cds.RunningCoupon()
         if cds.Schedule() is not None:
+            from quantra.Schedule import ScheduleT
             self.schedule = ScheduleT.InitFromObj(cds.Schedule())
         self.upfront = cds.Upfront()
         self.dayCounter = cds.DayCounter()

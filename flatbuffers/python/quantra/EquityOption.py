@@ -209,10 +209,13 @@ class EquityOptionT(object):
         self.quantity = equityOption.Quantity()
         self.settlement = equityOption.Settlement()
         self.payoffType = equityOption.PayoffType()
+        from quantra.EquityPayoff import EquityPayoffCreator
         self.payoff = EquityPayoffCreator(self.payoffType, equityOption.Payoff())
         self.exerciseType = equityOption.ExerciseType()
+        from quantra.EquityExercise import EquityExerciseCreator
         self.exercise = EquityExerciseCreator(self.exerciseType, equityOption.Exercise())
         if equityOption.Barrier() is not None:
+            from quantra.EquityBarrierFeature import EquityBarrierFeatureT
             self.barrier = EquityBarrierFeatureT.InitFromObj(equityOption.Barrier())
 
     # EquityOptionT

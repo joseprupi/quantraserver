@@ -211,6 +211,7 @@ class StructuredNoteChecksDiagnosticsT(object):
                 if structuredNoteChecksDiagnostics.RunningMeans(i) is None:
                     self.runningMeans.append(None)
                 else:
+                    from quantra.StructuredNoteRunningMean import StructuredNoteRunningMeanT
                     structuredNoteRunningMean_ = StructuredNoteRunningMeanT.InitFromObj(structuredNoteChecksDiagnostics.RunningMeans(i))
                     self.runningMeans.append(structuredNoteRunningMean_)
         self.deterministicForwardNpv = structuredNoteChecksDiagnostics.DeterministicForwardNpv()

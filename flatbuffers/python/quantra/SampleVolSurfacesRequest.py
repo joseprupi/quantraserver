@@ -142,6 +142,7 @@ class SampleVolSurfacesRequestT(object):
         if sampleVolSurfacesRequest is None:
             return
         if sampleVolSurfacesRequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(sampleVolSurfacesRequest.Pricing())
         if not sampleVolSurfacesRequest.QueriesIsNone():
             self.queries = []
@@ -149,6 +150,7 @@ class SampleVolSurfacesRequestT(object):
                 if sampleVolSurfacesRequest.Queries(i) is None:
                     self.queries.append(None)
                 else:
+                    from quantra.VolQuerySpec import VolQuerySpecT
                     volQuerySpec_ = VolQuerySpecT.InitFromObj(sampleVolSurfacesRequest.Queries(i))
                     self.queries.append(volQuerySpec_)
         self.includeDiagnostics = sampleVolSurfacesRequest.IncludeDiagnostics()

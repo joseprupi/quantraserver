@@ -36,11 +36,15 @@ def SwapCouponsCreator(unionType, table):
     if not isinstance(table, Table):
         return None
     if unionType == SwapCoupons.FixedCoupons:
+        from quantra.FixedCoupons import FixedCouponsT
         return FixedCouponsT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == SwapCoupons.IborCoupons:
+        from quantra.IborCoupons import IborCouponsT
         return IborCouponsT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == SwapCoupons.OvernightCoupons:
+        from quantra.OvernightCoupons import OvernightCouponsT
         return OvernightCouponsT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == SwapCoupons.CmsCoupons:
+        from quantra.CmsCoupons import CmsCouponsT
         return CmsCouponsT.InitFromBuf(table.Bytes, table.Pos)
     return None

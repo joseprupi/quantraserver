@@ -340,6 +340,7 @@ class CalibrateCorrelationResponseT(object):
         if calibrateCorrelationResponse is None:
             return
         if calibrateCorrelationResponse.CorrelationSpec() is not None:
+            from quantra.CorrelationMatrixSpec import CorrelationMatrixSpecT
             self.correlationSpec = CorrelationMatrixSpecT.InitFromObj(calibrateCorrelationResponse.CorrelationSpec())
         if not calibrateCorrelationResponse.SampleCorrelationIsNone():
             if np is None:
@@ -363,9 +364,11 @@ class CalibrateCorrelationResponseT(object):
                 if calibrateCorrelationResponse.Series(i) is None:
                     self.series.append(None)
                 else:
+                    from quantra.CorrelationSeriesReport import CorrelationSeriesReportT
                     correlationSeriesReport_ = CorrelationSeriesReportT.InitFromObj(calibrateCorrelationResponse.Series(i))
                     self.series.append(correlationSeriesReport_)
         if calibrateCorrelationResponse.EstimatorEcho() is not None:
+            from quantra.CorrelationEstimator import CorrelationEstimatorT
             self.estimatorEcho = CorrelationEstimatorT.InitFromObj(calibrateCorrelationResponse.EstimatorEcho())
 
     # CalibrateCorrelationResponseT

@@ -113,6 +113,7 @@ class FxMarketDataT(object):
                 if fxMarketData.Spots(i) is None:
                     self.spots.append(None)
                 else:
+                    from quantra.FxSpotSpec import FxSpotSpecT
                     fxSpotSpec_ = FxSpotSpecT.InitFromObj(fxMarketData.Spots(i))
                     self.spots.append(fxSpotSpec_)
 

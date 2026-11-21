@@ -245,6 +245,7 @@ class FixedRateBondT(object):
         self.redemption = fixedRateBond.Redemption()
         self.issueDate = fixedRateBond.IssueDate()
         if fixedRateBond.Schedule() is not None:
+            from quantra.Schedule import ScheduleT
             self.schedule = ScheduleT.InitFromObj(fixedRateBond.Schedule())
 
     # FixedRateBondT

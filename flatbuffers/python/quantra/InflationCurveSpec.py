@@ -280,6 +280,7 @@ class InflationCurveSpecT(object):
                 if inflationCurveSpec.Points(i) is None:
                     self.points.append(None)
                 else:
+                    from quantra.InflationPointWrapper import InflationPointWrapperT
                     inflationPointWrapper_ = InflationPointWrapperT.InitFromObj(inflationCurveSpec.Points(i))
                     self.points.append(inflationPointWrapper_)
 

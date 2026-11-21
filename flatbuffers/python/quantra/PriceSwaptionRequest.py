@@ -141,6 +141,7 @@ class PriceSwaptionRequestT(object):
         if priceSwaptionRequest is None:
             return
         if priceSwaptionRequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(priceSwaptionRequest.Pricing())
         if not priceSwaptionRequest.SwaptionsIsNone():
             self.swaptions = []
@@ -148,6 +149,7 @@ class PriceSwaptionRequestT(object):
                 if priceSwaptionRequest.Swaptions(i) is None:
                     self.swaptions.append(None)
                 else:
+                    from quantra.PriceSwaption import PriceSwaptionT
                     priceSwaption_ = PriceSwaptionT.InitFromObj(priceSwaptionRequest.Swaptions(i))
                     self.swaptions.append(priceSwaption_)
         self.includeDiagnostics = priceSwaptionRequest.IncludeDiagnostics()

@@ -174,6 +174,7 @@ class DepositHelperT(object):
             return
         self.rate = depositHelper.Rate()
         if depositHelper.Tenor() is not None:
+            from quantra.Period import PeriodT
             self.tenor = PeriodT.InitFromObj(depositHelper.Tenor())
         self.fixingDays = depositHelper.FixingDays()
         self.calendar = depositHelper.Calendar()

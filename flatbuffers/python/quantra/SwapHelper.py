@@ -239,16 +239,19 @@ class SwapHelperT(object):
             return
         self.rate = swapHelper.Rate()
         if swapHelper.Tenor() is not None:
+            from quantra.Period import PeriodT
             self.tenor = PeriodT.InitFromObj(swapHelper.Tenor())
         self.calendar = swapHelper.Calendar()
         self.swFixedLegFrequency = swapHelper.SwFixedLegFrequency()
         self.swFixedLegConvention = swapHelper.SwFixedLegConvention()
         self.swFixedLegDayCounter = swapHelper.SwFixedLegDayCounter()
         if swapHelper.FloatIndex() is not None:
+            from quantra.IndexRef import IndexRefT
             self.floatIndex = IndexRefT.InitFromObj(swapHelper.FloatIndex())
         self.spread = swapHelper.Spread()
         self.fwdStartDays = swapHelper.FwdStartDays()
         if swapHelper.Deps() is not None:
+            from quantra.HelperDependencies import HelperDependenciesT
             self.deps = HelperDependenciesT.InitFromObj(swapHelper.Deps())
         self.quoteId = swapHelper.QuoteId()
 

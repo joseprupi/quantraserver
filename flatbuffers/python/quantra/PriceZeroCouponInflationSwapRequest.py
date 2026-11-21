@@ -140,6 +140,7 @@ class PriceZeroCouponInflationSwapRequestT(object):
         if priceZeroCouponInflationSwapRequest is None:
             return
         if priceZeroCouponInflationSwapRequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(priceZeroCouponInflationSwapRequest.Pricing())
         if not priceZeroCouponInflationSwapRequest.SwapsIsNone():
             self.swaps = []
@@ -147,6 +148,7 @@ class PriceZeroCouponInflationSwapRequestT(object):
                 if priceZeroCouponInflationSwapRequest.Swaps(i) is None:
                     self.swaps.append(None)
                 else:
+                    from quantra.PriceZeroCouponInflationSwap import PriceZeroCouponInflationSwapT
                     priceZeroCouponInflationSwap_ = PriceZeroCouponInflationSwapT.InitFromObj(priceZeroCouponInflationSwapRequest.Swaps(i))
                     self.swaps.append(priceZeroCouponInflationSwap_)
         self.includeFlows = priceZeroCouponInflationSwapRequest.IncludeFlows()

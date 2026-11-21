@@ -89,6 +89,7 @@ class PriceCommoditySwapT(object):
         if priceCommoditySwap is None:
             return
         if priceCommoditySwap.CommoditySwap() is not None:
+            from quantra.CommoditySwap import CommoditySwapT
             self.commoditySwap = CommoditySwapT.InitFromObj(priceCommoditySwap.CommoditySwap())
 
     # PriceCommoditySwapT

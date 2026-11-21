@@ -57,6 +57,7 @@ class VolQuerySpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.DateGridSpec import DateGridSpec
             obj = DateGridSpec()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -288,12 +289,16 @@ class VolQuerySpecT(object):
         self.volId = volQuerySpec.VolId()
         self.surfaceType = volQuerySpec.SurfaceType()
         if volQuerySpec.ExpiryGrid() is not None:
+            from quantra.DateGridSpec import DateGridSpecT
             self.expiryGrid = DateGridSpecT.InitFromObj(volQuerySpec.ExpiryGrid())
         if volQuerySpec.TenorGrid() is not None:
+            from quantra.DateGridSpec import DateGridSpecT
             self.tenorGrid = DateGridSpecT.InitFromObj(volQuerySpec.TenorGrid())
         if volQuerySpec.StrikeGrid() is not None:
+            from quantra.StrikeGrid import StrikeGridT
             self.strikeGrid = StrikeGridT.InitFromObj(volQuerySpec.StrikeGrid())
         if volQuerySpec.Options() is not None:
+            from quantra.QueryOptions import QueryOptionsT
             self.options = QueryOptionsT.InitFromObj(volQuerySpec.Options())
         self.outputMode = volQuerySpec.OutputMode()
         self.swapIndexId = volQuerySpec.SwapIndexId()

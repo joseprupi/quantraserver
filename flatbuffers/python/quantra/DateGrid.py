@@ -13,7 +13,9 @@ def DateGridCreator(unionType, table):
     if not isinstance(table, Table):
         return None
     if unionType == DateGrid.TenorGrid:
+        from quantra.TenorGrid import TenorGridT
         return TenorGridT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == DateGrid.RangeGrid:
+        from quantra.RangeGrid import RangeGridT
         return RangeGridT.InitFromBuf(table.Bytes, table.Pos)
     return None

@@ -179,6 +179,7 @@ class StructuredNoteDecompositionDiagnosticsT(object):
                 if structuredNoteDecompositionDiagnostics.Events(i) is None:
                     self.events.append(None)
                 else:
+                    from quantra.StructuredNoteEventDecomposition import StructuredNoteEventDecompositionT
                     structuredNoteEventDecomposition_ = StructuredNoteEventDecompositionT.InitFromObj(structuredNoteDecompositionDiagnostics.Events(i))
                     self.events.append(structuredNoteEventDecomposition_)
         self.pSurviveToMaturity = structuredNoteDecompositionDiagnostics.PSurviveToMaturity()

@@ -240,6 +240,7 @@ class CallableFixedRateBondT(object):
         self.redemption = callableFixedRateBond.Redemption()
         self.issueDate = callableFixedRateBond.IssueDate()
         if callableFixedRateBond.Schedule() is not None:
+            from quantra.Schedule import ScheduleT
             self.schedule = ScheduleT.InitFromObj(callableFixedRateBond.Schedule())
         if not callableFixedRateBond.CallScheduleIsNone():
             self.callSchedule = []
@@ -247,6 +248,7 @@ class CallableFixedRateBondT(object):
                 if callableFixedRateBond.CallSchedule(i) is None:
                     self.callSchedule.append(None)
                 else:
+                    from quantra.CallabilityEntry import CallabilityEntryT
                     callabilityEntry_ = CallabilityEntryT.InitFromObj(callableFixedRateBond.CallSchedule(i))
                     self.callSchedule.append(callabilityEntry_)
 

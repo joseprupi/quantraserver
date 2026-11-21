@@ -151,6 +151,7 @@ class DiscountFactorPointT(object):
             return
         self.date = discountFactorPoint.Date()
         if discountFactorPoint.Tenor() is not None:
+            from quantra.Period import PeriodT
             self.tenor = PeriodT.InitFromObj(discountFactorPoint.Tenor())
         self.calendar = discountFactorPoint.Calendar()
         self.businessDayConvention = discountFactorPoint.BusinessDayConvention()

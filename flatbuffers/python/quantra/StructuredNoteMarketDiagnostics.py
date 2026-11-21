@@ -404,6 +404,7 @@ class StructuredNoteMarketDiagnosticsT(object):
                 if structuredNoteMarketDiagnostics.Underlyings(i) is None:
                     self.underlyings.append(None)
                 else:
+                    from quantra.StructuredNoteMarketUnderlying import StructuredNoteMarketUnderlyingT
                     structuredNoteMarketUnderlying_ = StructuredNoteMarketUnderlyingT.InitFromObj(structuredNoteMarketDiagnostics.Underlyings(i))
                     self.underlyings.append(structuredNoteMarketUnderlying_)
         if not structuredNoteMarketDiagnostics.PaymentDatesIsNone():

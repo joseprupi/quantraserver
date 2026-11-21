@@ -346,6 +346,7 @@ class StructuredNoteGreeksT(object):
                 if structuredNoteGreeks.Underlyings(i) is None:
                     self.underlyings.append(None)
                 else:
+                    from quantra.StructuredNoteUnderlyingGreeks import StructuredNoteUnderlyingGreeksT
                     structuredNoteUnderlyingGreeks_ = StructuredNoteUnderlyingGreeksT.InitFromObj(structuredNoteGreeks.Underlyings(i))
                     self.underlyings.append(structuredNoteUnderlyingGreeks_)
         self.correlationSensitivity = structuredNoteGreeks.CorrelationSensitivity()

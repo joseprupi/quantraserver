@@ -341,6 +341,7 @@ class CommodityFlowT(object):
                 if commodityFlow.Observations(i) is None:
                     self.observations.append(None)
                 else:
+                    from quantra.CommodityObservation import CommodityObservationT
                     commodityObservation_ = CommodityObservationT.InitFromObj(commodityFlow.Observations(i))
                     self.observations.append(commodityObservation_)
 

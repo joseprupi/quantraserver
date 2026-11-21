@@ -206,6 +206,7 @@ class SwaptionT(object):
             for i in range(swaption.ExerciseDatesLength()):
                 self.exerciseDates.append(swaption.ExerciseDates(i))
         self.underlyingType = swaption.UnderlyingType()
+        from quantra.SwaptionUnderlying import SwaptionUnderlyingCreator
         self.underlying = SwaptionUnderlyingCreator(self.underlyingType, swaption.Underlying())
 
     # SwaptionT

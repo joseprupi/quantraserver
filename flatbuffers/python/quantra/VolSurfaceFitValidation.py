@@ -282,6 +282,7 @@ class VolSurfaceFitValidationT(object):
                 if volSurfaceFitValidation.Quotes(i) is None:
                     self.quotes.append(None)
                 else:
+                    from quantra.VolSurfaceQuoteFit import VolSurfaceQuoteFitT
                     volSurfaceQuoteFit_ = VolSurfaceQuoteFitT.InitFromObj(volSurfaceFitValidation.Quotes(i))
                     self.quotes.append(volSurfaceQuoteFit_)
         if not volSurfaceFitValidation.BandsIsNone():
@@ -290,6 +291,7 @@ class VolSurfaceFitValidationT(object):
                 if volSurfaceFitValidation.Bands(i) is None:
                     self.bands.append(None)
                 else:
+                    from quantra.VolSurfaceBandCell import VolSurfaceBandCellT
                     volSurfaceBandCell_ = VolSurfaceBandCellT.InitFromObj(volSurfaceFitValidation.Bands(i))
                     self.bands.append(volSurfaceBandCell_)
         if not volSurfaceFitValidation.AtmErrorPerExpiryIsNone():
@@ -298,6 +300,7 @@ class VolSurfaceFitValidationT(object):
                 if volSurfaceFitValidation.AtmErrorPerExpiry(i) is None:
                     self.atmErrorPerExpiry.append(None)
                 else:
+                    from quantra.VolSurfaceAtmError import VolSurfaceAtmErrorT
                     volSurfaceAtmError_ = VolSurfaceAtmErrorT.InitFromObj(volSurfaceFitValidation.AtmErrorPerExpiry(i))
                     self.atmErrorPerExpiry.append(volSurfaceAtmError_)
         self.verdict = volSurfaceFitValidation.Verdict()

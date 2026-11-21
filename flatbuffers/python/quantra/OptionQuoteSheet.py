@@ -170,6 +170,7 @@ class OptionQuoteSheetT(object):
                 if optionQuoteSheet.Quotes(i) is None:
                     self.quotes.append(None)
                 else:
+                    from quantra.OptionQuote import OptionQuoteT
                     optionQuote_ = OptionQuoteT.InitFromObj(optionQuoteSheet.Quotes(i))
                     self.quotes.append(optionQuote_)
         self.optionStyle = optionQuoteSheet.OptionStyle()

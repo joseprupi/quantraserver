@@ -112,6 +112,7 @@ class PriceYearOnYearInflationCapFloorResponseT(object):
                 if priceYearOnYearInflationCapFloorResponse.CapFloors(i) is None:
                     self.capFloors.append(None)
                 else:
+                    from quantra.YoYInflationCapFloorResponse import YoYInflationCapFloorResponseT
                     yoYInflationCapFloorResponse_ = YoYInflationCapFloorResponseT.InitFromObj(priceYearOnYearInflationCapFloorResponse.CapFloors(i))
                     self.capFloors.append(yoYInflationCapFloorResponse_)
 

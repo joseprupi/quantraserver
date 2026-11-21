@@ -117,6 +117,7 @@ class PriceFRAT(object):
         if priceFra is None:
             return
         if priceFra.Fra() is not None:
+            from quantra.FRA import FRAT
             self.fra = FRAT.InitFromObj(priceFra.Fra())
         self.discountingCurve = priceFra.DiscountingCurve()
         self.forwardingCurve = priceFra.ForwardingCurve()

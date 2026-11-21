@@ -92,6 +92,7 @@ class ZeroCouponInflationSwapResponse(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
+            from quantra.SwapLegFlow import SwapLegFlow
             obj = SwapLegFlow()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -224,6 +225,7 @@ class ZeroCouponInflationSwapResponseT(object):
                 if zeroCouponInflationSwapResponse.FixedLegFlows(i) is None:
                     self.fixedLegFlows.append(None)
                 else:
+                    from quantra.SwapLegFlow import SwapLegFlowT
                     swapLegFlow_ = SwapLegFlowT.InitFromObj(zeroCouponInflationSwapResponse.FixedLegFlows(i))
                     self.fixedLegFlows.append(swapLegFlow_)
         if not zeroCouponInflationSwapResponse.InflationLegFlowsIsNone():
@@ -232,6 +234,7 @@ class ZeroCouponInflationSwapResponseT(object):
                 if zeroCouponInflationSwapResponse.InflationLegFlows(i) is None:
                     self.inflationLegFlows.append(None)
                 else:
+                    from quantra.SwapLegFlow import SwapLegFlowT
                     swapLegFlow_ = SwapLegFlowT.InitFromObj(zeroCouponInflationSwapResponse.InflationLegFlows(i))
                     self.inflationLegFlows.append(swapLegFlow_)
 

@@ -237,6 +237,7 @@ class CrossCurrencySwapResponseT(object):
                 if crossCurrencySwapResponse.Legs(i) is None:
                     self.legs.append(None)
                 else:
+                    from quantra.SwapLegResult import SwapLegResultT
                     swapLegResult_ = SwapLegResultT.InitFromObj(crossCurrencySwapResponse.Legs(i))
                     self.legs.append(swapLegResult_)
         self.fairRate = crossCurrencySwapResponse.FairRate()

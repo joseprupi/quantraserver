@@ -192,6 +192,7 @@ class OisSwapResponseT(object):
                 if oisSwapResponse.Legs(i) is None:
                     self.legs.append(None)
                 else:
+                    from quantra.SwapLegResult import SwapLegResultT
                     swapLegResult_ = SwapLegResultT.InitFromObj(oisSwapResponse.Legs(i))
                     self.legs.append(swapLegResult_)
 

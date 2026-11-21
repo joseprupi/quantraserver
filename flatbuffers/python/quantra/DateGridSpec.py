@@ -100,6 +100,7 @@ class DateGridSpecT(object):
         if dateGridSpec is None:
             return
         self.gridType = dateGridSpec.GridType()
+        from quantra.DateGrid import DateGridCreator
         self.grid = DateGridCreator(self.gridType, dateGridSpec.Grid())
 
     # DateGridSpecT

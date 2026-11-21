@@ -205,6 +205,7 @@ class CalendarAdvanceRequestT(object):
                 if calendarAdvanceRequest.CalendarOverrides(i) is None:
                     self.calendarOverrides.append(None)
                 else:
+                    from quantra.CalendarOverride import CalendarOverrideT
                     calendarOverride_ = CalendarOverrideT.InitFromObj(calendarAdvanceRequest.CalendarOverrides(i))
                     self.calendarOverrides.append(calendarOverride_)
 

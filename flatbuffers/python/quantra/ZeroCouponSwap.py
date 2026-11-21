@@ -258,6 +258,7 @@ class ZeroCouponSwapT(object):
         self.fixedRate = zeroCouponSwap.FixedRate()
         self.fixedRateDayCounter = zeroCouponSwap.FixedRateDayCounter()
         if zeroCouponSwap.Index() is not None:
+            from quantra.IndexRef import IndexRefT
             self.index = IndexRefT.InitFromObj(zeroCouponSwap.Index())
         self.paymentCalendar = zeroCouponSwap.PaymentCalendar()
         self.paymentConvention = zeroCouponSwap.PaymentConvention()

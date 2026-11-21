@@ -190,6 +190,7 @@ class CalendarBusinessDaysRequestT(object):
                 if calendarBusinessDaysRequest.CalendarOverrides(i) is None:
                     self.calendarOverrides.append(None)
                 else:
+                    from quantra.CalendarOverride import CalendarOverrideT
                     calendarOverride_ = CalendarOverrideT.InitFromObj(calendarBusinessDaysRequest.CalendarOverrides(i))
                     self.calendarOverrides.append(calendarOverride_)
 

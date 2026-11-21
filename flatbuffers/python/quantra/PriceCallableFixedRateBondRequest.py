@@ -125,6 +125,7 @@ class PriceCallableFixedRateBondRequestT(object):
         if priceCallableFixedRateBondRequest is None:
             return
         if priceCallableFixedRateBondRequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(priceCallableFixedRateBondRequest.Pricing())
         if not priceCallableFixedRateBondRequest.BondsIsNone():
             self.bonds = []
@@ -132,6 +133,7 @@ class PriceCallableFixedRateBondRequestT(object):
                 if priceCallableFixedRateBondRequest.Bonds(i) is None:
                     self.bonds.append(None)
                 else:
+                    from quantra.PriceCallableFixedRateBond import PriceCallableFixedRateBondT
                     priceCallableFixedRateBond_ = PriceCallableFixedRateBondT.InitFromObj(priceCallableFixedRateBondRequest.Bonds(i))
                     self.bonds.append(priceCallableFixedRateBond_)
 

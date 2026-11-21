@@ -165,6 +165,7 @@ class BasisSwapResponseT(object):
                 if basisSwapResponse.Legs(i) is None:
                     self.legs.append(None)
                 else:
+                    from quantra.SwapLegResult import SwapLegResultT
                     swapLegResult_ = SwapLegResultT.InitFromObj(basisSwapResponse.Legs(i))
                     self.legs.append(swapLegResult_)
 

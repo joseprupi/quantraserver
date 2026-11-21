@@ -140,6 +140,7 @@ class TenorGridT(object):
                 if tenorGrid.Tenors(i) is None:
                     self.tenors.append(None)
                 else:
+                    from quantra.Period import PeriodT
                     period_ = PeriodT.InitFromObj(tenorGrid.Tenors(i))
                     self.tenors.append(period_)
         self.calendar = tenorGrid.Calendar()

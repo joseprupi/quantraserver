@@ -162,6 +162,7 @@ class PriceCapFloorT(object):
         if priceCapFloor is None:
             return
         if priceCapFloor.CapFloor() is not None:
+            from quantra.CapFloor import CapFloorT
             self.capFloor = CapFloorT.InitFromObj(priceCapFloor.CapFloor())
         self.discountingCurve = priceCapFloor.DiscountingCurve()
         self.forwardingCurve = priceCapFloor.ForwardingCurve()

@@ -108,6 +108,7 @@ class BlackVolSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.QuoteMatrix2D import QuoteMatrix2D
             obj = QuoteMatrix2D()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -120,6 +121,7 @@ class BlackVolSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.QuoteMatrix2D import QuoteMatrix2D
             obj = QuoteMatrix2D()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -662,6 +664,7 @@ class BlackVolSpecT(object):
         if blackVolSpec is None:
             return
         if blackVolSpec.Base() is not None:
+            from quantra.BlackVolBaseSpec import BlackVolBaseSpecT
             self.base = BlackVolBaseSpecT.InitFromObj(blackVolSpec.Base())
         if not blackVolSpec.ExpiriesIsNone():
             self.expiries = []
@@ -669,6 +672,7 @@ class BlackVolSpecT(object):
                 if blackVolSpec.Expiries(i) is None:
                     self.expiries.append(None)
                 else:
+                    from quantra.Period import PeriodT
                     period_ = PeriodT.InitFromObj(blackVolSpec.Expiries(i))
                     self.expiries.append(period_)
         if not blackVolSpec.StrikesIsNone():
@@ -679,10 +683,13 @@ class BlackVolSpecT(object):
             else:
                 self.strikes = blackVolSpec.StrikesAsNumpy()
         if blackVolSpec.TermVols() is not None:
+            from quantra.QuoteMatrix2D import QuoteMatrix2DT
             self.termVols = QuoteMatrix2DT.InitFromObj(blackVolSpec.TermVols())
         if blackVolSpec.SurfaceVols() is not None:
+            from quantra.QuoteMatrix2D import QuoteMatrix2DT
             self.surfaceVols = QuoteMatrix2DT.InitFromObj(blackVolSpec.SurfaceVols())
         if blackVolSpec.SurfacePrices() is not None:
+            from quantra.QuoteMatrix2D import QuoteMatrix2DT
             self.surfacePrices = QuoteMatrix2DT.InitFromObj(blackVolSpec.SurfacePrices())
         if not blackVolSpec.PriceExpiriesIsNone():
             self.priceExpiries = []

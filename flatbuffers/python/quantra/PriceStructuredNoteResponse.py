@@ -112,6 +112,7 @@ class PriceStructuredNoteResponseT(object):
                 if priceStructuredNoteResponse.Notes(i) is None:
                     self.notes.append(None)
                 else:
+                    from quantra.StructuredNoteResult import StructuredNoteResultT
                     structuredNoteResult_ = StructuredNoteResultT.InitFromObj(priceStructuredNoteResponse.Notes(i))
                     self.notes.append(structuredNoteResult_)
 

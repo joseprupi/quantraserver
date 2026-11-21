@@ -15,9 +15,12 @@ def CommodityLegPriceCreator(unionType, table):
     if not isinstance(table, Table):
         return None
     if unionType == CommodityLegPrice.CommodityFixedPrice:
+        from quantra.CommodityFixedPrice import CommodityFixedPriceT
         return CommodityFixedPriceT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == CommodityLegPrice.FuturesFloatingPrice:
+        from quantra.FuturesFloatingPrice import FuturesFloatingPriceT
         return FuturesFloatingPriceT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == CommodityLegPrice.SpotFloatingPrice:
+        from quantra.SpotFloatingPrice import SpotFloatingPriceT
         return SpotFloatingPriceT.InitFromBuf(table.Bytes, table.Pos)
     return None

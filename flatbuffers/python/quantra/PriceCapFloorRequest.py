@@ -125,6 +125,7 @@ class PriceCapFloorRequestT(object):
         if priceCapFloorRequest is None:
             return
         if priceCapFloorRequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(priceCapFloorRequest.Pricing())
         if not priceCapFloorRequest.CapFloorsIsNone():
             self.capFloors = []
@@ -132,6 +133,7 @@ class PriceCapFloorRequestT(object):
                 if priceCapFloorRequest.CapFloors(i) is None:
                     self.capFloors.append(None)
                 else:
+                    from quantra.PriceCapFloor import PriceCapFloorT
                     priceCapFloor_ = PriceCapFloorT.InitFromObj(priceCapFloorRequest.CapFloors(i))
                     self.capFloors.append(priceCapFloor_)
 

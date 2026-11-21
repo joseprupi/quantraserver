@@ -102,6 +102,7 @@ class CouponPricerT(object):
             return
         self.id = couponPricer.Id()
         if couponPricer.BlackIborCouponPricer() is not None:
+            from quantra.BlackIborCouponPricer import BlackIborCouponPricerT
             self.blackIborCouponPricer = BlackIborCouponPricerT.InitFromObj(couponPricer.BlackIborCouponPricer())
 
     # CouponPricerT

@@ -130,6 +130,7 @@ class CommoditySwapLegResultT(object):
                 if commoditySwapLegResult.Flows(i) is None:
                     self.flows.append(None)
                 else:
+                    from quantra.CommodityFlow import CommodityFlowT
                     commodityFlow_ = CommodityFlowT.InitFromObj(commoditySwapLegResult.Flows(i))
                     self.flows.append(commodityFlow_)
 

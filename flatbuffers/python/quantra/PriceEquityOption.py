@@ -137,6 +137,7 @@ class PriceEquityOptionT(object):
         if priceEquityOption is None:
             return
         if priceEquityOption.Option() is not None:
+            from quantra.EquityOption import EquityOptionT
             self.option = EquityOptionT.InitFromObj(priceEquityOption.Option())
         self.discountingCurve = priceEquityOption.DiscountingCurve()
         self.volatility = priceEquityOption.Volatility()

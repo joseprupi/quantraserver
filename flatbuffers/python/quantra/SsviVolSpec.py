@@ -209,6 +209,7 @@ class SsviVolSpecT(object):
         if ssviVolSpec is None:
             return
         if ssviVolSpec.Base() is not None:
+            from quantra.BlackVolBaseSpec import BlackVolBaseSpecT
             self.base = BlackVolBaseSpecT.InitFromObj(ssviVolSpec.Base())
         self.spot = ssviVolSpec.Spot()
         if not ssviVolSpec.SlicesIsNone():
@@ -217,6 +218,7 @@ class SsviVolSpecT(object):
                 if ssviVolSpec.Slices(i) is None:
                     self.slices.append(None)
                 else:
+                    from quantra.SsviSlice import SsviSliceT
                     ssviSlice_ = SsviSliceT.InitFromObj(ssviVolSpec.Slices(i))
                     self.slices.append(ssviSlice_)
         self.localVolTimeExtrapolation = ssviVolSpec.LocalVolTimeExtrapolation()

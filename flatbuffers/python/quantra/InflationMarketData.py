@@ -150,6 +150,7 @@ class InflationMarketDataT(object):
                 if inflationMarketData.InflationIndices(i) is None:
                     self.inflationIndices.append(None)
                 else:
+                    from quantra.InflationIndexSpec import InflationIndexSpecT
                     inflationIndexSpec_ = InflationIndexSpecT.InitFromObj(inflationMarketData.InflationIndices(i))
                     self.inflationIndices.append(inflationIndexSpec_)
         if not inflationMarketData.InflationCurvesIsNone():
@@ -158,6 +159,7 @@ class InflationMarketDataT(object):
                 if inflationMarketData.InflationCurves(i) is None:
                     self.inflationCurves.append(None)
                 else:
+                    from quantra.InflationCurveSpec import InflationCurveSpecT
                     inflationCurveSpec_ = InflationCurveSpecT.InitFromObj(inflationMarketData.InflationCurves(i))
                     self.inflationCurves.append(inflationCurveSpec_)
 

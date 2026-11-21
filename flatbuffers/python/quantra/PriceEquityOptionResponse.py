@@ -112,6 +112,7 @@ class PriceEquityOptionResponseT(object):
                 if priceEquityOptionResponse.Options(i) is None:
                     self.options.append(None)
                 else:
+                    from quantra.EquityOptionResponse import EquityOptionResponseT
                     equityOptionResponse_ = EquityOptionResponseT.InitFromObj(priceEquityOptionResponse.Options(i))
                     self.options.append(equityOptionResponse_)
 

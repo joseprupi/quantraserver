@@ -442,6 +442,7 @@ class StructuredNoteResultT(object):
         self.seed = structuredNoteResult.Seed()
         self.status = structuredNoteResult.Status()
         if structuredNoteResult.Legs() is not None:
+            from quantra.StructuredNoteLegs import StructuredNoteLegsT
             self.legs = StructuredNoteLegsT.InitFromObj(structuredNoteResult.Legs())
         if not structuredNoteResult.EventProbabilitiesIsNone():
             self.eventProbabilities = []
@@ -449,27 +450,37 @@ class StructuredNoteResultT(object):
                 if structuredNoteResult.EventProbabilities(i) is None:
                     self.eventProbabilities.append(None)
                 else:
+                    from quantra.StructuredNoteEventProbability import StructuredNoteEventProbabilityT
                     structuredNoteEventProbability_ = StructuredNoteEventProbabilityT.InitFromObj(structuredNoteResult.EventProbabilities(i))
                     self.eventProbabilities.append(structuredNoteEventProbability_)
         self.pBarrierBreach = structuredNoteResult.PBarrierBreach()
         self.expectedLifeYears = structuredNoteResult.ExpectedLifeYears()
         if structuredNoteResult.Greeks() is not None:
+            from quantra.StructuredNoteGreeks import StructuredNoteGreeksT
             self.greeks = StructuredNoteGreeksT.InitFromObj(structuredNoteResult.Greeks())
         if structuredNoteResult.Terms() is not None:
+            from quantra.StructuredNoteTermsEcho import StructuredNoteTermsEchoT
             self.terms = StructuredNoteTermsEchoT.InitFromObj(structuredNoteResult.Terms())
         if structuredNoteResult.Seasoning() is not None:
+            from quantra.StructuredNoteSeasoning import StructuredNoteSeasoningT
             self.seasoning = StructuredNoteSeasoningT.InitFromObj(structuredNoteResult.Seasoning())
         if structuredNoteResult.Model() is not None:
+            from quantra.StructuredNoteModelEcho import StructuredNoteModelEchoT
             self.model = StructuredNoteModelEchoT.InitFromObj(structuredNoteResult.Model())
         if structuredNoteResult.Market() is not None:
+            from quantra.StructuredNoteMarketDiagnostics import StructuredNoteMarketDiagnosticsT
             self.market = StructuredNoteMarketDiagnosticsT.InitFromObj(structuredNoteResult.Market())
         if structuredNoteResult.Decomposition() is not None:
+            from quantra.StructuredNoteDecompositionDiagnostics import StructuredNoteDecompositionDiagnosticsT
             self.decomposition = StructuredNoteDecompositionDiagnosticsT.InitFromObj(structuredNoteResult.Decomposition())
         if structuredNoteResult.Checks() is not None:
+            from quantra.StructuredNoteChecksDiagnostics import StructuredNoteChecksDiagnosticsT
             self.checks = StructuredNoteChecksDiagnosticsT.InitFromObj(structuredNoteResult.Checks())
         if structuredNoteResult.Distribution() is not None:
+            from quantra.StructuredNoteDistributionDiagnostics import StructuredNoteDistributionDiagnosticsT
             self.distribution = StructuredNoteDistributionDiagnosticsT.InitFromObj(structuredNoteResult.Distribution())
         if structuredNoteResult.Timing() is not None:
+            from quantra.StructuredNoteTimingDiagnostics import StructuredNoteTimingDiagnosticsT
             self.timing = StructuredNoteTimingDiagnosticsT.InitFromObj(structuredNoteResult.Timing())
 
     # StructuredNoteResultT

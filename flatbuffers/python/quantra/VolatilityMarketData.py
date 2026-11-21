@@ -152,6 +152,7 @@ class VolatilityMarketDataT(object):
                 if volatilityMarketData.VolSurfaces(i) is None:
                     self.volSurfaces.append(None)
                 else:
+                    from quantra.VolSurfaceSpec import VolSurfaceSpecT
                     volSurfaceSpec_ = VolSurfaceSpecT.InitFromObj(volatilityMarketData.VolSurfaces(i))
                     self.volSurfaces.append(volSurfaceSpec_)
         if not volatilityMarketData.ModelsIsNone():
@@ -160,6 +161,7 @@ class VolatilityMarketDataT(object):
                 if volatilityMarketData.Models(i) is None:
                     self.models.append(None)
                 else:
+                    from quantra.ModelSpec import ModelSpecT
                     modelSpec_ = ModelSpecT.InitFromObj(volatilityMarketData.Models(i))
                     self.models.append(modelSpec_)
 

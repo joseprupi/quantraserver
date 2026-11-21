@@ -15,11 +15,15 @@ def ModelPayloadCreator(unionType, table):
     if not isinstance(table, Table):
         return None
     if unionType == ModelPayload.CapFloorModelSpec:
+        from quantra.CapFloorModelSpec import CapFloorModelSpecT
         return CapFloorModelSpecT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == ModelPayload.SwaptionModelSpec:
+        from quantra.SwaptionModelSpec import SwaptionModelSpecT
         return SwaptionModelSpecT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == ModelPayload.CdsModelSpec:
+        from quantra.CdsModelSpec import CdsModelSpecT
         return CdsModelSpecT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == ModelPayload.EquityVanillaModelSpec:
+        from quantra.EquityVanillaModelSpec import EquityVanillaModelSpecT
         return EquityVanillaModelSpecT.InitFromBuf(table.Bytes, table.Pos)
     return None

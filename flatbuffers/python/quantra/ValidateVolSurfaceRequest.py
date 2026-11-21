@@ -294,13 +294,16 @@ class ValidateVolSurfaceRequestT(object):
         if validateVolSurfaceRequest is None:
             return
         if validateVolSurfaceRequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(validateVolSurfaceRequest.Pricing())
         self.volatilityId = validateVolSurfaceRequest.VolatilityId()
         self.underlyingId = validateVolSurfaceRequest.UnderlyingId()
         self.discountingCurve = validateVolSurfaceRequest.DiscountingCurve()
         if validateVolSurfaceRequest.Quotes() is not None:
+            from quantra.OptionQuoteSheet import OptionQuoteSheetT
             self.quotes = OptionQuoteSheetT.InitFromObj(validateVolSurfaceRequest.Quotes())
         if validateVolSurfaceRequest.Filter() is not None:
+            from quantra.QuoteFilter import QuoteFilterT
             self.filter = QuoteFilterT.InitFromObj(validateVolSurfaceRequest.Filter())
         if not validateVolSurfaceRequest.ForwardsIsNone():
             self.forwards = []
@@ -308,13 +311,17 @@ class ValidateVolSurfaceRequestT(object):
                 if validateVolSurfaceRequest.Forwards(i) is None:
                     self.forwards.append(None)
                 else:
+                    from quantra.ImpliedForwardExpiry import ImpliedForwardExpiryT
                     impliedForwardExpiry_ = ImpliedForwardExpiryT.InitFromObj(validateVolSurfaceRequest.Forwards(i))
                     self.forwards.append(impliedForwardExpiry_)
         if validateVolSurfaceRequest.Checks() is not None:
+            from quantra.VolSurfaceValidationChecks import VolSurfaceValidationChecksT
             self.checks = VolSurfaceValidationChecksT.InitFromObj(validateVolSurfaceRequest.Checks())
         if validateVolSurfaceRequest.Simulation() is not None:
+            from quantra.MonteCarloSpec import MonteCarloSpecT
             self.simulation = MonteCarloSpecT.InitFromObj(validateVolSurfaceRequest.Simulation())
         if validateVolSurfaceRequest.Bands() is not None:
+            from quantra.VolSurfaceValidationBands import VolSurfaceValidationBandsT
             self.bands = VolSurfaceValidationBandsT.InitFromObj(validateVolSurfaceRequest.Bands())
 
     # ValidateVolSurfaceRequestT

@@ -167,6 +167,7 @@ class CDSValuesT(object):
         self.defaultLegNpv = cdsvalues.DefaultLegNpv()
         self.premiumLegNpv = cdsvalues.PremiumLegNpv()
         if cdsvalues.Error() is not None:
+            from quantra.Error import ErrorT
             self.error = ErrorT.InitFromObj(cdsvalues.Error())
 
     # CDSValuesT

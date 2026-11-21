@@ -112,6 +112,7 @@ class BootstrapInflationCurvesResponseT(object):
                 if bootstrapInflationCurvesResponse.Results(i) is None:
                     self.results.append(None)
                 else:
+                    from quantra.BootstrapInflationCurveResult import BootstrapInflationCurveResultT
                     bootstrapInflationCurveResult_ = BootstrapInflationCurveResultT.InitFromObj(bootstrapInflationCurvesResponse.Results(i))
                     self.results.append(bootstrapInflationCurveResult_)
 

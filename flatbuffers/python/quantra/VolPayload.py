@@ -17,15 +17,21 @@ def VolPayloadCreator(unionType, table):
     if not isinstance(table, Table):
         return None
     if unionType == VolPayload.OptionletVolSpec:
+        from quantra.OptionletVolSpec import OptionletVolSpecT
         return OptionletVolSpecT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == VolPayload.SwaptionVolSpec:
+        from quantra.SwaptionVolSpec import SwaptionVolSpecT
         return SwaptionVolSpecT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == VolPayload.BlackVolSpec:
+        from quantra.BlackVolSpec import BlackVolSpecT
         return BlackVolSpecT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == VolPayload.YoYOptionletVolSpec:
+        from quantra.YoYOptionletVolSpec import YoYOptionletVolSpecT
         return YoYOptionletVolSpecT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == VolPayload.SviVolSpec:
+        from quantra.SviVolSpec import SviVolSpecT
         return SviVolSpecT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == VolPayload.SsviVolSpec:
+        from quantra.SsviVolSpec import SsviVolSpecT
         return SsviVolSpecT.InitFromBuf(table.Bytes, table.Pos)
     return None

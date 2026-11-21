@@ -30,13 +30,6 @@ from quantra.enums.Frequency import Frequency  # noqa: E402
 from quantra.enums.Interpolator import Interpolator  # noqa: E402
 from quantra.enums.PayReceive import PayReceive  # noqa: E402
 
-# flatc's Python output imports a nested table class inside the first accessor
-# that uses it, so a second accessor of the same type (CommoditySwap.leg2)
-# raises NameError. Publish the class in the generated module's namespace.
-import quantra.CommoditySwap as _commodity_swap_module  # noqa: E402
-from quantra.CommoditySwapLeg import CommoditySwapLeg  # noqa: E402
-
-_commodity_swap_module.CommoditySwapLeg = CommoditySwapLeg
 
 DATA = Path(__file__).resolve().parent / "data" / "commodity"
 

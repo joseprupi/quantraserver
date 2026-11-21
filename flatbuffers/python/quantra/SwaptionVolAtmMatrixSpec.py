@@ -68,6 +68,7 @@ class SwaptionVolAtmMatrixSpec(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
+            from quantra.Period import Period
             obj = Period()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -208,6 +209,7 @@ class SwaptionVolAtmMatrixSpecT(object):
         if swaptionVolAtmMatrixSpec is None:
             return
         if swaptionVolAtmMatrixSpec.Base() is not None:
+            from quantra.IrVolBaseSpec import IrVolBaseSpecT
             self.base = IrVolBaseSpecT.InitFromObj(swaptionVolAtmMatrixSpec.Base())
         if not swaptionVolAtmMatrixSpec.ExpiriesIsNone():
             self.expiries = []
@@ -215,6 +217,7 @@ class SwaptionVolAtmMatrixSpecT(object):
                 if swaptionVolAtmMatrixSpec.Expiries(i) is None:
                     self.expiries.append(None)
                 else:
+                    from quantra.Period import PeriodT
                     period_ = PeriodT.InitFromObj(swaptionVolAtmMatrixSpec.Expiries(i))
                     self.expiries.append(period_)
         if not swaptionVolAtmMatrixSpec.TenorsIsNone():
@@ -223,9 +226,11 @@ class SwaptionVolAtmMatrixSpecT(object):
                 if swaptionVolAtmMatrixSpec.Tenors(i) is None:
                     self.tenors.append(None)
                 else:
+                    from quantra.Period import PeriodT
                     period_ = PeriodT.InitFromObj(swaptionVolAtmMatrixSpec.Tenors(i))
                     self.tenors.append(period_)
         if swaptionVolAtmMatrixSpec.Vols() is not None:
+            from quantra.QuoteMatrix2D import QuoteMatrix2DT
             self.vols = QuoteMatrix2DT.InitFromObj(swaptionVolAtmMatrixSpec.Vols())
         self.expiryInterpolator = swaptionVolAtmMatrixSpec.ExpiryInterpolator()
         self.tenorInterpolator = swaptionVolAtmMatrixSpec.TenorInterpolator()

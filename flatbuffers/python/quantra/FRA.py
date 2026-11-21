@@ -214,6 +214,7 @@ class FRAT(object):
         self.maturityDate = fra.MaturityDate()
         self.strike = fra.Strike()
         if fra.Index() is not None:
+            from quantra.IndexRef import IndexRefT
             self.index = IndexRefT.InitFromObj(fra.Index())
         self.dayCounter = fra.DayCounter()
         self.calendar = fra.Calendar()

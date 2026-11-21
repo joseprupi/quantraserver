@@ -356,19 +356,26 @@ class PricingT(object):
                 if pricing.Quotes(i) is None:
                     self.quotes.append(None)
                 else:
+                    from quantra.QuoteSpec import QuoteSpecT
                     quoteSpec_ = QuoteSpecT.InitFromObj(pricing.Quotes(i))
                     self.quotes.append(quoteSpec_)
         if pricing.Rates() is not None:
+            from quantra.RatesMarketData import RatesMarketDataT
             self.rates = RatesMarketDataT.InitFromObj(pricing.Rates())
         if pricing.Credit() is not None:
+            from quantra.CreditMarketData import CreditMarketDataT
             self.credit = CreditMarketDataT.InitFromObj(pricing.Credit())
         if pricing.Volatility() is not None:
+            from quantra.VolatilityMarketData import VolatilityMarketDataT
             self.volatility = VolatilityMarketDataT.InitFromObj(pricing.Volatility())
         if pricing.Equity() is not None:
+            from quantra.EquityMarketData import EquityMarketDataT
             self.equity = EquityMarketDataT.InitFromObj(pricing.Equity())
         if pricing.Inflation() is not None:
+            from quantra.InflationMarketData import InflationMarketDataT
             self.inflation = InflationMarketDataT.InitFromObj(pricing.Inflation())
         if pricing.Options() is not None:
+            from quantra.PricingOptions import PricingOptionsT
             self.options = PricingOptionsT.InitFromObj(pricing.Options())
         if not pricing.CalendarOverridesIsNone():
             self.calendarOverrides = []
@@ -376,13 +383,17 @@ class PricingT(object):
                 if pricing.CalendarOverrides(i) is None:
                     self.calendarOverrides.append(None)
                 else:
+                    from quantra.CalendarOverride import CalendarOverrideT
                     calendarOverride_ = CalendarOverrideT.InitFromObj(pricing.CalendarOverrides(i))
                     self.calendarOverrides.append(calendarOverride_)
         if pricing.Fx() is not None:
+            from quantra.FxMarketData import FxMarketDataT
             self.fx = FxMarketDataT.InitFromObj(pricing.Fx())
         if pricing.Correlations() is not None:
+            from quantra.CorrelationMarketData import CorrelationMarketDataT
             self.correlations = CorrelationMarketDataT.InitFromObj(pricing.Correlations())
         if pricing.Commodity() is not None:
+            from quantra.CommodityMarketData import CommodityMarketDataT
             self.commodity = CommodityMarketDataT.InitFromObj(pricing.Commodity())
 
     # PricingT

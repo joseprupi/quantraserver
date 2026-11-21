@@ -100,6 +100,7 @@ class FlowsWrapperT(object):
         if flowsWrapper is None:
             return
         self.flowType = flowsWrapper.FlowType()
+        from quantra.Flow import FlowCreator
         self.flow = FlowCreator(self.flowType, flowsWrapper.Flow())
 
     # FlowsWrapperT

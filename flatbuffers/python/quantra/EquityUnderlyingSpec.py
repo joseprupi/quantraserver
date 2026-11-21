@@ -172,6 +172,7 @@ class EquityUnderlyingSpecT(object):
                 if equityUnderlyingSpec.DiscreteDividends(i) is None:
                     self.discreteDividends.append(None)
                 else:
+                    from quantra.DiscreteDividend import DiscreteDividendT
                     discreteDividend_ = DiscreteDividendT.InitFromObj(equityUnderlyingSpec.DiscreteDividends(i))
                     self.discreteDividends.append(discreteDividend_)
 

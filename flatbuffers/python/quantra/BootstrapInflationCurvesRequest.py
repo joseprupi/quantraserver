@@ -125,6 +125,7 @@ class BootstrapInflationCurvesRequestT(object):
         if bootstrapInflationCurvesRequest is None:
             return
         if bootstrapInflationCurvesRequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(bootstrapInflationCurvesRequest.Pricing())
         if not bootstrapInflationCurvesRequest.QueriesIsNone():
             self.queries = []
@@ -132,6 +133,7 @@ class BootstrapInflationCurvesRequestT(object):
                 if bootstrapInflationCurvesRequest.Queries(i) is None:
                     self.queries.append(None)
                 else:
+                    from quantra.InflationCurveQuerySpec import InflationCurveQuerySpecT
                     inflationCurveQuerySpec_ = InflationCurveQuerySpecT.InitFromObj(bootstrapInflationCurvesRequest.Queries(i))
                     self.queries.append(inflationCurveQuerySpec_)
 

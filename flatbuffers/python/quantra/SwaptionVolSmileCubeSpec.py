@@ -76,6 +76,7 @@ class SwaptionVolSmileCubeSpec(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
+            from quantra.Period import Period
             obj = Period()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -310,6 +311,7 @@ class SwaptionVolSmileCubeSpecT(object):
         if swaptionVolSmileCubeSpec is None:
             return
         if swaptionVolSmileCubeSpec.Base() is not None:
+            from quantra.IrVolBaseSpec import IrVolBaseSpecT
             self.base = IrVolBaseSpecT.InitFromObj(swaptionVolSmileCubeSpec.Base())
         self.allowExternalAtm = swaptionVolSmileCubeSpec.AllowExternalAtm()
         if not swaptionVolSmileCubeSpec.ExpiriesIsNone():
@@ -318,6 +320,7 @@ class SwaptionVolSmileCubeSpecT(object):
                 if swaptionVolSmileCubeSpec.Expiries(i) is None:
                     self.expiries.append(None)
                 else:
+                    from quantra.Period import PeriodT
                     period_ = PeriodT.InitFromObj(swaptionVolSmileCubeSpec.Expiries(i))
                     self.expiries.append(period_)
         if not swaptionVolSmileCubeSpec.TenorsIsNone():
@@ -326,6 +329,7 @@ class SwaptionVolSmileCubeSpecT(object):
                 if swaptionVolSmileCubeSpec.Tenors(i) is None:
                     self.tenors.append(None)
                 else:
+                    from quantra.Period import PeriodT
                     period_ = PeriodT.InitFromObj(swaptionVolSmileCubeSpec.Tenors(i))
                     self.tenors.append(period_)
         if not swaptionVolSmileCubeSpec.StrikesIsNone():
@@ -337,8 +341,10 @@ class SwaptionVolSmileCubeSpecT(object):
                 self.strikes = swaptionVolSmileCubeSpec.StrikesAsNumpy()
         self.strikeKind = swaptionVolSmileCubeSpec.StrikeKind()
         if swaptionVolSmileCubeSpec.AtmForwards() is not None:
+            from quantra.QuoteMatrix2D import QuoteMatrix2DT
             self.atmForwards = QuoteMatrix2DT.InitFromObj(swaptionVolSmileCubeSpec.AtmForwards())
         if swaptionVolSmileCubeSpec.Vols() is not None:
+            from quantra.QuoteTensor3D import QuoteTensor3DT
             self.vols = QuoteTensor3DT.InitFromObj(swaptionVolSmileCubeSpec.Vols())
         self.expiryInterpolator = swaptionVolSmileCubeSpec.ExpiryInterpolator()
         self.tenorInterpolator = swaptionVolSmileCubeSpec.TenorInterpolator()

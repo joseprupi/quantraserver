@@ -318,6 +318,7 @@ class ImpliedForwardExpiryT(object):
                 if impliedForwardExpiry.Dropped(i) is None:
                     self.dropped.append(None)
                 else:
+                    from quantra.DroppedQuote import DroppedQuoteT
                     droppedQuote_ = DroppedQuoteT.InitFromObj(impliedForwardExpiry.Dropped(i))
                     self.dropped.append(droppedQuote_)
         self.usable = impliedForwardExpiry.Usable()

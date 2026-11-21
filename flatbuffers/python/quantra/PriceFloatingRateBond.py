@@ -147,11 +147,13 @@ class PriceFloatingRateBondT(object):
         if priceFloatingRateBond is None:
             return
         if priceFloatingRateBond.FloatingRateBond() is not None:
+            from quantra.FloatingRateBond import FloatingRateBondT
             self.floatingRateBond = FloatingRateBondT.InitFromObj(priceFloatingRateBond.FloatingRateBond())
         self.discountingCurve = priceFloatingRateBond.DiscountingCurve()
         self.forwardingCurve = priceFloatingRateBond.ForwardingCurve()
         self.couponPricer = priceFloatingRateBond.CouponPricer()
         if priceFloatingRateBond.Yield() is not None:
+            from quantra.Yield import YieldT
             self.yield_ = YieldT.InitFromObj(priceFloatingRateBond.Yield())
 
     # PriceFloatingRateBondT

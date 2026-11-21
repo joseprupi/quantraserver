@@ -192,6 +192,7 @@ class CommodityCurveMonthT(object):
                 if commodityCurveMonth.Sensitivities(i) is None:
                     self.sensitivities.append(None)
                 else:
+                    from quantra.CommodityQuoteSensitivity import CommodityQuoteSensitivityT
                     commodityQuoteSensitivity_ = CommodityQuoteSensitivityT.InitFromObj(commodityCurveMonth.Sensitivities(i))
                     self.sensitivities.append(commodityQuoteSensitivity_)
         self.basePrice = commodityCurveMonth.BasePrice()

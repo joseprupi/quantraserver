@@ -132,10 +132,13 @@ class BuiltCommodityCurveT(object):
         if builtCommodityCurve is None:
             return
         if builtCommodityCurve.Contract() is not None:
+            from quantra.CommodityContractSpec import CommodityContractSpecT
             self.contract = CommodityContractSpecT.InitFromObj(builtCommodityCurve.Contract())
         if builtCommodityCurve.Report() is not None:
+            from quantra.CommodityCurveReport import CommodityCurveReportT
             self.report = CommodityCurveReportT.InitFromObj(builtCommodityCurve.Report())
         if builtCommodityCurve.Spot() is not None:
+            from quantra.CommoditySpotSpec import CommoditySpotSpecT
             self.spot = CommoditySpotSpecT.InitFromObj(builtCommodityCurve.Spot())
 
     # BuiltCommodityCurveT

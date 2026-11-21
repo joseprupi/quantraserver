@@ -198,6 +198,7 @@ class ValidateVolSurfaceResponseT(object):
         if validateVolSurfaceResponse is None:
             return
         if validateVolSurfaceResponse.InputsEcho() is not None:
+            from quantra.VolSurfaceValidationInputsEcho import VolSurfaceValidationInputsEchoT
             self.inputsEcho = VolSurfaceValidationInputsEchoT.InitFromObj(validateVolSurfaceResponse.InputsEcho())
         if not validateVolSurfaceResponse.ExpiriesIsNone():
             self.expiries = []
@@ -205,15 +206,20 @@ class ValidateVolSurfaceResponseT(object):
                 if validateVolSurfaceResponse.Expiries(i) is None:
                     self.expiries.append(None)
                 else:
+                    from quantra.VolSurfaceValidationExpiry import VolSurfaceValidationExpiryT
                     volSurfaceValidationExpiry_ = VolSurfaceValidationExpiryT.InitFromObj(validateVolSurfaceResponse.Expiries(i))
                     self.expiries.append(volSurfaceValidationExpiry_)
         if validateVolSurfaceResponse.Fit() is not None:
+            from quantra.VolSurfaceFitValidation import VolSurfaceFitValidationT
             self.fit = VolSurfaceFitValidationT.InitFromObj(validateVolSurfaceResponse.Fit())
         if validateVolSurfaceResponse.Arbitrage() is not None:
+            from quantra.VolSurfaceArbitrageValidation import VolSurfaceArbitrageValidationT
             self.arbitrage = VolSurfaceArbitrageValidationT.InitFromObj(validateVolSurfaceResponse.Arbitrage())
         if validateVolSurfaceResponse.Simulation() is not None:
+            from quantra.VolSurfaceSimulationValidation import VolSurfaceSimulationValidationT
             self.simulation = VolSurfaceSimulationValidationT.InitFromObj(validateVolSurfaceResponse.Simulation())
         if validateVolSurfaceResponse.Timing() is not None:
+            from quantra.VolSurfaceValidationTiming import VolSurfaceValidationTimingT
             self.timing = VolSurfaceValidationTimingT.InitFromObj(validateVolSurfaceResponse.Timing())
 
     # ValidateVolSurfaceResponseT

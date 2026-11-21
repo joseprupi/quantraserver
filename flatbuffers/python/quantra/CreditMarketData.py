@@ -113,6 +113,7 @@ class CreditMarketDataT(object):
                 if creditMarketData.CreditCurves(i) is None:
                     self.creditCurves.append(None)
                 else:
+                    from quantra.CreditCurveSpec import CreditCurveSpecT
                     creditCurveSpec_ = CreditCurveSpecT.InitFromObj(creditMarketData.CreditCurves(i))
                     self.creditCurves.append(creditCurveSpec_)
 

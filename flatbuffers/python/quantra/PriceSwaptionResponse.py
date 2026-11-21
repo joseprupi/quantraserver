@@ -153,6 +153,7 @@ class PriceSwaptionResponseT(object):
                 if priceSwaptionResponse.Swaptions(i) is None:
                     self.swaptions.append(None)
                 else:
+                    from quantra.SwaptionResponse import SwaptionResponseT
                     swaptionResponse_ = SwaptionResponseT.InitFromObj(priceSwaptionResponse.Swaptions(i))
                     self.swaptions.append(swaptionResponse_)
         if not priceSwaptionResponse.DiagnosticsIsNone():
@@ -161,6 +162,7 @@ class PriceSwaptionResponseT(object):
                 if priceSwaptionResponse.Diagnostics(i) is None:
                     self.diagnostics.append(None)
                 else:
+                    from quantra.SwaptionVolDiagnostics import SwaptionVolDiagnosticsT
                     swaptionVolDiagnostics_ = SwaptionVolDiagnosticsT.InitFromObj(priceSwaptionResponse.Diagnostics(i))
                     self.diagnostics.append(swaptionVolDiagnostics_)
 

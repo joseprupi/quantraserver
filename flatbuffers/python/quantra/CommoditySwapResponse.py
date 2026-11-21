@@ -250,6 +250,7 @@ class CommoditySwapResponseT(object):
                 if commoditySwapResponse.Legs(i) is None:
                     self.legs.append(None)
                 else:
+                    from quantra.CommoditySwapLegResult import CommoditySwapLegResultT
                     commoditySwapLegResult_ = CommoditySwapLegResultT.InitFromObj(commoditySwapResponse.Legs(i))
                     self.legs.append(commoditySwapLegResult_)
         if not commoditySwapResponse.DeltasIsNone():
@@ -258,6 +259,7 @@ class CommoditySwapResponseT(object):
                 if commoditySwapResponse.Deltas(i) is None:
                     self.deltas.append(None)
                 else:
+                    from quantra.CommodityPriceDelta import CommodityPriceDeltaT
                     commodityPriceDelta_ = CommodityPriceDeltaT.InitFromObj(commoditySwapResponse.Deltas(i))
                     self.deltas.append(commodityPriceDelta_)
         if not commoditySwapResponse.QuoteDeltasIsNone():
@@ -266,6 +268,7 @@ class CommoditySwapResponseT(object):
                 if commoditySwapResponse.QuoteDeltas(i) is None:
                     self.quoteDeltas.append(None)
                 else:
+                    from quantra.CommodityQuoteDelta import CommodityQuoteDeltaT
                     commodityQuoteDelta_ = CommodityQuoteDeltaT.InitFromObj(commoditySwapResponse.QuoteDeltas(i))
                     self.quoteDeltas.append(commodityQuoteDelta_)
 

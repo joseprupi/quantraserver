@@ -276,6 +276,7 @@ class CommodityAverageQuoteT(object):
             return
         self.price = commodityAverageQuote.Price()
         if commodityAverageQuote.Periods() is not None:
+            from quantra.CommodityPeriods import CommodityPeriodsT
             self.periods = CommodityPeriodsT.InitFromObj(commodityAverageQuote.Periods())
         self.nearby = commodityAverageQuote.Nearby()
         self.rollDaysBeforeExpiry = commodityAverageQuote.RollDaysBeforeExpiry()

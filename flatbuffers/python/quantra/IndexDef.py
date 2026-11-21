@@ -267,6 +267,7 @@ class IndexDefT(object):
         self.name = indexDef.Name()
         self.indexType = indexDef.IndexType()
         if indexDef.Tenor() is not None:
+            from quantra.Period import PeriodT
             self.tenor = PeriodT.InitFromObj(indexDef.Tenor())
         self.fixingDays = indexDef.FixingDays()
         self.calendar = indexDef.Calendar()
@@ -280,6 +281,7 @@ class IndexDefT(object):
                 if indexDef.Fixings(i) is None:
                     self.fixings.append(None)
                 else:
+                    from quantra.Fixing import FixingT
                     fixing_ = FixingT.InitFromObj(indexDef.Fixings(i))
                     self.fixings.append(fixing_)
 

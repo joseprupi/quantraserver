@@ -234,6 +234,7 @@ class CommodityContractSpecT(object):
                 if commodityContractSpec.Months(i) is None:
                     self.months.append(None)
                 else:
+                    from quantra.CommodityContractMonth import CommodityContractMonthT
                     commodityContractMonth_ = CommodityContractMonthT.InitFromObj(commodityContractSpec.Months(i))
                     self.months.append(commodityContractMonth_)
         if not commodityContractSpec.FixingsIsNone():
@@ -242,6 +243,7 @@ class CommodityContractSpecT(object):
                 if commodityContractSpec.Fixings(i) is None:
                     self.fixings.append(None)
                 else:
+                    from quantra.CommodityContractFixing import CommodityContractFixingT
                     commodityContractFixing_ = CommodityContractFixingT.InitFromObj(commodityContractSpec.Fixings(i))
                     self.fixings.append(commodityContractFixing_)
 

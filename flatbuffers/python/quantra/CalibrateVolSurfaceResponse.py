@@ -230,6 +230,7 @@ class CalibrateVolSurfaceResponse(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.VolSurfaceSpec import VolSurfaceSpec
             obj = VolSurfaceSpec()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -256,6 +257,7 @@ class CalibrateVolSurfaceResponse(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(32))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.VolSurfaceSpec import VolSurfaceSpec
             obj = VolSurfaceSpec()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -528,6 +530,7 @@ class CalibrateVolSurfaceResponseT(object):
         self.method = calibrateVolSurfaceResponse.Method()
         self.forwardsSource = calibrateVolSurfaceResponse.ForwardsSource()
         if calibrateVolSurfaceResponse.Filter() is not None:
+            from quantra.QuoteFilter import QuoteFilterT
             self.filter = QuoteFilterT.InitFromObj(calibrateVolSurfaceResponse.Filter())
         if not calibrateVolSurfaceResponse.ForwardsIsNone():
             self.forwards = []
@@ -535,6 +538,7 @@ class CalibrateVolSurfaceResponseT(object):
                 if calibrateVolSurfaceResponse.Forwards(i) is None:
                     self.forwards.append(None)
                 else:
+                    from quantra.VolSurfaceForward import VolSurfaceForwardT
                     volSurfaceForward_ = VolSurfaceForwardT.InitFromObj(calibrateVolSurfaceResponse.Forwards(i))
                     self.forwards.append(volSurfaceForward_)
         if not calibrateVolSurfaceResponse.ExpiriesIsNone():
@@ -543,6 +547,7 @@ class CalibrateVolSurfaceResponseT(object):
                 if calibrateVolSurfaceResponse.Expiries(i) is None:
                     self.expiries.append(None)
                 else:
+                    from quantra.VolSurfaceExpiryReport import VolSurfaceExpiryReportT
                     volSurfaceExpiryReport_ = VolSurfaceExpiryReportT.InitFromObj(calibrateVolSurfaceResponse.Expiries(i))
                     self.expiries.append(volSurfaceExpiryReport_)
         if not calibrateVolSurfaceResponse.StrikesAsMoneynessIsNone():
@@ -564,11 +569,14 @@ class CalibrateVolSurfaceResponseT(object):
             for i in range(calibrateVolSurfaceResponse.GridExpiriesLength()):
                 self.gridExpiries.append(calibrateVolSurfaceResponse.GridExpiries(i))
         if calibrateVolSurfaceResponse.VolSurfaceSpec() is not None:
+            from quantra.VolSurfaceSpec import VolSurfaceSpecT
             self.volSurfaceSpec = VolSurfaceSpecT.InitFromObj(calibrateVolSurfaceResponse.VolSurfaceSpec())
         if calibrateVolSurfaceResponse.VolSurfaceSpecSvi() is not None:
+            from quantra.VolSurfaceSpec import VolSurfaceSpecT
             self.volSurfaceSpecSvi = VolSurfaceSpecT.InitFromObj(calibrateVolSurfaceResponse.VolSurfaceSpecSvi())
         self.volSurfaceSpecSviNote = calibrateVolSurfaceResponse.VolSurfaceSpecSviNote()
         if calibrateVolSurfaceResponse.VolSurfaceSpecSsvi() is not None:
+            from quantra.VolSurfaceSpec import VolSurfaceSpecT
             self.volSurfaceSpecSsvi = VolSurfaceSpecT.InitFromObj(calibrateVolSurfaceResponse.VolSurfaceSpecSsvi())
         self.arbitrageFree = calibrateVolSurfaceResponse.ArbitrageFree()
         self.arbitrageFreeSvi = calibrateVolSurfaceResponse.ArbitrageFreeSvi()

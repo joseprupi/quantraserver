@@ -90,6 +90,7 @@ class PriceBasisSwapT(object):
         if priceBasisSwap is None:
             return
         if priceBasisSwap.BasisSwap() is not None:
+            from quantra.BasisSwap import BasisSwapT
             self.basisSwap = BasisSwapT.InitFromObj(priceBasisSwap.BasisSwap())
 
     # PriceBasisSwapT

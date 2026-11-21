@@ -150,6 +150,7 @@ class BuildCommodityCurvesRequestT(object):
         if buildCommodityCurvesRequest is None:
             return
         if buildCommodityCurvesRequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(buildCommodityCurvesRequest.Pricing())
         if not buildCommodityCurvesRequest.CurvesIsNone():
             self.curves = []
@@ -157,6 +158,7 @@ class BuildCommodityCurvesRequestT(object):
                 if buildCommodityCurvesRequest.Curves(i) is None:
                     self.curves.append(None)
                 else:
+                    from quantra.CommodityCurveBuild import CommodityCurveBuildT
                     commodityCurveBuild_ = CommodityCurveBuildT.InitFromObj(buildCommodityCurvesRequest.Curves(i))
                     self.curves.append(commodityCurveBuild_)
         self.includeDetails = buildCommodityCurvesRequest.IncludeDetails()

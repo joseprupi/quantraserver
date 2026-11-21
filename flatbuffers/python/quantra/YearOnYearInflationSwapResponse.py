@@ -106,6 +106,7 @@ class YearOnYearInflationSwapResponse(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
+            from quantra.SwapLegFlow import SwapLegFlow
             obj = SwapLegFlow()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -254,6 +255,7 @@ class YearOnYearInflationSwapResponseT(object):
                 if yearOnYearInflationSwapResponse.FixedLegFlows(i) is None:
                     self.fixedLegFlows.append(None)
                 else:
+                    from quantra.SwapLegFlow import SwapLegFlowT
                     swapLegFlow_ = SwapLegFlowT.InitFromObj(yearOnYearInflationSwapResponse.FixedLegFlows(i))
                     self.fixedLegFlows.append(swapLegFlow_)
         if not yearOnYearInflationSwapResponse.YoyLegFlowsIsNone():
@@ -262,6 +264,7 @@ class YearOnYearInflationSwapResponseT(object):
                 if yearOnYearInflationSwapResponse.YoyLegFlows(i) is None:
                     self.yoyLegFlows.append(None)
                 else:
+                    from quantra.SwapLegFlow import SwapLegFlowT
                     swapLegFlow_ = SwapLegFlowT.InitFromObj(yearOnYearInflationSwapResponse.YoyLegFlows(i))
                     self.yoyLegFlows.append(swapLegFlow_)
 

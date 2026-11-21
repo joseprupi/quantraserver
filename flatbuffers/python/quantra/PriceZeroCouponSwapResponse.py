@@ -112,6 +112,7 @@ class PriceZeroCouponSwapResponseT(object):
                 if priceZeroCouponSwapResponse.Swaps(i) is None:
                     self.swaps.append(None)
                 else:
+                    from quantra.ZeroCouponSwapResponse import ZeroCouponSwapResponseT
                     zeroCouponSwapResponse_ = ZeroCouponSwapResponseT.InitFromObj(priceZeroCouponSwapResponse.Swaps(i))
                     self.swaps.append(zeroCouponSwapResponse_)
 

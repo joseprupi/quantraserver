@@ -233,6 +233,7 @@ class CreditCurveSpecT(object):
         self.recoveryRate = creditCurveSpec.RecoveryRate()
         self.curveInterpolator = creditCurveSpec.CurveInterpolator()
         if creditCurveSpec.HelperConventions() is not None:
+            from quantra.CdsHelperConventions import CdsHelperConventionsT
             self.helperConventions = CdsHelperConventionsT.InitFromObj(creditCurveSpec.HelperConventions())
         if not creditCurveSpec.QuotesIsNone():
             self.quotes = []
@@ -240,6 +241,7 @@ class CreditCurveSpecT(object):
                 if creditCurveSpec.Quotes(i) is None:
                     self.quotes.append(None)
                 else:
+                    from quantra.CdsQuote import CdsQuoteT
                     cdsQuote_ = CdsQuoteT.InitFromObj(creditCurveSpec.Quotes(i))
                     self.quotes.append(cdsQuote_)
         self.flatHazardRate = creditCurveSpec.FlatHazardRate()

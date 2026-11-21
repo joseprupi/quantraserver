@@ -77,6 +77,7 @@ class SwaptionVolDiagnostics(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
+            from quantra.Period import Period
             obj = Period()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -554,6 +555,7 @@ class SwaptionVolDiagnosticsT(object):
                 if swaptionVolDiagnostics.Expiries(i) is None:
                     self.expiries.append(None)
                 else:
+                    from quantra.Period import PeriodT
                     period_ = PeriodT.InitFromObj(swaptionVolDiagnostics.Expiries(i))
                     self.expiries.append(period_)
         if not swaptionVolDiagnostics.TenorsIsNone():
@@ -562,6 +564,7 @@ class SwaptionVolDiagnosticsT(object):
                 if swaptionVolDiagnostics.Tenors(i) is None:
                     self.tenors.append(None)
                 else:
+                    from quantra.Period import PeriodT
                     period_ = PeriodT.InitFromObj(swaptionVolDiagnostics.Tenors(i))
                     self.tenors.append(period_)
         self.nExpiries = swaptionVolDiagnostics.NExpiries()
@@ -616,6 +619,7 @@ class SwaptionVolDiagnosticsT(object):
             else:
                 self.nuPerNode = swaptionVolDiagnostics.NuPerNodeAsNumpy()
         if swaptionVolDiagnostics.Calibration() is not None:
+            from quantra.SabrCalibrationDiagnostics import SabrCalibrationDiagnosticsT
             self.calibration = SabrCalibrationDiagnosticsT.InitFromObj(swaptionVolDiagnostics.Calibration())
         if not swaptionVolDiagnostics.WarningsIsNone():
             self.warnings = []

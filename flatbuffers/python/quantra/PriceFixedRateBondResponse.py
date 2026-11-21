@@ -112,6 +112,7 @@ class PriceFixedRateBondResponseT(object):
                 if priceFixedRateBondResponse.Bonds(i) is None:
                     self.bonds.append(None)
                 else:
+                    from quantra.FixedRateBondResponse import FixedRateBondResponseT
                     fixedRateBondResponse_ = FixedRateBondResponseT.InitFromObj(priceFixedRateBondResponse.Bonds(i))
                     self.bonds.append(fixedRateBondResponse_)
 

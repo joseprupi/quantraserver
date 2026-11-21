@@ -396,6 +396,7 @@ class StructuredNoteT(object):
                 if structuredNote.Underlyings(i) is None:
                     self.underlyings.append(None)
                 else:
+                    from quantra.BasketUnderlying import BasketUnderlyingT
                     basketUnderlying_ = BasketUnderlyingT.InitFromObj(structuredNote.Underlyings(i))
                     self.underlyings.append(basketUnderlying_)
         self.performanceRule = structuredNote.PerformanceRule()
@@ -405,11 +406,14 @@ class StructuredNoteT(object):
                 if structuredNote.Events(i) is None:
                     self.events.append(None)
                 else:
+                    from quantra.ObservationEvent import ObservationEventT
                     observationEvent_ = ObservationEventT.InitFromObj(structuredNote.Events(i))
                     self.events.append(observationEvent_)
         if structuredNote.CouponRule() is not None:
+            from quantra.CouponRule import CouponRuleT
             self.couponRule = CouponRuleT.InitFromObj(structuredNote.CouponRule())
         if structuredNote.Capital() is not None:
+            from quantra.CapitalProtection import CapitalProtectionT
             self.capital = CapitalProtectionT.InitFromObj(structuredNote.Capital())
         self.maturityPaymentDate = structuredNote.MaturityPaymentDate()
         self.discountingCurve = structuredNote.DiscountingCurve()
@@ -417,8 +421,10 @@ class StructuredNoteT(object):
         self.correlationId = structuredNote.CorrelationId()
         self.correlationMarkup = structuredNote.CorrelationMarkup()
         if structuredNote.Upside() is not None:
+            from quantra.UpsideParticipation import UpsideParticipationT
             self.upside = UpsideParticipationT.InitFromObj(structuredNote.Upside())
         if structuredNote.MonteCarlo() is not None:
+            from quantra.MonteCarloSpec import MonteCarloSpecT
             self.monteCarlo = MonteCarloSpecT.InitFromObj(structuredNote.MonteCarlo())
 
     # StructuredNoteT

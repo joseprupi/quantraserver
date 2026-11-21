@@ -68,6 +68,7 @@ class SwaptionSabrParamsSpec(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
+            from quantra.Period import Period
             obj = Period()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -101,6 +102,7 @@ class SwaptionSabrParamsSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.QuoteMatrix2D import QuoteMatrix2D
             obj = QuoteMatrix2D()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -111,6 +113,7 @@ class SwaptionSabrParamsSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.QuoteMatrix2D import QuoteMatrix2D
             obj = QuoteMatrix2D()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -121,6 +124,7 @@ class SwaptionSabrParamsSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.QuoteMatrix2D import QuoteMatrix2D
             obj = QuoteMatrix2D()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -231,6 +235,7 @@ class SwaptionSabrParamsSpecT(object):
         if swaptionSabrParamsSpec is None:
             return
         if swaptionSabrParamsSpec.Base() is not None:
+            from quantra.IrVolBaseSpec import IrVolBaseSpecT
             self.base = IrVolBaseSpecT.InitFromObj(swaptionSabrParamsSpec.Base())
         if not swaptionSabrParamsSpec.ExpiriesIsNone():
             self.expiries = []
@@ -238,6 +243,7 @@ class SwaptionSabrParamsSpecT(object):
                 if swaptionSabrParamsSpec.Expiries(i) is None:
                     self.expiries.append(None)
                 else:
+                    from quantra.Period import PeriodT
                     period_ = PeriodT.InitFromObj(swaptionSabrParamsSpec.Expiries(i))
                     self.expiries.append(period_)
         if not swaptionSabrParamsSpec.TenorsIsNone():
@@ -246,15 +252,20 @@ class SwaptionSabrParamsSpecT(object):
                 if swaptionSabrParamsSpec.Tenors(i) is None:
                     self.tenors.append(None)
                 else:
+                    from quantra.Period import PeriodT
                     period_ = PeriodT.InitFromObj(swaptionSabrParamsSpec.Tenors(i))
                     self.tenors.append(period_)
         if swaptionSabrParamsSpec.Alpha() is not None:
+            from quantra.QuoteMatrix2D import QuoteMatrix2DT
             self.alpha = QuoteMatrix2DT.InitFromObj(swaptionSabrParamsSpec.Alpha())
         if swaptionSabrParamsSpec.Beta() is not None:
+            from quantra.QuoteMatrix2D import QuoteMatrix2DT
             self.beta = QuoteMatrix2DT.InitFromObj(swaptionSabrParamsSpec.Beta())
         if swaptionSabrParamsSpec.Rho() is not None:
+            from quantra.QuoteMatrix2D import QuoteMatrix2DT
             self.rho = QuoteMatrix2DT.InitFromObj(swaptionSabrParamsSpec.Rho())
         if swaptionSabrParamsSpec.Nu() is not None:
+            from quantra.QuoteMatrix2D import QuoteMatrix2DT
             self.nu = QuoteMatrix2DT.InitFromObj(swaptionSabrParamsSpec.Nu())
 
     # SwaptionSabrParamsSpecT

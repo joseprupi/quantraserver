@@ -206,9 +206,11 @@ class CalibrateCorrelationRequestT(object):
                 if calibrateCorrelationRequest.Series(i) is None:
                     self.series.append(None)
                 else:
+                    from quantra.PriceSeries import PriceSeriesT
                     priceSeries_ = PriceSeriesT.InitFromObj(calibrateCorrelationRequest.Series(i))
                     self.series.append(priceSeries_)
         if calibrateCorrelationRequest.Estimator() is not None:
+            from quantra.CorrelationEstimator import CorrelationEstimatorT
             self.estimator = CorrelationEstimatorT.InitFromObj(calibrateCorrelationRequest.Estimator())
         self.correlationId = calibrateCorrelationRequest.CorrelationId()
         if not calibrateCorrelationRequest.LabelsIsNone():

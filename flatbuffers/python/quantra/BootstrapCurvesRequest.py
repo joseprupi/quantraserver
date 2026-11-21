@@ -125,6 +125,7 @@ class BootstrapCurvesRequestT(object):
         if bootstrapCurvesRequest is None:
             return
         if bootstrapCurvesRequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(bootstrapCurvesRequest.Pricing())
         if not bootstrapCurvesRequest.QueriesIsNone():
             self.queries = []
@@ -132,6 +133,7 @@ class BootstrapCurvesRequestT(object):
                 if bootstrapCurvesRequest.Queries(i) is None:
                     self.queries.append(None)
                 else:
+                    from quantra.CurveQuerySpec import CurveQuerySpecT
                     curveQuerySpec_ = CurveQuerySpecT.InitFromObj(bootstrapCurvesRequest.Queries(i))
                     self.queries.append(curveQuerySpec_)
 

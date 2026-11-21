@@ -175,6 +175,7 @@ class CalendarHolidaysRequestT(object):
                 if calendarHolidaysRequest.CalendarOverrides(i) is None:
                     self.calendarOverrides.append(None)
                 else:
+                    from quantra.CalendarOverride import CalendarOverrideT
                     calendarOverride_ = CalendarOverrideT.InitFromObj(calendarHolidaysRequest.CalendarOverrides(i))
                     self.calendarOverrides.append(calendarOverride_)
 

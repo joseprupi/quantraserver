@@ -125,6 +125,7 @@ class PriceEquityOptionRequestT(object):
         if priceEquityOptionRequest is None:
             return
         if priceEquityOptionRequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(priceEquityOptionRequest.Pricing())
         if not priceEquityOptionRequest.OptionsIsNone():
             self.options = []
@@ -132,6 +133,7 @@ class PriceEquityOptionRequestT(object):
                 if priceEquityOptionRequest.Options(i) is None:
                     self.options.append(None)
                 else:
+                    from quantra.PriceEquityOption import PriceEquityOptionT
                     priceEquityOption_ = PriceEquityOptionT.InitFromObj(priceEquityOptionRequest.Options(i))
                     self.options.append(priceEquityOption_)
 

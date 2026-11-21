@@ -112,6 +112,7 @@ class PriceCrossCurrencySwapResponseT(object):
                 if priceCrossCurrencySwapResponse.Swaps(i) is None:
                     self.swaps.append(None)
                 else:
+                    from quantra.CrossCurrencySwapResponse import CrossCurrencySwapResponseT
                     crossCurrencySwapResponse_ = CrossCurrencySwapResponseT.InitFromObj(priceCrossCurrencySwapResponse.Swaps(i))
                     self.swaps.append(crossCurrencySwapResponse_)
 

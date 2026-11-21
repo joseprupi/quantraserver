@@ -230,6 +230,7 @@ class BootstrapCurveResultT(object):
                 if bootstrapCurveResult.Series(i) is None:
                     self.series.append(None)
                 else:
+                    from quantra.CurveSeries import CurveSeriesT
                     curveSeries_ = CurveSeriesT.InitFromObj(bootstrapCurveResult.Series(i))
                     self.series.append(curveSeries_)
         if not bootstrapCurveResult.PillarDatesIsNone():
@@ -237,6 +238,7 @@ class BootstrapCurveResultT(object):
             for i in range(bootstrapCurveResult.PillarDatesLength()):
                 self.pillarDates.append(bootstrapCurveResult.PillarDates(i))
         if bootstrapCurveResult.Error() is not None:
+            from quantra.Error import ErrorT
             self.error = ErrorT.InitFromObj(bootstrapCurveResult.Error())
 
     # BootstrapCurveResultT

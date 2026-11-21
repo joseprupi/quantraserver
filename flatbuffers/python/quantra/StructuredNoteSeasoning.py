@@ -209,6 +209,7 @@ class StructuredNoteSeasoningT(object):
                 if structuredNoteSeasoning.Events(i) is None:
                     self.events.append(None)
                 else:
+                    from quantra.StructuredNoteResolvedEvent import StructuredNoteResolvedEventT
                     structuredNoteResolvedEvent_ = StructuredNoteResolvedEventT.InitFromObj(structuredNoteSeasoning.Events(i))
                     self.events.append(structuredNoteResolvedEvent_)
         self.memoryCarried = structuredNoteSeasoning.MemoryCarried()

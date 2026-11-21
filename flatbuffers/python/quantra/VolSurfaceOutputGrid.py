@@ -170,6 +170,7 @@ class VolSurfaceOutputGridT(object):
                 if volSurfaceOutputGrid.Expiries(i) is None:
                     self.expiries.append(None)
                 else:
+                    from quantra.Period import PeriodT
                     period_ = PeriodT.InitFromObj(volSurfaceOutputGrid.Expiries(i))
                     self.expiries.append(period_)
 

@@ -262,6 +262,7 @@ class FloatingRateBondResponseT(object):
                 if floatingRateBondResponse.Flows(i) is None:
                     self.flows.append(None)
                 else:
+                    from quantra.FlowsWrapper import FlowsWrapperT
                     flowsWrapper_ = FlowsWrapperT.InitFromObj(floatingRateBondResponse.Flows(i))
                     self.flows.append(flowsWrapper_)
 

@@ -125,6 +125,7 @@ class PriceYearOnYearInflationCapFloorRequestT(object):
         if priceYearOnYearInflationCapFloorRequest is None:
             return
         if priceYearOnYearInflationCapFloorRequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(priceYearOnYearInflationCapFloorRequest.Pricing())
         if not priceYearOnYearInflationCapFloorRequest.CapFloorsIsNone():
             self.capFloors = []
@@ -132,6 +133,7 @@ class PriceYearOnYearInflationCapFloorRequestT(object):
                 if priceYearOnYearInflationCapFloorRequest.CapFloors(i) is None:
                     self.capFloors.append(None)
                 else:
+                    from quantra.PriceYoYInflationCapFloor import PriceYoYInflationCapFloorT
                     priceYoYInflationCapFloor_ = PriceYoYInflationCapFloorT.InitFromObj(priceYearOnYearInflationCapFloorRequest.CapFloors(i))
                     self.capFloors.append(priceYoYInflationCapFloor_)
 

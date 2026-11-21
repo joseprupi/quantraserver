@@ -142,6 +142,7 @@ class PriceCallableFixedRateBondT(object):
         if priceCallableFixedRateBond is None:
             return
         if priceCallableFixedRateBond.CallableFixedRateBond() is not None:
+            from quantra.CallableFixedRateBond import CallableFixedRateBondT
             self.callableFixedRateBond = CallableFixedRateBondT.InitFromObj(priceCallableFixedRateBond.CallableFixedRateBond())
         self.discountingCurve = priceCallableFixedRateBond.DiscountingCurve()
         self.model = priceCallableFixedRateBond.Model()

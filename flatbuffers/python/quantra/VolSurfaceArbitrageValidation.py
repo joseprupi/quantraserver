@@ -311,6 +311,7 @@ class VolSurfaceArbitrageValidationT(object):
             return
         self.arbitrageFree = volSurfaceArbitrageValidation.ArbitrageFree()
         if volSurfaceArbitrageValidation.LocalVolCheck() is not None:
+            from quantra.LocalVolCheck import LocalVolCheckT
             self.localVolCheck = LocalVolCheckT.InitFromObj(volSurfaceArbitrageValidation.LocalVolCheck())
         if not volSurfaceArbitrageValidation.SviSlicesIsNone():
             self.sviSlices = []
@@ -318,9 +319,11 @@ class VolSurfaceArbitrageValidationT(object):
                 if volSurfaceArbitrageValidation.SviSlices(i) is None:
                     self.sviSlices.append(None)
                 else:
+                    from quantra.SviSliceCheck import SviSliceCheckT
                     sviSliceCheck_ = SviSliceCheckT.InitFromObj(volSurfaceArbitrageValidation.SviSlices(i))
                     self.sviSlices.append(sviSliceCheck_)
         if volSurfaceArbitrageValidation.SsviCheck() is not None:
+            from quantra.SsviArbitrageCheck import SsviArbitrageCheckT
             self.ssviCheck = SsviArbitrageCheckT.InitFromObj(volSurfaceArbitrageValidation.SsviCheck())
         if not volSurfaceArbitrageValidation.SsviSlicesIsNone():
             self.ssviSlices = []
@@ -328,6 +331,7 @@ class VolSurfaceArbitrageValidationT(object):
                 if volSurfaceArbitrageValidation.SsviSlices(i) is None:
                     self.ssviSlices.append(None)
                 else:
+                    from quantra.SsviSliceCheck import SsviSliceCheckT
                     ssviSliceCheck_ = SsviSliceCheckT.InitFromObj(volSurfaceArbitrageValidation.SsviSlices(i))
                     self.ssviSlices.append(ssviSliceCheck_)
         if not volSurfaceArbitrageValidation.ViolationsIsNone():
@@ -336,6 +340,7 @@ class VolSurfaceArbitrageValidationT(object):
                 self.violations.append(volSurfaceArbitrageValidation.Violations(i))
         self.verdict = volSurfaceArbitrageValidation.Verdict()
         if volSurfaceArbitrageValidation.LocalVolGrid() is not None:
+            from quantra.LocalVolGrid import LocalVolGridT
             self.localVolGrid = LocalVolGridT.InitFromObj(volSurfaceArbitrageValidation.LocalVolGrid())
         if not volSurfaceArbitrageValidation.ClampEdgesIsNone():
             self.clampEdges = []
@@ -343,6 +348,7 @@ class VolSurfaceArbitrageValidationT(object):
                 if volSurfaceArbitrageValidation.ClampEdges(i) is None:
                     self.clampEdges.append(None)
                 else:
+                    from quantra.ClampEdge import ClampEdgeT
                     clampEdge_ = ClampEdgeT.InitFromObj(volSurfaceArbitrageValidation.ClampEdges(i))
                     self.clampEdges.append(clampEdge_)
 

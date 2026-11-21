@@ -125,6 +125,7 @@ class PriceFRARequestT(object):
         if priceFrarequest is None:
             return
         if priceFrarequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(priceFrarequest.Pricing())
         if not priceFrarequest.FrasIsNone():
             self.fras = []
@@ -132,6 +133,7 @@ class PriceFRARequestT(object):
                 if priceFrarequest.Fras(i) is None:
                     self.fras.append(None)
                 else:
+                    from quantra.PriceFRA import PriceFRAT
                     priceFRA_ = PriceFRAT.InitFromObj(priceFrarequest.Fras(i))
                     self.fras.append(priceFRA_)
 

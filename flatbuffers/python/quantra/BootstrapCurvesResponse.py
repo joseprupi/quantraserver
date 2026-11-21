@@ -112,6 +112,7 @@ class BootstrapCurvesResponseT(object):
                 if bootstrapCurvesResponse.Results(i) is None:
                     self.results.append(None)
                 else:
+                    from quantra.BootstrapCurveResult import BootstrapCurveResultT
                     bootstrapCurveResult_ = BootstrapCurveResultT.InitFromObj(bootstrapCurvesResponse.Results(i))
                     self.results.append(bootstrapCurveResult_)
 

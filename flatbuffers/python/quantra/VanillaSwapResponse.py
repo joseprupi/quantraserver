@@ -303,6 +303,7 @@ class VanillaSwapResponseT(object):
                 if vanillaSwapResponse.Legs(i) is None:
                     self.legs.append(None)
                 else:
+                    from quantra.SwapLegResult import SwapLegResultT
                     swapLegResult_ = SwapLegResultT.InitFromObj(vanillaSwapResponse.Legs(i))
                     self.legs.append(swapLegResult_)
         self.usedCmsPricerType = vanillaSwapResponse.UsedCmsPricerType()

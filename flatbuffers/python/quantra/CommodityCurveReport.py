@@ -303,6 +303,7 @@ class CommodityCurveReportT(object):
                 if commodityCurveReport.Months(i) is None:
                     self.months.append(None)
                 else:
+                    from quantra.CommodityCurveMonth import CommodityCurveMonthT
                     commodityCurveMonth_ = CommodityCurveMonthT.InitFromObj(commodityCurveReport.Months(i))
                     self.months.append(commodityCurveMonth_)
         if not commodityCurveReport.AverageQuotesIsNone():
@@ -311,6 +312,7 @@ class CommodityCurveReportT(object):
                 if commodityCurveReport.AverageQuotes(i) is None:
                     self.averageQuotes.append(None)
                 else:
+                    from quantra.CommodityAverageQuoteResult import CommodityAverageQuoteResultT
                     commodityAverageQuoteResult_ = CommodityAverageQuoteResultT.InitFromObj(commodityCurveReport.AverageQuotes(i))
                     self.averageQuotes.append(commodityAverageQuoteResult_)
         self.maxSensitivity = commodityCurveReport.MaxSensitivity()
@@ -320,6 +322,7 @@ class CommodityCurveReportT(object):
                 if commodityCurveReport.Points(i) is None:
                     self.points.append(None)
                 else:
+                    from quantra.CommodityCurvePoint import CommodityCurvePointT
                     commodityCurvePoint_ = CommodityCurvePointT.InitFromObj(commodityCurveReport.Points(i))
                     self.points.append(commodityCurvePoint_)
 

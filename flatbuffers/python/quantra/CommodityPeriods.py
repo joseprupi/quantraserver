@@ -174,6 +174,7 @@ class CommodityPeriodsT(object):
                 if commodityPeriods.Periods(i) is None:
                     self.periods.append(None)
                 else:
+                    from quantra.CommodityPeriod import CommodityPeriodT
                     commodityPeriod_ = CommodityPeriodT.InitFromObj(commodityPeriods.Periods(i))
                     self.periods.append(commodityPeriod_)
 

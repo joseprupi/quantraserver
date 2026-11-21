@@ -14,9 +14,12 @@ def EquityPayoffCreator(unionType, table):
     if not isinstance(table, Table):
         return None
     if unionType == EquityPayoff.EquityPlainVanillaPayoff:
+        from quantra.EquityPlainVanillaPayoff import EquityPlainVanillaPayoffT
         return EquityPlainVanillaPayoffT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == EquityPayoff.EquityCashOrNothingPayoff:
+        from quantra.EquityCashOrNothingPayoff import EquityCashOrNothingPayoffT
         return EquityCashOrNothingPayoffT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == EquityPayoff.EquityAssetOrNothingPayoff:
+        from quantra.EquityAssetOrNothingPayoff import EquityAssetOrNothingPayoffT
         return EquityAssetOrNothingPayoffT.InitFromBuf(table.Bytes, table.Pos)
     return None

@@ -158,6 +158,7 @@ class SwapIndexFloatLegSpecT(object):
         if swapIndexFloatLegSpec is None:
             return
         if swapIndexFloatLegSpec.FloatTenor() is not None:
+            from quantra.Period import PeriodT
             self.floatTenor = PeriodT.InitFromObj(swapIndexFloatLegSpec.FloatTenor())
         self.floatCalendar = swapIndexFloatLegSpec.FloatCalendar()
         self.floatBdc = swapIndexFloatLegSpec.FloatBdc()

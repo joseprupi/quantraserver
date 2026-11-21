@@ -1869,6 +1869,67 @@ def test_commodity_curve_build_conflict(client: Client):
 # Main
 # =============================================================================
 
+def test_batch(client: Client):
+    """
+    Price a multi-market basis swap batch with quantra_client.batch: three
+    markets (the multi-curve example with the OIS curve's first quote moved),
+    600 / 40 / 1 trades of different notionals, split across calls. Every
+    NPV must equal the one from a plain request holding the whole market,
+    in the input trade order. The example JSON is turned into the request
+    object by flatc + InitFromPackedBuf (the generated unpack path).
+    """
+    import copy
+    import shutil
+    import subprocess
+    import tempfile
+    from quantra_client.batch import price_batch
+    from quantra.PriceBasisSwapRequest import PriceBasisSwapRequestT
+
+    print("\n" + "=" * 60)
+    print("TEST: Batch (3 markets, 641 basis swaps, split across calls)")
+    print("=" * 60)
+
+    example = os.path.join(PROJECT_ROOT, "..", "examples", "data", "ir_swaps",
+                           "basis_eur_5y_3m_vs_6m_ois_discounted_multicurve.json")
+    fbs_dir = os.path.join(PROJECT_ROOT, "..", "flatbuffers", "fbs")
+    flatc = shutil.which("flatc") or "/opt/quantra-deps/bin/flatc"
+    with tempfile.TemporaryDirectory() as tmp:
+        subprocess.run([flatc, "--binary", "-I", fbs_dir, "-o", tmp,
+                        os.path.join(fbs_dir, "price_basis_swap_request.fbs"), example],
+                       check=True, capture_output=True)
+        packed = open(os.path.join(tmp, os.path.basename(example)[:-5] + ".bin"), "rb").read()
+
+    groups = []
+    for market, size in enumerate((600, 40, 1)):
+        request = PriceBasisSwapRequestT.InitFromPackedBuf(packed, 0)
+        request.pricing.rates.curves[0].points[0].point.rate += market * 1e-5
+        template = request.swaps[0]
+        request.swaps = []
+        for i in range(size):
+            trade = copy.deepcopy(template)
+            trade.basisSwap.leg1.notional = 1e6 + 1000.0 * i
+            request.swaps.append(trade)
+        groups.append(("basis_swap", request))
+
+    result = price_batch(client, groups, in_flight=4, split_above=100, timeout=60)
+    print(f"  {result}")
+
+    total = matched = 0
+    for (_, request), group in zip(groups, result.groups):
+        plain = client.price_basis_swaps(request)
+        for i in range(len(request.swaps)):
+            total += 1
+            entry = group.entry(i)
+            if entry is not None and entry.Npv() == plain.Swaps(i).Npv():
+                matched += 1
+    print(f"  NPVs equal to a plain request: {matched} of {total}")
+
+    passed = (result.ok and matched == total == 641 and result.calls > len(groups)
+              and result.retries == 0 and result.splits == 0)
+    print(f"  Result:             {'✓ PASS' if passed else '✗ FAIL'}")
+    return passed, float(total), float(matched)
+
+
 def main():
     print("=" * 60)
     print("Quantra vs QuantLib Python Comparison Tests")
@@ -1897,6 +1958,7 @@ def main():
         ("Swaption", lambda: test_swaption(client, curve_handle)),
         ("CDS", lambda: test_cds(client, curve_handle)),
         ("Bootstrap Curves", lambda: test_bootstrap_curves(client, curve_handle)),
+        ("Batch", lambda: test_batch(client)),
     ]
     
     results = []

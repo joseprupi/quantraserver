@@ -131,6 +131,7 @@ class CrossCcyBasisHelper(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.CurveRef import CurveRef
             obj = CurveRef()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -144,6 +145,7 @@ class CrossCcyBasisHelper(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.IndexRef import IndexRef
             obj = IndexRef()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -157,6 +159,7 @@ class CrossCcyBasisHelper(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.CurveRef import CurveRef
             obj = CurveRef()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -169,6 +172,7 @@ class CrossCcyBasisHelper(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.CurveRef import CurveRef
             obj = CurveRef()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -408,19 +412,26 @@ class CrossCcyBasisHelperT(object):
         self.spread = crossCcyBasisHelper.Spread()
         self.quoteId = crossCcyBasisHelper.QuoteId()
         if crossCcyBasisHelper.Tenor() is not None:
+            from quantra.Period import PeriodT
             self.tenor = PeriodT.InitFromObj(crossCcyBasisHelper.Tenor())
         self.fxSpot = crossCcyBasisHelper.FxSpot()
         if crossCcyBasisHelper.BaseIndex() is not None:
+            from quantra.IndexRef import IndexRefT
             self.baseIndex = IndexRefT.InitFromObj(crossCcyBasisHelper.BaseIndex())
         if crossCcyBasisHelper.BaseForwardingCurve() is not None:
+            from quantra.CurveRef import CurveRefT
             self.baseForwardingCurve = CurveRefT.InitFromObj(crossCcyBasisHelper.BaseForwardingCurve())
         if crossCcyBasisHelper.BaseDiscountCurve() is not None:
+            from quantra.CurveRef import CurveRefT
             self.baseDiscountCurve = CurveRefT.InitFromObj(crossCcyBasisHelper.BaseDiscountCurve())
         if crossCcyBasisHelper.QuoteIndex() is not None:
+            from quantra.IndexRef import IndexRefT
             self.quoteIndex = IndexRefT.InitFromObj(crossCcyBasisHelper.QuoteIndex())
         if crossCcyBasisHelper.QuoteForwardingCurve() is not None:
+            from quantra.CurveRef import CurveRefT
             self.quoteForwardingCurve = CurveRefT.InitFromObj(crossCcyBasisHelper.QuoteForwardingCurve())
         if crossCcyBasisHelper.QuoteDiscountCurve() is not None:
+            from quantra.CurveRef import CurveRefT
             self.quoteDiscountCurve = CurveRefT.InitFromObj(crossCcyBasisHelper.QuoteDiscountCurve())
         self.spreadOnBaseLeg = crossCcyBasisHelper.SpreadOnBaseLeg()
         self.paymentFrequency = crossCcyBasisHelper.PaymentFrequency()

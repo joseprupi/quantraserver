@@ -112,6 +112,7 @@ class PriceFxForwardResponseT(object):
                 if priceFxForwardResponse.FxForwards(i) is None:
                     self.fxForwards.append(None)
                 else:
+                    from quantra.FxForwardResponse import FxForwardResponseT
                     fxForwardResponse_ = FxForwardResponseT.InitFromObj(priceFxForwardResponse.FxForwards(i))
                     self.fxForwards.append(fxForwardResponse_)
 

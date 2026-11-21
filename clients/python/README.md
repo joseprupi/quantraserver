@@ -84,6 +84,19 @@ The arguments are bonds per request, number of requests, and whether to share
 one curve (`1`) or send one copy per bond (`0`). It resolves its own import
 paths, so it runs from a checkout without installing anything.
 
+## Batches
+
+`quantra_client.batch.price_batch` prices many trades over many markets: one
+request per market, a large market split across the calls in flight, the
+requests packed in a pool of processes, retries on a full or unreachable
+engine, and results per market in input trade order. See `docs/client.md`
+("Python client: batches") and `examples/price_batch.py`:
+
+```bash
+python3 clients/python/examples/price_batch.py --target localhost:50051 \
+    --gateway http://localhost:8080 --markets 20 --bonds 500
+```
+
 ## Errors
 
 A failed call raises `QuantraError` carrying the gRPC status code and the
