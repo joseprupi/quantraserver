@@ -230,6 +230,7 @@ class BootstrapInflationCurveResultT(object):
                 if bootstrapInflationCurveResult.Series(i) is None:
                     self.series.append(None)
                 else:
+                    from quantra.InflationCurveSeries import InflationCurveSeriesT
                     inflationCurveSeries_ = InflationCurveSeriesT.InitFromObj(bootstrapInflationCurveResult.Series(i))
                     self.series.append(inflationCurveSeries_)
         if not bootstrapInflationCurveResult.PillarDatesIsNone():
@@ -237,6 +238,7 @@ class BootstrapInflationCurveResultT(object):
             for i in range(bootstrapInflationCurveResult.PillarDatesLength()):
                 self.pillarDates.append(bootstrapInflationCurveResult.PillarDates(i))
         if bootstrapInflationCurveResult.Error() is not None:
+            from quantra.Error import ErrorT
             self.error = ErrorT.InitFromObj(bootstrapInflationCurveResult.Error())
 
     # BootstrapInflationCurveResultT

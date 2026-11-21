@@ -206,8 +206,10 @@ class CapFloorT(object):
         self.strike = capFloor.Strike()
         self.floorStrike = capFloor.FloorStrike()
         if capFloor.Schedule() is not None:
+            from quantra.Schedule import ScheduleT
             self.schedule = ScheduleT.InitFromObj(capFloor.Schedule())
         if capFloor.Index() is not None:
+            from quantra.IndexRef import IndexRefT
             self.index = IndexRefT.InitFromObj(capFloor.Index())
         self.dayCounter = capFloor.DayCounter()
         self.businessDayConvention = capFloor.BusinessDayConvention()

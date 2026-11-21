@@ -143,6 +143,7 @@ class CalibrateSwaptionVolRequestT(object):
         if calibrateSwaptionVolRequest is None:
             return
         if calibrateSwaptionVolRequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(calibrateSwaptionVolRequest.Pricing())
         self.volId = calibrateSwaptionVolRequest.VolId()
         self.discountingCurveId = calibrateSwaptionVolRequest.DiscountingCurveId()

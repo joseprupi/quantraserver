@@ -112,6 +112,7 @@ class PriceCapFloorResponseT(object):
                 if priceCapFloorResponse.CapFloors(i) is None:
                     self.capFloors.append(None)
                 else:
+                    from quantra.CapFloorResponse import CapFloorResponseT
                     capFloorResponse_ = CapFloorResponseT.InitFromObj(priceCapFloorResponse.CapFloors(i))
                     self.capFloors.append(capFloorResponse_)
 

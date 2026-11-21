@@ -80,6 +80,7 @@ class SwaptionSabrCalibrateSpec(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
+            from quantra.Period import Period
             obj = Period()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -155,6 +156,7 @@ class SwaptionSabrCalibrateSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.QuoteTensor3D import QuoteTensor3D
             obj = QuoteTensor3D()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -295,6 +297,7 @@ class SwaptionSabrCalibrateSpecT(object):
         if swaptionSabrCalibrateSpec is None:
             return
         if swaptionSabrCalibrateSpec.Base() is not None:
+            from quantra.IrVolBaseSpec import IrVolBaseSpecT
             self.base = IrVolBaseSpecT.InitFromObj(swaptionSabrCalibrateSpec.Base())
         if not swaptionSabrCalibrateSpec.ExpiriesIsNone():
             self.expiries = []
@@ -302,6 +305,7 @@ class SwaptionSabrCalibrateSpecT(object):
                 if swaptionSabrCalibrateSpec.Expiries(i) is None:
                     self.expiries.append(None)
                 else:
+                    from quantra.Period import PeriodT
                     period_ = PeriodT.InitFromObj(swaptionSabrCalibrateSpec.Expiries(i))
                     self.expiries.append(period_)
         if not swaptionSabrCalibrateSpec.TenorsIsNone():
@@ -310,6 +314,7 @@ class SwaptionSabrCalibrateSpecT(object):
                 if swaptionSabrCalibrateSpec.Tenors(i) is None:
                     self.tenors.append(None)
                 else:
+                    from quantra.Period import PeriodT
                     period_ = PeriodT.InitFromObj(swaptionSabrCalibrateSpec.Tenors(i))
                     self.tenors.append(period_)
         if not swaptionSabrCalibrateSpec.StrikesIsNone():
@@ -320,10 +325,12 @@ class SwaptionSabrCalibrateSpecT(object):
             else:
                 self.strikes = swaptionSabrCalibrateSpec.StrikesAsNumpy()
         if swaptionSabrCalibrateSpec.Vols() is not None:
+            from quantra.QuoteTensor3D import QuoteTensor3DT
             self.vols = QuoteTensor3DT.InitFromObj(swaptionSabrCalibrateSpec.Vols())
         self.betaFixed = swaptionSabrCalibrateSpec.BetaFixed()
         self.betaValue = swaptionSabrCalibrateSpec.BetaValue()
         if swaptionSabrCalibrateSpec.Weights() is not None:
+            from quantra.QuoteTensor3D import QuoteTensor3DT
             self.weights = QuoteTensor3DT.InitFromObj(swaptionSabrCalibrateSpec.Weights())
         self.vegaWeightedSmileFit = swaptionSabrCalibrateSpec.VegaWeightedSmileFit()
 

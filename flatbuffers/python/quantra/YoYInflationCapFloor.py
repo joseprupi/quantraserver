@@ -258,9 +258,11 @@ class YoYInflationCapFloorT(object):
         self.capFloorType = yoYinflationCapFloor.CapFloorType()
         self.notional = yoYinflationCapFloor.Notional()
         if yoYinflationCapFloor.Schedule() is not None:
+            from quantra.Schedule import ScheduleT
             self.schedule = ScheduleT.InitFromObj(yoYinflationCapFloor.Schedule())
         self.inflationIndexId = yoYinflationCapFloor.InflationIndexId()
         if yoYinflationCapFloor.ObservationLag() is not None:
+            from quantra.Period import PeriodT
             self.observationLag = PeriodT.InitFromObj(yoYinflationCapFloor.ObservationLag())
         self.dayCounter = yoYinflationCapFloor.DayCounter()
         self.paymentConvention = yoYinflationCapFloor.PaymentConvention()

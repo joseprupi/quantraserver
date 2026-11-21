@@ -51,6 +51,7 @@ class CrossCurrencySwap(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.SwapLeg import SwapLeg
             obj = SwapLeg()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -114,8 +115,10 @@ class CrossCurrencySwapT(object):
         if crossCurrencySwap is None:
             return
         if crossCurrencySwap.Leg1() is not None:
+            from quantra.SwapLeg import SwapLegT
             self.leg1 = SwapLegT.InitFromObj(crossCurrencySwap.Leg1())
         if crossCurrencySwap.Leg2() is not None:
+            from quantra.SwapLeg import SwapLegT
             self.leg2 = SwapLegT.InitFromObj(crossCurrencySwap.Leg2())
 
     # CrossCurrencySwapT

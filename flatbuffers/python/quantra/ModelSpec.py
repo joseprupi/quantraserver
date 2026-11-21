@@ -115,6 +115,7 @@ class ModelSpecT(object):
             return
         self.id = modelSpec.Id()
         self.payloadType = modelSpec.PayloadType()
+        from quantra.ModelPayload import ModelPayloadCreator
         self.payload = ModelPayloadCreator(self.payloadType, modelSpec.Payload())
 
     # ModelSpecT

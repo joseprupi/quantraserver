@@ -332,6 +332,7 @@ class DatedOISHelperT(object):
         self.startDate = datedOishelper.StartDate()
         self.endDate = datedOishelper.EndDate()
         if datedOishelper.OvernightIndex() is not None:
+            from quantra.IndexRef import IndexRefT
             self.overnightIndex = IndexRefT.InitFromObj(datedOishelper.OvernightIndex())
         self.settlementDays = datedOishelper.SettlementDays()
         self.calendar = datedOishelper.Calendar()
@@ -344,6 +345,7 @@ class DatedOISHelperT(object):
         self.lockoutDays = datedOishelper.LockoutDays()
         self.applyObservationShift = datedOishelper.ApplyObservationShift()
         if datedOishelper.Deps() is not None:
+            from quantra.HelperDependencies import HelperDependenciesT
             self.deps = HelperDependenciesT.InitFromObj(datedOishelper.Deps())
         self.quoteId = datedOishelper.QuoteId()
 

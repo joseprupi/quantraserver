@@ -46,7 +46,9 @@
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
 
+#include <cerrno>
 #include <chrono>
+#include <climits>
 #include <csignal>
 #include <cstdlib>
 #include <iostream>
@@ -58,7 +60,7 @@ using quantra::QuantraServer;
 
 namespace {
 
-constexpr int kMaxGrpcMessageBytes = 8 * 1024 * 1024;
+constexpr int kDefaultMaxMessageBytes = 8 * 1024 * 1024;
 volatile std::sig_atomic_t g_shutdown_requested = 0;
 
 void HandleShutdownSignal(int /*signum*/) {
@@ -71,6 +73,27 @@ std::string GetBindHost() {
         return "127.0.0.1";
     }
     return env_host;
+}
+
+// Largest gRPC message, request or response, a worker accepts or sends:
+// QUANTRA_MAX_MESSAGE_BYTES, 8 MiB when unset. A value that is not a positive
+// whole number of bytes (up to INT_MAX) logs a line and keeps the default.
+int GetMaxMessageBytes() {
+    const char* env = std::getenv("QUANTRA_MAX_MESSAGE_BYTES");
+    if (env == nullptr || env[0] == '\0') {
+        return kDefaultMaxMessageBytes;
+    }
+    errno = 0;
+    char* end = nullptr;
+    const long long bytes = std::strtoll(env, &end, 10);
+    if (end == env || *end != '\0' || errno == ERANGE || bytes <= 0 || bytes > INT_MAX) {
+        std::cerr << "[engine] QUANTRA_MAX_MESSAGE_BYTES='" << env
+                  << "' is not a positive integer up to " << INT_MAX << "; using "
+                  << kDefaultMaxMessageBytes << " bytes" << std::endl;
+        return kDefaultMaxMessageBytes;
+    }
+    std::cerr << "[engine] max message " << bytes << " bytes" << std::endl;
+    return static_cast<int>(bytes);
 }
 
 } // namespace
@@ -97,8 +120,9 @@ public:
 
         grpc::ServerBuilder builder;
         // Intentionally cap request/response sizes to harden against oversized payloads.
-        builder.SetMaxReceiveMessageSize(kMaxGrpcMessageBytes);
-        builder.SetMaxSendMessageSize(kMaxGrpcMessageBytes);
+        const int max_message_bytes = GetMaxMessageBytes();
+        builder.SetMaxReceiveMessageSize(max_message_bytes);
+        builder.SetMaxSendMessageSize(max_message_bytes);
         builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
         builder.RegisterService(&service_);
         cq_ = builder.AddCompletionQueue();

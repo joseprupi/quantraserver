@@ -224,12 +224,14 @@ class CmsCouponsT(object):
             return
         self.swapIndexId = cmsCoupons.SwapIndexId()
         if cmsCoupons.SwapTenor() is not None:
+            from quantra.Period import PeriodT
             self.swapTenor = PeriodT.InitFromObj(cmsCoupons.SwapTenor())
         self.swaptionVolId = cmsCoupons.SwaptionVolId()
         self.fixingDays = cmsCoupons.FixingDays()
         self.gear = cmsCoupons.Gear()
         self.spread = cmsCoupons.Spread()
         if cmsCoupons.Pricer() is not None:
+            from quantra.CmsPricerSpec import CmsPricerSpecT
             self.pricer = CmsPricerSpecT.InitFromObj(cmsCoupons.Pricer())
         self.cap = cmsCoupons.Cap()
         self.floor = cmsCoupons.Floor()

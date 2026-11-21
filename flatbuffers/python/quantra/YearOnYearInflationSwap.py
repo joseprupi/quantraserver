@@ -74,6 +74,7 @@ class YearOnYearInflationSwap(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.Schedule import Schedule
             obj = Schedule()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -270,13 +271,16 @@ class YearOnYearInflationSwapT(object):
         self.swapType = yearOnYearInflationSwap.SwapType()
         self.notional = yearOnYearInflationSwap.Notional()
         if yearOnYearInflationSwap.FixedSchedule() is not None:
+            from quantra.Schedule import ScheduleT
             self.fixedSchedule = ScheduleT.InitFromObj(yearOnYearInflationSwap.FixedSchedule())
         self.fixedRate = yearOnYearInflationSwap.FixedRate()
         self.fixedDayCounter = yearOnYearInflationSwap.FixedDayCounter()
         if yearOnYearInflationSwap.YoySchedule() is not None:
+            from quantra.Schedule import ScheduleT
             self.yoySchedule = ScheduleT.InitFromObj(yearOnYearInflationSwap.YoySchedule())
         self.inflationIndexId = yearOnYearInflationSwap.InflationIndexId()
         if yearOnYearInflationSwap.ObservationLag() is not None:
+            from quantra.Period import PeriodT
             self.observationLag = PeriodT.InitFromObj(yearOnYearInflationSwap.ObservationLag())
         self.observationInterpolation = yearOnYearInflationSwap.ObservationInterpolation()
         self.spread = yearOnYearInflationSwap.Spread()

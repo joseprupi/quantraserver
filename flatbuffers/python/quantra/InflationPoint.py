@@ -13,7 +13,9 @@ def InflationPointCreator(unionType, table):
     if not isinstance(table, Table):
         return None
     if unionType == InflationPoint.ZeroCouponInflationSwapHelper:
+        from quantra.ZeroCouponInflationSwapHelper import ZeroCouponInflationSwapHelperT
         return ZeroCouponInflationSwapHelperT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == InflationPoint.YearOnYearInflationSwapHelper:
+        from quantra.YearOnYearInflationSwapHelper import YearOnYearInflationSwapHelperT
         return YearOnYearInflationSwapHelperT.InitFromBuf(table.Bytes, table.Pos)
     return None

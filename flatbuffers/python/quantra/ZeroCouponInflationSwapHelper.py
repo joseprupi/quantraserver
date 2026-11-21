@@ -61,6 +61,7 @@ class ZeroCouponInflationSwapHelper(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.Period import Period
             obj = Period()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -226,8 +227,10 @@ class ZeroCouponInflationSwapHelperT(object):
         self.quoteId = zeroCouponInflationSwapHelper.QuoteId()
         self.quoteValue = zeroCouponInflationSwapHelper.QuoteValue()
         if zeroCouponInflationSwapHelper.SwapObservationLag() is not None:
+            from quantra.Period import PeriodT
             self.swapObservationLag = PeriodT.InitFromObj(zeroCouponInflationSwapHelper.SwapObservationLag())
         if zeroCouponInflationSwapHelper.Tenor() is not None:
+            from quantra.Period import PeriodT
             self.tenor = PeriodT.InitFromObj(zeroCouponInflationSwapHelper.Tenor())
         self.startDate = zeroCouponInflationSwapHelper.StartDate()
         self.endDate = zeroCouponInflationSwapHelper.EndDate()

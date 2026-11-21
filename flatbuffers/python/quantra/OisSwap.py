@@ -55,6 +55,7 @@ class OisSwap(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.SwapLeg import SwapLeg
             obj = SwapLeg()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -118,8 +119,10 @@ class OisSwapT(object):
         if oisSwap is None:
             return
         if oisSwap.FixedLeg() is not None:
+            from quantra.SwapLeg import SwapLegT
             self.fixedLeg = SwapLegT.InitFromObj(oisSwap.FixedLeg())
         if oisSwap.OvernightLeg() is not None:
+            from quantra.SwapLeg import SwapLegT
             self.overnightLeg = SwapLegT.InitFromObj(oisSwap.OvernightLeg())
 
     # OisSwapT

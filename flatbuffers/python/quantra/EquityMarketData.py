@@ -113,6 +113,7 @@ class EquityMarketDataT(object):
                 if equityMarketData.EquityUnderlyings(i) is None:
                     self.equityUnderlyings.append(None)
                 else:
+                    from quantra.EquityUnderlyingSpec import EquityUnderlyingSpecT
                     equityUnderlyingSpec_ = EquityUnderlyingSpecT.InitFromObj(equityMarketData.EquityUnderlyings(i))
                     self.equityUnderlyings.append(equityUnderlyingSpec_)
 

@@ -113,6 +113,7 @@ class CorrelationMarketDataT(object):
                 if correlationMarketData.Matrices(i) is None:
                     self.matrices.append(None)
                 else:
+                    from quantra.CorrelationMatrixSpec import CorrelationMatrixSpecT
                     correlationMatrixSpec_ = CorrelationMatrixSpecT.InitFromObj(correlationMarketData.Matrices(i))
                     self.matrices.append(correlationMatrixSpec_)
 

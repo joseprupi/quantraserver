@@ -23,7 +23,7 @@ This directory is the canonical home for project documentation.
 - `scripts.md`: code generation, build, and runtime helper scripts
 - `testing.md`: full test workflow and individual test entrypoints
 - `process-manager.md`: multi-process runtime and packaged `quantra` CLI
-- `client.md`: C++ client library, the gRPC `Meta` RPC, and health checking
+- `client.md`: C++ client library, the gRPC `Meta` RPC, health checking, and batch pricing with the Python client
 - `versioning.md`: release and semantic-versioning policy
 - `quantlib-upgrades/`: numerical changes at each QuantLib upgrade, with causes
   (`quantlib-upgrades/1.41-to-1.44.md` for 0.11.0)
@@ -61,7 +61,7 @@ bash tests/run_all_tests.sh
 | `scripts.md` | `generate_schemas.sh`, `generate_openapi.py`, `build.sh`, `scripts/quantra`, `envoy_config.py` |
 | `testing.md` | Full suite behavior, direct test entrypoints, CI expectations |
 | `process-manager.md` | Envoy-backed runtime model and installable process manager tooling |
-| `client.md` | C++ client API modes, build target, configuration, extension points, `Meta` and health |
+| `client.md` | C++ client API modes, build target, configuration, extension points, `Meta` and health; Python batch pricing |
 | `versioning.md` | Semantic versioning and API contract policy |
 | `../src/README.md` | Engine folder roles, request flow, and the evaluator boundary rule |
 

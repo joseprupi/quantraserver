@@ -132,6 +132,7 @@ class PriceSeriesT(object):
                 if priceSeries.Closes(i) is None:
                     self.closes.append(None)
                 else:
+                    from quantra.Fixing import FixingT
                     fixing_ = FixingT.InitFromObj(priceSeries.Closes(i))
                     self.closes.append(fixing_)
 

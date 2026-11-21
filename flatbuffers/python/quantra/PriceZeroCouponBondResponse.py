@@ -112,6 +112,7 @@ class PriceZeroCouponBondResponseT(object):
                 if priceZeroCouponBondResponse.Bonds(i) is None:
                     self.bonds.append(None)
                 else:
+                    from quantra.ZeroCouponBondResponse import ZeroCouponBondResponseT
                     zeroCouponBondResponse_ = ZeroCouponBondResponseT.InitFromObj(priceZeroCouponBondResponse.Bonds(i))
                     self.bonds.append(zeroCouponBondResponse_)
 

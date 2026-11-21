@@ -115,6 +115,7 @@ class VolSurfaceSpecT(object):
             return
         self.id = volSurfaceSpec.Id()
         self.payloadType = volSurfaceSpec.PayloadType()
+        from quantra.VolPayload import VolPayloadCreator
         self.payload = VolPayloadCreator(self.payloadType, volSurfaceSpec.Payload())
 
     # VolSurfaceSpecT

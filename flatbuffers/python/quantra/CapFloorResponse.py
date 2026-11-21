@@ -159,6 +159,7 @@ class CapFloorResponseT(object):
                 if capFloorResponse.CapFloorLets(i) is None:
                     self.capFloorLets.append(None)
                 else:
+                    from quantra.CapFloorLet import CapFloorLetT
                     capFloorLet_ = CapFloorLetT.InitFromObj(capFloorResponse.CapFloorLets(i))
                     self.capFloorLets.append(capFloorLet_)
 

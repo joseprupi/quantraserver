@@ -28,6 +28,45 @@ first release that promises wire stability.
 
 ## Unreleased
 
+## Version 0.17.2 (November 2026) — batch pricing in the Python client, configurable message size, Python unpacking fixed
+
+A batch module in the Python client, the worker's 8 MiB message limit made a
+setting, and the generated Python classes able to unpack. No request or
+response changes, no price changes, the generated Envoy config is unchanged,
+and with the new setting unset a worker behaves as in 0.17.1.
+
+- **`quantra_client.batch`** (`price_batch`, `workers_from_meta`): prices
+  many trades over many markets. One request per market (a group = one
+  request object holding all of a market's trades); a market of more than
+  `split_above` trades (default 250) is split evenly, in proportion to its
+  share of the batch, into at most `in_flight` requests; a request above
+  `max_message_bytes` is cut further. At most `in_flight` calls in flight,
+  largest first. Requests are packed in a pool of processes, so packing no
+  longer limits a batch: 16,000 basis swaps on one market took 1.4–1.6 s
+  against 3.8–5.2 s packed in one thread then sent 8 at a time.
+  `RESOURCE_EXHAUSTED` from a full engine and `UNAVAILABLE` are retried with
+  backoff; `DEADLINE_EXCEEDED` and a message the engine finds too large
+  split the chunk in two; any other error is recorded for its chunk only.
+  Results come back per market in input trade order as FlatBuffers readers,
+  with the failed trades and why, and the batch's pack time, wall time,
+  calls, retries and splits. Works for every pricing method of the client
+  with a trade list. Described in `docs/client.md` ("Python client:
+  batches"); example `clients/python/examples/price_batch.py`.
+- **`QUANTRA_MAX_MESSAGE_BYTES`** (engine, default `8388608`): the largest
+  gRPC message, request or response, a worker accepts or sends. An invalid
+  value logs a line and keeps 8 MiB. The process manager passes it to the
+  workers; Envoy has no lower limit of its own; the JSON gateway still
+  refuses bodies above 10 MiB of JSON (HTTP 413). Described in
+  `docs/configuration.md`.
+- **Python unpacking**: `InitFromBuf` / `InitFromPackedBuf` of the generated
+  Object API classes raised `NameError` (`PricingT`, `PointCreator`, ...),
+  and so did a reader's second accessor of a table type already read by an
+  earlier field (for example `BasisSwap.Leg2()`): flatc leaves those imports
+  out. `clients/python/tools/fix_imports.py` now adds every missing
+  one, inside the function that uses it, as flatc's own imports are; every
+  example request of every client method round-trips through unpack and
+  pack.
+
 ## Version 0.17.1 (November 2026) — load control for the container's Envoy, computations stop at the deadline
 
 Optional settings on the Envoy front of the container, a `capacity` block in

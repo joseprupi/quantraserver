@@ -240,6 +240,7 @@ class BondHelperT(object):
         self.settlementDays = bondHelper.SettlementDays()
         self.faceAmount = bondHelper.FaceAmount()
         if bondHelper.Schedule() is not None:
+            from quantra.Schedule import ScheduleT
             self.schedule = ScheduleT.InitFromObj(bondHelper.Schedule())
         self.couponRate = bondHelper.CouponRate()
         self.dayCounter = bondHelper.DayCounter()

@@ -196,6 +196,7 @@ class CommodityMarketDataT(object):
                 if commodityMarketData.Contracts(i) is None:
                     self.contracts.append(None)
                 else:
+                    from quantra.CommodityContractSpec import CommodityContractSpecT
                     commodityContractSpec_ = CommodityContractSpecT.InitFromObj(commodityMarketData.Contracts(i))
                     self.contracts.append(commodityContractSpec_)
         if not commodityMarketData.SpotPricesIsNone():
@@ -204,6 +205,7 @@ class CommodityMarketDataT(object):
                 if commodityMarketData.SpotPrices(i) is None:
                     self.spotPrices.append(None)
                 else:
+                    from quantra.CommoditySpotSpec import CommoditySpotSpecT
                     commoditySpotSpec_ = CommoditySpotSpecT.InitFromObj(commodityMarketData.SpotPrices(i))
                     self.spotPrices.append(commoditySpotSpec_)
         if not commodityMarketData.CurveBuildsIsNone():
@@ -212,6 +214,7 @@ class CommodityMarketDataT(object):
                 if commodityMarketData.CurveBuilds(i) is None:
                     self.curveBuilds.append(None)
                 else:
+                    from quantra.CommodityCurveBuild import CommodityCurveBuildT
                     commodityCurveBuild_ = CommodityCurveBuildT.InitFromObj(commodityMarketData.CurveBuilds(i))
                     self.curveBuilds.append(commodityCurveBuild_)
 

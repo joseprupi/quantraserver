@@ -153,6 +153,7 @@ class SampleVolSurfacesResponseT(object):
                 if sampleVolSurfacesResponse.Results(i) is None:
                     self.results.append(None)
                 else:
+                    from quantra.VolSurfaceSample import VolSurfaceSampleT
                     volSurfaceSample_ = VolSurfaceSampleT.InitFromObj(sampleVolSurfacesResponse.Results(i))
                     self.results.append(volSurfaceSample_)
         if not sampleVolSurfacesResponse.DiagnosticsIsNone():
@@ -161,6 +162,7 @@ class SampleVolSurfacesResponseT(object):
                 if sampleVolSurfacesResponse.Diagnostics(i) is None:
                     self.diagnostics.append(None)
                 else:
+                    from quantra.SwaptionVolDiagnostics import SwaptionVolDiagnosticsT
                     swaptionVolDiagnostics_ = SwaptionVolDiagnosticsT.InitFromObj(sampleVolSurfacesResponse.Diagnostics(i))
                     self.diagnostics.append(swaptionVolDiagnostics_)
 

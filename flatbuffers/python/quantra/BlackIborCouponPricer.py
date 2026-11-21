@@ -87,6 +87,7 @@ class BlackIborCouponPricerT(object):
         if blackIborCouponPricer is None:
             return
         if blackIborCouponPricer.OptionletVolatility() is not None:
+            from quantra.ConstantOptionletVolatility import ConstantOptionletVolatilityT
             self.optionletVolatility = ConstantOptionletVolatilityT.InitFromObj(blackIborCouponPricer.OptionletVolatility())
 
     # BlackIborCouponPricerT

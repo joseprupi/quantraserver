@@ -157,6 +157,7 @@ class PriceFxForwardT(object):
         if priceFxForward is None:
             return
         if priceFxForward.FxForward() is not None:
+            from quantra.FxForward import FxForwardT
             self.fxForward = FxForwardT.InitFromObj(priceFxForward.FxForward())
         self.fxSpot = priceFxForward.FxSpot()
         self.baseDiscountingCurve = priceFxForward.BaseDiscountingCurve()

@@ -14,9 +14,12 @@ def FlowCreator(unionType, table):
     if not isinstance(table, Table):
         return None
     if unionType == Flow.FlowInterest:
+        from quantra.FlowInterest import FlowInterestT
         return FlowInterestT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == Flow.FlowPastInterest:
+        from quantra.FlowPastInterest import FlowPastInterestT
         return FlowPastInterestT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == Flow.FlowNotional:
+        from quantra.FlowNotional import FlowNotionalT
         return FlowNotionalT.InitFromBuf(table.Bytes, table.Pos)
     return None

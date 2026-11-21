@@ -165,6 +165,7 @@ class CdsQuoteT(object):
         if cdsQuote is None:
             return
         if cdsQuote.Tenor() is not None:
+            from quantra.Period import PeriodT
             self.tenor = PeriodT.InitFromObj(cdsQuote.Tenor())
         self.quoteType = cdsQuote.QuoteType()
         self.quoteId = cdsQuote.QuoteId()

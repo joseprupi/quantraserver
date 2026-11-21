@@ -117,6 +117,7 @@ class PriceYearOnYearInflationSwapT(object):
         if priceYearOnYearInflationSwap is None:
             return
         if priceYearOnYearInflationSwap.YearOnYearInflationSwap() is not None:
+            from quantra.YearOnYearInflationSwap import YearOnYearInflationSwapT
             self.yearOnYearInflationSwap = YearOnYearInflationSwapT.InitFromObj(priceYearOnYearInflationSwap.YearOnYearInflationSwap())
         self.discountingCurve = priceYearOnYearInflationSwap.DiscountingCurve()
         self.inflationCurve = priceYearOnYearInflationSwap.InflationCurve()

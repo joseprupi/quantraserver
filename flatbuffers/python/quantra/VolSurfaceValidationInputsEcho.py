@@ -309,8 +309,10 @@ class VolSurfaceValidationInputsEchoT(object):
         self.forwardsSource = volSurfaceValidationInputsEcho.ForwardsSource()
         self.sheetId = volSurfaceValidationInputsEcho.SheetId()
         if volSurfaceValidationInputsEcho.Filter() is not None:
+            from quantra.QuoteFilter import QuoteFilterT
             self.filter = QuoteFilterT.InitFromObj(volSurfaceValidationInputsEcho.Filter())
         if volSurfaceValidationInputsEcho.Checks() is not None:
+            from quantra.VolSurfaceValidationChecks import VolSurfaceValidationChecksT
             self.checks = VolSurfaceValidationChecksT.InitFromObj(volSurfaceValidationInputsEcho.Checks())
         if not volSurfaceValidationInputsEcho.MoneynessEdgesIsNone():
             if np is None:

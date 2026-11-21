@@ -59,6 +59,7 @@ class YearOnYearInflationSwapHelper(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.Period import Period
             obj = Period()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -237,8 +238,10 @@ class YearOnYearInflationSwapHelperT(object):
         self.quoteId = yearOnYearInflationSwapHelper.QuoteId()
         self.quoteValue = yearOnYearInflationSwapHelper.QuoteValue()
         if yearOnYearInflationSwapHelper.SwapObservationLag() is not None:
+            from quantra.Period import PeriodT
             self.swapObservationLag = PeriodT.InitFromObj(yearOnYearInflationSwapHelper.SwapObservationLag())
         if yearOnYearInflationSwapHelper.Tenor() is not None:
+            from quantra.Period import PeriodT
             self.tenor = PeriodT.InitFromObj(yearOnYearInflationSwapHelper.Tenor())
         self.startDate = yearOnYearInflationSwapHelper.StartDate()
         self.endDate = yearOnYearInflationSwapHelper.EndDate()

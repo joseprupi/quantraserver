@@ -287,8 +287,10 @@ class FloatingRateBondT(object):
             else:
                 self.notionals = floatingRateBond.NotionalsAsNumpy()
         if floatingRateBond.Schedule() is not None:
+            from quantra.Schedule import ScheduleT
             self.schedule = ScheduleT.InitFromObj(floatingRateBond.Schedule())
         if floatingRateBond.Index() is not None:
+            from quantra.IndexRef import IndexRefT
             self.index = IndexRefT.InitFromObj(floatingRateBond.Index())
         self.accrualDayCounter = floatingRateBond.AccrualDayCounter()
         self.paymentConvention = floatingRateBond.PaymentConvention()

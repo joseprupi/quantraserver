@@ -90,6 +90,7 @@ class PriceVanillaSwapT(object):
         if priceVanillaSwap is None:
             return
         if priceVanillaSwap.VanillaSwap() is not None:
+            from quantra.VanillaSwap import VanillaSwapT
             self.vanillaSwap = VanillaSwapT.InitFromObj(priceVanillaSwap.VanillaSwap())
 
     # PriceVanillaSwapT

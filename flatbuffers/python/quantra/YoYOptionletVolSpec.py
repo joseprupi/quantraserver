@@ -178,6 +178,7 @@ class YoYOptionletVolSpecT(object):
         self.calendar = yoYoptionletVolSpec.Calendar()
         self.businessDayConvention = yoYoptionletVolSpec.BusinessDayConvention()
         if yoYoptionletVolSpec.ObservationLag() is not None:
+            from quantra.Period import PeriodT
             self.observationLag = PeriodT.InitFromObj(yoYoptionletVolSpec.ObservationLag())
 
     # YoYOptionletVolSpecT

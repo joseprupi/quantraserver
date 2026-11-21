@@ -199,6 +199,7 @@ class StructuredNoteModelEchoT(object):
                 if structuredNoteModelEcho.Underlyings(i) is None:
                     self.underlyings.append(None)
                 else:
+                    from quantra.StructuredNoteModelUnderlying import StructuredNoteModelUnderlyingT
                     structuredNoteModelUnderlying_ = StructuredNoteModelUnderlyingT.InitFromObj(structuredNoteModelEcho.Underlyings(i))
                     self.underlyings.append(structuredNoteModelUnderlying_)
         self.observationDatesOnly = structuredNoteModelEcho.ObservationDatesOnly()

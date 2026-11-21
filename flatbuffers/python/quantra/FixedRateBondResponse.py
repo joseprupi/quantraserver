@@ -262,6 +262,7 @@ class FixedRateBondResponseT(object):
                 if fixedRateBondResponse.Flows(i) is None:
                     self.flows.append(None)
                 else:
+                    from quantra.FlowsWrapper import FlowsWrapperT
                     flowsWrapper_ = FlowsWrapperT.InitFromObj(fixedRateBondResponse.Flows(i))
                     self.flows.append(flowsWrapper_)
 

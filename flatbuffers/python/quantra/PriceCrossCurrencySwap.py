@@ -127,6 +127,7 @@ class PriceCrossCurrencySwapT(object):
         if priceCrossCurrencySwap is None:
             return
         if priceCrossCurrencySwap.CrossCurrencySwap() is not None:
+            from quantra.CrossCurrencySwap import CrossCurrencySwapT
             self.crossCurrencySwap = CrossCurrencySwapT.InitFromObj(priceCrossCurrencySwap.CrossCurrencySwap())
         self.fxSpot = priceCrossCurrencySwap.FxSpot()
         self.reportingCurrency = priceCrossCurrencySwap.ReportingCurrency()

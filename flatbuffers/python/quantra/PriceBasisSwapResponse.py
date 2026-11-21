@@ -112,6 +112,7 @@ class PriceBasisSwapResponseT(object):
                 if priceBasisSwapResponse.Swaps(i) is None:
                     self.swaps.append(None)
                 else:
+                    from quantra.BasisSwapResponse import BasisSwapResponseT
                     basisSwapResponse_ = BasisSwapResponseT.InitFromObj(priceBasisSwapResponse.Swaps(i))
                     self.swaps.append(basisSwapResponse_)
 

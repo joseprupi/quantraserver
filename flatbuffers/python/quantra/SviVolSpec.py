@@ -224,6 +224,7 @@ class SviVolSpecT(object):
         if sviVolSpec is None:
             return
         if sviVolSpec.Base() is not None:
+            from quantra.BlackVolBaseSpec import BlackVolBaseSpecT
             self.base = BlackVolBaseSpecT.InitFromObj(sviVolSpec.Base())
         if not sviVolSpec.SlicesIsNone():
             self.slices = []
@@ -231,6 +232,7 @@ class SviVolSpecT(object):
                 if sviVolSpec.Slices(i) is None:
                     self.slices.append(None)
                 else:
+                    from quantra.SviSlice import SviSliceT
                     sviSlice_ = SviSliceT.InitFromObj(sviVolSpec.Slices(i))
                     self.slices.append(sviSlice_)
         self.timeInterpolation = sviVolSpec.TimeInterpolation()

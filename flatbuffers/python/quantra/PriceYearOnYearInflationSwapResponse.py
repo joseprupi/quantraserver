@@ -112,6 +112,7 @@ class PriceYearOnYearInflationSwapResponseT(object):
                 if priceYearOnYearInflationSwapResponse.Swaps(i) is None:
                     self.swaps.append(None)
                 else:
+                    from quantra.YearOnYearInflationSwapResponse import YearOnYearInflationSwapResponseT
                     yearOnYearInflationSwapResponse_ = YearOnYearInflationSwapResponseT.InitFromObj(priceYearOnYearInflationSwapResponse.Swaps(i))
                     self.swaps.append(yearOnYearInflationSwapResponse_)
 

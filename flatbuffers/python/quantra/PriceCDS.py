@@ -132,6 +132,7 @@ class PriceCDST(object):
         if priceCds is None:
             return
         if priceCds.Cds() is not None:
+            from quantra.CDS import CDST
             self.cds = CDST.InitFromObj(priceCds.Cds())
         self.discountingCurve = priceCds.DiscountingCurve()
         self.creditCurveId = priceCds.CreditCurveId()

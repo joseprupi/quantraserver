@@ -62,6 +62,7 @@ class TenorBasisSwapHelper(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.IndexRef import IndexRef
             obj = IndexRef()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -186,13 +187,17 @@ class TenorBasisSwapHelperT(object):
             return
         self.spread = tenorBasisSwapHelper.Spread()
         if tenorBasisSwapHelper.Tenor() is not None:
+            from quantra.Period import PeriodT
             self.tenor = PeriodT.InitFromObj(tenorBasisSwapHelper.Tenor())
         if tenorBasisSwapHelper.IndexShort() is not None:
+            from quantra.IndexRef import IndexRefT
             self.indexShort = IndexRefT.InitFromObj(tenorBasisSwapHelper.IndexShort())
         if tenorBasisSwapHelper.IndexLong() is not None:
+            from quantra.IndexRef import IndexRefT
             self.indexLong = IndexRefT.InitFromObj(tenorBasisSwapHelper.IndexLong())
         self.calendar = tenorBasisSwapHelper.Calendar()
         if tenorBasisSwapHelper.Deps() is not None:
+            from quantra.HelperDependencies import HelperDependenciesT
             self.deps = HelperDependenciesT.InitFromObj(tenorBasisSwapHelper.Deps())
         self.quoteId = tenorBasisSwapHelper.QuoteId()
 

@@ -399,12 +399,14 @@ class SwapLegT(object):
             else:
                 self.notionals = swapLeg.NotionalsAsNumpy()
         if swapLeg.Schedule() is not None:
+            from quantra.Schedule import ScheduleT
             self.schedule = ScheduleT.InitFromObj(swapLeg.Schedule())
         self.dayCounter = swapLeg.DayCounter()
         self.paymentConvention = swapLeg.PaymentConvention()
         self.paymentCalendar = swapLeg.PaymentCalendar()
         self.paymentLag = swapLeg.PaymentLag()
         self.couponsType = swapLeg.CouponsType()
+        from quantra.SwapCoupons import SwapCouponsCreator
         self.coupons = SwapCouponsCreator(self.couponsType, swapLeg.Coupons())
         self.discountingCurve = swapLeg.DiscountingCurve()
         self.forwardingCurve = swapLeg.ForwardingCurve()

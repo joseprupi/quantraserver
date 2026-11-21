@@ -44,6 +44,7 @@ class CommoditySwap(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.CommoditySwapLeg import CommoditySwapLeg
             obj = CommoditySwapLeg()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -125,8 +126,10 @@ class CommoditySwapT(object):
         if commoditySwap is None:
             return
         if commoditySwap.Leg1() is not None:
+            from quantra.CommoditySwapLeg import CommoditySwapLegT
             self.leg1 = CommoditySwapLegT.InitFromObj(commoditySwap.Leg1())
         if commoditySwap.Leg2() is not None:
+            from quantra.CommoditySwapLeg import CommoditySwapLegT
             self.leg2 = CommoditySwapLegT.InitFromObj(commoditySwap.Leg2())
         self.commonPricing = commoditySwap.CommonPricing()
 

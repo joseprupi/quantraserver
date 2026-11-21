@@ -307,6 +307,7 @@ class VolSurfaceSimulationValidationT(object):
                 if volSurfaceSimulationValidation.Quotes(i) is None:
                     self.quotes.append(None)
                 else:
+                    from quantra.VolSurfaceQuoteSimulation import VolSurfaceQuoteSimulationT
                     volSurfaceQuoteSimulation_ = VolSurfaceQuoteSimulationT.InitFromObj(volSurfaceSimulationValidation.Quotes(i))
                     self.quotes.append(volSurfaceQuoteSimulation_)
         if not volSurfaceSimulationValidation.BandsIsNone():
@@ -315,6 +316,7 @@ class VolSurfaceSimulationValidationT(object):
                 if volSurfaceSimulationValidation.Bands(i) is None:
                     self.bands.append(None)
                 else:
+                    from quantra.VolSurfaceBandCell import VolSurfaceBandCellT
                     volSurfaceBandCell_ = VolSurfaceBandCellT.InitFromObj(volSurfaceSimulationValidation.Bands(i))
                     self.bands.append(volSurfaceBandCell_)
         self.verdict = volSurfaceSimulationValidation.Verdict()

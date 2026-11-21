@@ -140,6 +140,7 @@ class PriceYearOnYearInflationSwapRequestT(object):
         if priceYearOnYearInflationSwapRequest is None:
             return
         if priceYearOnYearInflationSwapRequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(priceYearOnYearInflationSwapRequest.Pricing())
         if not priceYearOnYearInflationSwapRequest.SwapsIsNone():
             self.swaps = []
@@ -147,6 +148,7 @@ class PriceYearOnYearInflationSwapRequestT(object):
                 if priceYearOnYearInflationSwapRequest.Swaps(i) is None:
                     self.swaps.append(None)
                 else:
+                    from quantra.PriceYearOnYearInflationSwap import PriceYearOnYearInflationSwapT
                     priceYearOnYearInflationSwap_ = PriceYearOnYearInflationSwapT.InitFromObj(priceYearOnYearInflationSwapRequest.Swaps(i))
                     self.swaps.append(priceYearOnYearInflationSwap_)
         self.includeFlows = priceYearOnYearInflationSwapRequest.IncludeFlows()

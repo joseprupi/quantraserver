@@ -574,6 +574,7 @@ class VolSurfaceSampleT(object):
                 if volSurfaceSample.Tenors(i) is None:
                     self.tenors.append(None)
                 else:
+                    from quantra.Period import PeriodT
                     period_ = PeriodT.InitFromObj(volSurfaceSample.Tenors(i))
                     self.tenors.append(period_)
         if not volSurfaceSample.EffectiveSwapStartsIsNone():
@@ -609,6 +610,7 @@ class VolSurfaceSampleT(object):
             else:
                 self.atmLevels = volSurfaceSample.AtmLevelsAsNumpy()
         if volSurfaceSample.Error() is not None:
+            from quantra.Error import ErrorT
             self.error = ErrorT.InitFromObj(volSurfaceSample.Error())
 
     # VolSurfaceSampleT

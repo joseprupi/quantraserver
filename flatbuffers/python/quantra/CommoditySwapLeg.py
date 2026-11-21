@@ -220,10 +220,13 @@ class CommoditySwapLegT(object):
             return
         self.payReceive = commoditySwapLeg.PayReceive()
         if commoditySwapLeg.Periods() is not None:
+            from quantra.CommodityPeriods import CommodityPeriodsT
             self.periods = CommodityPeriodsT.InitFromObj(commoditySwapLeg.Periods())
         if commoditySwapLeg.Quantity() is not None:
+            from quantra.CommodityQuantity import CommodityQuantityT
             self.quantity = CommodityQuantityT.InitFromObj(commoditySwapLeg.Quantity())
         self.priceType = commoditySwapLeg.PriceType()
+        from quantra.CommodityLegPrice import CommodityLegPriceCreator
         self.price = CommodityLegPriceCreator(self.priceType, commoditySwapLeg.Price())
         self.paymentCalendar = commoditySwapLeg.PaymentCalendar()
         self.paymentLag = commoditySwapLeg.PaymentLag()

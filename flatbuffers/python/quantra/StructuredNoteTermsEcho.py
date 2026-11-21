@@ -488,6 +488,7 @@ class StructuredNoteTermsEchoT(object):
                 if structuredNoteTermsEcho.Underlyings(i) is None:
                     self.underlyings.append(None)
                 else:
+                    from quantra.StructuredNoteTermsUnderlying import StructuredNoteTermsUnderlyingT
                     structuredNoteTermsUnderlying_ = StructuredNoteTermsUnderlyingT.InitFromObj(structuredNoteTermsEcho.Underlyings(i))
                     self.underlyings.append(structuredNoteTermsUnderlying_)
         if not structuredNoteTermsEcho.EventsIsNone():
@@ -496,6 +497,7 @@ class StructuredNoteTermsEchoT(object):
                 if structuredNoteTermsEcho.Events(i) is None:
                     self.events.append(None)
                 else:
+                    from quantra.StructuredNoteTermsEvent import StructuredNoteTermsEventT
                     structuredNoteTermsEvent_ = StructuredNoteTermsEventT.InitFromObj(structuredNoteTermsEcho.Events(i))
                     self.events.append(structuredNoteTermsEvent_)
         self.couponMemory = structuredNoteTermsEcho.CouponMemory()

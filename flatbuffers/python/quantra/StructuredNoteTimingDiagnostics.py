@@ -128,6 +128,7 @@ class StructuredNoteTimingDiagnosticsT(object):
                 if structuredNoteTimingDiagnostics.Stages(i) is None:
                     self.stages.append(None)
                 else:
+                    from quantra.StructuredNoteTimingStage import StructuredNoteTimingStageT
                     structuredNoteTimingStage_ = StructuredNoteTimingStageT.InitFromObj(structuredNoteTimingDiagnostics.Stages(i))
                     self.stages.append(structuredNoteTimingStage_)
         self.totalMilliseconds = structuredNoteTimingDiagnostics.TotalMilliseconds()

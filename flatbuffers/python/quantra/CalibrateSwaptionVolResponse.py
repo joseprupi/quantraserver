@@ -111,6 +111,7 @@ class CalibrateSwaptionVolResponseT(object):
             return
         self.volId = calibrateSwaptionVolResponse.VolId()
         if calibrateSwaptionVolResponse.Diagnostics() is not None:
+            from quantra.SwaptionVolDiagnostics import SwaptionVolDiagnosticsT
             self.diagnostics = SwaptionVolDiagnosticsT.InitFromObj(calibrateSwaptionVolResponse.Diagnostics())
 
     # CalibrateSwaptionVolResponseT

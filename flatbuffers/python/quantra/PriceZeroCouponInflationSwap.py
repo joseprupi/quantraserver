@@ -117,6 +117,7 @@ class PriceZeroCouponInflationSwapT(object):
         if priceZeroCouponInflationSwap is None:
             return
         if priceZeroCouponInflationSwap.ZeroCouponInflationSwap() is not None:
+            from quantra.ZeroCouponInflationSwap import ZeroCouponInflationSwapT
             self.zeroCouponInflationSwap = ZeroCouponInflationSwapT.InitFromObj(priceZeroCouponInflationSwap.ZeroCouponInflationSwap())
         self.discountingCurve = priceZeroCouponInflationSwap.DiscountingCurve()
         self.inflationCurve = priceZeroCouponInflationSwap.InflationCurve()

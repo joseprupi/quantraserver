@@ -165,6 +165,7 @@ class PriceStructuredNoteRequestT(object):
         if priceStructuredNoteRequest is None:
             return
         if priceStructuredNoteRequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(priceStructuredNoteRequest.Pricing())
         if not priceStructuredNoteRequest.NotesIsNone():
             self.notes = []
@@ -172,11 +173,14 @@ class PriceStructuredNoteRequestT(object):
                 if priceStructuredNoteRequest.Notes(i) is None:
                     self.notes.append(None)
                 else:
+                    from quantra.StructuredNote import StructuredNoteT
                     structuredNote_ = StructuredNoteT.InitFromObj(priceStructuredNoteRequest.Notes(i))
                     self.notes.append(structuredNote_)
         if priceStructuredNoteRequest.Greeks() is not None:
+            from quantra.StructuredNoteGreeksSpec import StructuredNoteGreeksSpecT
             self.greeks = StructuredNoteGreeksSpecT.InitFromObj(priceStructuredNoteRequest.Greeks())
         if priceStructuredNoteRequest.Diagnostics() is not None:
+            from quantra.StructuredNoteDiagnosticsSpec import StructuredNoteDiagnosticsSpecT
             self.diagnostics = StructuredNoteDiagnosticsSpecT.InitFromObj(priceStructuredNoteRequest.Diagnostics())
 
     # PriceStructuredNoteRequestT

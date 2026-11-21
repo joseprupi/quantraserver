@@ -112,6 +112,7 @@ class PriceFloatingRateBondResponseT(object):
                 if priceFloatingRateBondResponse.Bonds(i) is None:
                     self.bonds.append(None)
                 else:
+                    from quantra.FloatingRateBondResponse import FloatingRateBondResponseT
                     floatingRateBondResponse_ = FloatingRateBondResponseT.InitFromObj(priceFloatingRateBondResponse.Bonds(i))
                     self.bonds.append(floatingRateBondResponse_)
 

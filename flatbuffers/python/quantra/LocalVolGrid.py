@@ -116,6 +116,7 @@ class LocalVolGridT(object):
                 if localVolGrid.Rows(i) is None:
                     self.rows.append(None)
                 else:
+                    from quantra.LocalVolGridRow import LocalVolGridRowT
                     localVolGridRow_ = LocalVolGridRowT.InitFromObj(localVolGrid.Rows(i))
                     self.rows.append(localVolGridRow_)
 

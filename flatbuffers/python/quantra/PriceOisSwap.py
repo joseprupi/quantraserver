@@ -90,6 +90,7 @@ class PriceOisSwapT(object):
         if priceOisSwap is None:
             return
         if priceOisSwap.OisSwap() is not None:
+            from quantra.OisSwap import OisSwapT
             self.oisSwap = OisSwapT.InitFromObj(priceOisSwap.OisSwap())
 
     # PriceOisSwapT

@@ -169,6 +169,7 @@ class SwaptionModelSpecT(object):
         self.latticeSteps = swaptionModelSpec.LatticeSteps()
         self.paramMode = swaptionModelSpec.ParamMode()
         if swaptionModelSpec.HwCalibration() is not None:
+            from quantra.SwaptionHwCalibrationSpec import SwaptionHwCalibrationSpecT
             self.hwCalibration = SwaptionHwCalibrationSpecT.InitFromObj(swaptionModelSpec.HwCalibration())
 
     # SwaptionModelSpecT

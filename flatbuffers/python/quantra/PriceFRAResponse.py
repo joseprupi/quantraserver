@@ -112,6 +112,7 @@ class PriceFRAResponseT(object):
                 if priceFraresponse.Fras(i) is None:
                     self.fras.append(None)
                 else:
+                    from quantra.FRAResponse import FRAResponseT
                     fRAResponse_ = FRAResponseT.InitFromObj(priceFraresponse.Fras(i))
                     self.fras.append(fRAResponse_)
 

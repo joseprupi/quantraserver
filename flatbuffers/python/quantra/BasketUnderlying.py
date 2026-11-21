@@ -190,6 +190,7 @@ class BasketUnderlyingT(object):
         self.volatilityId = basketUnderlying.VolatilityId()
         self.initialLevel = basketUnderlying.InitialLevel()
         if basketUnderlying.Quanto() is not None:
+            from quantra.QuantoSpec import QuantoSpecT
             self.quanto = QuantoSpecT.InitFromObj(basketUnderlying.Quanto())
         if not basketUnderlying.HistoricalLevelsIsNone():
             self.historicalLevels = []
@@ -197,6 +198,7 @@ class BasketUnderlyingT(object):
                 if basketUnderlying.HistoricalLevels(i) is None:
                     self.historicalLevels.append(None)
                 else:
+                    from quantra.Fixing import FixingT
                     fixing_ = FixingT.InitFromObj(basketUnderlying.HistoricalLevels(i))
                     self.historicalLevels.append(fixing_)
 

@@ -196,6 +196,7 @@ class OvernightCouponsT(object):
         if overnightCoupons is None:
             return
         if overnightCoupons.Index() is not None:
+            from quantra.IndexRef import IndexRefT
             self.index = IndexRefT.InitFromObj(overnightCoupons.Index())
         self.spread = overnightCoupons.Spread()
         self.averagingMethod = overnightCoupons.AveragingMethod()

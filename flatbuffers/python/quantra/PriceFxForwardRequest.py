@@ -125,6 +125,7 @@ class PriceFxForwardRequestT(object):
         if priceFxForwardRequest is None:
             return
         if priceFxForwardRequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(priceFxForwardRequest.Pricing())
         if not priceFxForwardRequest.FxForwardsIsNone():
             self.fxForwards = []
@@ -132,6 +133,7 @@ class PriceFxForwardRequestT(object):
                 if priceFxForwardRequest.FxForwards(i) is None:
                     self.fxForwards.append(None)
                 else:
+                    from quantra.PriceFxForward import PriceFxForwardT
                     priceFxForward_ = PriceFxForwardT.InitFromObj(priceFxForwardRequest.FxForwards(i))
                     self.fxForwards.append(priceFxForward_)
 

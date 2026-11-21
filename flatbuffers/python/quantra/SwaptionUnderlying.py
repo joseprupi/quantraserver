@@ -23,7 +23,9 @@ def SwaptionUnderlyingCreator(unionType, table):
     if not isinstance(table, Table):
         return None
     if unionType == SwaptionUnderlying.VanillaSwap:
+        from quantra.VanillaSwap import VanillaSwapT
         return VanillaSwapT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == SwaptionUnderlying.OisSwap:
+        from quantra.OisSwap import OisSwapT
         return OisSwapT.InitFromBuf(table.Bytes, table.Pos)
     return None

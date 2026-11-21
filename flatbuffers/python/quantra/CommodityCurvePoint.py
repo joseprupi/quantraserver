@@ -193,6 +193,7 @@ class CommodityCurvePointT(object):
                 if commodityCurvePoint.Sensitivities(i) is None:
                     self.sensitivities.append(None)
                 else:
+                    from quantra.CommodityQuoteSensitivity import CommodityQuoteSensitivityT
                     commodityQuoteSensitivity_ = CommodityQuoteSensitivityT.InitFromObj(commodityCurvePoint.Sensitivities(i))
                     self.sensitivities.append(commodityQuoteSensitivity_)
         self.basePrice = commodityCurvePoint.BasePrice()

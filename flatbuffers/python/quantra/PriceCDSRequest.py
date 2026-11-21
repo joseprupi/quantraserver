@@ -125,6 +125,7 @@ class PriceCDSRequestT(object):
         if priceCdsrequest is None:
             return
         if priceCdsrequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(priceCdsrequest.Pricing())
         if not priceCdsrequest.CdsListIsNone():
             self.cdsList = []
@@ -132,6 +133,7 @@ class PriceCDSRequestT(object):
                 if priceCdsrequest.CdsList(i) is None:
                     self.cdsList.append(None)
                 else:
+                    from quantra.PriceCDS import PriceCDST
                     priceCDS_ = PriceCDST.InitFromObj(priceCdsrequest.CdsList(i))
                     self.cdsList.append(priceCDS_)
 

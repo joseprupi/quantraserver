@@ -190,6 +190,7 @@ class TermStructureT(object):
                 if termStructure.Points(i) is None:
                     self.points.append(None)
                 else:
+                    from quantra.PointsWrapper import PointsWrapperT
                     pointsWrapper_ = PointsWrapperT.InitFromObj(termStructure.Points(i))
                     self.points.append(pointsWrapper_)
         self.referenceDate = termStructure.ReferenceDate()

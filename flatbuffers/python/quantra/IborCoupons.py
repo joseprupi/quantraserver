@@ -147,6 +147,7 @@ class IborCouponsT(object):
         if iborCoupons is None:
             return
         if iborCoupons.Index() is not None:
+            from quantra.IndexRef import IndexRefT
             self.index = IndexRefT.InitFromObj(iborCoupons.Index())
         self.spread = iborCoupons.Spread()
         self.fixingDays = iborCoupons.FixingDays()

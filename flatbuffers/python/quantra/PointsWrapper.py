@@ -100,6 +100,7 @@ class PointsWrapperT(object):
         if pointsWrapper is None:
             return
         self.pointType = pointsWrapper.PointType()
+        from quantra.Point import PointCreator
         self.point = PointCreator(self.pointType, pointsWrapper.Point())
 
     # PointsWrapperT

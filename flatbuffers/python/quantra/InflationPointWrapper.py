@@ -100,6 +100,7 @@ class InflationPointWrapperT(object):
         if inflationPointWrapper is None:
             return
         self.pointType = inflationPointWrapper.PointType()
+        from quantra.InflationPoint import InflationPointCreator
         self.point = InflationPointCreator(self.pointType, inflationPointWrapper.Point())
 
     # InflationPointWrapperT

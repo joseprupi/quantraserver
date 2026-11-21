@@ -447,9 +447,11 @@ class VolSurfaceExpiryReportT(object):
                 if volSurfaceExpiryReport.Dropped(i) is None:
                     self.dropped.append(None)
                 else:
+                    from quantra.DroppedQuote import DroppedQuoteT
                     droppedQuote_ = DroppedQuoteT.InitFromObj(volSurfaceExpiryReport.Dropped(i))
                     self.dropped.append(droppedQuote_)
         if volSurfaceExpiryReport.Svi() is not None:
+            from quantra.SviParameters import SviParametersT
             self.svi = SviParametersT.InitFromObj(volSurfaceExpiryReport.Svi())
         self.butterflyAction = volSurfaceExpiryReport.ButterflyAction()
         self.calendarRefit = volSurfaceExpiryReport.CalendarRefit()
@@ -459,6 +461,7 @@ class VolSurfaceExpiryReportT(object):
         self.calendarMaxClipVol = volSurfaceExpiryReport.CalendarMaxClipVol()
         self.calendarAction = volSurfaceExpiryReport.CalendarAction()
         if volSurfaceExpiryReport.Ssvi() is not None:
+            from quantra.SsviParameters import SsviParametersT
             self.ssvi = SsviParametersT.InitFromObj(volSurfaceExpiryReport.Ssvi())
         self.ssviAnchorK = volSurfaceExpiryReport.SsviAnchorK()
         self.ssviAnchorTotalVariance = volSurfaceExpiryReport.SsviAnchorTotalVariance()

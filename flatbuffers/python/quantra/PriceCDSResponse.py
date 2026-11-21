@@ -112,6 +112,7 @@ class PriceCDSResponseT(object):
                 if priceCdsresponse.CdsList(i) is None:
                     self.cdsList.append(None)
                 else:
+                    from quantra.CDSValues import CDSValuesT
                     cDSValues_ = CDSValuesT.InitFromObj(priceCdsresponse.CdsList(i))
                     self.cdsList.append(cDSValues_)
 

@@ -121,6 +121,7 @@ class PriceSwaptionT(object):
         if priceSwaption is None:
             return
         if priceSwaption.Swaption() is not None:
+            from quantra.Swaption import SwaptionT
             self.swaption = SwaptionT.InitFromObj(priceSwaption.Swaption())
         self.volatility = priceSwaption.Volatility()
         self.model = priceSwaption.Model()

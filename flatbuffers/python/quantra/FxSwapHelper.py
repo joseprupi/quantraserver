@@ -201,11 +201,13 @@ class FxSwapHelperT(object):
         self.fxPoints = fxSwapHelper.FxPoints()
         self.quoteId = fxSwapHelper.QuoteId()
         if fxSwapHelper.Tenor() is not None:
+            from quantra.Period import PeriodT
             self.tenor = PeriodT.InitFromObj(fxSwapHelper.Tenor())
         self.fxSpot = fxSwapHelper.FxSpot()
         self.endOfMonth = fxSwapHelper.EndOfMonth()
         self.collateralCurrency = fxSwapHelper.CollateralCurrency()
         if fxSwapHelper.CollateralCurve() is not None:
+            from quantra.CurveRef import CurveRefT
             self.collateralCurve = CurveRefT.InitFromObj(fxSwapHelper.CollateralCurve())
 
     # FxSwapHelperT

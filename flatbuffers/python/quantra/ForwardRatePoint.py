@@ -154,6 +154,7 @@ class ForwardRatePointT(object):
             return
         self.date = forwardRatePoint.Date()
         if forwardRatePoint.Tenor() is not None:
+            from quantra.Period import PeriodT
             self.tenor = PeriodT.InitFromObj(forwardRatePoint.Tenor())
         self.calendar = forwardRatePoint.Calendar()
         self.businessDayConvention = forwardRatePoint.BusinessDayConvention()

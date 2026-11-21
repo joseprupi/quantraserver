@@ -158,6 +158,7 @@ class CorrelationMatrixSpecT(object):
             for i in range(correlationMatrixSpec.LabelsLength()):
                 self.labels.append(correlationMatrixSpec.Labels(i))
         if correlationMatrixSpec.Values() is not None:
+            from quantra.QuoteMatrix2D import QuoteMatrix2DT
             self.values = QuoteMatrix2DT.InitFromObj(correlationMatrixSpec.Values())
 
     # CorrelationMatrixSpecT

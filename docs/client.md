@@ -162,6 +162,87 @@ After schema or RPC changes, regenerate code and rebuild:
 ./scripts/build.sh
 ```
 
+## Python client: batches
+
+`clients/python/quantra_client/batch.py` prices many trades over many markets
+through the gRPC engine with as few requests as it needs. Its input is a list
+of groups, one per market: `(method, request)`, where `method` is a key of
+`Client.METHODS` and `request` the Object API request (`...RequestT`, market
+included) whose trade list holds every trade priced on that market.
+
+```python
+from quantra_client import Client
+from quantra_client.batch import price_batch, workers_from_meta
+
+in_flight = workers_from_meta("http://localhost:8080") or 8
+with Client("localhost:50051") as client:
+    result = price_batch(client, [("basis_swap", market_a), ("basis_swap", market_b)],
+                         in_flight=in_flight)
+group = result.groups[0]
+for i in range(len(group)):
+    if group.error(i) is None:
+        print(group.entry(i).Npv())
+```
+
+What it does:
+
+- One request per group. A group of more than `split_above` trades is split
+  evenly in proportion to its share of the batch's trades, into at most
+  `in_flight` requests: one large market is spread over every call in
+  flight, a batch of many markets stays one request per market. A packed
+  request above `max_message_bytes` is cut further.
+- At most `in_flight` calls in flight, largest first. Set it to the engine's
+  worker count: `workers_from_meta(gateway_url)` reads it from the JSON
+  gateway's `GET /meta` (`capacity.workers`; `None` when the gateway reports
+  no capacity). The gRPC `Meta` call has no capacity.
+- Requests are packed in a pool of processes (fork on Linux, with only the
+  trade ranges crossing to the processes; spawn elsewhere, with the chunk
+  pickled), while the calls already packed are in flight.
+- `RESOURCE_EXHAUSTED` from a full engine (`QUANTRA_MAX_REQUESTS`) and
+  `UNAVAILABLE` are retried with exponential backoff. `DEADLINE_EXCEEDED` on
+  a chunk of more than one trade splits it in two and retries, a bounded
+  number of times; so does a message the engine finds too large (its
+  `RESOURCE_EXHAUSTED` carries "larger than max"). Any other error is
+  recorded for that chunk's trades only; the other results are kept.
+- Results: `result.groups[g]` per input group, in input trade order whatever
+  the split. `entry(i)` is the response entry of trade `i` as a FlatBuffers
+  reader (for example `Swaps(j)` of the response that priced it), `error(i)`
+  the `QuantraError` of the call that failed it, `failures` the list of
+  `(start, end, error)`. `result` also carries `wall_seconds`,
+  `pack_seconds` (summed over processes), `calls`, `retries` and `splits`.
+
+Arguments of `price_batch(target, groups, ...)`:
+
+| Argument | Default | Meaning |
+| --- | --- | --- |
+| `target` | | A `Client`, a `grpc.Channel` or a `host:port` address. |
+| `in_flight` | `8` | Most calls in flight. |
+| `split_above` | `250` | A group is split only above this many trades. |
+| `max_message_bytes` | 8 MiB − 64 KiB | A packed request above it is cut further. Keep it under the workers' `QUANTRA_MAX_MESSAGE_BYTES`. |
+| `timeout` | `30` | Deadline of each call, in seconds (the engine's default limit). |
+| `processes` | `None` | Packing processes: `None` = one per CPU when the batch has 500 trades or more, `0` = pack in a thread of this process (no process pool). |
+| `max_retries` | `5` | Resends of a call refused with `RESOURCE_EXHAUSTED` or `UNAVAILABLE`. |
+| `backoff` | `0.1` | First backoff, in seconds; doubled at each retry, capped at 2 s. |
+| `max_splits` | `3` | Times a chunk may be split after `DEADLINE_EXCEEDED`. |
+
+Methods whose request has no trade list (`bootstrap_curves`,
+`bootstrap_inflation_curves`, `build_commodity_curves`,
+`validate_vol_surface`) are refused; call the `Client` method instead.
+
+Measured on 8 workers with basis swaps over three curves: building a market
+costs a worker about 28 ms and pricing a swap about 0.4 ms, while packing a
+swap with the Python Object API costs about 0.17 ms in one process, so a
+16,000-swap market packed in one thread took 2.7 s against 0.9 s to price.
+Through this module that market takes 1.4–1.6 s (3.8–5.2 s packed in one
+thread and sent 8 at a time), 64 markets of 24 swaps 0.5 s (0.9 s) and 200
+markets of 12 swaps 1.0–1.2 s (2.3–2.6 s). Splitting a market lost at 100
+swaps and won from 250 (a single market of 250: 0.18 s whole, 0.13 s split),
+hence the default `split_above`; for trades that take much longer to price
+than to build their market (structured notes), lower it.
+
+`clients/python/examples/price_batch.py` prices a synthetic bond book over
+several markets.
+
 ## Notes
 
 - The JSON layer is easier to integrate but does more conversion work.

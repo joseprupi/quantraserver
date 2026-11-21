@@ -91,6 +91,7 @@ class SwaptionHwCalibrationSpec(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
+            from quantra.Period import Period
             obj = Period()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -355,6 +356,7 @@ class SwaptionHwCalibrationSpecT(object):
                 if swaptionHwCalibrationSpec.Expiries(i) is None:
                     self.expiries.append(None)
                 else:
+                    from quantra.Period import PeriodT
                     period_ = PeriodT.InitFromObj(swaptionHwCalibrationSpec.Expiries(i))
                     self.expiries.append(period_)
         if not swaptionHwCalibrationSpec.TenorsIsNone():
@@ -363,6 +365,7 @@ class SwaptionHwCalibrationSpecT(object):
                 if swaptionHwCalibrationSpec.Tenors(i) is None:
                     self.tenors.append(None)
                 else:
+                    from quantra.Period import PeriodT
                     period_ = PeriodT.InitFromObj(swaptionHwCalibrationSpec.Tenors(i))
                     self.tenors.append(period_)
         self.calibrateA = swaptionHwCalibrationSpec.CalibrateA()

@@ -152,6 +152,7 @@ class PriceCommoditySwapResponseT(object):
                 if priceCommoditySwapResponse.Swaps(i) is None:
                     self.swaps.append(None)
                 else:
+                    from quantra.CommoditySwapResponse import CommoditySwapResponseT
                     commoditySwapResponse_ = CommoditySwapResponseT.InitFromObj(priceCommoditySwapResponse.Swaps(i))
                     self.swaps.append(commoditySwapResponse_)
         if not priceCommoditySwapResponse.CurveBuildsIsNone():
@@ -160,6 +161,7 @@ class PriceCommoditySwapResponseT(object):
                 if priceCommoditySwapResponse.CurveBuilds(i) is None:
                     self.curveBuilds.append(None)
                 else:
+                    from quantra.CommodityBuiltCurveSummary import CommodityBuiltCurveSummaryT
                     commodityBuiltCurveSummary_ = CommodityBuiltCurveSummaryT.InitFromObj(priceCommoditySwapResponse.CurveBuilds(i))
                     self.curveBuilds.append(commodityBuiltCurveSummary_)
 

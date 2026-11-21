@@ -323,11 +323,14 @@ class CalibrateVolSurfaceRequestT(object):
         if calibrateVolSurfaceRequest is None:
             return
         if calibrateVolSurfaceRequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(calibrateVolSurfaceRequest.Pricing())
         if calibrateVolSurfaceRequest.Sheet() is not None:
+            from quantra.OptionQuoteSheet import OptionQuoteSheetT
             self.sheet = OptionQuoteSheetT.InitFromObj(calibrateVolSurfaceRequest.Sheet())
         self.discountingCurve = calibrateVolSurfaceRequest.DiscountingCurve()
         if calibrateVolSurfaceRequest.Filter() is not None:
+            from quantra.QuoteFilter import QuoteFilterT
             self.filter = QuoteFilterT.InitFromObj(calibrateVolSurfaceRequest.Filter())
         if not calibrateVolSurfaceRequest.ForwardsIsNone():
             self.forwards = []
@@ -335,15 +338,19 @@ class CalibrateVolSurfaceRequestT(object):
                 if calibrateVolSurfaceRequest.Forwards(i) is None:
                     self.forwards.append(None)
                 else:
+                    from quantra.ImpliedForwardExpiry import ImpliedForwardExpiryT
                     impliedForwardExpiry_ = ImpliedForwardExpiryT.InitFromObj(calibrateVolSurfaceRequest.Forwards(i))
                     self.forwards.append(impliedForwardExpiry_)
         self.method = calibrateVolSurfaceRequest.Method()
         if calibrateVolSurfaceRequest.OutputGrid() is not None:
+            from quantra.VolSurfaceOutputGrid import VolSurfaceOutputGridT
             self.outputGrid = VolSurfaceOutputGridT.InitFromObj(calibrateVolSurfaceRequest.OutputGrid())
         self.volSurfaceId = calibrateVolSurfaceRequest.VolSurfaceId()
         if calibrateVolSurfaceRequest.Svi() is not None:
+            from quantra.SviFitOptions import SviFitOptionsT
             self.svi = SviFitOptionsT.InitFromObj(calibrateVolSurfaceRequest.Svi())
         if calibrateVolSurfaceRequest.Ssvi() is not None:
+            from quantra.SsviFitOptions import SsviFitOptionsT
             self.ssvi = SsviFitOptionsT.InitFromObj(calibrateVolSurfaceRequest.Ssvi())
         self.weighting = calibrateVolSurfaceRequest.Weighting()
 

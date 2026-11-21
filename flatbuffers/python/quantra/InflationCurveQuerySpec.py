@@ -167,8 +167,10 @@ class InflationCurveQuerySpecT(object):
             else:
                 self.measures = inflationCurveQuerySpec.MeasuresAsNumpy()
         if inflationCurveQuerySpec.Grid() is not None:
+            from quantra.DateGridSpec import DateGridSpecT
             self.grid = DateGridSpecT.InitFromObj(inflationCurveQuerySpec.Grid())
         if inflationCurveQuerySpec.Options() is not None:
+            from quantra.QueryOptions import QueryOptionsT
             self.options = QueryOptionsT.InitFromObj(inflationCurveQuerySpec.Options())
 
     # InflationCurveQuerySpecT

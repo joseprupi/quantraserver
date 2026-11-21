@@ -116,6 +116,7 @@ class SwaptionVolSpecT(object):
             return
         self.swapIndexId = swaptionVolSpec.SwapIndexId()
         self.payloadType = swaptionVolSpec.PayloadType()
+        from quantra.SwaptionVolPayload import SwaptionVolPayloadCreator
         self.payload = SwaptionVolPayloadCreator(self.payloadType, swaptionVolSpec.Payload())
 
     # SwaptionVolSpecT

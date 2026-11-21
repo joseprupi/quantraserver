@@ -167,11 +167,14 @@ class CalibrateImpliedForwardsRequestT(object):
         if calibrateImpliedForwardsRequest is None:
             return
         if calibrateImpliedForwardsRequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(calibrateImpliedForwardsRequest.Pricing())
         if calibrateImpliedForwardsRequest.Sheet() is not None:
+            from quantra.OptionQuoteSheet import OptionQuoteSheetT
             self.sheet = OptionQuoteSheetT.InitFromObj(calibrateImpliedForwardsRequest.Sheet())
         self.discountingCurve = calibrateImpliedForwardsRequest.DiscountingCurve()
         if calibrateImpliedForwardsRequest.Filter() is not None:
+            from quantra.QuoteFilter import QuoteFilterT
             self.filter = QuoteFilterT.InitFromObj(calibrateImpliedForwardsRequest.Filter())
         self.dividendCurveId = calibrateImpliedForwardsRequest.DividendCurveId()
 

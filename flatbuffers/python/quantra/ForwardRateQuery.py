@@ -206,6 +206,7 @@ class ForwardRateQueryT(object):
         self.instantaneousEpsNumber = forwardRateQuery.InstantaneousEpsNumber()
         self.instantaneousEpsTimeUnit = forwardRateQuery.InstantaneousEpsTimeUnit()
         if forwardRateQuery.Tenor() is not None:
+            from quantra.Period import PeriodT
             self.tenor = PeriodT.InitFromObj(forwardRateQuery.Tenor())
         self.useGridCalendarForAdvance = forwardRateQuery.UseGridCalendarForAdvance()
 

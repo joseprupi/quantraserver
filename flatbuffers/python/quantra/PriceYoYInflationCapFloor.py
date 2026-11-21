@@ -136,6 +136,7 @@ class PriceYoYInflationCapFloorT(object):
         if priceYoYinflationCapFloor is None:
             return
         if priceYoYinflationCapFloor.YearOnYearInflationCapFloor() is not None:
+            from quantra.YoYInflationCapFloor import YoYInflationCapFloorT
             self.yearOnYearInflationCapFloor = YoYInflationCapFloorT.InitFromObj(priceYoYinflationCapFloor.YearOnYearInflationCapFloor())
         self.discountingCurve = priceYoYinflationCapFloor.DiscountingCurve()
         self.inflationCurve = priceYoYinflationCapFloor.InflationCurve()

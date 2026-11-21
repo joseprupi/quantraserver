@@ -122,9 +122,11 @@ class CalibrateSwaptionModelRequestT(object):
         if calibrateSwaptionModelRequest is None:
             return
         if calibrateSwaptionModelRequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(calibrateSwaptionModelRequest.Pricing())
         self.modelId = calibrateSwaptionModelRequest.ModelId()
         if calibrateSwaptionModelRequest.Calibration() is not None:
+            from quantra.SwaptionHwCalibrationSpec import SwaptionHwCalibrationSpecT
             self.calibration = SwaptionHwCalibrationSpecT.InitFromObj(calibrateSwaptionModelRequest.Calibration())
 
     # CalibrateSwaptionModelRequestT

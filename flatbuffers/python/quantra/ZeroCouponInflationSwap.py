@@ -287,6 +287,7 @@ class ZeroCouponInflationSwapT(object):
         self.fixedRate = zeroCouponInflationSwap.FixedRate()
         self.inflationIndexId = zeroCouponInflationSwap.InflationIndexId()
         if zeroCouponInflationSwap.ObservationLag() is not None:
+            from quantra.Period import PeriodT
             self.observationLag = PeriodT.InitFromObj(zeroCouponInflationSwap.ObservationLag())
         self.observationInterpolation = zeroCouponInflationSwap.ObservationInterpolation()
         self.adjustObservationDates = zeroCouponInflationSwap.AdjustObservationDates()

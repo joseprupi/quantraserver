@@ -121,9 +121,11 @@ class PriceZeroCouponBondT(object):
         if priceZeroCouponBond is None:
             return
         if priceZeroCouponBond.ZeroCouponBond() is not None:
+            from quantra.ZeroCouponBond import ZeroCouponBondT
             self.zeroCouponBond = ZeroCouponBondT.InitFromObj(priceZeroCouponBond.ZeroCouponBond())
         self.discountingCurve = priceZeroCouponBond.DiscountingCurve()
         if priceZeroCouponBond.Yield() is not None:
+            from quantra.Yield import YieldT
             self.yield_ = YieldT.InitFromObj(priceZeroCouponBond.Yield())
 
     # PriceZeroCouponBondT

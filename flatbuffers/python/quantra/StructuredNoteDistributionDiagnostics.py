@@ -264,6 +264,7 @@ class StructuredNoteDistributionDiagnosticsT(object):
                 if structuredNoteDistributionDiagnostics.BasketPerformanceQuantiles(i) is None:
                     self.basketPerformanceQuantiles.append(None)
                 else:
+                    from quantra.StructuredNoteQuantiles import StructuredNoteQuantilesT
                     structuredNoteQuantiles_ = StructuredNoteQuantilesT.InitFromObj(structuredNoteDistributionDiagnostics.BasketPerformanceQuantiles(i))
                     self.basketPerformanceQuantiles.append(structuredNoteQuantiles_)
         self.payoutQ05 = structuredNoteDistributionDiagnostics.PayoutQ05()
@@ -277,6 +278,7 @@ class StructuredNoteDistributionDiagnosticsT(object):
                 if structuredNoteDistributionDiagnostics.PayoutHistogram(i) is None:
                     self.payoutHistogram.append(None)
                 else:
+                    from quantra.StructuredNoteHistogramBin import StructuredNoteHistogramBinT
                     structuredNoteHistogramBin_ = StructuredNoteHistogramBinT.InitFromObj(structuredNoteDistributionDiagnostics.PayoutHistogram(i))
                     self.payoutHistogram.append(structuredNoteHistogramBin_)
         if not structuredNoteDistributionDiagnostics.SamplePathsIsNone():
@@ -285,6 +287,7 @@ class StructuredNoteDistributionDiagnosticsT(object):
                 if structuredNoteDistributionDiagnostics.SamplePaths(i) is None:
                     self.samplePaths.append(None)
                 else:
+                    from quantra.StructuredNoteSamplePath import StructuredNoteSamplePathT
                     structuredNoteSamplePath_ = StructuredNoteSamplePathT.InitFromObj(structuredNoteDistributionDiagnostics.SamplePaths(i))
                     self.samplePaths.append(structuredNoteSamplePath_)
 

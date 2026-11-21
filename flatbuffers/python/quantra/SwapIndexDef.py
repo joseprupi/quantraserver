@@ -214,9 +214,11 @@ class SwapIndexDefT(object):
         self.businessDayConvention = swapIndexDef.BusinessDayConvention()
         self.endOfMonth = swapIndexDef.EndOfMonth()
         if swapIndexDef.FixedLeg() is not None:
+            from quantra.SwapIndexFixedLegSpec import SwapIndexFixedLegSpecT
             self.fixedLeg = SwapIndexFixedLegSpecT.InitFromObj(swapIndexDef.FixedLeg())
         self.floatIndexId = swapIndexDef.FloatIndexId()
         if swapIndexDef.FloatLeg() is not None:
+            from quantra.SwapIndexFloatLegSpec import SwapIndexFloatLegSpecT
             self.floatLeg = SwapIndexFloatLegSpecT.InitFromObj(swapIndexDef.FloatLeg())
 
     # SwapIndexDefT

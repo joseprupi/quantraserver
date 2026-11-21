@@ -16,13 +16,18 @@ def SwaptionVolPayloadCreator(unionType, table):
     if not isinstance(table, Table):
         return None
     if unionType == SwaptionVolPayload.SwaptionVolConstantSpec:
+        from quantra.SwaptionVolConstantSpec import SwaptionVolConstantSpecT
         return SwaptionVolConstantSpecT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == SwaptionVolPayload.SwaptionVolAtmMatrixSpec:
+        from quantra.SwaptionVolAtmMatrixSpec import SwaptionVolAtmMatrixSpecT
         return SwaptionVolAtmMatrixSpecT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == SwaptionVolPayload.SwaptionVolSmileCubeSpec:
+        from quantra.SwaptionVolSmileCubeSpec import SwaptionVolSmileCubeSpecT
         return SwaptionVolSmileCubeSpecT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == SwaptionVolPayload.SwaptionSabrParamsSpec:
+        from quantra.SwaptionSabrParamsSpec import SwaptionSabrParamsSpecT
         return SwaptionSabrParamsSpecT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == SwaptionVolPayload.SwaptionSabrCalibrateSpec:
+        from quantra.SwaptionSabrCalibrateSpec import SwaptionSabrCalibrateSpecT
         return SwaptionSabrCalibrateSpecT.InitFromBuf(table.Bytes, table.Pos)
     return None

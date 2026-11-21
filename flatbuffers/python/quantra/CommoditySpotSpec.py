@@ -267,6 +267,7 @@ class CommoditySpotSpecT(object):
                 if commoditySpotSpec.Points(i) is None:
                     self.points.append(None)
                 else:
+                    from quantra.CommoditySpotPoint import CommoditySpotPointT
                     commoditySpotPoint_ = CommoditySpotPointT.InitFromObj(commoditySpotSpec.Points(i))
                     self.points.append(commoditySpotPoint_)
         if not commoditySpotSpec.FixingsIsNone():
@@ -275,6 +276,7 @@ class CommoditySpotSpecT(object):
                 if commoditySpotSpec.Fixings(i) is None:
                     self.fixings.append(None)
                 else:
+                    from quantra.CommoditySpotFixing import CommoditySpotFixingT
                     commoditySpotFixing_ = CommoditySpotFixingT.InitFromObj(commoditySpotSpec.Fixings(i))
                     self.fixings.append(commoditySpotFixing_)
 

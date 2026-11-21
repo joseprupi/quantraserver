@@ -88,6 +88,7 @@ class InflationIndexSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.Period import Period
             obj = Period()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -298,8 +299,10 @@ class InflationIndexSpecT(object):
         self.dayCounter = inflationIndexSpec.DayCounter()
         self.frequency = inflationIndexSpec.Frequency()
         if inflationIndexSpec.AvailabilityLag() is not None:
+            from quantra.Period import PeriodT
             self.availabilityLag = PeriodT.InitFromObj(inflationIndexSpec.AvailabilityLag())
         if inflationIndexSpec.ObservationLag() is not None:
+            from quantra.Period import PeriodT
             self.observationLag = PeriodT.InitFromObj(inflationIndexSpec.ObservationLag())
         self.interpolated = inflationIndexSpec.Interpolated()
         self.revised = inflationIndexSpec.Revised()
@@ -311,6 +314,7 @@ class InflationIndexSpecT(object):
                 if inflationIndexSpec.Fixings(i) is None:
                     self.fixings.append(None)
                 else:
+                    from quantra.Fixing import FixingT
                     fixing_ = FixingT.InitFromObj(inflationIndexSpec.Fixings(i))
                     self.fixings.append(fixing_)
 

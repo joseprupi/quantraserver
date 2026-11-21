@@ -242,6 +242,7 @@ class CommodityCurveBuildT(object):
         if commodityCurveBuild is None:
             return
         if commodityCurveBuild.Contract() is not None:
+            from quantra.CommodityContractSpec import CommodityContractSpecT
             self.contract = CommodityContractSpecT.InitFromObj(commodityCurveBuild.Contract())
         self.interpolation = commodityCurveBuild.Interpolation()
         self.extrapolateFlat = commodityCurveBuild.ExtrapolateFlat()
@@ -251,12 +252,15 @@ class CommodityCurveBuildT(object):
                 if commodityCurveBuild.AverageQuotes(i) is None:
                     self.averageQuotes.append(None)
                 else:
+                    from quantra.CommodityAverageQuote import CommodityAverageQuoteT
                     commodityAverageQuote_ = CommodityAverageQuoteT.InitFromObj(commodityCurveBuild.AverageQuotes(i))
                     self.averageQuotes.append(commodityAverageQuote_)
         self.rule = commodityCurveBuild.Rule()
         if commodityCurveBuild.Spot() is not None:
+            from quantra.CommoditySpotSpec import CommoditySpotSpecT
             self.spot = CommoditySpotSpecT.InitFromObj(commodityCurveBuild.Spot())
         if commodityCurveBuild.Basis() is not None:
+            from quantra.CommodityCurveBasis import CommodityCurveBasisT
             self.basis = CommodityCurveBasisT.InitFromObj(commodityCurveBuild.Basis())
 
     # CommodityCurveBuildT

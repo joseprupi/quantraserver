@@ -54,6 +54,7 @@ class VanillaSwap(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.SwapLeg import SwapLeg
             obj = SwapLeg()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -117,8 +118,10 @@ class VanillaSwapT(object):
         if vanillaSwap is None:
             return
         if vanillaSwap.FixedLeg() is not None:
+            from quantra.SwapLeg import SwapLegT
             self.fixedLeg = SwapLegT.InitFromObj(vanillaSwap.FixedLeg())
         if vanillaSwap.FloatingLeg() is not None:
+            from quantra.SwapLeg import SwapLegT
             self.floatingLeg = SwapLegT.InitFromObj(vanillaSwap.FloatingLeg())
 
     # VanillaSwapT

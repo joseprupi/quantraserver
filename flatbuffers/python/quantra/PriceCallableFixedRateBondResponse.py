@@ -112,6 +112,7 @@ class PriceCallableFixedRateBondResponseT(object):
                 if priceCallableFixedRateBondResponse.Bonds(i) is None:
                     self.bonds.append(None)
                 else:
+                    from quantra.CallableFixedRateBondResponse import CallableFixedRateBondResponseT
                     callableFixedRateBondResponse_ = CallableFixedRateBondResponseT.InitFromObj(priceCallableFixedRateBondResponse.Bonds(i))
                     self.bonds.append(callableFixedRateBondResponse_)
 

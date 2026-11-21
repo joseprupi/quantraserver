@@ -202,6 +202,7 @@ class CommodityCurveBasisT(object):
                 if commodityCurveBasis.Quotes(i) is None:
                     self.quotes.append(None)
                 else:
+                    from quantra.CommodityBasisQuote import CommodityBasisQuoteT
                     commodityBasisQuote_ = CommodityBasisQuoteT.InitFromObj(commodityCurveBasis.Quotes(i))
                     self.quotes.append(commodityBasisQuote_)
 

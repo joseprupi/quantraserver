@@ -230,6 +230,7 @@ class RatesMarketDataT(object):
                 if ratesMarketData.Indices(i) is None:
                     self.indices.append(None)
                 else:
+                    from quantra.IndexDef import IndexDefT
                     indexDef_ = IndexDefT.InitFromObj(ratesMarketData.Indices(i))
                     self.indices.append(indexDef_)
         if not ratesMarketData.SwapIndicesIsNone():
@@ -238,6 +239,7 @@ class RatesMarketDataT(object):
                 if ratesMarketData.SwapIndices(i) is None:
                     self.swapIndices.append(None)
                 else:
+                    from quantra.SwapIndexDef import SwapIndexDefT
                     swapIndexDef_ = SwapIndexDefT.InitFromObj(ratesMarketData.SwapIndices(i))
                     self.swapIndices.append(swapIndexDef_)
         if not ratesMarketData.CurvesIsNone():
@@ -246,6 +248,7 @@ class RatesMarketDataT(object):
                 if ratesMarketData.Curves(i) is None:
                     self.curves.append(None)
                 else:
+                    from quantra.TermStructure import TermStructureT
                     termStructure_ = TermStructureT.InitFromObj(ratesMarketData.Curves(i))
                     self.curves.append(termStructure_)
         if not ratesMarketData.CouponPricersIsNone():
@@ -254,6 +257,7 @@ class RatesMarketDataT(object):
                 if ratesMarketData.CouponPricers(i) is None:
                     self.couponPricers.append(None)
                 else:
+                    from quantra.CouponPricer import CouponPricerT
                     couponPricer_ = CouponPricerT.InitFromObj(ratesMarketData.CouponPricers(i))
                     self.couponPricers.append(couponPricer_)
 

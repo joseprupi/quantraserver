@@ -175,6 +175,7 @@ class CommodityAverageQuoteResultT(object):
                 if commodityAverageQuoteResult.Weights(i) is None:
                     self.weights.append(None)
                 else:
+                    from quantra.CommodityQuoteWeight import CommodityQuoteWeightT
                     commodityQuoteWeight_ = CommodityQuoteWeightT.InitFromObj(commodityAverageQuoteResult.Weights(i))
                     self.weights.append(commodityQuoteWeight_)
         self.constant = commodityAverageQuoteResult.Constant()

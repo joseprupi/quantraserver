@@ -160,6 +160,7 @@ class SwapLegResultT(object):
                 if swapLegResult.Flows(i) is None:
                     self.flows.append(None)
                 else:
+                    from quantra.SwapLegFlow import SwapLegFlowT
                     swapLegFlow_ = SwapLegFlowT.InitFromObj(swapLegResult.Flows(i))
                     self.flows.append(swapLegFlow_)
 

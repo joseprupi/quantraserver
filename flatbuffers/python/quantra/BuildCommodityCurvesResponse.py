@@ -112,6 +112,7 @@ class BuildCommodityCurvesResponseT(object):
                 if buildCommodityCurvesResponse.Curves(i) is None:
                     self.curves.append(None)
                 else:
+                    from quantra.BuiltCommodityCurve import BuiltCommodityCurveT
                     builtCommodityCurve_ = BuiltCommodityCurveT.InitFromObj(buildCommodityCurvesResponse.Curves(i))
                     self.curves.append(builtCommodityCurve_)
 

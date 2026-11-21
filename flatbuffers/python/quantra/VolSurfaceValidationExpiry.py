@@ -242,6 +242,7 @@ class VolSurfaceValidationExpiryT(object):
                 if volSurfaceValidationExpiry.Dropped(i) is None:
                     self.dropped.append(None)
                 else:
+                    from quantra.DroppedQuote import DroppedQuoteT
                     droppedQuote_ = DroppedQuoteT.InitFromObj(volSurfaceValidationExpiry.Dropped(i))
                     self.dropped.append(droppedQuote_)
 

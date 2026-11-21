@@ -119,9 +119,11 @@ class PriceFixedRateBondT(object):
         if priceFixedRateBond is None:
             return
         if priceFixedRateBond.FixedRateBond() is not None:
+            from quantra.FixedRateBond import FixedRateBondT
             self.fixedRateBond = FixedRateBondT.InitFromObj(priceFixedRateBond.FixedRateBond())
         self.discountingCurve = priceFixedRateBond.DiscountingCurve()
         if priceFixedRateBond.Yield() is not None:
+            from quantra.Yield import YieldT
             self.yield_ = YieldT.InitFromObj(priceFixedRateBond.Yield())
 
     # PriceFixedRateBondT

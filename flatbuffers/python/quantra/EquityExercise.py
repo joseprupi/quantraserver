@@ -14,9 +14,12 @@ def EquityExerciseCreator(unionType, table):
     if not isinstance(table, Table):
         return None
     if unionType == EquityExercise.EquityEuropeanExercise:
+        from quantra.EquityEuropeanExercise import EquityEuropeanExerciseT
         return EquityEuropeanExerciseT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == EquityExercise.EquityAmericanExercise:
+        from quantra.EquityAmericanExercise import EquityAmericanExerciseT
         return EquityAmericanExerciseT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == EquityExercise.EquityBermudanExercise:
+        from quantra.EquityBermudanExercise import EquityBermudanExerciseT
         return EquityBermudanExerciseT.InitFromBuf(table.Bytes, table.Pos)
     return None

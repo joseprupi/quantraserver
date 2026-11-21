@@ -203,12 +203,16 @@ class CurveQuerySpecT(object):
             else:
                 self.measures = curveQuerySpec.MeasuresAsNumpy()
         if curveQuerySpec.Grid() is not None:
+            from quantra.DateGridSpec import DateGridSpecT
             self.grid = DateGridSpecT.InitFromObj(curveQuerySpec.Grid())
         if curveQuerySpec.Zero() is not None:
+            from quantra.ZeroRateQuery import ZeroRateQueryT
             self.zero = ZeroRateQueryT.InitFromObj(curveQuerySpec.Zero())
         if curveQuerySpec.Fwd() is not None:
+            from quantra.ForwardRateQuery import ForwardRateQueryT
             self.fwd = ForwardRateQueryT.InitFromObj(curveQuerySpec.Fwd())
         if curveQuerySpec.Options() is not None:
+            from quantra.QueryOptions import QueryOptionsT
             self.options = QueryOptionsT.InitFromObj(curveQuerySpec.Options())
 
     # CurveQuerySpecT

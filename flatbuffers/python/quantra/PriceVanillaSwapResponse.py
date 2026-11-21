@@ -112,6 +112,7 @@ class PriceVanillaSwapResponseT(object):
                 if priceVanillaSwapResponse.Swaps(i) is None:
                     self.swaps.append(None)
                 else:
+                    from quantra.VanillaSwapResponse import VanillaSwapResponseT
                     vanillaSwapResponse_ = VanillaSwapResponseT.InitFromObj(priceVanillaSwapResponse.Swaps(i))
                     self.swaps.append(vanillaSwapResponse_)
 

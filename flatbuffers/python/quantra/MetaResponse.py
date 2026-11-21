@@ -239,6 +239,7 @@ class MetaResponseT(object):
             for i in range(metaResponse.RpcMethodsLength()):
                 self.rpcMethods.append(metaResponse.RpcMethods(i))
         if metaResponse.Dependencies() is not None:
+            from quantra.MetaDependencies import MetaDependenciesT
             self.dependencies = MetaDependenciesT.InitFromObj(metaResponse.Dependencies())
 
     # MetaResponseT

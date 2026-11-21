@@ -125,6 +125,7 @@ class PriceZeroCouponBondRequestT(object):
         if priceZeroCouponBondRequest is None:
             return
         if priceZeroCouponBondRequest.Pricing() is not None:
+            from quantra.Pricing import PricingT
             self.pricing = PricingT.InitFromObj(priceZeroCouponBondRequest.Pricing())
         if not priceZeroCouponBondRequest.BondsIsNone():
             self.bonds = []
@@ -132,6 +133,7 @@ class PriceZeroCouponBondRequestT(object):
                 if priceZeroCouponBondRequest.Bonds(i) is None:
                     self.bonds.append(None)
                 else:
+                    from quantra.PriceZeroCouponBond import PriceZeroCouponBondT
                     priceZeroCouponBond_ = PriceZeroCouponBondT.InitFromObj(priceZeroCouponBondRequest.Bonds(i))
                     self.bonds.append(priceZeroCouponBond_)
 

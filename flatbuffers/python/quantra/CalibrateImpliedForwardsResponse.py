@@ -238,6 +238,7 @@ class CalibrateImpliedForwardsResponseT(object):
         self.underlyingId = calibrateImpliedForwardsResponse.UnderlyingId()
         self.spot = calibrateImpliedForwardsResponse.Spot()
         if calibrateImpliedForwardsResponse.Filter() is not None:
+            from quantra.QuoteFilter import QuoteFilterT
             self.filter = QuoteFilterT.InitFromObj(calibrateImpliedForwardsResponse.Filter())
         if not calibrateImpliedForwardsResponse.ExpiriesIsNone():
             self.expiries = []
@@ -245,6 +246,7 @@ class CalibrateImpliedForwardsResponseT(object):
                 if calibrateImpliedForwardsResponse.Expiries(i) is None:
                     self.expiries.append(None)
                 else:
+                    from quantra.ImpliedForwardExpiry import ImpliedForwardExpiryT
                     impliedForwardExpiry_ = ImpliedForwardExpiryT.InitFromObj(calibrateImpliedForwardsResponse.Expiries(i))
                     self.expiries.append(impliedForwardExpiry_)
         if not calibrateImpliedForwardsResponse.ForwardsIsNone():
@@ -253,9 +255,11 @@ class CalibrateImpliedForwardsResponseT(object):
                 if calibrateImpliedForwardsResponse.Forwards(i) is None:
                     self.forwards.append(None)
                 else:
+                    from quantra.ImpliedForwardPoint import ImpliedForwardPointT
                     impliedForwardPoint_ = ImpliedForwardPointT.InitFromObj(calibrateImpliedForwardsResponse.Forwards(i))
                     self.forwards.append(impliedForwardPoint_)
         if calibrateImpliedForwardsResponse.DividendCurveSpec() is not None:
+            from quantra.TermStructure import TermStructureT
             self.dividendCurveSpec = TermStructureT.InitFromObj(calibrateImpliedForwardsResponse.DividendCurveSpec())
 
     # CalibrateImpliedForwardsResponseT

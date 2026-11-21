@@ -87,6 +87,7 @@ class OptionletVolSpecT(object):
         if optionletVolSpec is None:
             return
         if optionletVolSpec.Base() is not None:
+            from quantra.IrVolBaseSpec import IrVolBaseSpecT
             self.base = IrVolBaseSpecT.InitFromObj(optionletVolSpec.Base())
 
     # OptionletVolSpecT
