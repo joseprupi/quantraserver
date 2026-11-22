@@ -23,6 +23,11 @@ Example:
             if group.error(i) is None:
                 print(group.entry(i).Npv())
 
+A group may also be given as blocks packed earlier
+(`("basis_swap", BlockGroup(blocks, pricing_block=market))`, see
+quantra_client.blocks): its requests are assembled from the blocks on the
+calling thread, without packing processes.
+
 Results come back per group in the input trade order whatever the split, as
 FlatBuffers readers (the response entry of each trade, e.g. `Swaps(j)`), with
 the trades that failed and why.
@@ -212,7 +217,8 @@ class BatchResult:
 
     `groups`: one GroupResult per input group, in input order.
     `wall_seconds`: time of the whole batch.
-    `pack_seconds`: time spent building FlatBuffers, summed over processes.
+    `pack_seconds`: time spent building FlatBuffers, summed over processes
+    (assembling block groups included).
     `calls`: gRPC calls made, retries included.
     `retries`: calls resent after RESOURCE_EXHAUSTED or UNAVAILABLE.
     `splits`: chunks split in two after DEADLINE_EXCEEDED or a message the
@@ -571,7 +577,9 @@ def price_batch(
         target: a Client, a grpc.Channel or a "host:port" address (unused
             with `call`).
         groups: [(method key of Client.METHODS, request object)], one per
-            market, the request's trade list holding all that market's trades.
+            market, the request's trade list holding all that market's trades;
+            or (method, BlockGroup) for trades packed earlier as blocks
+            (quantra_client.blocks), assembled on the calling thread.
         in_flight: most calls in flight at once; set it to the engine's
             worker count (workers_from_meta).
         split_above: a group of more trades than this is split evenly, in
@@ -602,7 +610,8 @@ def price_batch(
             has passed; the trades left are recorded as failed with
             DEADLINE_EXCEEDED, details {"reason": "BatchDeadline"}.
         force_defaults: pack with ForceDefaults(True), so a scalar equal to
-            its schema default is written to the wire too.
+            its schema default is written to the wire too (block groups keep
+            what their blocks were packed with).
         start_method: how the packing processes of this batch start:
             'forkserver' (default on Linux), 'spawn' (default elsewhere) or
             'fork' (unsafe in a process holding gRPC channels or threads).
@@ -631,14 +640,21 @@ def price_batch(
     """
     started = time.perf_counter()
     deadline_at = None if deadline is None else started + max(0.0, deadline)
+    from .blocks import BlockGroup, _BlockChunks
+
     groups = [tuple(group) for group in groups]
     sizes = []
-    for method, request in groups:
+    block_chunks = {}  # group index -> _BlockChunks, for the groups given as blocks
+    for g, (method, request) in enumerate(groups):
         if method not in TRADE_LISTS:
             raise ValueError(f"unknown method {method!r}; expected one of Client.METHODS")
         if TRADE_LISTS[method] is None:
             raise ValueError(f"{method!r} has no trade list to batch; call the Client method")
-        sizes.append(len(getattr(request, TRADE_LISTS[method][0]) or []))
+        if isinstance(request, BlockGroup):
+            block_chunks[g] = _BlockChunks(method, request)
+            sizes.append(len(request))
+        else:
+            sizes.append(len(getattr(request, TRADE_LISTS[method][0]) or []))
     if isinstance(max_trades, dict):
         unknown = set(max_trades) - set(TRADE_LISTS)
         if unknown:
@@ -658,11 +674,15 @@ def price_batch(
     if not jobs:
         return result
 
+    # Only the groups given as objects are packed; block groups are
+    # assembled on this thread.
+    object_jobs = sum(1 for job in jobs if job[0] not in block_chunks)
+    object_trades = sum(n for g, n in enumerate(sizes) if g not in block_chunks)
     if pool is None:
         if processes is None:
-            enough = sum(sizes) >= _POOL_MIN_TRADES[_check_start_method(start_method)]
+            enough = object_trades >= _POOL_MIN_TRADES[_check_start_method(start_method)]
             processes = (os.cpu_count() or 1) if enough else 0
-        processes = min(processes, len(jobs)) if processes else 0
+        processes = min(processes, object_jobs) if processes else 0
 
     def callback(fn, *args):
         """Run a caller's callback; (ok, value)."""
@@ -697,7 +717,14 @@ def price_batch(
 
     def submit(job):
         live[job[:2]] = ('pack', job)
-        packer.submit(job)
+        chunks = block_chunks.get(job[0])
+        if chunks is None:
+            packer.submit(job)
+            return
+        try:
+            events.put(('packed', job, chunks.pack(job[1], job[2], max_message_bytes)))
+        except Exception as exc:  # recorded for this chunk only
+            events.put(('pack_error', job, QuantraError(f"assembling failed: {exc!r}")))
 
     def fail(job, error):
         live.pop(job[:2], None)

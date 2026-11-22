@@ -59,7 +59,7 @@ info:
     \ a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond\
     \ \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/bonds/fixed_rate_bond_request.json\n\
     ```\n"
-  version: 0.17.3
+  version: 0.17.4
   contact:
     name: Quantra API Support
     url: https://github.com/joseprupi/quantraserver
@@ -1753,9 +1753,9 @@ paths:
   /meta:
     get:
       summary: Service Metadata
-      description: Service and build metadata including versions, git sha, endpoints,
-        products, and dependency versions, plus the cluster's capacity read from Envoy's
-        admin interface (null when it cannot be read).
+      description: Service and build metadata including versions, git sha, the schema
+        hash, endpoints, products, and dependency versions, plus the cluster's capacity
+        read from Envoy's admin interface (null when it cannot be read).
       tags:
       - System
       responses:
@@ -1767,6 +1767,12 @@ paths:
                 type: object
                 additionalProperties: true
                 properties:
+                  schema_hash:
+                    type: string
+                    description: SHA-256 over the engine's FlatBuffers schema files
+                      (scripts/schema_hash.py); equal to the Python client's SCHEMA_HASH
+                      for the same source tree. Request blocks packed under another
+                      value must be packed again.
                   capacity:
                     type: object
                     nullable: true

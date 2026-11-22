@@ -12,7 +12,7 @@
 # Sets, in the including (directory) scope so add_subdirectory children inherit:
 #   QUANTRA_GIT_SHA, QUANTRA_BUILD_TIME_UTC, QUANTRA_API_VERSION,
 #   QUANTRA_BACKEND_VERSION, QUANTRA_OPENAPI_VERSION, QUANTRA_GRPC_VERSION,
-#   QUANTRA_FLATBUFFERS_VERSION, QUANTRA_QUANTLIB_VERSION.
+#   QUANTRA_FLATBUFFERS_VERSION, QUANTRA_QUANTLIB_VERSION, QUANTRA_SCHEMA_HASH.
 #
 # Expects DEPS_PREFIX to be defined for dependency-version discovery.
 # =============================================================================
@@ -44,6 +44,24 @@ if(QUANTRA_API_VERSION STREQUAL "")
     message(FATAL_ERROR "VERSION file at ${CMAKE_SOURCE_DIR}/VERSION is empty")
 endif()
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/VERSION")
+
+# Schema hash: scripts/schema_hash.py over flatbuffers/fbs/*.fbs, the same
+# script that writes the Python client's SCHEMA_HASH, so the engine and the
+# client agree for the same source tree. Re-run when a schema changes.
+find_program(QUANTRA_PYTHON3 NAMES python3 REQUIRED)
+execute_process(
+    COMMAND ${QUANTRA_PYTHON3} ${CMAKE_SOURCE_DIR}/scripts/schema_hash.py
+            ${CMAKE_SOURCE_DIR}/flatbuffers/fbs
+    OUTPUT_VARIABLE QUANTRA_SCHEMA_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE _schema_hash_result
+)
+if(NOT _schema_hash_result EQUAL 0 OR NOT QUANTRA_SCHEMA_HASH MATCHES "^[0-9a-f]+$")
+    message(FATAL_ERROR "scripts/schema_hash.py failed (${_schema_hash_result})")
+endif()
+file(GLOB _quantra_fbs_files "${CMAKE_SOURCE_DIR}/flatbuffers/fbs/*.fbs")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    ${_quantra_fbs_files} "${CMAKE_SOURCE_DIR}/scripts/schema_hash.py")
 
 set(QUANTRA_BACKEND_VERSION "1.0.0")
 set(QUANTRA_OPENAPI_VERSION "${QUANTRA_API_VERSION}")
@@ -87,4 +105,5 @@ set(QUANTRA_BUILD_INFO_DEFINITIONS
     QUANTRA_GRPC_VERSION="${QUANTRA_GRPC_VERSION}"
     QUANTRA_FLATBUFFERS_VERSION="${QUANTRA_FLATBUFFERS_VERSION}"
     QUANTRA_QUANTLIB_VERSION="${QUANTRA_QUANTLIB_VERSION}"
+    QUANTRA_SCHEMA_HASH="${QUANTRA_SCHEMA_HASH}"
 )

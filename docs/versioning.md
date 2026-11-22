@@ -28,6 +28,41 @@ first release that promises wire stability.
 
 ## Unreleased
 
+## Version 0.17.4 (November 2026) — Python client: requests from stored blocks, market values patched in place, schema hash in `/meta`
+
+Python client, plus `schema_hash` in `/meta`. No request changes, no price
+changes; the only engine change is the new `schema_hash` field of the JSON
+gateway's `GET /meta` and of the gRPC `Meta` reply (added at the end of
+`MetaResponse`). OpenAPI regenerated (version, `schema_hash` in `/meta`).
+
+- **Request blocks** (`quantra_client.blocks`, exported from
+  `quantra_client`): a trade or a market packed alone into a position-free
+  byte string (`pack_trade_block`, `pack_market_block`), and requests
+  assembled from such blocks (`assemble_request(method, blocks,
+  pricing=... | pricing_block=..., **request_fields)`). Blocks can be stored
+  and reused across requests; an assembled request prices byte for byte as
+  the request packed normally (every example request of every method with a
+  trade list), and is about 27 % larger. Assembling 12,000 basis swaps from
+  their blocks takes about 6 ms against about 2 s to pack the request.
+- **Market values patched in place**: `pack_market_block` returns the
+  position of every numeric market value (curve points, quotes, vol nodes,
+  credit and inflation curve values, commodity prices, model parameters,
+  integers that are not enums) under a path built from the schema, for
+  example `rates.curves[EUR_OIS].points[3].point.rate`; `patch_values`
+  overwrites them in a packed request, `0.0` included. A patched request
+  prices as the request rebuilt with those values. Strings, booleans, enums
+  and anything that changes the buffer's length cannot be patched.
+- **`price_batch` takes block groups**: `(method, BlockGroup(blocks, ...))`,
+  split by trade count and by `max_message_bytes` from the block sizes,
+  assembled on the calling thread; retries, splits and results as for any
+  group; a batch may mix both kinds.
+- **`SCHEMA_HASH`** in the client and **`schema_hash`** in `GET /meta` and in
+  the `Meta` reply: the SHA-256 over `flatbuffers/fbs/*.fbs`, computed by one
+  script (`scripts/schema_hash.py`) for both. A stored block is valid for the
+  hash it was packed with.
+- `verify_request(method, data)`: the structural checks of the engine's
+  FlatBuffers verifier, in Python.
+
 ## Version 0.17.3 (November 2026) — Python batch client: safe packing processes, budget and hooks, more methods
 
 Python client only. No engine, request or response changes, no price

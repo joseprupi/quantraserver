@@ -598,6 +598,7 @@ int main(int argc, char** argv) {
             out["git_sha"] = QUANTRA_GIT_SHA;
             out["build_time_utc"] = QUANTRA_BUILD_TIME_UTC;
             out["openapi_version"] = QUANTRA_OPENAPI_VERSION;
+            out["schema_hash"] = QUANTRA_SCHEMA_HASH;
             out["grpc_target"] = grpc_address;
 
             crow::json::wvalue::list products;

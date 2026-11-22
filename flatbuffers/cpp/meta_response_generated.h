@@ -126,6 +126,7 @@ struct MetaResponseT : public ::flatbuffers::NativeTable {
   std::vector<std::string> products{};
   std::vector<std::string> rpc_methods{};
   std::unique_ptr<quantra::MetaDependenciesT> dependencies{};
+  std::string schema_hash{};
   MetaResponseT() = default;
   MetaResponseT(const MetaResponseT &o);
   MetaResponseT(MetaResponseT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -147,7 +148,8 @@ struct MetaResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_BUILD_TIME_UTC = 12,
     VT_PRODUCTS = 14,
     VT_RPC_METHODS = 16,
-    VT_DEPENDENCIES = 18
+    VT_DEPENDENCIES = 18,
+    VT_SCHEMA_HASH = 20
   };
   const ::flatbuffers::String *service() const {
     return GetPointer<const ::flatbuffers::String *>(VT_SERVICE);
@@ -173,6 +175,12 @@ struct MetaResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::MetaDependencies *dependencies() const {
     return GetPointer<const quantra::MetaDependencies *>(VT_DEPENDENCIES);
   }
+  /// SHA-256 over the schema files (scripts/schema_hash.py); the Python
+  /// client's SCHEMA_HASH for the same source tree. Request blocks packed
+  /// under another value must be packed again.
+  const ::flatbuffers::String *schema_hash() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_SCHEMA_HASH);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_SERVICE) &&
@@ -193,6 +201,8 @@ struct MetaResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyVectorOfStrings(rpc_methods()) &&
            VerifyOffset(verifier, VT_DEPENDENCIES) &&
            verifier.VerifyTable(dependencies()) &&
+           VerifyOffset(verifier, VT_SCHEMA_HASH) &&
+           verifier.VerifyString(schema_hash()) &&
            verifier.EndTable();
   }
   MetaResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -228,6 +238,9 @@ struct MetaResponseBuilder {
   void add_dependencies(::flatbuffers::Offset<quantra::MetaDependencies> dependencies) {
     fbb_.AddOffset(MetaResponse::VT_DEPENDENCIES, dependencies);
   }
+  void add_schema_hash(::flatbuffers::Offset<::flatbuffers::String> schema_hash) {
+    fbb_.AddOffset(MetaResponse::VT_SCHEMA_HASH, schema_hash);
+  }
   explicit MetaResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -250,8 +263,10 @@ inline ::flatbuffers::Offset<MetaResponse> CreateMetaResponse(
     ::flatbuffers::Offset<::flatbuffers::String> build_time_utc = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> products = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> rpc_methods = 0,
-    ::flatbuffers::Offset<quantra::MetaDependencies> dependencies = 0) {
+    ::flatbuffers::Offset<quantra::MetaDependencies> dependencies = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> schema_hash = 0) {
   MetaResponseBuilder builder_(_fbb);
+  builder_.add_schema_hash(schema_hash);
   builder_.add_dependencies(dependencies);
   builder_.add_rpc_methods(rpc_methods);
   builder_.add_products(products);
@@ -272,7 +287,8 @@ inline ::flatbuffers::Offset<MetaResponse> CreateMetaResponseDirect(
     const char *build_time_utc = nullptr,
     const std::vector<::flatbuffers::Offset<::flatbuffers::String>> *products = nullptr,
     const std::vector<::flatbuffers::Offset<::flatbuffers::String>> *rpc_methods = nullptr,
-    ::flatbuffers::Offset<quantra::MetaDependencies> dependencies = 0) {
+    ::flatbuffers::Offset<quantra::MetaDependencies> dependencies = 0,
+    const char *schema_hash = nullptr) {
   auto service__ = service ? _fbb.CreateString(service) : 0;
   auto api_version__ = api_version ? _fbb.CreateString(api_version) : 0;
   auto backend_version__ = backend_version ? _fbb.CreateString(backend_version) : 0;
@@ -280,6 +296,7 @@ inline ::flatbuffers::Offset<MetaResponse> CreateMetaResponseDirect(
   auto build_time_utc__ = build_time_utc ? _fbb.CreateString(build_time_utc) : 0;
   auto products__ = products ? _fbb.CreateVector<::flatbuffers::Offset<::flatbuffers::String>>(*products) : 0;
   auto rpc_methods__ = rpc_methods ? _fbb.CreateVector<::flatbuffers::Offset<::flatbuffers::String>>(*rpc_methods) : 0;
+  auto schema_hash__ = schema_hash ? _fbb.CreateString(schema_hash) : 0;
   return quantra::CreateMetaResponse(
       _fbb,
       service__,
@@ -289,7 +306,8 @@ inline ::flatbuffers::Offset<MetaResponse> CreateMetaResponseDirect(
       build_time_utc__,
       products__,
       rpc_methods__,
-      dependencies);
+      dependencies,
+      schema_hash__);
 }
 
 ::flatbuffers::Offset<MetaResponse> CreateMetaResponse(::flatbuffers::FlatBufferBuilder &_fbb, const MetaResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -334,7 +352,8 @@ inline MetaResponseT::MetaResponseT(const MetaResponseT &o)
         build_time_utc(o.build_time_utc),
         products(o.products),
         rpc_methods(o.rpc_methods),
-        dependencies((o.dependencies) ? new quantra::MetaDependenciesT(*o.dependencies) : nullptr) {
+        dependencies((o.dependencies) ? new quantra::MetaDependenciesT(*o.dependencies) : nullptr),
+        schema_hash(o.schema_hash) {
 }
 
 inline MetaResponseT &MetaResponseT::operator=(MetaResponseT o) FLATBUFFERS_NOEXCEPT {
@@ -346,6 +365,7 @@ inline MetaResponseT &MetaResponseT::operator=(MetaResponseT o) FLATBUFFERS_NOEX
   std::swap(products, o.products);
   std::swap(rpc_methods, o.rpc_methods);
   std::swap(dependencies, o.dependencies);
+  std::swap(schema_hash, o.schema_hash);
   return *this;
 }
 
@@ -366,6 +386,7 @@ inline void MetaResponse::UnPackTo(MetaResponseT *_o, const ::flatbuffers::resol
   { auto _e = products(); if (_e) { _o->products.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->products[_i] = _e->Get(_i)->str(); } } else { _o->products.resize(0); } }
   { auto _e = rpc_methods(); if (_e) { _o->rpc_methods.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->rpc_methods[_i] = _e->Get(_i)->str(); } } else { _o->rpc_methods.resize(0); } }
   { auto _e = dependencies(); if (_e) { if(_o->dependencies) { _e->UnPackTo(_o->dependencies.get(), _resolver); } else { _o->dependencies = std::unique_ptr<quantra::MetaDependenciesT>(_e->UnPack(_resolver)); } } else if (_o->dependencies) { _o->dependencies.reset(); } }
+  { auto _e = schema_hash(); if (_e) _o->schema_hash = _e->str(); }
 }
 
 inline ::flatbuffers::Offset<MetaResponse> MetaResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const MetaResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -384,6 +405,7 @@ inline ::flatbuffers::Offset<MetaResponse> CreateMetaResponse(::flatbuffers::Fla
   auto _products = _o->products.size() ? _fbb.CreateVectorOfStrings(_o->products) : 0;
   auto _rpc_methods = _o->rpc_methods.size() ? _fbb.CreateVectorOfStrings(_o->rpc_methods) : 0;
   auto _dependencies = _o->dependencies ? CreateMetaDependencies(_fbb, _o->dependencies.get(), _rehasher) : 0;
+  auto _schema_hash = _o->schema_hash.empty() ? 0 : _fbb.CreateString(_o->schema_hash);
   return quantra::CreateMetaResponse(
       _fbb,
       _service,
@@ -393,7 +415,8 @@ inline ::flatbuffers::Offset<MetaResponse> CreateMetaResponse(::flatbuffers::Fla
       _build_time_utc,
       _products,
       _rpc_methods,
-      _dependencies);
+      _dependencies,
+      _schema_hash);
 }
 
 inline const quantra::MetaResponse *GetMetaResponse(const void *buf) {

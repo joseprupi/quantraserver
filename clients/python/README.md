@@ -52,6 +52,12 @@ one of:
 Many trades over many markets: `quantra_client.batch.price_batch` (see
 `docs/client.md`, "Python client: batches").
 
+Requests from trades and markets packed once and stored as bytes, and market
+values changed in place in a packed request (scenarios without repacking):
+`quantra_client.blocks` (`pack_trade_block`, `pack_market_block`,
+`assemble_request`, `patch_values`, `BlockGroup` for `price_batch`,
+`SCHEMA_HASH`; see `docs/client.md`, "Python client: request blocks").
+
 ## Install
 
 From a source checkout:

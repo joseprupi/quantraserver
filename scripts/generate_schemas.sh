@@ -97,6 +97,11 @@ else
     echo "  Warning: fix_imports.py not found, skipping"
 fi
 
+# 5.5. Python client's schema description and schema hash (request blocks);
+# the hash comes from scripts/schema_hash.py, as the engine's /meta value.
+echo "[5.5/6] Generating the Python client's schema description..."
+python3 "$TOOLS_DIR/gen_schema_description.py" --flatc "$(command -v flatc)"
+
 # 6. Generate OpenAPI documentation
 echo "[6/6] Generating OpenAPI documentation..."
 if [ -f "$SCRIPT_DIR/generate_openapi.py" ]; then

@@ -642,7 +642,7 @@ def generate_openapi() -> Dict[str, Any]:
     paths["/meta"] = {
         "get": {
             "summary": "Service Metadata",
-            "description": "Service and build metadata including versions, git sha, endpoints, products, and dependency versions, plus the cluster's capacity read from Envoy's admin interface (null when it cannot be read).",
+            "description": "Service and build metadata including versions, git sha, the schema hash, endpoints, products, and dependency versions, plus the cluster's capacity read from Envoy's admin interface (null when it cannot be read).",
             "tags": ["System"],
             "responses": {
                 "200": {
@@ -653,6 +653,10 @@ def generate_openapi() -> Dict[str, Any]:
                                 "type": "object",
                                 "additionalProperties": True,
                                 "properties": {
+                                    "schema_hash": {
+                                        "type": "string",
+                                        "description": "SHA-256 over the engine's FlatBuffers schema files (scripts/schema_hash.py); equal to the Python client's SCHEMA_HASH for the same source tree. Request blocks packed under another value must be packed again."
+                                    },
                                     "capacity": {
                                         "type": "object",
                                         "nullable": True,
