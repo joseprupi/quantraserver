@@ -20,13 +20,11 @@ import argparse
 import importlib.util
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
-
-import flatbuffers
-from flatbuffers.table import Table
 
 ROOT = Path(__file__).resolve().parents[3]
 FBS_DIR = ROOT / "flatbuffers" / "fbs"
@@ -48,8 +46,40 @@ def _load_schema_hash():
 
 # --- a minimal reader of the reflection format (reflection.fbs vtable slots) ---
 
+class _Table:
+    """Just enough of a FlatBuffers table reader for the binary schema, with
+    the standard library only: the generator also runs where the flatbuffers
+    Python package is not installed (the engine image build)."""
+
+    def __init__(self, buf, pos):
+        self.Bytes = buf
+        self.Pos = pos
+
+    def Get(self, fmt, off):
+        return struct.unpack_from("<" + fmt, self.Bytes, off)[0]
+
+    def Offset(self, slot):
+        vtable = self.Pos - self.Get("i", self.Pos)
+        return self.Get("H", vtable + slot) if slot < self.Get("H", vtable) else 0
+
+    def Indirect(self, off):
+        return off + self.Get("I", off)
+
+    def String(self, off):
+        off += self.Get("I", off)
+        return bytes(self.Bytes[off + 4:off + 4 + self.Get("I", off)])
+
+    def Vector(self, off):
+        off += self.Pos
+        return off + self.Get("I", off) + 4
+
+    def VectorLen(self, off):
+        off += self.Pos
+        return self.Get("I", off + self.Get("I", off))
+
+
 def _table(buf, pos):
-    return Table(buf, pos)
+    return _Table(buf, pos)
 
 
 def _string(tab, slot):
@@ -75,21 +105,18 @@ def _sub(tab, slot):
     return _table(tab.Bytes, tab.Indirect(o + tab.Pos)) if o else None
 
 
-N = flatbuffers.number_types
-
-
 def _type(tab):
     return {
-        "base": BASE_TYPES[_scalar(tab, 4, N.Int8Flags)],
-        "element": BASE_TYPES[_scalar(tab, 6, N.Int8Flags)],
-        "index": _scalar(tab, 8, N.Int32Flags, -1),
+        "base": BASE_TYPES[_scalar(tab, 4, "b")],
+        "element": BASE_TYPES[_scalar(tab, 6, "b")],
+        "index": _scalar(tab, 8, "i", -1),
     }
 
 
 def read_binary_schema(data):
     """(objects, enums) of a binary schema as plain lists/dicts."""
     buf = bytearray(data)
-    root = _table(buf, flatbuffers.encode.Get(N.UOffsetTFlags.packer_type, buf, 0))
+    root = _table(buf, struct.unpack_from("<I", buf, 0)[0])
     objects = []
     for obj in _tables(root, 4):
         fields = []
@@ -97,16 +124,16 @@ def read_binary_schema(data):
             fields.append({
                 "name": _string(f, 4),
                 "type": _type(_sub(f, 6)),
-                "id": _scalar(f, 8, N.Uint16Flags),
-                "offset": _scalar(f, 10, N.Uint16Flags),
-                "deprecated": bool(_scalar(f, 16, N.BoolFlags)),
+                "id": _scalar(f, 8, "H"),
+                "offset": _scalar(f, 10, "H"),
+                "deprecated": bool(_scalar(f, 16, "?")),
             })
         objects.append({
             "name": _string(obj, 4),
             "fields": fields,
-            "is_struct": bool(_scalar(obj, 8, N.BoolFlags)),
-            "minalign": _scalar(obj, 10, N.Int32Flags),
-            "bytesize": _scalar(obj, 12, N.Int32Flags),
+            "is_struct": bool(_scalar(obj, 8, "?")),
+            "minalign": _scalar(obj, 10, "i"),
+            "bytesize": _scalar(obj, 12, "i"),
         })
     enums = []
     for enum in _tables(root, 6):
@@ -115,13 +142,13 @@ def read_binary_schema(data):
             union_type = _sub(v, 10)
             values.append({
                 "name": _string(v, 4),
-                "value": _scalar(v, 6, N.Int64Flags),
+                "value": _scalar(v, 6, "q"),
                 "union_type": _type(union_type) if union_type is not None else None,
             })
         enums.append({
             "name": _string(enum, 4),
             "values": values,
-            "is_union": bool(_scalar(enum, 8, N.BoolFlags)),
+            "is_union": bool(_scalar(enum, 8, "?")),
         })
     return objects, enums
 
