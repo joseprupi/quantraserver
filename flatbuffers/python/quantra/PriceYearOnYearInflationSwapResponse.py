@@ -50,8 +50,37 @@ class PriceYearOnYearInflationSwapResponse(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         return o == 0
 
+    # Present only when the request set `price_only`: one NPV per trade in
+    # request order (the per-trade list is then empty).
+    # PriceYearOnYearInflationSwapResponse
+    def Npvs(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            a = self._tab.Vector(o)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
+        return 0
+
+    # PriceYearOnYearInflationSwapResponse
+    def NpvsAsNumpy(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
+        return 0
+
+    # PriceYearOnYearInflationSwapResponse
+    def NpvsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # PriceYearOnYearInflationSwapResponse
+    def NpvsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        return o == 0
+
 def PriceYearOnYearInflationSwapResponseStart(builder):
-    builder.StartObject(1)
+    builder.StartObject(2)
 
 def Start(builder):
     PriceYearOnYearInflationSwapResponseStart(builder)
@@ -67,6 +96,18 @@ def PriceYearOnYearInflationSwapResponseStartSwapsVector(builder, numElems):
 
 def StartSwapsVector(builder, numElems):
     return PriceYearOnYearInflationSwapResponseStartSwapsVector(builder, numElems)
+
+def PriceYearOnYearInflationSwapResponseAddNpvs(builder, npvs):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(npvs), 0)
+
+def AddNpvs(builder, npvs):
+    PriceYearOnYearInflationSwapResponseAddNpvs(builder, npvs)
+
+def PriceYearOnYearInflationSwapResponseStartNpvsVector(builder, numElems):
+    return builder.StartVector(8, numElems, 8)
+
+def StartNpvsVector(builder, numElems):
+    return PriceYearOnYearInflationSwapResponseStartNpvsVector(builder, numElems)
 
 def PriceYearOnYearInflationSwapResponseEnd(builder):
     return builder.EndObject()
@@ -84,6 +125,7 @@ class PriceYearOnYearInflationSwapResponseT(object):
     # PriceYearOnYearInflationSwapResponseT
     def __init__(self):
         self.swaps = None  # type: List[YearOnYearInflationSwapResponseT]
+        self.npvs = None  # type: List[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -115,6 +157,13 @@ class PriceYearOnYearInflationSwapResponseT(object):
                     from quantra.YearOnYearInflationSwapResponse import YearOnYearInflationSwapResponseT
                     yearOnYearInflationSwapResponse_ = YearOnYearInflationSwapResponseT.InitFromObj(priceYearOnYearInflationSwapResponse.Swaps(i))
                     self.swaps.append(yearOnYearInflationSwapResponse_)
+        if not priceYearOnYearInflationSwapResponse.NpvsIsNone():
+            if np is None:
+                self.npvs = []
+                for i in range(priceYearOnYearInflationSwapResponse.NpvsLength()):
+                    self.npvs.append(priceYearOnYearInflationSwapResponse.Npvs(i))
+            else:
+                self.npvs = priceYearOnYearInflationSwapResponse.NpvsAsNumpy()
 
     # PriceYearOnYearInflationSwapResponseT
     def Pack(self, builder):
@@ -126,8 +175,18 @@ class PriceYearOnYearInflationSwapResponseT(object):
             for i in reversed(range(len(self.swaps))):
                 builder.PrependUOffsetTRelative(swapslist[i])
             swaps = builder.EndVector()
+        if self.npvs is not None:
+            if np is not None and type(self.npvs) is np.ndarray:
+                npvs = builder.CreateNumpyVector(self.npvs)
+            else:
+                PriceYearOnYearInflationSwapResponseStartNpvsVector(builder, len(self.npvs))
+                for i in reversed(range(len(self.npvs))):
+                    builder.PrependFloat64(self.npvs[i])
+                npvs = builder.EndVector()
         PriceYearOnYearInflationSwapResponseStart(builder)
         if self.swaps is not None:
             PriceYearOnYearInflationSwapResponseAddSwaps(builder, swaps)
+        if self.npvs is not None:
+            PriceYearOnYearInflationSwapResponseAddNpvs(builder, npvs)
         priceYearOnYearInflationSwapResponse = PriceYearOnYearInflationSwapResponseEnd(builder)
         return priceYearOnYearInflationSwapResponse

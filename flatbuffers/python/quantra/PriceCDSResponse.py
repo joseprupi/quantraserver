@@ -50,8 +50,37 @@ class PriceCDSResponse(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         return o == 0
 
+    # Present only when the request set `price_only`: one NPV per trade in
+    # request order (the per-trade list is then empty).
+    # PriceCDSResponse
+    def Npvs(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            a = self._tab.Vector(o)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
+        return 0
+
+    # PriceCDSResponse
+    def NpvsAsNumpy(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
+        return 0
+
+    # PriceCDSResponse
+    def NpvsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # PriceCDSResponse
+    def NpvsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        return o == 0
+
 def PriceCDSResponseStart(builder):
-    builder.StartObject(1)
+    builder.StartObject(2)
 
 def Start(builder):
     PriceCDSResponseStart(builder)
@@ -67,6 +96,18 @@ def PriceCDSResponseStartCdsListVector(builder, numElems):
 
 def StartCdsListVector(builder, numElems):
     return PriceCDSResponseStartCdsListVector(builder, numElems)
+
+def PriceCDSResponseAddNpvs(builder, npvs):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(npvs), 0)
+
+def AddNpvs(builder, npvs):
+    PriceCDSResponseAddNpvs(builder, npvs)
+
+def PriceCDSResponseStartNpvsVector(builder, numElems):
+    return builder.StartVector(8, numElems, 8)
+
+def StartNpvsVector(builder, numElems):
+    return PriceCDSResponseStartNpvsVector(builder, numElems)
 
 def PriceCDSResponseEnd(builder):
     return builder.EndObject()
@@ -84,6 +125,7 @@ class PriceCDSResponseT(object):
     # PriceCDSResponseT
     def __init__(self):
         self.cdsList = None  # type: List[CDSValuesT]
+        self.npvs = None  # type: List[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -115,6 +157,13 @@ class PriceCDSResponseT(object):
                     from quantra.CDSValues import CDSValuesT
                     cDSValues_ = CDSValuesT.InitFromObj(priceCdsresponse.CdsList(i))
                     self.cdsList.append(cDSValues_)
+        if not priceCdsresponse.NpvsIsNone():
+            if np is None:
+                self.npvs = []
+                for i in range(priceCdsresponse.NpvsLength()):
+                    self.npvs.append(priceCdsresponse.Npvs(i))
+            else:
+                self.npvs = priceCdsresponse.NpvsAsNumpy()
 
     # PriceCDSResponseT
     def Pack(self, builder):
@@ -126,8 +175,18 @@ class PriceCDSResponseT(object):
             for i in reversed(range(len(self.cdsList))):
                 builder.PrependUOffsetTRelative(cdsListlist[i])
             cdsList = builder.EndVector()
+        if self.npvs is not None:
+            if np is not None and type(self.npvs) is np.ndarray:
+                npvs = builder.CreateNumpyVector(self.npvs)
+            else:
+                PriceCDSResponseStartNpvsVector(builder, len(self.npvs))
+                for i in reversed(range(len(self.npvs))):
+                    builder.PrependFloat64(self.npvs[i])
+                npvs = builder.EndVector()
         PriceCDSResponseStart(builder)
         if self.cdsList is not None:
             PriceCDSResponseAddCdsList(builder, cdsList)
+        if self.npvs is not None:
+            PriceCDSResponseAddNpvs(builder, npvs)
         priceCdsresponse = PriceCDSResponseEnd(builder)
         return priceCdsresponse

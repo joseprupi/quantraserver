@@ -507,6 +507,73 @@ TEST_F(ServerClientTest, FixedRateBond_RoundTrip) {
     EXPECT_NEAR(npv, 107.432, 0.01);
 }
 
+TEST_F(ServerClientTest, FixedRateBond_PriceOnly) {
+    std::cout << "\n=== Server-Client: Fixed Rate Bond, price_only ===" << std::endl;
+    flatbuffers::grpc::MessageBuilder b;
+
+    auto ts = buildCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    auto indices = buildIndicesVector(b);
+    auto asof = b.CreateString("2025-01-15");
+    auto pricing = buildPricing(b, asof, asof, 0, indices, 0, curves, 0, 0, 0, 0, 0, 0, 0, true);
+
+    auto eff = b.CreateString("2024-01-15");
+    auto term = b.CreateString("2029-01-15");
+    quantra::ScheduleBuilder sb(b);
+    sb.add_effective_date(eff);
+    sb.add_termination_date(term);
+    sb.add_calendar(quantra::enums::Calendar_TARGET);
+    sb.add_frequency(quantra::enums::Frequency_Annual);
+    sb.add_convention(quantra::enums::BusinessDayConvention_Unadjusted);
+    sb.add_termination_date_convention(quantra::enums::BusinessDayConvention_Unadjusted);
+    sb.add_date_generation_rule(quantra::enums::DateGenerationRule_Backward);
+    sb.add_end_of_month(false);
+    auto schedule = sb.Finish();
+
+    auto idate = b.CreateString("2024-01-15");
+    quantra::FixedRateBondBuilder bb(b);
+    bb.add_settlement_days(2);
+    bb.add_face_amount(100.0);
+    bb.add_schedule(schedule);
+    bb.add_rate(0.05);
+    bb.add_accrual_day_counter(quantra::enums::DayCounter_ActualActual);
+    bb.add_issue_date(idate);
+    bb.add_redemption(100.0);
+    bb.add_payment_convention(quantra::enums::BusinessDayConvention_Unadjusted);
+    auto bond = bb.Finish();
+
+    auto yield = buildYield(b);
+    auto dc = b.CreateString("discount");
+    quantra::PriceFixedRateBondBuilder pfb(b);
+    pfb.add_fixed_rate_bond(bond);
+    pfb.add_discounting_curve(dc);
+    pfb.add_yield(yield);
+    auto bonds =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceFixedRateBond>>{pfb.Finish()});
+
+    quantra::PriceFixedRateBondRequestBuilder rb(b);
+    rb.add_pricing(pricing);
+    rb.add_bonds(bonds);
+    rb.add_price_only(true);
+    b.Finish(rb.Finish());
+
+    auto request = b.ReleaseMessage<quantra::PriceFixedRateBondRequest>();
+    grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+    flatbuffers::grpc::Message<quantra::PriceFixedRateBondResponse> response;
+    auto status = stub_->PriceFixedRateBond(&context, request, &response);
+
+    ASSERT_TRUE(status.ok()) << "gRPC failed: " << status.error_message();
+    // price_only: the per-trade list is empty and `npvs` holds one NPV per
+    // trade, the full response's NPV.
+    const auto* root = response.GetRoot();
+    ASSERT_NE(root->bonds(), nullptr);
+    EXPECT_EQ(root->bonds()->size(), 0u);
+    ASSERT_NE(root->npvs(), nullptr);
+    ASSERT_EQ(root->npvs()->size(), 1u);
+    EXPECT_NEAR(root->npvs()->Get(0), 107.432, 0.01);
+}
+
 TEST_F(ServerClientTest, VanillaSwap_RoundTrip) {
     std::cout << "\n=== Server-Client: Vanilla Swap ===" << std::endl;
     flatbuffers::grpc::MessageBuilder b;

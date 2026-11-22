@@ -82,7 +82,7 @@ struct BuiltSwapLeg {
     double npvOwn = 0.0;
     /// CashFlows::bps of the coupons in the leg's own frame: the change in
     /// value for a one-basis-point move of the rate / spread, exchanges
-    /// excluded.
+    /// excluded. Not computed (0) under `ctx.priceOnly`.
     double bpsOwn = 0.0;
     /// Set when the leg carries CMS coupons.
     std::optional<CmsPricerUsed> cmsUsed;

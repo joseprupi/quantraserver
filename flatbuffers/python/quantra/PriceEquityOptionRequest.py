@@ -61,8 +61,20 @@ class PriceEquityOptionRequest(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         return o == 0
 
+    # When true the response carries only the prices: `npvs` holds one NPV
+    # per trade in request order and the per-trade list is empty (no flows,
+    # fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+    # full response reports; a request the engine refuses is refused the
+    # same way. Absent or false: the full response.
+    # PriceEquityOptionRequest
+    def PriceOnly(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def PriceEquityOptionRequestStart(builder):
-    builder.StartObject(2)
+    builder.StartObject(3)
 
 def Start(builder):
     PriceEquityOptionRequestStart(builder)
@@ -85,6 +97,12 @@ def PriceEquityOptionRequestStartOptionsVector(builder, numElems):
 def StartOptionsVector(builder, numElems):
     return PriceEquityOptionRequestStartOptionsVector(builder, numElems)
 
+def PriceEquityOptionRequestAddPriceOnly(builder, priceOnly):
+    builder.PrependBoolSlot(2, priceOnly, 0)
+
+def AddPriceOnly(builder, priceOnly):
+    PriceEquityOptionRequestAddPriceOnly(builder, priceOnly)
+
 def PriceEquityOptionRequestEnd(builder):
     return builder.EndObject()
 
@@ -102,6 +120,7 @@ class PriceEquityOptionRequestT(object):
     def __init__(self):
         self.pricing = None  # type: Optional[PricingT]
         self.options = None  # type: List[PriceEquityOptionT]
+        self.priceOnly = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -136,6 +155,7 @@ class PriceEquityOptionRequestT(object):
                     from quantra.PriceEquityOption import PriceEquityOptionT
                     priceEquityOption_ = PriceEquityOptionT.InitFromObj(priceEquityOptionRequest.Options(i))
                     self.options.append(priceEquityOption_)
+        self.priceOnly = priceEquityOptionRequest.PriceOnly()
 
     # PriceEquityOptionRequestT
     def Pack(self, builder):
@@ -154,5 +174,6 @@ class PriceEquityOptionRequestT(object):
             PriceEquityOptionRequestAddPricing(builder, pricing)
         if self.options is not None:
             PriceEquityOptionRequestAddOptions(builder, options)
+        PriceEquityOptionRequestAddPriceOnly(builder, self.priceOnly)
         priceEquityOptionRequest = PriceEquityOptionRequestEnd(builder)
         return priceEquityOptionRequest

@@ -35,6 +35,9 @@ table BasisSwapResponse {
 /// Response wrapper for multiple basis swaps, in request order.
 table PriceBasisSwapResponse {
     swaps:[BasisSwapResponse] (required);
+    /// Present only when the request set `price_only`: one NPV per trade in
+    /// request order (the per-trade list is then empty).
+    npvs:[double];
 }
 
 root_type PriceBasisSwapResponse;

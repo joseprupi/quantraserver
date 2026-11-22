@@ -14,7 +14,7 @@ name or None, deprecated).
 UNIONS: {union name: {type value: member table name}}.
 """
 
-SCHEMA_HASH = 'e2da394e6d4cdb09bf7d0b716029febc30aa3d3c658a820d6d9d6f3fb4cc16bc'
+SCHEMA_HASH = 'ce017c5b0fa0d9586641908d79df9fe3034f05688c6f0ede01b295daf2aa976c'
 
 OBJECTS = {
     'quantra.BasisSwap': (False, 0, 1, (
@@ -858,6 +858,7 @@ OBJECTS = {
         ('pricing', 4, 'Obj', None, 'quantra.Pricing', False),
         ('swaps', 6, 'Vector', 'Obj', 'quantra.PriceBasisSwap', False),
         ('include_flows', 8, 'Bool', None, None, False),
+        ('price_only', 10, 'Bool', None, None, False),
     )),
     'quantra.PriceCDS': (False, 0, 1, (
         ('cds', 4, 'Obj', None, 'quantra.CDS', False),
@@ -868,6 +869,7 @@ OBJECTS = {
     'quantra.PriceCDSRequest': (False, 0, 1, (
         ('pricing', 4, 'Obj', None, 'quantra.Pricing', False),
         ('cds_list', 6, 'Vector', 'Obj', 'quantra.PriceCDS', False),
+        ('price_only', 8, 'Bool', None, None, False),
     )),
     'quantra.PriceCallableFixedRateBond': (False, 0, 1, (
         ('callable_fixed_rate_bond', 4, 'Obj', None, 'quantra.CallableFixedRateBond', False),
@@ -878,6 +880,7 @@ OBJECTS = {
     'quantra.PriceCallableFixedRateBondRequest': (False, 0, 1, (
         ('pricing', 4, 'Obj', None, 'quantra.Pricing', False),
         ('bonds', 6, 'Vector', 'Obj', 'quantra.PriceCallableFixedRateBond', False),
+        ('price_only', 8, 'Bool', None, None, False),
     )),
     'quantra.PriceCapFloor': (False, 0, 1, (
         ('cap_floor', 4, 'Obj', None, 'quantra.CapFloor', False),
@@ -890,6 +893,7 @@ OBJECTS = {
     'quantra.PriceCapFloorRequest': (False, 0, 1, (
         ('pricing', 4, 'Obj', None, 'quantra.Pricing', False),
         ('cap_floors', 6, 'Vector', 'Obj', 'quantra.PriceCapFloor', False),
+        ('price_only', 8, 'Bool', None, None, False),
     )),
     'quantra.PriceCommoditySwap': (False, 0, 1, (
         ('commodity_swap', 4, 'Obj', None, 'quantra.CommoditySwap', False),
@@ -899,6 +903,7 @@ OBJECTS = {
         ('swaps', 6, 'Vector', 'Obj', 'quantra.PriceCommoditySwap', False),
         ('include_flows', 8, 'Bool', None, None, False),
         ('include_observations', 10, 'Bool', None, None, False),
+        ('price_only', 12, 'Bool', None, None, False),
     )),
     'quantra.PriceCrossCurrencySwap': (False, 0, 1, (
         ('cross_currency_swap', 4, 'Obj', None, 'quantra.CrossCurrencySwap', False),
@@ -909,6 +914,7 @@ OBJECTS = {
         ('pricing', 4, 'Obj', None, 'quantra.Pricing', False),
         ('swaps', 6, 'Vector', 'Obj', 'quantra.PriceCrossCurrencySwap', False),
         ('include_flows', 8, 'Bool', None, None, False),
+        ('price_only', 10, 'Bool', None, None, False),
     )),
     'quantra.PriceEquityOption': (False, 0, 1, (
         ('option', 4, 'Obj', None, 'quantra.EquityOption', False),
@@ -919,6 +925,7 @@ OBJECTS = {
     'quantra.PriceEquityOptionRequest': (False, 0, 1, (
         ('pricing', 4, 'Obj', None, 'quantra.Pricing', False),
         ('options', 6, 'Vector', 'Obj', 'quantra.PriceEquityOption', False),
+        ('price_only', 8, 'Bool', None, None, False),
     )),
     'quantra.PriceFRA': (False, 0, 1, (
         ('fra', 4, 'Obj', None, 'quantra.FRA', False),
@@ -928,6 +935,7 @@ OBJECTS = {
     'quantra.PriceFRARequest': (False, 0, 1, (
         ('pricing', 4, 'Obj', None, 'quantra.Pricing', False),
         ('fras', 6, 'Vector', 'Obj', 'quantra.PriceFRA', False),
+        ('price_only', 8, 'Bool', None, None, False),
     )),
     'quantra.PriceFixedRateBond': (False, 0, 1, (
         ('fixed_rate_bond', 4, 'Obj', None, 'quantra.FixedRateBond', False),
@@ -937,6 +945,7 @@ OBJECTS = {
     'quantra.PriceFixedRateBondRequest': (False, 0, 1, (
         ('pricing', 4, 'Obj', None, 'quantra.Pricing', False),
         ('bonds', 6, 'Vector', 'Obj', 'quantra.PriceFixedRateBond', False),
+        ('price_only', 8, 'Bool', None, None, False),
     )),
     'quantra.PriceFloatingRateBond': (False, 0, 1, (
         ('floating_rate_bond', 4, 'Obj', None, 'quantra.FloatingRateBond', False),
@@ -948,6 +957,7 @@ OBJECTS = {
     'quantra.PriceFloatingRateBondRequest': (False, 0, 1, (
         ('pricing', 4, 'Obj', None, 'quantra.Pricing', False),
         ('bonds', 6, 'Vector', 'Obj', 'quantra.PriceFloatingRateBond', False),
+        ('price_only', 8, 'Bool', None, None, False),
     )),
     'quantra.PriceFxForward': (False, 0, 1, (
         ('fx_forward', 4, 'Obj', None, 'quantra.FxForward', False),
@@ -959,6 +969,7 @@ OBJECTS = {
     'quantra.PriceFxForwardRequest': (False, 0, 1, (
         ('pricing', 4, 'Obj', None, 'quantra.Pricing', False),
         ('fx_forwards', 6, 'Vector', 'Obj', 'quantra.PriceFxForward', False),
+        ('price_only', 8, 'Bool', None, None, False),
     )),
     'quantra.PriceOisSwap': (False, 0, 1, (
         ('ois_swap', 4, 'Obj', None, 'quantra.OisSwap', False),
@@ -967,6 +978,7 @@ OBJECTS = {
         ('pricing', 4, 'Obj', None, 'quantra.Pricing', False),
         ('swaps', 6, 'Vector', 'Obj', 'quantra.PriceOisSwap', False),
         ('include_flows', 8, 'Bool', None, None, False),
+        ('price_only', 10, 'Bool', None, None, False),
     )),
     'quantra.PriceSeries': (False, 0, 1, (
         ('underlying_id', 4, 'String', None, None, False),
@@ -977,6 +989,7 @@ OBJECTS = {
         ('notes', 6, 'Vector', 'Obj', 'quantra.StructuredNote', False),
         ('greeks', 8, 'Obj', None, 'quantra.StructuredNoteGreeksSpec', False),
         ('diagnostics', 10, 'Obj', None, 'quantra.StructuredNoteDiagnosticsSpec', False),
+        ('price_only', 12, 'Bool', None, None, False),
     )),
     'quantra.PriceSwaption': (False, 0, 1, (
         ('swaption', 4, 'Obj', None, 'quantra.Swaption', False),
@@ -987,6 +1000,7 @@ OBJECTS = {
         ('pricing', 4, 'Obj', None, 'quantra.Pricing', False),
         ('swaptions', 6, 'Vector', 'Obj', 'quantra.PriceSwaption', False),
         ('include_diagnostics', 8, 'Bool', None, None, False),
+        ('price_only', 10, 'Bool', None, None, False),
     )),
     'quantra.PriceVanillaSwap': (False, 0, 1, (
         ('vanilla_swap', 4, 'Obj', None, 'quantra.VanillaSwap', False),
@@ -995,10 +1009,12 @@ OBJECTS = {
         ('pricing', 4, 'Obj', None, 'quantra.Pricing', False),
         ('swaps', 6, 'Vector', 'Obj', 'quantra.PriceVanillaSwap', False),
         ('include_flows', 8, 'Bool', None, None, False),
+        ('price_only', 10, 'Bool', None, None, False),
     )),
     'quantra.PriceYearOnYearInflationCapFloorRequest': (False, 0, 1, (
         ('pricing', 4, 'Obj', None, 'quantra.Pricing', False),
         ('cap_floors', 6, 'Vector', 'Obj', 'quantra.PriceYoYInflationCapFloor', False),
+        ('price_only', 8, 'Bool', None, None, False),
     )),
     'quantra.PriceYearOnYearInflationSwap': (False, 0, 1, (
         ('year_on_year_inflation_swap', 4, 'Obj', None, 'quantra.YearOnYearInflationSwap', False),
@@ -1009,6 +1025,7 @@ OBJECTS = {
         ('pricing', 4, 'Obj', None, 'quantra.Pricing', False),
         ('swaps', 6, 'Vector', 'Obj', 'quantra.PriceYearOnYearInflationSwap', False),
         ('include_flows', 8, 'Bool', None, None, False),
+        ('price_only', 10, 'Bool', None, None, False),
     )),
     'quantra.PriceYoYInflationCapFloor': (False, 0, 1, (
         ('year_on_year_inflation_cap_floor', 4, 'Obj', None, 'quantra.YoYInflationCapFloor', False),
@@ -1024,6 +1041,7 @@ OBJECTS = {
     'quantra.PriceZeroCouponBondRequest': (False, 0, 1, (
         ('pricing', 4, 'Obj', None, 'quantra.Pricing', False),
         ('bonds', 6, 'Vector', 'Obj', 'quantra.PriceZeroCouponBond', False),
+        ('price_only', 8, 'Bool', None, None, False),
     )),
     'quantra.PriceZeroCouponInflationSwap': (False, 0, 1, (
         ('zero_coupon_inflation_swap', 4, 'Obj', None, 'quantra.ZeroCouponInflationSwap', False),
@@ -1034,6 +1052,7 @@ OBJECTS = {
         ('pricing', 4, 'Obj', None, 'quantra.Pricing', False),
         ('swaps', 6, 'Vector', 'Obj', 'quantra.PriceZeroCouponInflationSwap', False),
         ('include_flows', 8, 'Bool', None, None, False),
+        ('price_only', 10, 'Bool', None, None, False),
     )),
     'quantra.PriceZeroCouponSwap': (False, 0, 1, (
         ('zero_coupon_swap', 4, 'Obj', None, 'quantra.ZeroCouponSwap', False),
@@ -1043,6 +1062,7 @@ OBJECTS = {
     'quantra.PriceZeroCouponSwapRequest': (False, 0, 1, (
         ('pricing', 4, 'Obj', None, 'quantra.Pricing', False),
         ('swaps', 6, 'Vector', 'Obj', 'quantra.PriceZeroCouponSwap', False),
+        ('price_only', 8, 'Bool', None, None, False),
     )),
     'quantra.Pricing': (False, 0, 1, (
         ('as_of_date', 4, 'String', None, None, False),

@@ -2,6 +2,7 @@
 
 #include "enum_convert.h"
 #include "error.h"
+#include "price_only_response.h"
 #include "zero_coupon_bond_parser.h"
 
 namespace quantra {
@@ -84,6 +85,13 @@ flatbuffers::Offset<quantra::PriceZeroCouponBondResponse> ZeroCouponBondMapper::
     quantra::PriceZeroCouponBondResponseBuilder rb(builder);
     rb.add_bonds(bonds);
     return rb.Finish();
+}
+
+flatbuffers::Offset<quantra::PriceZeroCouponBondResponse> ZeroCouponBondMapper::toPriceOnlyResponse(
+    flatbuffers::grpc::MessageBuilder& builder, const ZeroCouponBondResult& result) const {
+    return PriceOnlyResponse(
+        builder, result.bonds, [](const auto& row) { return row.npv; },
+        &quantra::PriceZeroCouponBondResponseBuilder::add_bonds);
 }
 
 } // namespace quantra

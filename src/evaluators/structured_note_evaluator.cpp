@@ -717,6 +717,9 @@ NoteResultRow priceNote(
             (seas.status == StructuredNoteStatus::Called ? "Called" : "Matured") +
             ": the past already decided it, there is nothing to bump); omit `greeks`");
     }
+    // Under price_only the checks above still refuse what they refuse; nothing
+    // below computes what the response would drop (diagnostics, Greeks).
+    const bool extras = !ctx.priceOnly;
 
     if (seas.status != StructuredNoteStatus::Alive) {
         double total = 0.0;
@@ -1004,11 +1007,11 @@ NoteResultRow priceNote(
     };
 
     std::unique_ptr<PathRecords> records;
-    if (diag.distribution) {
+    if (extras && diag.distribution) {
         records = std::make_unique<PathRecords>(nObserved, static_cast<std::size_t>(cfg.paths));
     }
     std::vector<double> baseTotals;
-    if (greeks) baseTotals.assign(static_cast<std::size_t>(cfg.paths), 0.0);
+    if (extras && greeks) baseTotals.assign(static_cast<std::size_t>(cfg.paths), 0.0);
     // Floor counters of the priced simulation only (the local vols are
     // shared with the later runs).
     auto flooredLocalVol = [&](std::size_t k) -> std::shared_ptr<const mc::EdgeClampedLocalVol> {
@@ -1019,7 +1022,7 @@ NoteResultRow priceNote(
     for (std::size_t k = 0; k < nU; ++k)
         if (auto lv = flooredLocalVol(k)) lv->resetCounts();
     const mc::PathEngineResult sim =
-        runPaths(processes, base, records.get(), greeks ? &baseTotals : nullptr);
+        runPaths(processes, base, records.get(), extras && greeks ? &baseTotals : nullptr);
     for (std::size_t k = 0; k < nU; ++k) {
         if (auto lv = flooredLocalVol(k)) {
             auto& mu = row.model.underlyings[k];
@@ -1072,7 +1075,7 @@ NoteResultRow priceNote(
                noteCurve->discount(t, true);
     };
 
-    if (diag.market) {
+    if (extras && diag.market) {
         NoteMarketDiagnostics m;
         std::vector<Size> obsGrid;
         std::vector<double> obsTimes;
@@ -1134,7 +1137,7 @@ NoteResultRow priceNote(
         row.market = m;
     }
 
-    if (diag.decomposition) {
+    if (extras && diag.decomposition) {
         NoteDecompositionDiagnostics d;
         for (std::size_t e = 0; e < nFuture; ++e) {
             const FutureEvent& fe = future[e];
@@ -1159,7 +1162,7 @@ NoteResultRow priceNote(
         row.decomposition = d;
     }
 
-    if (diag.checks) {
+    if (extras && diag.checks) {
         NoteChecksDiagnostics c;
         const unsigned int perSample = cfg.antithetic ? 2u : 1u;
         for (const auto& rm : sim.runningMeans) {
@@ -1219,7 +1222,7 @@ NoteResultRow priceNote(
         row.checks = c;
     }
 
-    if (diag.distribution) {
+    if (extras && diag.distribution) {
         clock.reset();
         NoteDistributionDiagnostics d;
         const PathRecords& rec = *records;
@@ -1276,7 +1279,7 @@ NoteResultRow priceNote(
     }
 
     // --- Greeks: bump-and-reprice on the same stream ----------------------------------
-    if (greeks) {
+    if (extras && greeks) {
         const NoteGreeksRequest& g = *greeks;
         NoteGreeks out;
         out.spotBump = g.spotBump;
@@ -1397,7 +1400,7 @@ NoteResultRow priceNote(
         row.greeks = out;
     }
 
-    if (diag.timing) row.timing = clock.finish();
+    if (extras && diag.timing) row.timing = clock.finish();
     return row;
 }
 

@@ -103,10 +103,12 @@ ZeroCouponInflationSwapPerSwap priceTrade(
 
     ZeroCouponInflationSwapPerSwap out;
     out.npv = swap->NPV();
-    out.fairRate = swap->fairRate();
-    out.fixedLegBps = swap->fixedLegBPS();
-    out.fixedLegNpv = swap->fixedLegNPV();
-    out.inflationLegNpv = swap->inflationLegNPV();
+    if (!ctx.priceOnly) {
+        out.fairRate = swap->fairRate();
+        out.fixedLegBps = swap->fixedLegBPS();
+        out.fixedLegNpv = swap->fixedLegNPV();
+        out.inflationLegNpv = swap->inflationLegNPV();
+    }
     out.includeFlows = includeFlows;
 
     if (includeFlows) {

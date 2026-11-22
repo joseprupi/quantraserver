@@ -1,6 +1,7 @@
 #include "basis_swap_mapper.h"
 
 #include "error.h"
+#include "price_only_response.h"
 #include "swap_leg_mapper.h"
 
 namespace quantra {
@@ -73,6 +74,13 @@ flatbuffers::Offset<quantra::PriceBasisSwapResponse> BasisSwapMapper::toResponse
     quantra::PriceBasisSwapResponseBuilder rb(builder);
     rb.add_swaps(rowsVec);
     return rb.Finish();
+}
+
+flatbuffers::Offset<quantra::PriceBasisSwapResponse> BasisSwapMapper::toPriceOnlyResponse(
+    flatbuffers::grpc::MessageBuilder& builder, const BasisSwapResult& result) const {
+    return PriceOnlyResponse(
+        builder, result.swaps, [](const auto& row) { return row.npv; },
+        &quantra::PriceBasisSwapResponseBuilder::add_swaps);
 }
 
 } // namespace quantra

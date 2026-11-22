@@ -59,7 +59,7 @@ info:
     \ a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond\
     \ \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/bonds/fixed_rate_bond_request.json\n\
     ```\n"
-  version: 0.17.4
+  version: 0.17.5
   contact:
     name: Quantra API Support
     url: https://github.com/joseprupi/quantraserver
@@ -3087,6 +3087,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_BasisSwapResponse'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - swaps
       additionalProperties: false
@@ -8159,6 +8167,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_CallableFixedRateBondResponse'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - bonds
       additionalProperties: false
@@ -8270,6 +8286,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_CapFloorResponse'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - cap_floors
       additionalProperties: false
@@ -8344,8 +8368,6 @@ components:
         premium_leg_npv:
           type: number
           description: NPV of premium leg.
-        error:
-          $ref: '#/components/schemas/quantra_Error'
       additionalProperties: false
     quantra_PriceCDSResponse:
       type: object
@@ -8355,6 +8377,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_CDSValues'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - cds_list
       additionalProperties: false
@@ -8787,6 +8817,14 @@ components:
             entry, in request order.'
           items:
             $ref: '#/components/schemas/quantra_CommodityBuiltCurveSummary'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - swaps
       additionalProperties: false
@@ -8934,6 +8972,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_CrossCurrencySwapResponse'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - swaps
       additionalProperties: false
@@ -8972,6 +9018,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_EquityOptionResponse'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - options
       additionalProperties: false
@@ -9051,6 +9105,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_FixedRateBondResponse'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - bonds
       additionalProperties: false
@@ -9140,6 +9202,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_FloatingRateBondResponse'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - bonds
       additionalProperties: false
@@ -9202,6 +9272,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_FRAResponse'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - fras
       additionalProperties: false
@@ -9352,6 +9430,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_FxForwardResponse'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - fx_forwards
       additionalProperties: false
@@ -9482,6 +9568,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_OisSwapResponse'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - swaps
       additionalProperties: false
@@ -9514,6 +9608,18 @@ components:
             (coupons
 
             and notional exchanges) in payment order.'
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       additionalProperties: false
     quantra_PriceCallableFixedRateBond:
       type: object
@@ -9568,6 +9674,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_PriceCallableFixedRateBond'
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       additionalProperties: false
     quantra_PriceCapFloor:
       type: object
@@ -9603,6 +9721,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_PriceCapFloor'
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       additionalProperties: false
     quantra_PriceCDS:
       type: object
@@ -9631,6 +9761,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_PriceCDS'
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       additionalProperties: false
     quantra_PriceCommoditySwap:
       type: object
@@ -9664,6 +9806,18 @@ components:
             day.
 
             Needs `include_flows`: true without it is a 400.'
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       required:
       - pricing
       - swaps
@@ -9721,6 +9875,18 @@ components:
             (coupons
 
             and notional exchanges) in payment order.'
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       additionalProperties: false
     quantra_PriceEquityOption:
       type: object
@@ -9760,6 +9926,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_PriceEquityOption'
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       additionalProperties: false
     quantra_PriceFixedRateBond:
       type: object
@@ -9782,6 +9960,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_PriceFixedRateBond'
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       additionalProperties: false
     quantra_PriceFloatingRateBond:
       type: object
@@ -9808,6 +9998,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_PriceFloatingRateBond'
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       additionalProperties: false
     quantra_PriceFRA:
       type: object
@@ -9833,6 +10035,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_PriceFRA'
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       additionalProperties: false
     quantra_PriceFxForward:
       type: object
@@ -9890,6 +10104,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_PriceFxForward'
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       additionalProperties: false
     quantra_PriceOisSwap:
       type: object
@@ -9920,6 +10146,18 @@ components:
             (coupons
 
             and notional exchanges) in payment order.'
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       additionalProperties: false
     quantra_QuantoSpec:
       type: object
@@ -10653,6 +10891,18 @@ components:
           $ref: '#/components/schemas/quantra_StructuredNoteGreeksSpec'
         diagnostics:
           $ref: '#/components/schemas/quantra_StructuredNoteDiagnosticsSpec'
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       required:
       - notes
       additionalProperties: false
@@ -10759,6 +11009,18 @@ components:
             block per
 
             unique SABR-kind vol surface referenced by `swaptions`. Default false.'
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       additionalProperties: false
     quantra_PriceVanillaSwap:
       type: object
@@ -10790,6 +11052,18 @@ components:
             (coupons
 
             and notional exchanges) in payment order.'
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       additionalProperties: false
     quantra_YoYInflationCapFloor:
       type: object
@@ -10888,6 +11162,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_PriceYoYInflationCapFloor'
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       additionalProperties: false
     quantra_YearOnYearInflationSwap:
       type: object
@@ -10953,6 +11239,18 @@ components:
         include_flows:
           type: boolean
           description: Include detailed cashflows in response.
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       additionalProperties: false
     quantra_ZeroCouponBond:
       type: object
@@ -11012,6 +11310,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_PriceZeroCouponBond'
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       additionalProperties: false
     quantra_ZeroCouponInflationSwap:
       type: object
@@ -11089,6 +11399,18 @@ components:
         include_flows:
           type: boolean
           description: Include detailed cashflows in response.
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       additionalProperties: false
     quantra_ZeroCouponSwap:
       type: object
@@ -11180,6 +11502,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_PriceZeroCouponSwap'
+        price_only:
+          type: boolean
+          description: 'When true the response carries only the prices: `npvs` holds
+            one NPV
+
+            per trade in request order and the per-trade list is empty (no flows,
+
+            fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+
+            full response reports; a request the engine refuses is refused the
+
+            same way. Absent or false: the full response.'
       additionalProperties: false
     quantra_VolSurfaceType:
       type: string
@@ -12551,6 +12885,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_StructuredNoteResult'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - notes
       additionalProperties: false
@@ -12743,6 +13085,14 @@ components:
             sets `include_diagnostics=true`. Empty/absent otherwise.'
           items:
             $ref: '#/components/schemas/quantra_SwaptionVolDiagnostics'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - swaptions
       additionalProperties: false
@@ -13771,6 +14121,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_VanillaSwapResponse'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - swaps
       additionalProperties: false
@@ -13795,6 +14153,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_YoYInflationCapFloorResponse'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - cap_floors
       additionalProperties: false
@@ -13833,6 +14199,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_YearOnYearInflationSwapResponse'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - swaps
       additionalProperties: false
@@ -13875,6 +14249,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_ZeroCouponBondResponse'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - bonds
       additionalProperties: false
@@ -13909,6 +14291,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_ZeroCouponInflationSwapResponse'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - swaps
       additionalProperties: false
@@ -13950,6 +14340,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_ZeroCouponSwapResponse'
+        npvs:
+          type: array
+          description: 'Present only when the request set `price_only`: one NPV per
+            trade in
+
+            request order (the per-trade list is then empty).'
+          items:
+            type: number
       required:
       - swaps
       additionalProperties: false

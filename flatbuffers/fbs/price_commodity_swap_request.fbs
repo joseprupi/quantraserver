@@ -21,6 +21,12 @@ table PriceCommoditySwapRequest {
     /// When true every flow lists its observations, one per pricing day.
     /// Needs `include_flows`: true without it is a 400.
     include_observations:bool = false;
+    /// When true the response carries only the prices: `npvs` holds one NPV
+    /// per trade in request order and the per-trade list is empty (no flows,
+    /// fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+    /// full response reports; a request the engine refuses is refused the
+    /// same way. Absent or false: the full response.
+    price_only:bool = false;
 }
 
 root_type PriceCommoditySwapRequest;

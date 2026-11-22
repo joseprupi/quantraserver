@@ -25,6 +25,12 @@ public:
     flatbuffers::Offset<quantra::PriceZeroCouponInflationSwapResponse> toResponse(
         flatbuffers::grpc::MessageBuilder& builder,
         const ZeroCouponInflationSwapResult& result) const;
+
+    /// The response of a `price_only` request: one NPV per trade
+    /// (price_only_response.h).
+    flatbuffers::Offset<quantra::PriceZeroCouponInflationSwapResponse> toPriceOnlyResponse(
+        flatbuffers::grpc::MessageBuilder& builder,
+        const ZeroCouponInflationSwapResult& result) const;
 };
 
 } // namespace quantra

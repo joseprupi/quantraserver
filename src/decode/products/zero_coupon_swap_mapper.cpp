@@ -3,6 +3,7 @@
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "price_only_response.h"
 #include "request_validation.h"
 
 namespace quantra {
@@ -131,6 +132,13 @@ flatbuffers::Offset<quantra::PriceZeroCouponSwapResponse> ZeroCouponSwapMapper::
     quantra::PriceZeroCouponSwapResponseBuilder rb(builder);
     rb.add_swaps(swapsVec);
     return rb.Finish();
+}
+
+flatbuffers::Offset<quantra::PriceZeroCouponSwapResponse> ZeroCouponSwapMapper::toPriceOnlyResponse(
+    flatbuffers::grpc::MessageBuilder& builder, const ZeroCouponSwapResult& result) const {
+    return PriceOnlyResponse(
+        builder, result.swaps, [](const auto& row) { return row.npv; },
+        &quantra::PriceZeroCouponSwapResponseBuilder::add_swaps);
 }
 
 } // namespace quantra

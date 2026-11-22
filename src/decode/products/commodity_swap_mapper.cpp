@@ -4,6 +4,7 @@
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "price_only_response.h"
 #include "request_validation.h"
 
 #include <string>
@@ -445,6 +446,13 @@ flatbuffers::Offset<quantra::PriceCommoditySwapResponse> CommoditySwapMapper::to
         rb.add_curve_builds(buildsVec);
     }
     return rb.Finish();
+}
+
+flatbuffers::Offset<quantra::PriceCommoditySwapResponse> CommoditySwapMapper::toPriceOnlyResponse(
+    flatbuffers::grpc::MessageBuilder& builder, const CommoditySwapResultSet& result) const {
+    return PriceOnlyResponse(
+        builder, result.swaps, [](const auto& row) { return row.npv; },
+        &quantra::PriceCommoditySwapResponseBuilder::add_swaps);
 }
 
 } // namespace quantra

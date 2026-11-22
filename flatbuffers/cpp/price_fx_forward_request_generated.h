@@ -176,6 +176,7 @@ struct PriceFxForwardRequestT : public ::flatbuffers::NativeTable {
   typedef PriceFxForwardRequest TableType;
   std::unique_ptr<quantra::PricingT> pricing{};
   std::vector<std::unique_ptr<quantra::PriceFxForwardT>> fx_forwards{};
+  bool price_only = false;
   PriceFxForwardRequestT() = default;
   PriceFxForwardRequestT(const PriceFxForwardRequestT &o);
   PriceFxForwardRequestT(PriceFxForwardRequestT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -188,13 +189,22 @@ struct PriceFxForwardRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Ta
   typedef PriceFxForwardRequestBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_PRICING = 4,
-    VT_FX_FORWARDS = 6
+    VT_FX_FORWARDS = 6,
+    VT_PRICE_ONLY = 8
   };
   const quantra::Pricing *pricing() const {
     return GetPointer<const quantra::Pricing *>(VT_PRICING);
   }
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceFxForward>> *fx_forwards() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceFxForward>> *>(VT_FX_FORWARDS);
+  }
+  /// When true the response carries only the prices: `npvs` holds one NPV
+  /// per trade in request order and the per-trade list is empty (no flows,
+  /// fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+  /// full response reports; a request the engine refuses is refused the
+  /// same way. Absent or false: the full response.
+  bool price_only() const {
+    return GetField<uint8_t>(VT_PRICE_ONLY, 0) != 0;
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -203,6 +213,7 @@ struct PriceFxForwardRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Ta
            VerifyOffset(verifier, VT_FX_FORWARDS) &&
            verifier.VerifyVector(fx_forwards()) &&
            verifier.VerifyVectorOfTables(fx_forwards()) &&
+           VerifyField<uint8_t>(verifier, VT_PRICE_ONLY, 1) &&
            verifier.EndTable();
   }
   PriceFxForwardRequestT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -220,6 +231,9 @@ struct PriceFxForwardRequestBuilder {
   void add_fx_forwards(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceFxForward>>> fx_forwards) {
     fbb_.AddOffset(PriceFxForwardRequest::VT_FX_FORWARDS, fx_forwards);
   }
+  void add_price_only(bool price_only) {
+    fbb_.AddElement<uint8_t>(PriceFxForwardRequest::VT_PRICE_ONLY, static_cast<uint8_t>(price_only), 0);
+  }
   explicit PriceFxForwardRequestBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -234,22 +248,26 @@ struct PriceFxForwardRequestBuilder {
 inline ::flatbuffers::Offset<PriceFxForwardRequest> CreatePriceFxForwardRequest(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Pricing> pricing = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceFxForward>>> fx_forwards = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceFxForward>>> fx_forwards = 0,
+    bool price_only = false) {
   PriceFxForwardRequestBuilder builder_(_fbb);
   builder_.add_fx_forwards(fx_forwards);
   builder_.add_pricing(pricing);
+  builder_.add_price_only(price_only);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<PriceFxForwardRequest> CreatePriceFxForwardRequestDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Pricing> pricing = 0,
-    const std::vector<::flatbuffers::Offset<quantra::PriceFxForward>> *fx_forwards = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::PriceFxForward>> *fx_forwards = nullptr,
+    bool price_only = false) {
   auto fx_forwards__ = fx_forwards ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PriceFxForward>>(*fx_forwards) : 0;
   return quantra::CreatePriceFxForwardRequest(
       _fbb,
       pricing,
-      fx_forwards__);
+      fx_forwards__,
+      price_only);
 }
 
 ::flatbuffers::Offset<PriceFxForwardRequest> CreatePriceFxForwardRequest(::flatbuffers::FlatBufferBuilder &_fbb, const PriceFxForwardRequestT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -310,7 +328,8 @@ inline ::flatbuffers::Offset<PriceFxForward> CreatePriceFxForward(::flatbuffers:
 }
 
 inline PriceFxForwardRequestT::PriceFxForwardRequestT(const PriceFxForwardRequestT &o)
-      : pricing((o.pricing) ? new quantra::PricingT(*o.pricing) : nullptr) {
+      : pricing((o.pricing) ? new quantra::PricingT(*o.pricing) : nullptr),
+        price_only(o.price_only) {
   fx_forwards.reserve(o.fx_forwards.size());
   for (const auto &fx_forwards_ : o.fx_forwards) { fx_forwards.emplace_back((fx_forwards_) ? new quantra::PriceFxForwardT(*fx_forwards_) : nullptr); }
 }
@@ -318,6 +337,7 @@ inline PriceFxForwardRequestT::PriceFxForwardRequestT(const PriceFxForwardReques
 inline PriceFxForwardRequestT &PriceFxForwardRequestT::operator=(PriceFxForwardRequestT o) FLATBUFFERS_NOEXCEPT {
   std::swap(pricing, o.pricing);
   std::swap(fx_forwards, o.fx_forwards);
+  std::swap(price_only, o.price_only);
   return *this;
 }
 
@@ -332,6 +352,7 @@ inline void PriceFxForwardRequest::UnPackTo(PriceFxForwardRequestT *_o, const ::
   (void)_resolver;
   { auto _e = pricing(); if (_e) { if(_o->pricing) { _e->UnPackTo(_o->pricing.get(), _resolver); } else { _o->pricing = std::unique_ptr<quantra::PricingT>(_e->UnPack(_resolver)); } } else if (_o->pricing) { _o->pricing.reset(); } }
   { auto _e = fx_forwards(); if (_e) { _o->fx_forwards.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->fx_forwards[_i]) { _e->Get(_i)->UnPackTo(_o->fx_forwards[_i].get(), _resolver); } else { _o->fx_forwards[_i] = std::unique_ptr<quantra::PriceFxForwardT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->fx_forwards.resize(0); } }
+  { auto _e = price_only(); _o->price_only = _e; }
 }
 
 inline ::flatbuffers::Offset<PriceFxForwardRequest> PriceFxForwardRequest::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceFxForwardRequestT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -344,10 +365,12 @@ inline ::flatbuffers::Offset<PriceFxForwardRequest> CreatePriceFxForwardRequest(
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceFxForwardRequestT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _pricing = _o->pricing ? CreatePricing(_fbb, _o->pricing.get(), _rehasher) : 0;
   auto _fx_forwards = _o->fx_forwards.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PriceFxForward>> (_o->fx_forwards.size(), [](size_t i, _VectorArgs *__va) { return CreatePriceFxForward(*__va->__fbb, __va->__o->fx_forwards[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _price_only = _o->price_only;
   return quantra::CreatePriceFxForwardRequest(
       _fbb,
       _pricing,
-      _fx_forwards);
+      _fx_forwards,
+      _price_only);
 }
 
 inline const quantra::PriceFxForwardRequest *GetPriceFxForwardRequest(const void *buf) {

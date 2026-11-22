@@ -61,8 +61,20 @@ class PriceFRARequest(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         return o == 0
 
+    # When true the response carries only the prices: `npvs` holds one NPV
+    # per trade in request order and the per-trade list is empty (no flows,
+    # fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+    # full response reports; a request the engine refuses is refused the
+    # same way. Absent or false: the full response.
+    # PriceFRARequest
+    def PriceOnly(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def PriceFRARequestStart(builder):
-    builder.StartObject(2)
+    builder.StartObject(3)
 
 def Start(builder):
     PriceFRARequestStart(builder)
@@ -85,6 +97,12 @@ def PriceFRARequestStartFrasVector(builder, numElems):
 def StartFrasVector(builder, numElems):
     return PriceFRARequestStartFrasVector(builder, numElems)
 
+def PriceFRARequestAddPriceOnly(builder, priceOnly):
+    builder.PrependBoolSlot(2, priceOnly, 0)
+
+def AddPriceOnly(builder, priceOnly):
+    PriceFRARequestAddPriceOnly(builder, priceOnly)
+
 def PriceFRARequestEnd(builder):
     return builder.EndObject()
 
@@ -102,6 +120,7 @@ class PriceFRARequestT(object):
     def __init__(self):
         self.pricing = None  # type: Optional[PricingT]
         self.fras = None  # type: List[PriceFRAT]
+        self.priceOnly = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -136,6 +155,7 @@ class PriceFRARequestT(object):
                     from quantra.PriceFRA import PriceFRAT
                     priceFRA_ = PriceFRAT.InitFromObj(priceFrarequest.Fras(i))
                     self.fras.append(priceFRA_)
+        self.priceOnly = priceFrarequest.PriceOnly()
 
     # PriceFRARequestT
     def Pack(self, builder):
@@ -154,5 +174,6 @@ class PriceFRARequestT(object):
             PriceFRARequestAddPricing(builder, pricing)
         if self.fras is not None:
             PriceFRARequestAddFras(builder, fras)
+        PriceFRARequestAddPriceOnly(builder, self.priceOnly)
         priceFrarequest = PriceFRARequestEnd(builder)
         return priceFrarequest

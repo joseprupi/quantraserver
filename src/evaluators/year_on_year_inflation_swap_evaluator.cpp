@@ -106,12 +106,14 @@ YearOnYearInflationSwapPerSwap priceTrade(
 
     YearOnYearInflationSwapPerSwap out;
     out.npv = swap->NPV();
-    out.fairRate = swap->fairRate();
-    out.fairSpread = swap->fairSpread();
-    out.fixedLegBps = swap->legBPS(0);
-    out.yoyLegBps = swap->legBPS(1);
-    out.fixedLegNpv = swap->fixedLegNPV();
-    out.yoyLegNpv = swap->yoyLegNPV();
+    if (!ctx.priceOnly) {
+        out.fairRate = swap->fairRate();
+        out.fairSpread = swap->fairSpread();
+        out.fixedLegBps = swap->legBPS(0);
+        out.yoyLegBps = swap->legBPS(1);
+        out.fixedLegNpv = swap->fixedLegNPV();
+        out.yoyLegNpv = swap->yoyLegNPV();
+    }
     out.includeFlows = includeFlows;
 
     if (includeFlows) {

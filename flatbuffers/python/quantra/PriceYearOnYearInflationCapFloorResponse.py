@@ -50,8 +50,37 @@ class PriceYearOnYearInflationCapFloorResponse(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         return o == 0
 
+    # Present only when the request set `price_only`: one NPV per trade in
+    # request order (the per-trade list is then empty).
+    # PriceYearOnYearInflationCapFloorResponse
+    def Npvs(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            a = self._tab.Vector(o)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
+        return 0
+
+    # PriceYearOnYearInflationCapFloorResponse
+    def NpvsAsNumpy(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
+        return 0
+
+    # PriceYearOnYearInflationCapFloorResponse
+    def NpvsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # PriceYearOnYearInflationCapFloorResponse
+    def NpvsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        return o == 0
+
 def PriceYearOnYearInflationCapFloorResponseStart(builder):
-    builder.StartObject(1)
+    builder.StartObject(2)
 
 def Start(builder):
     PriceYearOnYearInflationCapFloorResponseStart(builder)
@@ -67,6 +96,18 @@ def PriceYearOnYearInflationCapFloorResponseStartCapFloorsVector(builder, numEle
 
 def StartCapFloorsVector(builder, numElems):
     return PriceYearOnYearInflationCapFloorResponseStartCapFloorsVector(builder, numElems)
+
+def PriceYearOnYearInflationCapFloorResponseAddNpvs(builder, npvs):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(npvs), 0)
+
+def AddNpvs(builder, npvs):
+    PriceYearOnYearInflationCapFloorResponseAddNpvs(builder, npvs)
+
+def PriceYearOnYearInflationCapFloorResponseStartNpvsVector(builder, numElems):
+    return builder.StartVector(8, numElems, 8)
+
+def StartNpvsVector(builder, numElems):
+    return PriceYearOnYearInflationCapFloorResponseStartNpvsVector(builder, numElems)
 
 def PriceYearOnYearInflationCapFloorResponseEnd(builder):
     return builder.EndObject()
@@ -84,6 +125,7 @@ class PriceYearOnYearInflationCapFloorResponseT(object):
     # PriceYearOnYearInflationCapFloorResponseT
     def __init__(self):
         self.capFloors = None  # type: List[YoYInflationCapFloorResponseT]
+        self.npvs = None  # type: List[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -115,6 +157,13 @@ class PriceYearOnYearInflationCapFloorResponseT(object):
                     from quantra.YoYInflationCapFloorResponse import YoYInflationCapFloorResponseT
                     yoYInflationCapFloorResponse_ = YoYInflationCapFloorResponseT.InitFromObj(priceYearOnYearInflationCapFloorResponse.CapFloors(i))
                     self.capFloors.append(yoYInflationCapFloorResponse_)
+        if not priceYearOnYearInflationCapFloorResponse.NpvsIsNone():
+            if np is None:
+                self.npvs = []
+                for i in range(priceYearOnYearInflationCapFloorResponse.NpvsLength()):
+                    self.npvs.append(priceYearOnYearInflationCapFloorResponse.Npvs(i))
+            else:
+                self.npvs = priceYearOnYearInflationCapFloorResponse.NpvsAsNumpy()
 
     # PriceYearOnYearInflationCapFloorResponseT
     def Pack(self, builder):
@@ -126,8 +175,18 @@ class PriceYearOnYearInflationCapFloorResponseT(object):
             for i in reversed(range(len(self.capFloors))):
                 builder.PrependUOffsetTRelative(capFloorslist[i])
             capFloors = builder.EndVector()
+        if self.npvs is not None:
+            if np is not None and type(self.npvs) is np.ndarray:
+                npvs = builder.CreateNumpyVector(self.npvs)
+            else:
+                PriceYearOnYearInflationCapFloorResponseStartNpvsVector(builder, len(self.npvs))
+                for i in reversed(range(len(self.npvs))):
+                    builder.PrependFloat64(self.npvs[i])
+                npvs = builder.EndVector()
         PriceYearOnYearInflationCapFloorResponseStart(builder)
         if self.capFloors is not None:
             PriceYearOnYearInflationCapFloorResponseAddCapFloors(builder, capFloors)
+        if self.npvs is not None:
+            PriceYearOnYearInflationCapFloorResponseAddNpvs(builder, npvs)
         priceYearOnYearInflationCapFloorResponse = PriceYearOnYearInflationCapFloorResponseEnd(builder)
         return priceYearOnYearInflationCapFloorResponse

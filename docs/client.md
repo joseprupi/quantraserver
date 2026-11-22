@@ -346,6 +346,70 @@ calibration being repeated in every request.
 `clients/python/examples/price_batch.py` prices a synthetic bond book over
 several markets.
 
+## Prices only
+
+Every pricing request with a trade list takes `price_only` (default false;
+`docs/http-api.md`, "Prices only"). With it the response holds one NPV per
+trade in `npvs`, in request order and equal bit for bit to the NPVs of the
+full response, and an empty per-trade list; the engine skips the work that
+feeds only the dropped fields. Without it nothing changes.
+
+- **Python, single calls**: set `request.priceOnly = True` on the request
+  object; `response_npvs(response)` (from `quantra_client`) returns the NPVs,
+  a numpy array when numpy is importable, else a list (`response.Npvs(j)`,
+  `response.NpvsLength()` and `response.NpvsAsNumpy()` are the generated
+  accessors).
+- **Python, `price_batch`**: object groups carry the flag on their request
+  object; block groups take it as a request field
+  (`BlockGroup(blocks, pricing_block=market, price_only=True)`,
+  `assemble_request(..., price_only=True)`). `GroupResult.npvs()` returns the
+  NPVs of the group in input trade order across its requests (NaN for a
+  failed trade), a numpy array when numpy is importable, else a list; it
+  reads `Npv()` of each entry for a group priced without the flag.
+  `GroupResult.entry(i)` of a price-only result raises `ValueError` (there is
+  no entry to read).
+- **C++**: the generated code is enough. Set the flag with the request
+  builder (`PriceVanillaSwapRequestBuilder::add_price_only(true)`) or, through
+  the JSON client methods, `"price_only": true` in the body; read
+  `response->npvs()` (a `flatbuffers::Vector<double>`; `swaps()` is empty).
+
+Measured on one engine worker called directly over gRPC, about 2,000 copies
+of one example trade per request, warm market (the machine was shared;
+engine times are ranges of three runs):
+
+| Method | Trades | Call, full (s) | Call, price-only (s) | Response bytes, full | Response bytes, price-only | Python: `Npv()` per entry (ms) | Python: full unpack (ms) | Python: price-only, no numpy (ms) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Fixed-rate bond | 2,000 | 0.022–0.037 | 0.022 | 56,072 | 16,032 | 16 | 48 | 4.5 |
+| Floating-rate bond | 2,000 | 0.095–0.097 | 0.095–0.098 | 56,072 | 16,032 | 15 | 51 | 4.5 |
+| Zero-coupon bond | 2,000 | 0.024–0.025 | 0.011–0.012 | 232,072 | 16,032 | 15 | 54 | 4.6 |
+| Callable bond | 33 | 2.95–2.96 | 3.00–3.07 | 1,776 | 296 | 0.3 | 0.9 | 0.3 |
+| Vanilla swap | 2,000 | 0.124–0.129 | 0.112–0.117 | 184,056 | 16,032 | 15 | 93 | 4.5 |
+| OIS swap | 2,000 | 0.378–0.382 | 0.377–0.387 | 184,056 | 16,032 | 17 | 80 | 4.6 |
+| Basis swap | 2,000 | 0.266–0.277 | 0.264–0.269 | 168,064 | 16,032 | 17 | 76 | 4.5 |
+| Zero-coupon swap | 2,000 | 0.056–0.057 | 0.050 | 136,072 | 16,032 | 18 | 41 | 4.6 |
+| FRA | 2,000 | 0.012–0.013 | 0.007 | 104,056 | 16,032 | 10 | 29 | 4.6 |
+| FX forward | 2,000 | 0.022–0.024 | 0.021 | 200,056 | 16,032 | 19 | 44 | 4.6 |
+| Cross-currency swap | 2,000 | 0.561–0.562 | 0.554–0.569 | 264,072 | 16,032 | 16 | 99 | 4.7 |
+| Commodity swap | 391 | 0.317–0.325 | 0.033 | 6,934,800 | 3,168 | 3.5 | 1,928 | 0.9 |
+| Structured note | 58 | 2.90–2.96 | 2.84–2.89 | 159,792 | 496 | 0.6 | 60 | 0.2 |
+| Equity option | 2,000 | 0.031–0.040 | 0.009–0.010 | 232,048 | 16,032 | 10 | 52 | 4.3 |
+| Cap/floor | 2,000 | 0.171–0.185 | 0.157–0.161 | 72,040 | 16,032 | 17 | 34 | 4.5 |
+| Swaption | 2,000 | 0.144–0.149 | 0.120–0.121 | 200,104 | 16,040 | 16 | 91 | 4.3 |
+| CDS | 2,000 | 1.14–1.16 | 1.13–1.16 | 104,072 | 16,032 | 17 | 31 | 4.5 |
+| Zero-coupon inflation swap | 2,000 | 0.021–0.037 | 0.020 | 120,056 | 16,032 | 16 | 34 | 4.4 |
+| Year-on-year inflation swap | 2,000 | 0.060–0.061 | 0.056–0.058 | 152,056 | 16,032 | 17 | 41 | 4.4 |
+| YoY inflation cap/floor | 2,000 | 0.051–0.054 | 0.043 | 56,040 | 16,032 | 17 | 22 | 4.6 |
+
+"Call" is the gRPC call as the client sees it (pricing, response building and
+transfer). With numpy importable, reading the 2,000 price-only NPVs takes
+about 0.07 ms. Fewer trades where 2,000 copies would take much longer than
+3 s per call or exceed the 8 MiB message limit (commodity swaps answer with
+their flows: 6.9 MB for 391 swaps). Price-only saves little where the NPV is
+nearly all the work (callable bonds on a tree, CDS, structured notes, OIS
+and cross-currency swaps) and most where the dropped outputs cost (equity
+option implied vols and greeks, zero-coupon bond analytics, FRA forward
+rates, commodity flows); the client side saves the decoding in every case.
+
 ## Python client: request blocks
 
 `clients/python/quantra_client/blocks.py` builds requests from trades and

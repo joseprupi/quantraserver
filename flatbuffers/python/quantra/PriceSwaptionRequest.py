@@ -70,8 +70,20 @@ class PriceSwaptionRequest(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
+    # When true the response carries only the prices: `npvs` holds one NPV
+    # per trade in request order and the per-trade list is empty (no flows,
+    # fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+    # full response reports; a request the engine refuses is refused the
+    # same way. Absent or false: the full response.
+    # PriceSwaptionRequest
+    def PriceOnly(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def PriceSwaptionRequestStart(builder):
-    builder.StartObject(3)
+    builder.StartObject(4)
 
 def Start(builder):
     PriceSwaptionRequestStart(builder)
@@ -100,6 +112,12 @@ def PriceSwaptionRequestAddIncludeDiagnostics(builder, includeDiagnostics):
 def AddIncludeDiagnostics(builder, includeDiagnostics):
     PriceSwaptionRequestAddIncludeDiagnostics(builder, includeDiagnostics)
 
+def PriceSwaptionRequestAddPriceOnly(builder, priceOnly):
+    builder.PrependBoolSlot(3, priceOnly, 0)
+
+def AddPriceOnly(builder, priceOnly):
+    PriceSwaptionRequestAddPriceOnly(builder, priceOnly)
+
 def PriceSwaptionRequestEnd(builder):
     return builder.EndObject()
 
@@ -118,6 +136,7 @@ class PriceSwaptionRequestT(object):
         self.pricing = None  # type: Optional[PricingT]
         self.swaptions = None  # type: List[PriceSwaptionT]
         self.includeDiagnostics = False  # type: bool
+        self.priceOnly = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -153,6 +172,7 @@ class PriceSwaptionRequestT(object):
                     priceSwaption_ = PriceSwaptionT.InitFromObj(priceSwaptionRequest.Swaptions(i))
                     self.swaptions.append(priceSwaption_)
         self.includeDiagnostics = priceSwaptionRequest.IncludeDiagnostics()
+        self.priceOnly = priceSwaptionRequest.PriceOnly()
 
     # PriceSwaptionRequestT
     def Pack(self, builder):
@@ -172,5 +192,6 @@ class PriceSwaptionRequestT(object):
         if self.swaptions is not None:
             PriceSwaptionRequestAddSwaptions(builder, swaptions)
         PriceSwaptionRequestAddIncludeDiagnostics(builder, self.includeDiagnostics)
+        PriceSwaptionRequestAddPriceOnly(builder, self.priceOnly)
         priceSwaptionRequest = PriceSwaptionRequestEnd(builder)
         return priceSwaptionRequest

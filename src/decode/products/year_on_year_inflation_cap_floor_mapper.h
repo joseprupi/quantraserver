@@ -24,6 +24,11 @@ public:
 
     flatbuffers::Offset<quantra::PriceYearOnYearInflationCapFloorResponse> toResponse(
         flatbuffers::grpc::MessageBuilder& builder, const YoYInflationCapFloorResult& result) const;
+
+    /// The response of a `price_only` request: one NPV per trade
+    /// (price_only_response.h).
+    flatbuffers::Offset<quantra::PriceYearOnYearInflationCapFloorResponse> toPriceOnlyResponse(
+        flatbuffers::grpc::MessageBuilder& builder, const YoYInflationCapFloorResult& result) const;
 };
 
 } // namespace quantra

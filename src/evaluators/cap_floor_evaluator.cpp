@@ -157,6 +157,9 @@ CapFloorPerTrade priceTrade(
 
     CapFloorPerTrade out;
     out.npv = capFloor->NPV();
+    if (ctx.priceOnly) {
+        return out; // no ATM rate (a swap valued per trade), no caplet rows
+    }
     out.atmRate = capFloor->atmRate(*discIt->second->currentLink());
 
     if (trade.includeDetails) {

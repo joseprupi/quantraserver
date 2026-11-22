@@ -266,7 +266,12 @@ BuiltSwapLeg BuildSwapLeg(
     // that date excluded (includeSettlementDateFlows = false).
     const QuantLib::Date valueDate = out.discount->referenceDate();
     out.npvOwn = QuantLib::CashFlows::npv(out.full, *out.discount, false, valueDate, valueDate);
-    out.bpsOwn = QuantLib::CashFlows::bps(out.coupons, *out.discount, false, valueDate, valueDate);
+    // The bps feeds only the fair rate / spread, absent from a price-only
+    // response: left at 0 there, which the fair-value solves skip.
+    if (!ctx.priceOnly) {
+        out.bpsOwn =
+            QuantLib::CashFlows::bps(out.coupons, *out.discount, false, valueDate, valueDate);
+    }
     return out;
 }
 

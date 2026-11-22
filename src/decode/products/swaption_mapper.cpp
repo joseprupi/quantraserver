@@ -6,6 +6,7 @@
 #include "error.h"
 #include "eval_date_guard.h"
 #include "index_registry_builder.h"
+#include "price_only_response.h"
 #include "roll_offset.h"
 #include "swap_leg_mapper.h"
 #include "swaption_vol_diagnostics.h"
@@ -256,7 +257,8 @@ SwaptionInputs SwaptionMapper::toInputs(const quantra::PriceSwaptionRequest* req
     // use an EvalDateGuard to restore on exit, leaking nothing into the build.
     const auto* pricing = req->pricing();
     const auto* options = pricing ? pricing->options() : nullptr;
-    if (options && options->swaption_pricing_rebump()) {
+    // Not under price_only: the rebump greeks are not computed there.
+    if (options && options->swaption_pricing_rebump() && !req->price_only()) {
         if (!pricing->as_of_date()) {
             QUANTRA_INVALID_ARGUMENT("as_of_date is required");
         }
@@ -371,6 +373,13 @@ flatbuffers::Offset<quantra::PriceSwaptionResponse> SwaptionMapper::toResponse(
         rb.add_diagnostics(diagVec);
     }
     return rb.Finish();
+}
+
+flatbuffers::Offset<quantra::PriceSwaptionResponse> SwaptionMapper::toPriceOnlyResponse(
+    flatbuffers::grpc::MessageBuilder& builder, const SwaptionResult& result) const {
+    return PriceOnlyResponse(
+        builder, result.values, [](const auto& row) { return row.npv; },
+        &quantra::PriceSwaptionResponseBuilder::add_swaptions);
 }
 
 } // namespace quantra

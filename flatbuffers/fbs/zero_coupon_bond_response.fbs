@@ -21,6 +21,9 @@ table ZeroCouponBondResponse {
 /// Response wrapper for multiple zero-coupon bonds.
 table PriceZeroCouponBondResponse {
     bonds:[ZeroCouponBondResponse] (required);
+    /// Present only when the request set `price_only`: one NPV per trade in
+    /// request order (the per-trade list is then empty).
+    npvs:[double];
 }
 
 root_type PriceZeroCouponBondResponse;

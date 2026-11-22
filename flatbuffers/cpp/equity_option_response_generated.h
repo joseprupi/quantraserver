@@ -221,6 +221,7 @@ inline ::flatbuffers::Offset<EquityOptionResponse> CreateEquityOptionResponseDir
 struct PriceEquityOptionResponseT : public ::flatbuffers::NativeTable {
   typedef PriceEquityOptionResponse TableType;
   std::vector<std::unique_ptr<quantra::EquityOptionResponseT>> options{};
+  std::vector<double> npvs{};
   PriceEquityOptionResponseT() = default;
   PriceEquityOptionResponseT(const PriceEquityOptionResponseT &o);
   PriceEquityOptionResponseT(PriceEquityOptionResponseT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -232,16 +233,24 @@ struct PriceEquityOptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers
   typedef PriceEquityOptionResponseT NativeTableType;
   typedef PriceEquityOptionResponseBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_OPTIONS = 4
+    VT_OPTIONS = 4,
+    VT_NPVS = 6
   };
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityOptionResponse>> *options() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityOptionResponse>> *>(VT_OPTIONS);
+  }
+  /// Present only when the request set `price_only`: one NPV per trade in
+  /// request order (the per-trade list is then empty).
+  const ::flatbuffers::Vector<double> *npvs() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_NPVS);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_OPTIONS) &&
            verifier.VerifyVector(options()) &&
            verifier.VerifyVectorOfTables(options()) &&
+           VerifyOffset(verifier, VT_NPVS) &&
+           verifier.VerifyVector(npvs()) &&
            verifier.EndTable();
   }
   PriceEquityOptionResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -255,6 +264,9 @@ struct PriceEquityOptionResponseBuilder {
   ::flatbuffers::uoffset_t start_;
   void add_options(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityOptionResponse>>> options) {
     fbb_.AddOffset(PriceEquityOptionResponse::VT_OPTIONS, options);
+  }
+  void add_npvs(::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs) {
+    fbb_.AddOffset(PriceEquityOptionResponse::VT_NPVS, npvs);
   }
   explicit PriceEquityOptionResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -270,19 +282,24 @@ struct PriceEquityOptionResponseBuilder {
 
 inline ::flatbuffers::Offset<PriceEquityOptionResponse> CreatePriceEquityOptionResponse(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityOptionResponse>>> options = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityOptionResponse>>> options = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs = 0) {
   PriceEquityOptionResponseBuilder builder_(_fbb);
+  builder_.add_npvs(npvs);
   builder_.add_options(options);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<PriceEquityOptionResponse> CreatePriceEquityOptionResponseDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<::flatbuffers::Offset<quantra::EquityOptionResponse>> *options = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::EquityOptionResponse>> *options = nullptr,
+    const std::vector<double> *npvs = nullptr) {
   auto options__ = options ? _fbb.CreateVector<::flatbuffers::Offset<quantra::EquityOptionResponse>>(*options) : 0;
+  auto npvs__ = npvs ? _fbb.CreateVector<double>(*npvs) : 0;
   return quantra::CreatePriceEquityOptionResponse(
       _fbb,
-      options__);
+      options__,
+      npvs__);
 }
 
 ::flatbuffers::Offset<PriceEquityOptionResponse> CreatePriceEquityOptionResponse(::flatbuffers::FlatBufferBuilder &_fbb, const PriceEquityOptionResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -343,13 +360,15 @@ inline ::flatbuffers::Offset<EquityOptionResponse> CreateEquityOptionResponse(::
       _used_settlement);
 }
 
-inline PriceEquityOptionResponseT::PriceEquityOptionResponseT(const PriceEquityOptionResponseT &o) {
+inline PriceEquityOptionResponseT::PriceEquityOptionResponseT(const PriceEquityOptionResponseT &o)
+      : npvs(o.npvs) {
   options.reserve(o.options.size());
   for (const auto &options_ : o.options) { options.emplace_back((options_) ? new quantra::EquityOptionResponseT(*options_) : nullptr); }
 }
 
 inline PriceEquityOptionResponseT &PriceEquityOptionResponseT::operator=(PriceEquityOptionResponseT o) FLATBUFFERS_NOEXCEPT {
   std::swap(options, o.options);
+  std::swap(npvs, o.npvs);
   return *this;
 }
 
@@ -363,6 +382,7 @@ inline void PriceEquityOptionResponse::UnPackTo(PriceEquityOptionResponseT *_o, 
   (void)_o;
   (void)_resolver;
   { auto _e = options(); if (_e) { _o->options.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->options[_i]) { _e->Get(_i)->UnPackTo(_o->options[_i].get(), _resolver); } else { _o->options[_i] = std::unique_ptr<quantra::EquityOptionResponseT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->options.resize(0); } }
+  { auto _e = npvs(); if (_e) { _o->npvs.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->npvs[_i] = _e->Get(_i); } } else { _o->npvs.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<PriceEquityOptionResponse> PriceEquityOptionResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceEquityOptionResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -374,9 +394,11 @@ inline ::flatbuffers::Offset<PriceEquityOptionResponse> CreatePriceEquityOptionR
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceEquityOptionResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _options = _fbb.CreateVector<::flatbuffers::Offset<quantra::EquityOptionResponse>> (_o->options.size(), [](size_t i, _VectorArgs *__va) { return CreateEquityOptionResponse(*__va->__fbb, __va->__o->options[i].get(), __va->__rehasher); }, &_va );
+  auto _npvs = _o->npvs.size() ? _fbb.CreateVector(_o->npvs) : 0;
   return quantra::CreatePriceEquityOptionResponse(
       _fbb,
-      _options);
+      _options,
+      _npvs);
 }
 
 inline const quantra::PriceEquityOptionResponse *GetPriceEquityOptionResponse(const void *buf) {

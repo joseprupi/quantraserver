@@ -80,8 +80,20 @@ class PriceCommoditySwapRequest(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
+    # When true the response carries only the prices: `npvs` holds one NPV
+    # per trade in request order and the per-trade list is empty (no flows,
+    # fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+    # full response reports; a request the engine refuses is refused the
+    # same way. Absent or false: the full response.
+    # PriceCommoditySwapRequest
+    def PriceOnly(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def PriceCommoditySwapRequestStart(builder):
-    builder.StartObject(4)
+    builder.StartObject(5)
 
 def Start(builder):
     PriceCommoditySwapRequestStart(builder)
@@ -116,6 +128,12 @@ def PriceCommoditySwapRequestAddIncludeObservations(builder, includeObservations
 def AddIncludeObservations(builder, includeObservations):
     PriceCommoditySwapRequestAddIncludeObservations(builder, includeObservations)
 
+def PriceCommoditySwapRequestAddPriceOnly(builder, priceOnly):
+    builder.PrependBoolSlot(4, priceOnly, 0)
+
+def AddPriceOnly(builder, priceOnly):
+    PriceCommoditySwapRequestAddPriceOnly(builder, priceOnly)
+
 def PriceCommoditySwapRequestEnd(builder):
     return builder.EndObject()
 
@@ -135,6 +153,7 @@ class PriceCommoditySwapRequestT(object):
         self.swaps = None  # type: List[PriceCommoditySwapT]
         self.includeFlows = False  # type: bool
         self.includeObservations = False  # type: bool
+        self.priceOnly = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -171,6 +190,7 @@ class PriceCommoditySwapRequestT(object):
                     self.swaps.append(priceCommoditySwap_)
         self.includeFlows = priceCommoditySwapRequest.IncludeFlows()
         self.includeObservations = priceCommoditySwapRequest.IncludeObservations()
+        self.priceOnly = priceCommoditySwapRequest.PriceOnly()
 
     # PriceCommoditySwapRequestT
     def Pack(self, builder):
@@ -191,5 +211,6 @@ class PriceCommoditySwapRequestT(object):
             PriceCommoditySwapRequestAddSwaps(builder, swaps)
         PriceCommoditySwapRequestAddIncludeFlows(builder, self.includeFlows)
         PriceCommoditySwapRequestAddIncludeObservations(builder, self.includeObservations)
+        PriceCommoditySwapRequestAddPriceOnly(builder, self.priceOnly)
         priceCommoditySwapRequest = PriceCommoditySwapRequestEnd(builder)
         return priceCommoditySwapRequest

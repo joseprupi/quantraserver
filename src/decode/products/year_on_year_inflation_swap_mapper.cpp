@@ -3,6 +3,7 @@
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "price_only_response.h"
 #include "request_validation.h"
 #include "schedule_parser.h"
 
@@ -176,6 +177,15 @@ flatbuffers::Offset<quantra::PriceYearOnYearInflationSwapResponse> YearOnYearInf
     quantra::PriceYearOnYearInflationSwapResponseBuilder rb(builder);
     rb.add_swaps(swapsVec);
     return rb.Finish();
+}
+
+flatbuffers::Offset<quantra::PriceYearOnYearInflationSwapResponse> YearOnYearInflationSwapMapper::
+    toPriceOnlyResponse(
+        flatbuffers::grpc::MessageBuilder& builder,
+        const YearOnYearInflationSwapResult& result) const {
+    return PriceOnlyResponse(
+        builder, result.swaps, [](const auto& row) { return row.npv; },
+        &quantra::PriceYearOnYearInflationSwapResponseBuilder::add_swaps);
 }
 
 } // namespace quantra

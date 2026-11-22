@@ -70,8 +70,20 @@ class PriceBasisSwapRequest(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
+    # When true the response carries only the prices: `npvs` holds one NPV
+    # per trade in request order and the per-trade list is empty (no flows,
+    # fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+    # full response reports; a request the engine refuses is refused the
+    # same way. Absent or false: the full response.
+    # PriceBasisSwapRequest
+    def PriceOnly(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def PriceBasisSwapRequestStart(builder):
-    builder.StartObject(3)
+    builder.StartObject(4)
 
 def Start(builder):
     PriceBasisSwapRequestStart(builder)
@@ -100,6 +112,12 @@ def PriceBasisSwapRequestAddIncludeFlows(builder, includeFlows):
 def AddIncludeFlows(builder, includeFlows):
     PriceBasisSwapRequestAddIncludeFlows(builder, includeFlows)
 
+def PriceBasisSwapRequestAddPriceOnly(builder, priceOnly):
+    builder.PrependBoolSlot(3, priceOnly, 0)
+
+def AddPriceOnly(builder, priceOnly):
+    PriceBasisSwapRequestAddPriceOnly(builder, priceOnly)
+
 def PriceBasisSwapRequestEnd(builder):
     return builder.EndObject()
 
@@ -118,6 +136,7 @@ class PriceBasisSwapRequestT(object):
         self.pricing = None  # type: Optional[PricingT]
         self.swaps = None  # type: List[PriceBasisSwapT]
         self.includeFlows = False  # type: bool
+        self.priceOnly = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -153,6 +172,7 @@ class PriceBasisSwapRequestT(object):
                     priceBasisSwap_ = PriceBasisSwapT.InitFromObj(priceBasisSwapRequest.Swaps(i))
                     self.swaps.append(priceBasisSwap_)
         self.includeFlows = priceBasisSwapRequest.IncludeFlows()
+        self.priceOnly = priceBasisSwapRequest.PriceOnly()
 
     # PriceBasisSwapRequestT
     def Pack(self, builder):
@@ -172,5 +192,6 @@ class PriceBasisSwapRequestT(object):
         if self.swaps is not None:
             PriceBasisSwapRequestAddSwaps(builder, swaps)
         PriceBasisSwapRequestAddIncludeFlows(builder, self.includeFlows)
+        PriceBasisSwapRequestAddPriceOnly(builder, self.priceOnly)
         priceBasisSwapRequest = PriceBasisSwapRequestEnd(builder)
         return priceBasisSwapRequest

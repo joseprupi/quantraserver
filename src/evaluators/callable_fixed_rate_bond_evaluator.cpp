@@ -94,6 +94,10 @@ CallableFixedRateBondResult CallableFixedRateBondEvaluator::evaluate(
 
         CallableFixedRateBondPerBond out;
         out.npv = trade.bond->NPV();
+        if (ctx.priceOnly) {
+            result.bonds.push_back(std::move(out));
+            continue;
+        }
         out.cleanPrice = trade.bond->cleanPrice();
         out.dirtyPrice = trade.bond->dirtyPrice();
         out.settlementDate = DateToIso(trade.bond->settlementDate());

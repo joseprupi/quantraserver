@@ -16,7 +16,6 @@ namespace {
 
 ZeroCouponSwapPerSwap priceTrade(
     const ZeroCouponSwapTrade& trade, const PricingRegistry& reg, const PricingContext& ctx) {
-    (void)ctx;
     auto discIt = reg.rates.curves.find(trade.discountingCurveId);
     if (discIt == reg.rates.curves.end()) {
         QUANTRA_NOT_FOUND("Discounting curve not found: " + trade.discountingCurveId);
@@ -56,6 +55,9 @@ ZeroCouponSwapPerSwap priceTrade(
 
     ZeroCouponSwapPerSwap out;
     out.npv = swap->NPV();
+    if (ctx.priceOnly) {
+        return out;
+    }
     out.fixedLegNpv = swap->fixedLegNPV();
     out.floatingLegNpv = swap->floatingLegNPV();
     out.fairFixedPayment = swap->fairFixedPayment();

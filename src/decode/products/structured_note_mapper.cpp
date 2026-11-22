@@ -4,6 +4,7 @@
 #include "error.h"
 #include "fx_spot_parser.h"          // RequireIsoCurrency
 #include "implied_forwards_mapper.h" // decodeOptionQuoteSheet, decodeQuoteFilter
+#include "price_only_response.h"
 
 #include <cmath>
 #include <set>
@@ -915,6 +916,13 @@ flatbuffers::Offset<quantra::PriceStructuredNoteResponse> StructuredNoteMapper::
     quantra::PriceStructuredNoteResponseBuilder rb(b);
     rb.add_notes(rowsVec);
     return rb.Finish();
+}
+
+flatbuffers::Offset<quantra::PriceStructuredNoteResponse> StructuredNoteMapper::toPriceOnlyResponse(
+    flatbuffers::grpc::MessageBuilder& builder, const NoteResult& result) const {
+    return PriceOnlyResponse(
+        builder, result.notes, [](const auto& row) { return row.npv; },
+        &quantra::PriceStructuredNoteResponseBuilder::add_notes);
 }
 
 } // namespace quantra

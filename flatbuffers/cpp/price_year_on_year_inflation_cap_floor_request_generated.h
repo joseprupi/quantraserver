@@ -148,6 +148,7 @@ struct PriceYearOnYearInflationCapFloorRequestT : public ::flatbuffers::NativeTa
   typedef PriceYearOnYearInflationCapFloorRequest TableType;
   std::unique_ptr<quantra::PricingT> pricing{};
   std::vector<std::unique_ptr<quantra::PriceYoYInflationCapFloorT>> cap_floors{};
+  bool price_only = false;
   PriceYearOnYearInflationCapFloorRequestT() = default;
   PriceYearOnYearInflationCapFloorRequestT(const PriceYearOnYearInflationCapFloorRequestT &o);
   PriceYearOnYearInflationCapFloorRequestT(PriceYearOnYearInflationCapFloorRequestT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -160,13 +161,22 @@ struct PriceYearOnYearInflationCapFloorRequest FLATBUFFERS_FINAL_CLASS : private
   typedef PriceYearOnYearInflationCapFloorRequestBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_PRICING = 4,
-    VT_CAP_FLOORS = 6
+    VT_CAP_FLOORS = 6,
+    VT_PRICE_ONLY = 8
   };
   const quantra::Pricing *pricing() const {
     return GetPointer<const quantra::Pricing *>(VT_PRICING);
   }
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceYoYInflationCapFloor>> *cap_floors() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceYoYInflationCapFloor>> *>(VT_CAP_FLOORS);
+  }
+  /// When true the response carries only the prices: `npvs` holds one NPV
+  /// per trade in request order and the per-trade list is empty (no flows,
+  /// fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+  /// full response reports; a request the engine refuses is refused the
+  /// same way. Absent or false: the full response.
+  bool price_only() const {
+    return GetField<uint8_t>(VT_PRICE_ONLY, 0) != 0;
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -175,6 +185,7 @@ struct PriceYearOnYearInflationCapFloorRequest FLATBUFFERS_FINAL_CLASS : private
            VerifyOffset(verifier, VT_CAP_FLOORS) &&
            verifier.VerifyVector(cap_floors()) &&
            verifier.VerifyVectorOfTables(cap_floors()) &&
+           VerifyField<uint8_t>(verifier, VT_PRICE_ONLY, 1) &&
            verifier.EndTable();
   }
   PriceYearOnYearInflationCapFloorRequestT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -192,6 +203,9 @@ struct PriceYearOnYearInflationCapFloorRequestBuilder {
   void add_cap_floors(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceYoYInflationCapFloor>>> cap_floors) {
     fbb_.AddOffset(PriceYearOnYearInflationCapFloorRequest::VT_CAP_FLOORS, cap_floors);
   }
+  void add_price_only(bool price_only) {
+    fbb_.AddElement<uint8_t>(PriceYearOnYearInflationCapFloorRequest::VT_PRICE_ONLY, static_cast<uint8_t>(price_only), 0);
+  }
   explicit PriceYearOnYearInflationCapFloorRequestBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -206,22 +220,26 @@ struct PriceYearOnYearInflationCapFloorRequestBuilder {
 inline ::flatbuffers::Offset<PriceYearOnYearInflationCapFloorRequest> CreatePriceYearOnYearInflationCapFloorRequest(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Pricing> pricing = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceYoYInflationCapFloor>>> cap_floors = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceYoYInflationCapFloor>>> cap_floors = 0,
+    bool price_only = false) {
   PriceYearOnYearInflationCapFloorRequestBuilder builder_(_fbb);
   builder_.add_cap_floors(cap_floors);
   builder_.add_pricing(pricing);
+  builder_.add_price_only(price_only);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<PriceYearOnYearInflationCapFloorRequest> CreatePriceYearOnYearInflationCapFloorRequestDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Pricing> pricing = 0,
-    const std::vector<::flatbuffers::Offset<quantra::PriceYoYInflationCapFloor>> *cap_floors = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::PriceYoYInflationCapFloor>> *cap_floors = nullptr,
+    bool price_only = false) {
   auto cap_floors__ = cap_floors ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PriceYoYInflationCapFloor>>(*cap_floors) : 0;
   return quantra::CreatePriceYearOnYearInflationCapFloorRequest(
       _fbb,
       pricing,
-      cap_floors__);
+      cap_floors__,
+      price_only);
 }
 
 ::flatbuffers::Offset<PriceYearOnYearInflationCapFloorRequest> CreatePriceYearOnYearInflationCapFloorRequest(::flatbuffers::FlatBufferBuilder &_fbb, const PriceYearOnYearInflationCapFloorRequestT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -277,7 +295,8 @@ inline ::flatbuffers::Offset<PriceYoYInflationCapFloor> CreatePriceYoYInflationC
 }
 
 inline PriceYearOnYearInflationCapFloorRequestT::PriceYearOnYearInflationCapFloorRequestT(const PriceYearOnYearInflationCapFloorRequestT &o)
-      : pricing((o.pricing) ? new quantra::PricingT(*o.pricing) : nullptr) {
+      : pricing((o.pricing) ? new quantra::PricingT(*o.pricing) : nullptr),
+        price_only(o.price_only) {
   cap_floors.reserve(o.cap_floors.size());
   for (const auto &cap_floors_ : o.cap_floors) { cap_floors.emplace_back((cap_floors_) ? new quantra::PriceYoYInflationCapFloorT(*cap_floors_) : nullptr); }
 }
@@ -285,6 +304,7 @@ inline PriceYearOnYearInflationCapFloorRequestT::PriceYearOnYearInflationCapFloo
 inline PriceYearOnYearInflationCapFloorRequestT &PriceYearOnYearInflationCapFloorRequestT::operator=(PriceYearOnYearInflationCapFloorRequestT o) FLATBUFFERS_NOEXCEPT {
   std::swap(pricing, o.pricing);
   std::swap(cap_floors, o.cap_floors);
+  std::swap(price_only, o.price_only);
   return *this;
 }
 
@@ -299,6 +319,7 @@ inline void PriceYearOnYearInflationCapFloorRequest::UnPackTo(PriceYearOnYearInf
   (void)_resolver;
   { auto _e = pricing(); if (_e) { if(_o->pricing) { _e->UnPackTo(_o->pricing.get(), _resolver); } else { _o->pricing = std::unique_ptr<quantra::PricingT>(_e->UnPack(_resolver)); } } else if (_o->pricing) { _o->pricing.reset(); } }
   { auto _e = cap_floors(); if (_e) { _o->cap_floors.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->cap_floors[_i]) { _e->Get(_i)->UnPackTo(_o->cap_floors[_i].get(), _resolver); } else { _o->cap_floors[_i] = std::unique_ptr<quantra::PriceYoYInflationCapFloorT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->cap_floors.resize(0); } }
+  { auto _e = price_only(); _o->price_only = _e; }
 }
 
 inline ::flatbuffers::Offset<PriceYearOnYearInflationCapFloorRequest> PriceYearOnYearInflationCapFloorRequest::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceYearOnYearInflationCapFloorRequestT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -311,10 +332,12 @@ inline ::flatbuffers::Offset<PriceYearOnYearInflationCapFloorRequest> CreatePric
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceYearOnYearInflationCapFloorRequestT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _pricing = _o->pricing ? CreatePricing(_fbb, _o->pricing.get(), _rehasher) : 0;
   auto _cap_floors = _o->cap_floors.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PriceYoYInflationCapFloor>> (_o->cap_floors.size(), [](size_t i, _VectorArgs *__va) { return CreatePriceYoYInflationCapFloor(*__va->__fbb, __va->__o->cap_floors[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _price_only = _o->price_only;
   return quantra::CreatePriceYearOnYearInflationCapFloorRequest(
       _fbb,
       _pricing,
-      _cap_floors);
+      _cap_floors,
+      _price_only);
 }
 
 inline const quantra::PriceYearOnYearInflationCapFloorRequest *GetPriceYearOnYearInflationCapFloorRequest(const void *buf) {

@@ -24,6 +24,12 @@ table PriceSwaptionRequest {
     /// When true, the response carries one SwaptionVolDiagnostics block per
     /// unique SABR-kind vol surface referenced by `swaptions`. Default false.
     include_diagnostics:bool = false;
+    /// When true the response carries only the prices: `npvs` holds one NPV
+    /// per trade in request order and the per-trade list is empty (no flows,
+    /// fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+    /// full response reports; a request the engine refuses is refused the
+    /// same way. Absent or false: the full response.
+    price_only:bool = false;
 }
 
 root_type PriceSwaptionRequest;

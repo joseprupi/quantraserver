@@ -87,6 +87,39 @@ strict JSON parsers reject.
 Send an `X-Request-Id` on anything you may need to trace: it is the only way to
 correlate a client-side failure with the engine log lines that produced it.
 
+## Prices only: `price_only`
+
+Every pricing endpoint with a trade list (bonds, swaps, FRAs, FX forwards,
+cross-currency swaps, commodity swaps, structured notes, equity options,
+caps/floors, swaptions, CDS, inflation swaps and caps/floors) takes an
+optional top-level `price_only` (default `false`). Absent or `false`, the
+response is the full one, unchanged. With `true` the response carries only
+the prices:
+
+```json
+{"swaps": [], "npvs": [-1234.56, 789.01]}
+```
+
+| Field | Contents |
+| --- | --- |
+| the per-trade list (`swaps`, `bonds`, `fras`, `fx_forwards`, `notes`, `options`, `cap_floors`, `swaptions`, `cds_list`) | Present and empty. |
+| `npvs` | One NPV per trade, in request order: the NPV the full response reports for that trade, bit for bit. Present only with `price_only`. |
+
+Nothing else is returned: no flows (`include_flows`, `include_observations`
+are ignored), no fair rates or spreads, no leg values, no bond yields,
+durations or flows (`pricing.options.bond_pricing_details` /
+`bond_pricing_flows`), no swaption greeks or rebump
+(`swaption_pricing_details` / `swaption_pricing_rebump`, `include_diagnostics`),
+no option greeks or implied volatilities, no structured-note diagnostics or
+Greeks, no CDS fair spread or leg values, no ATM rates or caplet rows, no
+echoes of the inputs used, no commodity curve builds or quote deltas. The
+engine skips the work that feeds only those outputs (for example the leg
+BPS of a swap, the implied-volatility solve of an equity option, the ATM
+rate of a cap, the rebump curve builds of a swaption, the bump-and-reprice
+runs of a structured note). A request the engine refuses is refused the same
+way, with the same status and message, with or without `price_only`; the
+checks of a structured note's `greeks` and `diagnostics` blocks still apply.
+
 ## Calendar holiday overrides
 
 A request may carry its own holiday corrections in an optional

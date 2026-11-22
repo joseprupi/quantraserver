@@ -1,6 +1,7 @@
 #include "vanilla_swap_mapper.h"
 
 #include "error.h"
+#include "price_only_response.h"
 #include "swap_leg_mapper.h"
 
 #include <cmath>
@@ -101,6 +102,13 @@ flatbuffers::Offset<quantra::PriceVanillaSwapResponse> VanillaSwapMapper::toResp
     quantra::PriceVanillaSwapResponseBuilder rb(builder);
     rb.add_swaps(rowsVec);
     return rb.Finish();
+}
+
+flatbuffers::Offset<quantra::PriceVanillaSwapResponse> VanillaSwapMapper::toPriceOnlyResponse(
+    flatbuffers::grpc::MessageBuilder& builder, const VanillaSwapResult& result) const {
+    return PriceOnlyResponse(
+        builder, result.swaps, [](const auto& row) { return row.npv; },
+        &quantra::PriceVanillaSwapResponseBuilder::add_swaps);
 }
 
 } // namespace quantra

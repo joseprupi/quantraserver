@@ -418,7 +418,8 @@
                 "description" : "NPV of premium leg."
               },
         "error" : {
-                "$ref" : "#/definitions/quantra_Error"
+                "$ref" : "#/definitions/quantra_Error",
+                "deprecated" : true
               }
       },
       "additionalProperties" : false
@@ -429,6 +430,10 @@
       "properties" : {
         "cds_list" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CDSValues"}
+              },
+        "npvs" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Present only when the request set `price_only`: one NPV per trade in\nrequest order (the per-trade list is then empty)."
               }
       },
       "required" : ["cds_list"],

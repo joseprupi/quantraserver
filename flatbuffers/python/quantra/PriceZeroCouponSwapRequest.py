@@ -61,8 +61,20 @@ class PriceZeroCouponSwapRequest(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         return o == 0
 
+    # When true the response carries only the prices: `npvs` holds one NPV
+    # per trade in request order and the per-trade list is empty (no flows,
+    # fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+    # full response reports; a request the engine refuses is refused the
+    # same way. Absent or false: the full response.
+    # PriceZeroCouponSwapRequest
+    def PriceOnly(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def PriceZeroCouponSwapRequestStart(builder):
-    builder.StartObject(2)
+    builder.StartObject(3)
 
 def Start(builder):
     PriceZeroCouponSwapRequestStart(builder)
@@ -85,6 +97,12 @@ def PriceZeroCouponSwapRequestStartSwapsVector(builder, numElems):
 def StartSwapsVector(builder, numElems):
     return PriceZeroCouponSwapRequestStartSwapsVector(builder, numElems)
 
+def PriceZeroCouponSwapRequestAddPriceOnly(builder, priceOnly):
+    builder.PrependBoolSlot(2, priceOnly, 0)
+
+def AddPriceOnly(builder, priceOnly):
+    PriceZeroCouponSwapRequestAddPriceOnly(builder, priceOnly)
+
 def PriceZeroCouponSwapRequestEnd(builder):
     return builder.EndObject()
 
@@ -102,6 +120,7 @@ class PriceZeroCouponSwapRequestT(object):
     def __init__(self):
         self.pricing = None  # type: Optional[PricingT]
         self.swaps = None  # type: List[PriceZeroCouponSwapT]
+        self.priceOnly = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -136,6 +155,7 @@ class PriceZeroCouponSwapRequestT(object):
                     from quantra.PriceZeroCouponSwap import PriceZeroCouponSwapT
                     priceZeroCouponSwap_ = PriceZeroCouponSwapT.InitFromObj(priceZeroCouponSwapRequest.Swaps(i))
                     self.swaps.append(priceZeroCouponSwap_)
+        self.priceOnly = priceZeroCouponSwapRequest.PriceOnly()
 
     # PriceZeroCouponSwapRequestT
     def Pack(self, builder):
@@ -154,5 +174,6 @@ class PriceZeroCouponSwapRequestT(object):
             PriceZeroCouponSwapRequestAddPricing(builder, pricing)
         if self.swaps is not None:
             PriceZeroCouponSwapRequestAddSwaps(builder, swaps)
+        PriceZeroCouponSwapRequestAddPriceOnly(builder, self.priceOnly)
         priceZeroCouponSwapRequest = PriceZeroCouponSwapRequestEnd(builder)
         return priceZeroCouponSwapRequest

@@ -28,6 +28,43 @@ first release that promises wire stability.
 
 ## Unreleased
 
+## Version 0.17.5 (November 2026) — prices only on every pricing endpoint, CDS `error` field retired
+
+A new optional request field and a new response field on the pricing
+endpoints. Default behaviour and prices unchanged: a request without the new
+field gets the same response bytes as before (checked over the 187 example
+requests of the 20 pricing methods with a trade list, gRPC bytes and gateway
+JSON). OpenAPI regenerated; the schema hash changes.
+
+- **`price_only`** (bool, default false) at the end of every pricing request
+  with a trade list: bonds (fixed, floating, zero-coupon, callable), vanilla,
+  OIS, basis, zero-coupon and cross-currency swaps, FRAs, FX forwards,
+  commodity swaps, structured notes, equity options, caps/floors, swaptions,
+  CDS, zero-coupon and year-on-year inflation swaps, year-on-year inflation
+  caps/floors. With it the response's per-trade list is empty and the new
+  field **`npvs`** (`[double]`, at the end of every `Price*Response`) holds
+  one NPV per trade in request order, bit for bit the NPV of the full
+  response. Nothing else is returned (no flows, fair values, greeks, implied
+  vols, bond analytics, echoes or diagnostics), and the engine skips the work
+  that feeds only those: leg BPS of the swaps, ATM rates of caps/floors,
+  implied-volatility solves and greeks of equity options, swaption rebump
+  curve builds and greeks, structured-note diagnostics and Greeks runs, bond
+  yields/durations/flows, quote deltas of commodity swaps. A request the
+  engine refuses for its trades or its market is refused the same way (same
+  status, same message). A failure that comes only from a dropped output (a
+  bond yield that cannot be solved, a swaption rebump curve build, a
+  structured-note diagnostics run) no longer happens with the flag, and
+  `include_flows`, `include_observations`, `include_diagnostics` and the
+  `pricing.options` switches are ignored with it.
+- **Python client**: `price_batch` passes the flag (object groups: the
+  request's `priceOnly`; block groups: `price_only=True`);
+  `GroupResult.npvs()` returns the NPVs in input trade order (numpy when
+  importable, a list otherwise; numpy stays optional); `entry(i)` of a
+  price-only result raises; `response_npvs(response)` for single calls.
+- **CDS `error` retired**: `CDSValues.error` was never written; it is now
+  `(deprecated)` in the schema and gone from the generated classes and from
+  OpenAPI. CDS responses are otherwise unchanged.
+
 ## Version 0.17.4 (November 2026) — Python client: requests from stored blocks, market values patched in place, schema hash in `/meta`
 
 Python client, plus `schema_hash` in `/meta`. No request changes, no price

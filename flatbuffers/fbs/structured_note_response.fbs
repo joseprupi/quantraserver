@@ -602,6 +602,9 @@ table StructuredNoteResult {
 /// Response wrapper for multiple structured notes, in request order.
 table PriceStructuredNoteResponse {
     notes:[StructuredNoteResult] (required);
+    /// Present only when the request set `price_only`: one NPV per trade in
+    /// request order (the per-trade list is then empty).
+    npvs:[double];
 }
 
 root_type PriceStructuredNoteResponse;

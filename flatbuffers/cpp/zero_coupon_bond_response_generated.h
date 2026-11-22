@@ -222,6 +222,7 @@ inline ::flatbuffers::Offset<ZeroCouponBondResponse> CreateZeroCouponBondRespons
 struct PriceZeroCouponBondResponseT : public ::flatbuffers::NativeTable {
   typedef PriceZeroCouponBondResponse TableType;
   std::vector<std::unique_ptr<quantra::ZeroCouponBondResponseT>> bonds{};
+  std::vector<double> npvs{};
   PriceZeroCouponBondResponseT() = default;
   PriceZeroCouponBondResponseT(const PriceZeroCouponBondResponseT &o);
   PriceZeroCouponBondResponseT(PriceZeroCouponBondResponseT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -233,16 +234,24 @@ struct PriceZeroCouponBondResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffe
   typedef PriceZeroCouponBondResponseT NativeTableType;
   typedef PriceZeroCouponBondResponseBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_BONDS = 4
+    VT_BONDS = 4,
+    VT_NPVS = 6
   };
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::ZeroCouponBondResponse>> *bonds() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::ZeroCouponBondResponse>> *>(VT_BONDS);
+  }
+  /// Present only when the request set `price_only`: one NPV per trade in
+  /// request order (the per-trade list is then empty).
+  const ::flatbuffers::Vector<double> *npvs() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_NPVS);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_BONDS) &&
            verifier.VerifyVector(bonds()) &&
            verifier.VerifyVectorOfTables(bonds()) &&
+           VerifyOffset(verifier, VT_NPVS) &&
+           verifier.VerifyVector(npvs()) &&
            verifier.EndTable();
   }
   PriceZeroCouponBondResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -256,6 +265,9 @@ struct PriceZeroCouponBondResponseBuilder {
   ::flatbuffers::uoffset_t start_;
   void add_bonds(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::ZeroCouponBondResponse>>> bonds) {
     fbb_.AddOffset(PriceZeroCouponBondResponse::VT_BONDS, bonds);
+  }
+  void add_npvs(::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs) {
+    fbb_.AddOffset(PriceZeroCouponBondResponse::VT_NPVS, npvs);
   }
   explicit PriceZeroCouponBondResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -271,19 +283,24 @@ struct PriceZeroCouponBondResponseBuilder {
 
 inline ::flatbuffers::Offset<PriceZeroCouponBondResponse> CreatePriceZeroCouponBondResponse(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::ZeroCouponBondResponse>>> bonds = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::ZeroCouponBondResponse>>> bonds = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs = 0) {
   PriceZeroCouponBondResponseBuilder builder_(_fbb);
+  builder_.add_npvs(npvs);
   builder_.add_bonds(bonds);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<PriceZeroCouponBondResponse> CreatePriceZeroCouponBondResponseDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<::flatbuffers::Offset<quantra::ZeroCouponBondResponse>> *bonds = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::ZeroCouponBondResponse>> *bonds = nullptr,
+    const std::vector<double> *npvs = nullptr) {
   auto bonds__ = bonds ? _fbb.CreateVector<::flatbuffers::Offset<quantra::ZeroCouponBondResponse>>(*bonds) : 0;
+  auto npvs__ = npvs ? _fbb.CreateVector<double>(*npvs) : 0;
   return quantra::CreatePriceZeroCouponBondResponse(
       _fbb,
-      bonds__);
+      bonds__,
+      npvs__);
 }
 
 ::flatbuffers::Offset<PriceZeroCouponBondResponse> CreatePriceZeroCouponBondResponse(::flatbuffers::FlatBufferBuilder &_fbb, const PriceZeroCouponBondResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -344,13 +361,15 @@ inline ::flatbuffers::Offset<ZeroCouponBondResponse> CreateZeroCouponBondRespons
       _settlement_date);
 }
 
-inline PriceZeroCouponBondResponseT::PriceZeroCouponBondResponseT(const PriceZeroCouponBondResponseT &o) {
+inline PriceZeroCouponBondResponseT::PriceZeroCouponBondResponseT(const PriceZeroCouponBondResponseT &o)
+      : npvs(o.npvs) {
   bonds.reserve(o.bonds.size());
   for (const auto &bonds_ : o.bonds) { bonds.emplace_back((bonds_) ? new quantra::ZeroCouponBondResponseT(*bonds_) : nullptr); }
 }
 
 inline PriceZeroCouponBondResponseT &PriceZeroCouponBondResponseT::operator=(PriceZeroCouponBondResponseT o) FLATBUFFERS_NOEXCEPT {
   std::swap(bonds, o.bonds);
+  std::swap(npvs, o.npvs);
   return *this;
 }
 
@@ -364,6 +383,7 @@ inline void PriceZeroCouponBondResponse::UnPackTo(PriceZeroCouponBondResponseT *
   (void)_o;
   (void)_resolver;
   { auto _e = bonds(); if (_e) { _o->bonds.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->bonds[_i]) { _e->Get(_i)->UnPackTo(_o->bonds[_i].get(), _resolver); } else { _o->bonds[_i] = std::unique_ptr<quantra::ZeroCouponBondResponseT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->bonds.resize(0); } }
+  { auto _e = npvs(); if (_e) { _o->npvs.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->npvs[_i] = _e->Get(_i); } } else { _o->npvs.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<PriceZeroCouponBondResponse> PriceZeroCouponBondResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceZeroCouponBondResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -375,9 +395,11 @@ inline ::flatbuffers::Offset<PriceZeroCouponBondResponse> CreatePriceZeroCouponB
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceZeroCouponBondResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _bonds = _fbb.CreateVector<::flatbuffers::Offset<quantra::ZeroCouponBondResponse>> (_o->bonds.size(), [](size_t i, _VectorArgs *__va) { return CreateZeroCouponBondResponse(*__va->__fbb, __va->__o->bonds[i].get(), __va->__rehasher); }, &_va );
+  auto _npvs = _o->npvs.size() ? _fbb.CreateVector(_o->npvs) : 0;
   return quantra::CreatePriceZeroCouponBondResponse(
       _fbb,
-      _bonds);
+      _bonds,
+      _npvs);
 }
 
 inline const quantra::PriceZeroCouponBondResponse *GetPriceZeroCouponBondResponse(const void *buf) {

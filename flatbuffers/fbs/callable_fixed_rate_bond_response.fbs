@@ -16,6 +16,9 @@ table CallableFixedRateBondResponse {
 /// Response wrapper for multiple callable fixed-rate bonds.
 table PriceCallableFixedRateBondResponse {
     bonds:[CallableFixedRateBondResponse] (required);
+    /// Present only when the request set `price_only`: one NPV per trade in
+    /// request order (the per-trade list is then empty).
+    npvs:[double];
 }
 
 root_type PriceCallableFixedRateBondResponse;

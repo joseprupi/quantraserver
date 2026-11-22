@@ -61,8 +61,20 @@ class PriceFixedRateBondRequest(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         return o == 0
 
+    # When true the response carries only the prices: `npvs` holds one NPV
+    # per trade in request order and the per-trade list is empty (no flows,
+    # fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+    # full response reports; a request the engine refuses is refused the
+    # same way. Absent or false: the full response.
+    # PriceFixedRateBondRequest
+    def PriceOnly(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def PriceFixedRateBondRequestStart(builder):
-    builder.StartObject(2)
+    builder.StartObject(3)
 
 def Start(builder):
     PriceFixedRateBondRequestStart(builder)
@@ -85,6 +97,12 @@ def PriceFixedRateBondRequestStartBondsVector(builder, numElems):
 def StartBondsVector(builder, numElems):
     return PriceFixedRateBondRequestStartBondsVector(builder, numElems)
 
+def PriceFixedRateBondRequestAddPriceOnly(builder, priceOnly):
+    builder.PrependBoolSlot(2, priceOnly, 0)
+
+def AddPriceOnly(builder, priceOnly):
+    PriceFixedRateBondRequestAddPriceOnly(builder, priceOnly)
+
 def PriceFixedRateBondRequestEnd(builder):
     return builder.EndObject()
 
@@ -102,6 +120,7 @@ class PriceFixedRateBondRequestT(object):
     def __init__(self):
         self.pricing = None  # type: Optional[PricingT]
         self.bonds = None  # type: List[PriceFixedRateBondT]
+        self.priceOnly = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -136,6 +155,7 @@ class PriceFixedRateBondRequestT(object):
                     from quantra.PriceFixedRateBond import PriceFixedRateBondT
                     priceFixedRateBond_ = PriceFixedRateBondT.InitFromObj(priceFixedRateBondRequest.Bonds(i))
                     self.bonds.append(priceFixedRateBond_)
+        self.priceOnly = priceFixedRateBondRequest.PriceOnly()
 
     # PriceFixedRateBondRequestT
     def Pack(self, builder):
@@ -154,5 +174,6 @@ class PriceFixedRateBondRequestT(object):
             PriceFixedRateBondRequestAddPricing(builder, pricing)
         if self.bonds is not None:
             PriceFixedRateBondRequestAddBonds(builder, bonds)
+        PriceFixedRateBondRequestAddPriceOnly(builder, self.priceOnly)
         priceFixedRateBondRequest = PriceFixedRateBondRequestEnd(builder)
         return priceFixedRateBondRequest

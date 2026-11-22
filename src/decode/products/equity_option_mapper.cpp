@@ -4,6 +4,7 @@
 #include "enum_convert.h"
 #include "equity_option_parser.h"
 #include "error.h"
+#include "price_only_response.h"
 
 #include <cmath>
 
@@ -107,6 +108,13 @@ flatbuffers::Offset<quantra::PriceEquityOptionResponse> EquityOptionMapper::toRe
     quantra::PriceEquityOptionResponseBuilder rb(builder);
     rb.add_options(vec);
     return rb.Finish();
+}
+
+flatbuffers::Offset<quantra::PriceEquityOptionResponse> EquityOptionMapper::toPriceOnlyResponse(
+    flatbuffers::grpc::MessageBuilder& builder, const EquityOptionResult& result) const {
+    return PriceOnlyResponse(
+        builder, result.trades, [](const auto& row) { return row.npv; },
+        &quantra::PriceEquityOptionResponseBuilder::add_options);
 }
 
 } // namespace quantra

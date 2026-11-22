@@ -61,8 +61,20 @@ class PriceZeroCouponBondRequest(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         return o == 0
 
+    # When true the response carries only the prices: `npvs` holds one NPV
+    # per trade in request order and the per-trade list is empty (no flows,
+    # fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+    # full response reports; a request the engine refuses is refused the
+    # same way. Absent or false: the full response.
+    # PriceZeroCouponBondRequest
+    def PriceOnly(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def PriceZeroCouponBondRequestStart(builder):
-    builder.StartObject(2)
+    builder.StartObject(3)
 
 def Start(builder):
     PriceZeroCouponBondRequestStart(builder)
@@ -85,6 +97,12 @@ def PriceZeroCouponBondRequestStartBondsVector(builder, numElems):
 def StartBondsVector(builder, numElems):
     return PriceZeroCouponBondRequestStartBondsVector(builder, numElems)
 
+def PriceZeroCouponBondRequestAddPriceOnly(builder, priceOnly):
+    builder.PrependBoolSlot(2, priceOnly, 0)
+
+def AddPriceOnly(builder, priceOnly):
+    PriceZeroCouponBondRequestAddPriceOnly(builder, priceOnly)
+
 def PriceZeroCouponBondRequestEnd(builder):
     return builder.EndObject()
 
@@ -102,6 +120,7 @@ class PriceZeroCouponBondRequestT(object):
     def __init__(self):
         self.pricing = None  # type: Optional[PricingT]
         self.bonds = None  # type: List[PriceZeroCouponBondT]
+        self.priceOnly = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -136,6 +155,7 @@ class PriceZeroCouponBondRequestT(object):
                     from quantra.PriceZeroCouponBond import PriceZeroCouponBondT
                     priceZeroCouponBond_ = PriceZeroCouponBondT.InitFromObj(priceZeroCouponBondRequest.Bonds(i))
                     self.bonds.append(priceZeroCouponBond_)
+        self.priceOnly = priceZeroCouponBondRequest.PriceOnly()
 
     # PriceZeroCouponBondRequestT
     def Pack(self, builder):
@@ -154,5 +174,6 @@ class PriceZeroCouponBondRequestT(object):
             PriceZeroCouponBondRequestAddPricing(builder, pricing)
         if self.bonds is not None:
             PriceZeroCouponBondRequestAddBonds(builder, bonds)
+        PriceZeroCouponBondRequestAddPriceOnly(builder, self.priceOnly)
         priceZeroCouponBondRequest = PriceZeroCouponBondRequestEnd(builder)
         return priceZeroCouponBondRequest

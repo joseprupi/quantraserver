@@ -61,8 +61,20 @@ class PriceCallableFixedRateBondRequest(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         return o == 0
 
+    # When true the response carries only the prices: `npvs` holds one NPV
+    # per trade in request order and the per-trade list is empty (no flows,
+    # fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+    # full response reports; a request the engine refuses is refused the
+    # same way. Absent or false: the full response.
+    # PriceCallableFixedRateBondRequest
+    def PriceOnly(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def PriceCallableFixedRateBondRequestStart(builder):
-    builder.StartObject(2)
+    builder.StartObject(3)
 
 def Start(builder):
     PriceCallableFixedRateBondRequestStart(builder)
@@ -85,6 +97,12 @@ def PriceCallableFixedRateBondRequestStartBondsVector(builder, numElems):
 def StartBondsVector(builder, numElems):
     return PriceCallableFixedRateBondRequestStartBondsVector(builder, numElems)
 
+def PriceCallableFixedRateBondRequestAddPriceOnly(builder, priceOnly):
+    builder.PrependBoolSlot(2, priceOnly, 0)
+
+def AddPriceOnly(builder, priceOnly):
+    PriceCallableFixedRateBondRequestAddPriceOnly(builder, priceOnly)
+
 def PriceCallableFixedRateBondRequestEnd(builder):
     return builder.EndObject()
 
@@ -102,6 +120,7 @@ class PriceCallableFixedRateBondRequestT(object):
     def __init__(self):
         self.pricing = None  # type: Optional[PricingT]
         self.bonds = None  # type: List[PriceCallableFixedRateBondT]
+        self.priceOnly = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -136,6 +155,7 @@ class PriceCallableFixedRateBondRequestT(object):
                     from quantra.PriceCallableFixedRateBond import PriceCallableFixedRateBondT
                     priceCallableFixedRateBond_ = PriceCallableFixedRateBondT.InitFromObj(priceCallableFixedRateBondRequest.Bonds(i))
                     self.bonds.append(priceCallableFixedRateBond_)
+        self.priceOnly = priceCallableFixedRateBondRequest.PriceOnly()
 
     # PriceCallableFixedRateBondRequestT
     def Pack(self, builder):
@@ -154,5 +174,6 @@ class PriceCallableFixedRateBondRequestT(object):
             PriceCallableFixedRateBondRequestAddPricing(builder, pricing)
         if self.bonds is not None:
             PriceCallableFixedRateBondRequestAddBonds(builder, bonds)
+        PriceCallableFixedRateBondRequestAddPriceOnly(builder, self.priceOnly)
         priceCallableFixedRateBondRequest = PriceCallableFixedRateBondRequestEnd(builder)
         return priceCallableFixedRateBondRequest

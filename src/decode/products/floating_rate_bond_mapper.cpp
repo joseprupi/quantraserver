@@ -3,6 +3,7 @@
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "price_only_response.h"
 #include "request_validation.h"
 #include "schedule_parser.h"
 #include "yield_parser.h"
@@ -198,6 +199,14 @@ flatbuffers::Offset<quantra::PriceFloatingRateBondResponse> FloatingRateBondMapp
     quantra::PriceFloatingRateBondResponseBuilder rb(builder);
     rb.add_bonds(bonds);
     return rb.Finish();
+}
+
+flatbuffers::Offset<quantra::PriceFloatingRateBondResponse> FloatingRateBondMapper::
+    toPriceOnlyResponse(
+        flatbuffers::grpc::MessageBuilder& builder, const FloatingRateBondResult& result) const {
+    return PriceOnlyResponse(
+        builder, result.bonds, [](const auto& row) { return row.npv; },
+        &quantra::PriceFloatingRateBondResponseBuilder::add_bonds);
 }
 
 } // namespace quantra

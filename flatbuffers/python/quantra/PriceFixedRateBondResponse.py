@@ -50,8 +50,37 @@ class PriceFixedRateBondResponse(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         return o == 0
 
+    # Present only when the request set `price_only`: one NPV per trade in
+    # request order (the per-trade list is then empty).
+    # PriceFixedRateBondResponse
+    def Npvs(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            a = self._tab.Vector(o)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
+        return 0
+
+    # PriceFixedRateBondResponse
+    def NpvsAsNumpy(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
+        return 0
+
+    # PriceFixedRateBondResponse
+    def NpvsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # PriceFixedRateBondResponse
+    def NpvsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        return o == 0
+
 def PriceFixedRateBondResponseStart(builder):
-    builder.StartObject(1)
+    builder.StartObject(2)
 
 def Start(builder):
     PriceFixedRateBondResponseStart(builder)
@@ -67,6 +96,18 @@ def PriceFixedRateBondResponseStartBondsVector(builder, numElems):
 
 def StartBondsVector(builder, numElems):
     return PriceFixedRateBondResponseStartBondsVector(builder, numElems)
+
+def PriceFixedRateBondResponseAddNpvs(builder, npvs):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(npvs), 0)
+
+def AddNpvs(builder, npvs):
+    PriceFixedRateBondResponseAddNpvs(builder, npvs)
+
+def PriceFixedRateBondResponseStartNpvsVector(builder, numElems):
+    return builder.StartVector(8, numElems, 8)
+
+def StartNpvsVector(builder, numElems):
+    return PriceFixedRateBondResponseStartNpvsVector(builder, numElems)
 
 def PriceFixedRateBondResponseEnd(builder):
     return builder.EndObject()
@@ -84,6 +125,7 @@ class PriceFixedRateBondResponseT(object):
     # PriceFixedRateBondResponseT
     def __init__(self):
         self.bonds = None  # type: List[FixedRateBondResponseT]
+        self.npvs = None  # type: List[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -115,6 +157,13 @@ class PriceFixedRateBondResponseT(object):
                     from quantra.FixedRateBondResponse import FixedRateBondResponseT
                     fixedRateBondResponse_ = FixedRateBondResponseT.InitFromObj(priceFixedRateBondResponse.Bonds(i))
                     self.bonds.append(fixedRateBondResponse_)
+        if not priceFixedRateBondResponse.NpvsIsNone():
+            if np is None:
+                self.npvs = []
+                for i in range(priceFixedRateBondResponse.NpvsLength()):
+                    self.npvs.append(priceFixedRateBondResponse.Npvs(i))
+            else:
+                self.npvs = priceFixedRateBondResponse.NpvsAsNumpy()
 
     # PriceFixedRateBondResponseT
     def Pack(self, builder):
@@ -126,8 +175,18 @@ class PriceFixedRateBondResponseT(object):
             for i in reversed(range(len(self.bonds))):
                 builder.PrependUOffsetTRelative(bondslist[i])
             bonds = builder.EndVector()
+        if self.npvs is not None:
+            if np is not None and type(self.npvs) is np.ndarray:
+                npvs = builder.CreateNumpyVector(self.npvs)
+            else:
+                PriceFixedRateBondResponseStartNpvsVector(builder, len(self.npvs))
+                for i in reversed(range(len(self.npvs))):
+                    builder.PrependFloat64(self.npvs[i])
+                npvs = builder.EndVector()
         PriceFixedRateBondResponseStart(builder)
         if self.bonds is not None:
             PriceFixedRateBondResponseAddBonds(builder, bonds)
+        if self.npvs is not None:
+            PriceFixedRateBondResponseAddNpvs(builder, npvs)
         priceFixedRateBondResponse = PriceFixedRateBondResponseEnd(builder)
         return priceFixedRateBondResponse
