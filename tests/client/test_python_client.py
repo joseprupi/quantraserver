@@ -1930,6 +1930,220 @@ def test_batch(client: Client):
     return passed, float(total), float(matched)
 
 
+def _load_example(rel, rpc):
+    """The Object API request of an example under examples/data (JSON ->
+    flatc binary -> InitFromPackedBuf), for the method whose RPC is `rpc`."""
+    import importlib
+    import re
+    import shutil
+    import subprocess
+    import tempfile
+    schema = re.sub(r"(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", "_", rpc).lower() + "_request.fbs"
+    fbs_dir = os.path.join(PROJECT_ROOT, "..", "flatbuffers", "fbs")
+    example = os.path.join(PROJECT_ROOT, "..", "examples", "data", rel)
+    flatc = shutil.which("flatc") or "/opt/quantra-deps/bin/flatc"
+    with tempfile.TemporaryDirectory() as tmp:
+        subprocess.run([flatc, "--binary", "-I", fbs_dir, "-o", tmp,
+                        os.path.join(fbs_dir, schema), example], check=True, capture_output=True)
+        packed = open(os.path.join(tmp, os.path.basename(example)[:-5] + ".bin"), "rb").read()
+    module = importlib.import_module(f"quantra.{rpc}Request")
+    return getattr(module, f"{rpc}RequestT").InitFromPackedBuf(packed, 0)
+
+
+def test_methods_added_in_0_17_3(client: Client):
+    """
+    The pricing methods added to the client in 0.17.3, each on an example
+    request: the Client method prices it, and price_batch prices five copies
+    of its trades cut into requests of two trades (max_trades) to the same
+    NPVs, in order.
+    """
+    import copy
+    from quantra_client.batch import TRADE_LISTS, price_batch
+
+    print("\n" + "=" * 60)
+    print("TEST: Methods added in 0.17.3 (Client method and price_batch)")
+    print("=" * 60)
+
+    cases = [
+        ("equity_option", "price_equity_options", "equity/eqopt_eur_call_atm_1y.json"),
+        ("zero_coupon_inflation_swap", "price_zero_coupon_inflation_swaps",
+         "inflation/zciis_eur_5y_payer_linear_obs.json"),
+        ("year_on_year_inflation_swap", "price_year_on_year_inflation_swaps",
+         "inflation/yyiis_eur_5y_payer_annual.json"),
+        ("year_on_year_inflation_cap_floor", "price_year_on_year_inflation_cap_floors",
+         "inflation_cap_floor/yoy_cf_eur_5y_cap_150bp_black_bites.json"),
+        ("zero_coupon_bond", "price_zero_coupon_bonds", "bonds/zcb_eur_10y_discount.json"),
+        ("zero_coupon_swap", "price_zero_coupon_swaps",
+         "zero_coupon_swap/zcs_eur_payer_fixed_payment.json"),
+        ("callable_fixed_rate_bond", "price_callable_fixed_rate_bonds",
+         "callable_bonds/cfrb_eur_8y_5pct_call_100_itm.json"),
+    ]
+    passed = 0
+    for method, client_method, rel in cases:
+        rpc = Client.METHODS[method].rsplit("/", 1)[1]
+        attr, _, accessor = TRADE_LISTS[method]
+        request = _load_example(rel, rpc)
+        plain = getattr(client, client_method)(request)
+        trades = getattr(request, attr)
+        expected = [getattr(plain, accessor)(j).Npv() for j in range(len(trades))]
+        batch_request = copy.copy(request)
+        setattr(batch_request, attr, [copy.deepcopy(t) for _ in range(5) for t in trades])
+        result = price_batch(client, [(method, batch_request)], in_flight=2, max_trades=2,
+                             timeout=60)
+        group = result.groups[0]
+        npvs = [group.entry(i).Npv() if group.error(i) is None else None for i in range(len(group))]
+        ok = (len(expected) >= 1 and result.ok and npvs == expected * 5
+              and result.calls == -(-len(npvs) // 2))
+        passed += ok
+        print(f"  {method:34s} NPV {expected[0]:>16.6f}  batch {len(npvs)} trades in "
+              f"{result.calls} calls: {'ok' if ok else 'MISMATCH ' + str(result)}")
+    print(f"  Result:             {'✓ PASS' if passed == len(cases) else '✗ FAIL'}")
+    return passed == len(cases), float(len(cases)), float(passed)
+
+
+def test_batch_force_defaults(client: Client):
+    """
+    ForceDefaults when packing. The generated classes of this repository
+    write every set field (the engine's required scalars are `= null`
+    optionals), so a fixed leg paying annually (Frequency.Annual == 0)
+    prices with or without it. Generated code that gives the field a
+    schema default of 0 instead (simulated here by swapping the Add
+    function) drops it from the wire unless ForceDefaults is on; the engine
+    then refuses the request. price_batch forces defaults unless told not to.
+    """
+    import quantra.Schedule as schedule_module
+    from quantra_client.batch import price_batch
+
+    print("\n" + "=" * 60)
+    print("TEST: Batch packing with ForceDefaults")
+    print("=" * 60)
+
+    request = _load_example("ir_swaps/irs_eur_4y_payer_vs_euribor3m_quarterly.json",
+                            "PriceVanillaSwap")
+    fixed = request.swaps[0].vanillaSwap.fixedLeg.schedule.frequency
+    plain = client.price_vanilla_swaps(request).Swaps(0).Npv()
+    default_on = price_batch(client, [("vanilla_swap", request)], processes=0)
+    default_off = price_batch(client, [("vanilla_swap", request)], processes=0,
+                              force_defaults=False)
+    original = schedule_module.ScheduleAddFrequency
+    schedule_module.ScheduleAddFrequency = lambda b, f: b.PrependInt8Slot(3, f, 0)
+    try:
+        dropped = price_batch(client, [("vanilla_swap", request)], processes=0,
+                              force_defaults=False)
+        forced = price_batch(client, [("vanilla_swap", request)], processes=0)
+        forced_client = Client(client.target, force_defaults=True)
+        try:
+            forced_plain = forced_client.price_vanilla_swaps(request).Swaps(0).Npv()
+        finally:
+            forced_client.close()
+    finally:
+        schedule_module.ScheduleAddFrequency = original
+    refusal = dropped.groups[0].error(0)
+    print(f"  Fixed leg frequency: {fixed} (Annual); plain NPV {plain:.6f}")
+    print(f"  Repository classes, forced / not forced: "
+          f"{default_on.groups[0].entry(0).Npv():.6f} / {default_off.groups[0].entry(0).Npv():.6f}")
+    print(f"  Default-0 Add, not forced: {refusal}")
+    print(f"  Default-0 Add, forced: {forced.groups[0].entry(0).Npv():.6f}, "
+          f"Client(force_defaults=True): {forced_plain:.6f}")
+    passed = (fixed == Frequency.Annual == 0
+              and default_on.groups[0].entry(0).Npv() == plain
+              and default_off.groups[0].entry(0).Npv() == plain
+              and refusal is not None and "frequency is required" in str(refusal)
+              and forced.groups[0].entry(0).Npv() == plain and forced_plain == plain)
+    print(f"  Result:             {'✓ PASS' if passed else '✗ FAIL'}")
+    return passed, plain, forced.groups[0].entry(0).Npv()
+
+
+def test_batch_pool_under_load(client: Client, batches: int = 40):
+    """
+    Batches packed in processes inside a process that keeps other gRPC
+    channels busy from threads (the case where a fork-started pool can hang):
+    a BatchPool reused across batches, then a pool started per batch with
+    the default start method. Every batch must finish within a watchdog
+    and price every trade to the NPV of a plain request.
+    """
+    import copy
+    import threading
+    import time
+    from quantra_client.batch import BatchPool, default_start_method, price_batch
+
+    print("\n" + "=" * 60)
+    print(f"TEST: Batch pool under load ({batches} batches, gRPC calls from threads)")
+    print("=" * 60)
+
+    request = _load_example("ir_swaps/basis_eur_5y_3m_vs_6m_ois_discounted_multicurve.json",
+                            "PriceBasisSwap")
+    template = request.swaps[0]
+
+    def market(k, size):
+        r = copy.deepcopy(request)
+        r.pricing.rates.curves[0].points[0].point.rate += k * 1e-6
+        r.swaps = []
+        for i in range(size):
+            trade = copy.deepcopy(template)
+            trade.basisSwap.leg1.notional = 1e6 + 1000.0 * i
+            r.swaps.append(trade)
+        return r
+
+    markets = [market(k, n) for k, n in enumerate((60, 20, 1))]
+    expected = [[client.price_basis_swaps(m).Swaps(i).Npv() for i in range(len(m.swaps))]
+                for m in markets]
+
+    stop = threading.Event()
+    background_calls = [0]
+
+    def background():
+        with Client(client.target) as other:
+            small = market(0, 1)
+            while not stop.is_set():
+                try:
+                    other.price_basis_swaps(small)
+                    background_calls[0] += 1
+                except QuantraError:
+                    pass
+
+    threads = [threading.Thread(target=background, daemon=True) for _ in range(3)]
+    for t in threads:
+        t.start()
+
+    hangs = wrong = 0
+    started = time.perf_counter()
+
+    def run_batches(count, **kwargs):
+        nonlocal hangs, wrong
+        for _ in range(count):
+            box = []
+            worker = threading.Thread(target=lambda: box.append(price_batch(
+                client, [("basis_swap", m) for m in markets], in_flight=4,
+                split_above=20, timeout=60, **kwargs)), daemon=True)
+            worker.start()
+            worker.join(60)
+            if worker.is_alive():
+                hangs += 1
+                continue
+            result = box[0]
+            for group, values in zip(result.groups, expected):
+                if [group.entry(i).Npv() if group.error(i) is None else None
+                        for i in range(len(group))] != values:
+                    wrong += 1
+
+    try:
+        with BatchPool(processes=2) as pool:
+            run_batches(batches - batches // 4, pool=pool)
+        run_batches(batches // 4, processes=2)
+    finally:
+        stop.set()
+        for t in threads:
+            t.join(10)
+    took = time.perf_counter() - started
+    print(f"  Start method: {default_start_method()}; {batches} batches in {took:.1f} s, "
+          f"{background_calls[0]} calls from the other threads meanwhile")
+    print(f"  Batches past the watchdog: {hangs}; batches with a wrong or missing NPV: {wrong}")
+    passed = hangs == 0 and wrong == 0 and background_calls[0] > 0
+    print(f"  Result:             {'✓ PASS' if passed else '✗ FAIL'}")
+    return passed, float(batches), float(batches - hangs - wrong)
+
+
 def main():
     print("=" * 60)
     print("Quantra vs QuantLib Python Comparison Tests")
@@ -1959,6 +2173,9 @@ def main():
         ("CDS", lambda: test_cds(client, curve_handle)),
         ("Bootstrap Curves", lambda: test_bootstrap_curves(client, curve_handle)),
         ("Batch", lambda: test_batch(client)),
+        ("Methods added 0.17.3", lambda: test_methods_added_in_0_17_3(client)),
+        ("Batch ForceDefaults", lambda: test_batch_force_defaults(client)),
+        ("Batch pool under load", lambda: test_batch_pool_under_load(client)),
     ]
     
     results = []
