@@ -129,6 +129,7 @@ struct PriceZeroCouponInflationSwapRequestT : public ::flatbuffers::NativeTable 
   std::unique_ptr<quantra::PricingT> pricing{};
   std::vector<std::unique_ptr<quantra::PriceZeroCouponInflationSwapT>> swaps{};
   bool include_flows = false;
+  bool price_only = false;
   PriceZeroCouponInflationSwapRequestT() = default;
   PriceZeroCouponInflationSwapRequestT(const PriceZeroCouponInflationSwapRequestT &o);
   PriceZeroCouponInflationSwapRequestT(PriceZeroCouponInflationSwapRequestT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -142,7 +143,8 @@ struct PriceZeroCouponInflationSwapRequest FLATBUFFERS_FINAL_CLASS : private ::f
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_PRICING = 4,
     VT_SWAPS = 6,
-    VT_INCLUDE_FLOWS = 8
+    VT_INCLUDE_FLOWS = 8,
+    VT_PRICE_ONLY = 10
   };
   const quantra::Pricing *pricing() const {
     return GetPointer<const quantra::Pricing *>(VT_PRICING);
@@ -154,6 +156,14 @@ struct PriceZeroCouponInflationSwapRequest FLATBUFFERS_FINAL_CLASS : private ::f
   bool include_flows() const {
     return GetField<uint8_t>(VT_INCLUDE_FLOWS, 0) != 0;
   }
+  /// When true the response carries only the prices: `npvs` holds one NPV
+  /// per trade in request order and the per-trade list is empty (no flows,
+  /// fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+  /// full response reports; a request the engine refuses is refused the
+  /// same way. Absent or false: the full response.
+  bool price_only() const {
+    return GetField<uint8_t>(VT_PRICE_ONLY, 0) != 0;
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_PRICING) &&
@@ -162,6 +172,7 @@ struct PriceZeroCouponInflationSwapRequest FLATBUFFERS_FINAL_CLASS : private ::f
            verifier.VerifyVector(swaps()) &&
            verifier.VerifyVectorOfTables(swaps()) &&
            VerifyField<uint8_t>(verifier, VT_INCLUDE_FLOWS, 1) &&
+           VerifyField<uint8_t>(verifier, VT_PRICE_ONLY, 1) &&
            verifier.EndTable();
   }
   PriceZeroCouponInflationSwapRequestT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -182,6 +193,9 @@ struct PriceZeroCouponInflationSwapRequestBuilder {
   void add_include_flows(bool include_flows) {
     fbb_.AddElement<uint8_t>(PriceZeroCouponInflationSwapRequest::VT_INCLUDE_FLOWS, static_cast<uint8_t>(include_flows), 0);
   }
+  void add_price_only(bool price_only) {
+    fbb_.AddElement<uint8_t>(PriceZeroCouponInflationSwapRequest::VT_PRICE_ONLY, static_cast<uint8_t>(price_only), 0);
+  }
   explicit PriceZeroCouponInflationSwapRequestBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -197,10 +211,12 @@ inline ::flatbuffers::Offset<PriceZeroCouponInflationSwapRequest> CreatePriceZer
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Pricing> pricing = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceZeroCouponInflationSwap>>> swaps = 0,
-    bool include_flows = false) {
+    bool include_flows = false,
+    bool price_only = false) {
   PriceZeroCouponInflationSwapRequestBuilder builder_(_fbb);
   builder_.add_swaps(swaps);
   builder_.add_pricing(pricing);
+  builder_.add_price_only(price_only);
   builder_.add_include_flows(include_flows);
   return builder_.Finish();
 }
@@ -209,13 +225,15 @@ inline ::flatbuffers::Offset<PriceZeroCouponInflationSwapRequest> CreatePriceZer
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Pricing> pricing = 0,
     const std::vector<::flatbuffers::Offset<quantra::PriceZeroCouponInflationSwap>> *swaps = nullptr,
-    bool include_flows = false) {
+    bool include_flows = false,
+    bool price_only = false) {
   auto swaps__ = swaps ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PriceZeroCouponInflationSwap>>(*swaps) : 0;
   return quantra::CreatePriceZeroCouponInflationSwapRequest(
       _fbb,
       pricing,
       swaps__,
-      include_flows);
+      include_flows,
+      price_only);
 }
 
 ::flatbuffers::Offset<PriceZeroCouponInflationSwapRequest> CreatePriceZeroCouponInflationSwapRequest(::flatbuffers::FlatBufferBuilder &_fbb, const PriceZeroCouponInflationSwapRequestT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -267,7 +285,8 @@ inline ::flatbuffers::Offset<PriceZeroCouponInflationSwap> CreatePriceZeroCoupon
 
 inline PriceZeroCouponInflationSwapRequestT::PriceZeroCouponInflationSwapRequestT(const PriceZeroCouponInflationSwapRequestT &o)
       : pricing((o.pricing) ? new quantra::PricingT(*o.pricing) : nullptr),
-        include_flows(o.include_flows) {
+        include_flows(o.include_flows),
+        price_only(o.price_only) {
   swaps.reserve(o.swaps.size());
   for (const auto &swaps_ : o.swaps) { swaps.emplace_back((swaps_) ? new quantra::PriceZeroCouponInflationSwapT(*swaps_) : nullptr); }
 }
@@ -276,6 +295,7 @@ inline PriceZeroCouponInflationSwapRequestT &PriceZeroCouponInflationSwapRequest
   std::swap(pricing, o.pricing);
   std::swap(swaps, o.swaps);
   std::swap(include_flows, o.include_flows);
+  std::swap(price_only, o.price_only);
   return *this;
 }
 
@@ -291,6 +311,7 @@ inline void PriceZeroCouponInflationSwapRequest::UnPackTo(PriceZeroCouponInflati
   { auto _e = pricing(); if (_e) { if(_o->pricing) { _e->UnPackTo(_o->pricing.get(), _resolver); } else { _o->pricing = std::unique_ptr<quantra::PricingT>(_e->UnPack(_resolver)); } } else if (_o->pricing) { _o->pricing.reset(); } }
   { auto _e = swaps(); if (_e) { _o->swaps.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->swaps[_i]) { _e->Get(_i)->UnPackTo(_o->swaps[_i].get(), _resolver); } else { _o->swaps[_i] = std::unique_ptr<quantra::PriceZeroCouponInflationSwapT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->swaps.resize(0); } }
   { auto _e = include_flows(); _o->include_flows = _e; }
+  { auto _e = price_only(); _o->price_only = _e; }
 }
 
 inline ::flatbuffers::Offset<PriceZeroCouponInflationSwapRequest> PriceZeroCouponInflationSwapRequest::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceZeroCouponInflationSwapRequestT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -304,11 +325,13 @@ inline ::flatbuffers::Offset<PriceZeroCouponInflationSwapRequest> CreatePriceZer
   auto _pricing = _o->pricing ? CreatePricing(_fbb, _o->pricing.get(), _rehasher) : 0;
   auto _swaps = _o->swaps.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PriceZeroCouponInflationSwap>> (_o->swaps.size(), [](size_t i, _VectorArgs *__va) { return CreatePriceZeroCouponInflationSwap(*__va->__fbb, __va->__o->swaps[i].get(), __va->__rehasher); }, &_va ) : 0;
   auto _include_flows = _o->include_flows;
+  auto _price_only = _o->price_only;
   return quantra::CreatePriceZeroCouponInflationSwapRequest(
       _fbb,
       _pricing,
       _swaps,
-      _include_flows);
+      _include_flows,
+      _price_only);
 }
 
 inline const quantra::PriceZeroCouponInflationSwapRequest *GetPriceZeroCouponInflationSwapRequest(const void *buf) {

@@ -144,6 +144,9 @@ table PriceCommoditySwapResponse {
     /// Only when `pricing.commodity.curve_builds` is given: one summary per
     /// entry, in request order.
     curve_builds:[CommodityBuiltCurveSummary];
+    /// Present only when the request set `price_only`: one NPV per trade in
+    /// request order (the per-trade list is then empty).
+    npvs:[double];
 }
 
 root_type PriceCommoditySwapResponse;

@@ -87,8 +87,20 @@ class PriceStructuredNoteRequest(object):
             return obj
         return None
 
+    # When true the response carries only the prices: `npvs` holds one NPV
+    # per trade in request order and the per-trade list is empty (no flows,
+    # fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+    # full response reports; a request the engine refuses is refused the
+    # same way. Absent or false: the full response.
+    # PriceStructuredNoteRequest
+    def PriceOnly(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def PriceStructuredNoteRequestStart(builder):
-    builder.StartObject(4)
+    builder.StartObject(5)
 
 def Start(builder):
     PriceStructuredNoteRequestStart(builder)
@@ -123,6 +135,12 @@ def PriceStructuredNoteRequestAddDiagnostics(builder, diagnostics):
 def AddDiagnostics(builder, diagnostics):
     PriceStructuredNoteRequestAddDiagnostics(builder, diagnostics)
 
+def PriceStructuredNoteRequestAddPriceOnly(builder, priceOnly):
+    builder.PrependBoolSlot(4, priceOnly, 0)
+
+def AddPriceOnly(builder, priceOnly):
+    PriceStructuredNoteRequestAddPriceOnly(builder, priceOnly)
+
 def PriceStructuredNoteRequestEnd(builder):
     return builder.EndObject()
 
@@ -142,6 +160,7 @@ class PriceStructuredNoteRequestT(object):
         self.notes = None  # type: List[StructuredNoteT]
         self.greeks = None  # type: Optional[StructuredNoteGreeksSpecT]
         self.diagnostics = None  # type: Optional[StructuredNoteDiagnosticsSpecT]
+        self.priceOnly = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -182,6 +201,7 @@ class PriceStructuredNoteRequestT(object):
         if priceStructuredNoteRequest.Diagnostics() is not None:
             from quantra.StructuredNoteDiagnosticsSpec import StructuredNoteDiagnosticsSpecT
             self.diagnostics = StructuredNoteDiagnosticsSpecT.InitFromObj(priceStructuredNoteRequest.Diagnostics())
+        self.priceOnly = priceStructuredNoteRequest.PriceOnly()
 
     # PriceStructuredNoteRequestT
     def Pack(self, builder):
@@ -208,5 +228,6 @@ class PriceStructuredNoteRequestT(object):
             PriceStructuredNoteRequestAddGreeks(builder, greeks)
         if self.diagnostics is not None:
             PriceStructuredNoteRequestAddDiagnostics(builder, diagnostics)
+        PriceStructuredNoteRequestAddPriceOnly(builder, self.priceOnly)
         priceStructuredNoteRequest = PriceStructuredNoteRequestEnd(builder)
         return priceStructuredNoteRequest

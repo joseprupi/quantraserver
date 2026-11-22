@@ -20,6 +20,9 @@ table EquityOptionResponse {
 /// Response wrapper for equity option pricing.
 table PriceEquityOptionResponse {
     options:[EquityOptionResponse] (required);
+    /// Present only when the request set `price_only`: one NPV per trade in
+    /// request order (the per-trade list is then empty).
+    npvs:[double];
 }
 
 root_type PriceEquityOptionResponse;

@@ -61,8 +61,20 @@ class PriceFxForwardRequest(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         return o == 0
 
+    # When true the response carries only the prices: `npvs` holds one NPV
+    # per trade in request order and the per-trade list is empty (no flows,
+    # fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+    # full response reports; a request the engine refuses is refused the
+    # same way. Absent or false: the full response.
+    # PriceFxForwardRequest
+    def PriceOnly(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def PriceFxForwardRequestStart(builder):
-    builder.StartObject(2)
+    builder.StartObject(3)
 
 def Start(builder):
     PriceFxForwardRequestStart(builder)
@@ -85,6 +97,12 @@ def PriceFxForwardRequestStartFxForwardsVector(builder, numElems):
 def StartFxForwardsVector(builder, numElems):
     return PriceFxForwardRequestStartFxForwardsVector(builder, numElems)
 
+def PriceFxForwardRequestAddPriceOnly(builder, priceOnly):
+    builder.PrependBoolSlot(2, priceOnly, 0)
+
+def AddPriceOnly(builder, priceOnly):
+    PriceFxForwardRequestAddPriceOnly(builder, priceOnly)
+
 def PriceFxForwardRequestEnd(builder):
     return builder.EndObject()
 
@@ -102,6 +120,7 @@ class PriceFxForwardRequestT(object):
     def __init__(self):
         self.pricing = None  # type: Optional[PricingT]
         self.fxForwards = None  # type: List[PriceFxForwardT]
+        self.priceOnly = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -136,6 +155,7 @@ class PriceFxForwardRequestT(object):
                     from quantra.PriceFxForward import PriceFxForwardT
                     priceFxForward_ = PriceFxForwardT.InitFromObj(priceFxForwardRequest.FxForwards(i))
                     self.fxForwards.append(priceFxForward_)
+        self.priceOnly = priceFxForwardRequest.PriceOnly()
 
     # PriceFxForwardRequestT
     def Pack(self, builder):
@@ -154,5 +174,6 @@ class PriceFxForwardRequestT(object):
             PriceFxForwardRequestAddPricing(builder, pricing)
         if self.fxForwards is not None:
             PriceFxForwardRequestAddFxForwards(builder, fxForwards)
+        PriceFxForwardRequestAddPriceOnly(builder, self.priceOnly)
         priceFxForwardRequest = PriceFxForwardRequestEnd(builder)
         return priceFxForwardRequest

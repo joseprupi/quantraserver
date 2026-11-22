@@ -4,6 +4,7 @@
 #include "enum_convert.h"
 #include "error.h"
 #include "fx_spot_parser.h"
+#include "price_only_response.h"
 #include "request_validation.h"
 
 namespace quantra {
@@ -103,6 +104,13 @@ flatbuffers::Offset<quantra::PriceFxForwardResponse> FxForwardMapper::toResponse
     quantra::PriceFxForwardResponseBuilder rb(builder);
     rb.add_fx_forwards(rowsVec);
     return rb.Finish();
+}
+
+flatbuffers::Offset<quantra::PriceFxForwardResponse> FxForwardMapper::toPriceOnlyResponse(
+    flatbuffers::grpc::MessageBuilder& builder, const FxForwardResult& result) const {
+    return PriceOnlyResponse(
+        builder, result.trades, [](const auto& row) { return row.npv; },
+        &quantra::PriceFxForwardResponseBuilder::add_fx_forwards);
 }
 
 } // namespace quantra

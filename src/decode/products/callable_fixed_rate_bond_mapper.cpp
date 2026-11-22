@@ -2,6 +2,7 @@
 
 #include "callable_fixed_rate_bond_parser.h"
 #include "error.h"
+#include "price_only_response.h"
 
 namespace quantra {
 
@@ -78,6 +79,15 @@ flatbuffers::Offset<quantra::PriceCallableFixedRateBondResponse> CallableFixedRa
     quantra::PriceCallableFixedRateBondResponseBuilder rb(builder);
     rb.add_bonds(bonds);
     return rb.Finish();
+}
+
+flatbuffers::Offset<quantra::PriceCallableFixedRateBondResponse> CallableFixedRateBondMapper::
+    toPriceOnlyResponse(
+        flatbuffers::grpc::MessageBuilder& builder,
+        const CallableFixedRateBondResult& result) const {
+    return PriceOnlyResponse(
+        builder, result.bonds, [](const auto& row) { return row.npv; },
+        &quantra::PriceCallableFixedRateBondResponseBuilder::add_bonds);
 }
 
 } // namespace quantra

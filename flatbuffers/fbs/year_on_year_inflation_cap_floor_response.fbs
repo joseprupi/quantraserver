@@ -11,6 +11,9 @@ table YoYInflationCapFloorResponse {
 /// Response wrapper for multiple year-on-year inflation cap/floor trades.
 table PriceYearOnYearInflationCapFloorResponse {
     cap_floors:[YoYInflationCapFloorResponse] (required);
+    /// Present only when the request set `price_only`: one NPV per trade in
+    /// request order (the per-trade list is then empty).
+    npvs:[double];
 }
 
 root_type PriceYearOnYearInflationCapFloorResponse;

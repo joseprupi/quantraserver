@@ -34,6 +34,9 @@ table CapFloorResponse {
 /// Response wrapper for multiple caps/floors.
 table PriceCapFloorResponse {
     cap_floors:[CapFloorResponse] (required);
+    /// Present only when the request set `price_only`: one NPV per trade in
+    /// request order (the per-trade list is then empty).
+    npvs:[double];
 }
 
 root_type PriceCapFloorResponse;

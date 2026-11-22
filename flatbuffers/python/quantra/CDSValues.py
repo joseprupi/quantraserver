@@ -65,17 +65,6 @@ class CDSValues(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # CDSValues
-    def Error(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
-        if o != 0:
-            x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.Error import Error
-            obj = Error()
-            obj.Init(self._tab.Bytes, x)
-            return obj
-        return None
-
 def CDSValuesStart(builder):
     builder.StartObject(6)
 
@@ -112,22 +101,12 @@ def CDSValuesAddPremiumLegNpv(builder, premiumLegNpv):
 def AddPremiumLegNpv(builder, premiumLegNpv):
     CDSValuesAddPremiumLegNpv(builder, premiumLegNpv)
 
-def CDSValuesAddError(builder, error):
-    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(error), 0)
-
-def AddError(builder, error):
-    CDSValuesAddError(builder, error)
-
 def CDSValuesEnd(builder):
     return builder.EndObject()
 
 def End(builder):
     return CDSValuesEnd(builder)
 
-try:
-    from typing import Optional
-except:
-    pass
 
 class CDSValuesT(object):
 
@@ -138,7 +117,6 @@ class CDSValuesT(object):
         self.fairUpfront = 0.0  # type: float
         self.defaultLegNpv = 0.0  # type: float
         self.premiumLegNpv = 0.0  # type: float
-        self.error = None  # type: Optional[ErrorT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -166,21 +144,14 @@ class CDSValuesT(object):
         self.fairUpfront = cdsvalues.FairUpfront()
         self.defaultLegNpv = cdsvalues.DefaultLegNpv()
         self.premiumLegNpv = cdsvalues.PremiumLegNpv()
-        if cdsvalues.Error() is not None:
-            from quantra.Error import ErrorT
-            self.error = ErrorT.InitFromObj(cdsvalues.Error())
 
     # CDSValuesT
     def Pack(self, builder):
-        if self.error is not None:
-            error = self.error.Pack(builder)
         CDSValuesStart(builder)
         CDSValuesAddNpv(builder, self.npv)
         CDSValuesAddFairSpread(builder, self.fairSpread)
         CDSValuesAddFairUpfront(builder, self.fairUpfront)
         CDSValuesAddDefaultLegNpv(builder, self.defaultLegNpv)
         CDSValuesAddPremiumLegNpv(builder, self.premiumLegNpv)
-        if self.error is not None:
-            CDSValuesAddError(builder, error)
         cdsvalues = CDSValuesEnd(builder)
         return cdsvalues

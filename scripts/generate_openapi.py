@@ -441,6 +441,10 @@ def convert_schema_to_openapi(schema: Dict[str, Any]) -> Dict[str, Any]:
         result["type"] = "object"
         result["properties"] = {}
         for prop_name, prop_schema in schema["properties"].items():
+            # A field retired in the schema (`(deprecated)`) is never written:
+            # it is not part of the API.
+            if prop_schema.get("deprecated"):
+                continue
             result["properties"][prop_name] = convert_schema_to_openapi(prop_schema)
         
         # Handle required fields

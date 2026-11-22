@@ -24,6 +24,11 @@ public:
 
     flatbuffers::Offset<quantra::PriceCrossCurrencySwapResponse> toResponse(
         flatbuffers::grpc::MessageBuilder& builder, const CrossCurrencySwapResult& result) const;
+
+    /// The response of a `price_only` request: one NPV per trade
+    /// (price_only_response.h).
+    flatbuffers::Offset<quantra::PriceCrossCurrencySwapResponse> toPriceOnlyResponse(
+        flatbuffers::grpc::MessageBuilder& builder, const CrossCurrencySwapResult& result) const;
 };
 
 } // namespace quantra

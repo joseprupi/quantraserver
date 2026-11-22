@@ -51,7 +51,7 @@ std::shared_ptr<QuantLib::YoYInflationCapFloorEngine> buildEngine(
 }
 
 YoYInflationCapFloorPerTrade priceTrade(
-    const YoYInflationCapFloorTrade& trade, const PricingRegistry& reg) {
+    const YoYInflationCapFloorTrade& trade, const PricingRegistry& reg, const PricingContext& ctx) {
     auto discountIt = reg.rates.curves.find(trade.discountingCurveId);
     if (discountIt == reg.rates.curves.end()) {
         QUANTRA_NOT_FOUND("Discounting curve not found: " + trade.discountingCurveId);
@@ -143,7 +143,9 @@ YoYInflationCapFloorPerTrade priceTrade(
 
     YoYInflationCapFloorPerTrade out;
     out.npv = instrument->NPV();
-    out.atmRate = instrument->atmRate(*discountIt->second->currentLink());
+    if (!ctx.priceOnly) {
+        out.atmRate = instrument->atmRate(*discountIt->second->currentLink());
+    }
     return out;
 }
 
@@ -158,7 +160,7 @@ YoYInflationCapFloorResult YearOnYearInflationCapFloorEvaluator::evaluate(
     result.capFloors.reserve(inputs.trades.size());
     for (const auto& trade : inputs.trades) {
         ctx.budget.check(); // honor the per-request deadline before each trade
-        result.capFloors.push_back(priceTrade(trade, reg));
+        result.capFloors.push_back(priceTrade(trade, reg, ctx));
     }
     return result;
 }

@@ -217,6 +217,7 @@ inline ::flatbuffers::Offset<CrossCurrencySwapResponse> CreateCrossCurrencySwapR
 struct PriceCrossCurrencySwapResponseT : public ::flatbuffers::NativeTable {
   typedef PriceCrossCurrencySwapResponse TableType;
   std::vector<std::unique_ptr<quantra::CrossCurrencySwapResponseT>> swaps{};
+  std::vector<double> npvs{};
   PriceCrossCurrencySwapResponseT() = default;
   PriceCrossCurrencySwapResponseT(const PriceCrossCurrencySwapResponseT &o);
   PriceCrossCurrencySwapResponseT(PriceCrossCurrencySwapResponseT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -228,16 +229,24 @@ struct PriceCrossCurrencySwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbu
   typedef PriceCrossCurrencySwapResponseT NativeTableType;
   typedef PriceCrossCurrencySwapResponseBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_SWAPS = 4
+    VT_SWAPS = 4,
+    VT_NPVS = 6
   };
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CrossCurrencySwapResponse>> *swaps() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CrossCurrencySwapResponse>> *>(VT_SWAPS);
+  }
+  /// Present only when the request set `price_only`: one NPV per trade in
+  /// request order (the per-trade list is then empty).
+  const ::flatbuffers::Vector<double> *npvs() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_NPVS);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_SWAPS) &&
            verifier.VerifyVector(swaps()) &&
            verifier.VerifyVectorOfTables(swaps()) &&
+           VerifyOffset(verifier, VT_NPVS) &&
+           verifier.VerifyVector(npvs()) &&
            verifier.EndTable();
   }
   PriceCrossCurrencySwapResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -251,6 +260,9 @@ struct PriceCrossCurrencySwapResponseBuilder {
   ::flatbuffers::uoffset_t start_;
   void add_swaps(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CrossCurrencySwapResponse>>> swaps) {
     fbb_.AddOffset(PriceCrossCurrencySwapResponse::VT_SWAPS, swaps);
+  }
+  void add_npvs(::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs) {
+    fbb_.AddOffset(PriceCrossCurrencySwapResponse::VT_NPVS, npvs);
   }
   explicit PriceCrossCurrencySwapResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -266,19 +278,24 @@ struct PriceCrossCurrencySwapResponseBuilder {
 
 inline ::flatbuffers::Offset<PriceCrossCurrencySwapResponse> CreatePriceCrossCurrencySwapResponse(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CrossCurrencySwapResponse>>> swaps = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CrossCurrencySwapResponse>>> swaps = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs = 0) {
   PriceCrossCurrencySwapResponseBuilder builder_(_fbb);
+  builder_.add_npvs(npvs);
   builder_.add_swaps(swaps);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<PriceCrossCurrencySwapResponse> CreatePriceCrossCurrencySwapResponseDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<::flatbuffers::Offset<quantra::CrossCurrencySwapResponse>> *swaps = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::CrossCurrencySwapResponse>> *swaps = nullptr,
+    const std::vector<double> *npvs = nullptr) {
   auto swaps__ = swaps ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CrossCurrencySwapResponse>>(*swaps) : 0;
+  auto npvs__ = npvs ? _fbb.CreateVector<double>(*npvs) : 0;
   return quantra::CreatePriceCrossCurrencySwapResponse(
       _fbb,
-      swaps__);
+      swaps__,
+      npvs__);
 }
 
 ::flatbuffers::Offset<PriceCrossCurrencySwapResponse> CreatePriceCrossCurrencySwapResponse(::flatbuffers::FlatBufferBuilder &_fbb, const PriceCrossCurrencySwapResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -349,13 +366,15 @@ inline ::flatbuffers::Offset<CrossCurrencySwapResponse> CreateCrossCurrencySwapR
       _spot_date);
 }
 
-inline PriceCrossCurrencySwapResponseT::PriceCrossCurrencySwapResponseT(const PriceCrossCurrencySwapResponseT &o) {
+inline PriceCrossCurrencySwapResponseT::PriceCrossCurrencySwapResponseT(const PriceCrossCurrencySwapResponseT &o)
+      : npvs(o.npvs) {
   swaps.reserve(o.swaps.size());
   for (const auto &swaps_ : o.swaps) { swaps.emplace_back((swaps_) ? new quantra::CrossCurrencySwapResponseT(*swaps_) : nullptr); }
 }
 
 inline PriceCrossCurrencySwapResponseT &PriceCrossCurrencySwapResponseT::operator=(PriceCrossCurrencySwapResponseT o) FLATBUFFERS_NOEXCEPT {
   std::swap(swaps, o.swaps);
+  std::swap(npvs, o.npvs);
   return *this;
 }
 
@@ -369,6 +388,7 @@ inline void PriceCrossCurrencySwapResponse::UnPackTo(PriceCrossCurrencySwapRespo
   (void)_o;
   (void)_resolver;
   { auto _e = swaps(); if (_e) { _o->swaps.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->swaps[_i]) { _e->Get(_i)->UnPackTo(_o->swaps[_i].get(), _resolver); } else { _o->swaps[_i] = std::unique_ptr<quantra::CrossCurrencySwapResponseT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->swaps.resize(0); } }
+  { auto _e = npvs(); if (_e) { _o->npvs.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->npvs[_i] = _e->Get(_i); } } else { _o->npvs.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<PriceCrossCurrencySwapResponse> PriceCrossCurrencySwapResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceCrossCurrencySwapResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -380,9 +400,11 @@ inline ::flatbuffers::Offset<PriceCrossCurrencySwapResponse> CreatePriceCrossCur
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceCrossCurrencySwapResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _swaps = _fbb.CreateVector<::flatbuffers::Offset<quantra::CrossCurrencySwapResponse>> (_o->swaps.size(), [](size_t i, _VectorArgs *__va) { return CreateCrossCurrencySwapResponse(*__va->__fbb, __va->__o->swaps[i].get(), __va->__rehasher); }, &_va );
+  auto _npvs = _o->npvs.size() ? _fbb.CreateVector(_o->npvs) : 0;
   return quantra::CreatePriceCrossCurrencySwapResponse(
       _fbb,
-      _swaps);
+      _swaps,
+      _npvs);
 }
 
 inline const quantra::PriceCrossCurrencySwapResponse *GetPriceCrossCurrencySwapResponse(const void *buf) {

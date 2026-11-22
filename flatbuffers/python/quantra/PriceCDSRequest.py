@@ -61,8 +61,20 @@ class PriceCDSRequest(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         return o == 0
 
+    # When true the response carries only the prices: `npvs` holds one NPV
+    # per trade in request order and the per-trade list is empty (no flows,
+    # fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+    # full response reports; a request the engine refuses is refused the
+    # same way. Absent or false: the full response.
+    # PriceCDSRequest
+    def PriceOnly(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def PriceCDSRequestStart(builder):
-    builder.StartObject(2)
+    builder.StartObject(3)
 
 def Start(builder):
     PriceCDSRequestStart(builder)
@@ -85,6 +97,12 @@ def PriceCDSRequestStartCdsListVector(builder, numElems):
 def StartCdsListVector(builder, numElems):
     return PriceCDSRequestStartCdsListVector(builder, numElems)
 
+def PriceCDSRequestAddPriceOnly(builder, priceOnly):
+    builder.PrependBoolSlot(2, priceOnly, 0)
+
+def AddPriceOnly(builder, priceOnly):
+    PriceCDSRequestAddPriceOnly(builder, priceOnly)
+
 def PriceCDSRequestEnd(builder):
     return builder.EndObject()
 
@@ -102,6 +120,7 @@ class PriceCDSRequestT(object):
     def __init__(self):
         self.pricing = None  # type: Optional[PricingT]
         self.cdsList = None  # type: List[PriceCDST]
+        self.priceOnly = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -136,6 +155,7 @@ class PriceCDSRequestT(object):
                     from quantra.PriceCDS import PriceCDST
                     priceCDS_ = PriceCDST.InitFromObj(priceCdsrequest.CdsList(i))
                     self.cdsList.append(priceCDS_)
+        self.priceOnly = priceCdsrequest.PriceOnly()
 
     # PriceCDSRequestT
     def Pack(self, builder):
@@ -154,5 +174,6 @@ class PriceCDSRequestT(object):
             PriceCDSRequestAddPricing(builder, pricing)
         if self.cdsList is not None:
             PriceCDSRequestAddCdsList(builder, cdsList)
+        PriceCDSRequestAddPriceOnly(builder, self.priceOnly)
         priceCdsrequest = PriceCDSRequestEnd(builder)
         return priceCdsrequest

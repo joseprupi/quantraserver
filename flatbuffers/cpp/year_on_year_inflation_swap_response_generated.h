@@ -203,6 +203,7 @@ inline ::flatbuffers::Offset<YearOnYearInflationSwapResponse> CreateYearOnYearIn
 struct PriceYearOnYearInflationSwapResponseT : public ::flatbuffers::NativeTable {
   typedef PriceYearOnYearInflationSwapResponse TableType;
   std::vector<std::unique_ptr<quantra::YearOnYearInflationSwapResponseT>> swaps{};
+  std::vector<double> npvs{};
   PriceYearOnYearInflationSwapResponseT() = default;
   PriceYearOnYearInflationSwapResponseT(const PriceYearOnYearInflationSwapResponseT &o);
   PriceYearOnYearInflationSwapResponseT(PriceYearOnYearInflationSwapResponseT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -214,16 +215,24 @@ struct PriceYearOnYearInflationSwapResponse FLATBUFFERS_FINAL_CLASS : private ::
   typedef PriceYearOnYearInflationSwapResponseT NativeTableType;
   typedef PriceYearOnYearInflationSwapResponseBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_SWAPS = 4
+    VT_SWAPS = 4,
+    VT_NPVS = 6
   };
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::YearOnYearInflationSwapResponse>> *swaps() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::YearOnYearInflationSwapResponse>> *>(VT_SWAPS);
+  }
+  /// Present only when the request set `price_only`: one NPV per trade in
+  /// request order (the per-trade list is then empty).
+  const ::flatbuffers::Vector<double> *npvs() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_NPVS);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_SWAPS) &&
            verifier.VerifyVector(swaps()) &&
            verifier.VerifyVectorOfTables(swaps()) &&
+           VerifyOffset(verifier, VT_NPVS) &&
+           verifier.VerifyVector(npvs()) &&
            verifier.EndTable();
   }
   PriceYearOnYearInflationSwapResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -237,6 +246,9 @@ struct PriceYearOnYearInflationSwapResponseBuilder {
   ::flatbuffers::uoffset_t start_;
   void add_swaps(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::YearOnYearInflationSwapResponse>>> swaps) {
     fbb_.AddOffset(PriceYearOnYearInflationSwapResponse::VT_SWAPS, swaps);
+  }
+  void add_npvs(::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs) {
+    fbb_.AddOffset(PriceYearOnYearInflationSwapResponse::VT_NPVS, npvs);
   }
   explicit PriceYearOnYearInflationSwapResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -252,19 +264,24 @@ struct PriceYearOnYearInflationSwapResponseBuilder {
 
 inline ::flatbuffers::Offset<PriceYearOnYearInflationSwapResponse> CreatePriceYearOnYearInflationSwapResponse(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::YearOnYearInflationSwapResponse>>> swaps = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::YearOnYearInflationSwapResponse>>> swaps = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs = 0) {
   PriceYearOnYearInflationSwapResponseBuilder builder_(_fbb);
+  builder_.add_npvs(npvs);
   builder_.add_swaps(swaps);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<PriceYearOnYearInflationSwapResponse> CreatePriceYearOnYearInflationSwapResponseDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<::flatbuffers::Offset<quantra::YearOnYearInflationSwapResponse>> *swaps = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::YearOnYearInflationSwapResponse>> *swaps = nullptr,
+    const std::vector<double> *npvs = nullptr) {
   auto swaps__ = swaps ? _fbb.CreateVector<::flatbuffers::Offset<quantra::YearOnYearInflationSwapResponse>>(*swaps) : 0;
+  auto npvs__ = npvs ? _fbb.CreateVector<double>(*npvs) : 0;
   return quantra::CreatePriceYearOnYearInflationSwapResponse(
       _fbb,
-      swaps__);
+      swaps__,
+      npvs__);
 }
 
 ::flatbuffers::Offset<PriceYearOnYearInflationSwapResponse> CreatePriceYearOnYearInflationSwapResponse(::flatbuffers::FlatBufferBuilder &_fbb, const PriceYearOnYearInflationSwapResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -346,13 +363,15 @@ inline ::flatbuffers::Offset<YearOnYearInflationSwapResponse> CreateYearOnYearIn
       _yoy_leg_flows);
 }
 
-inline PriceYearOnYearInflationSwapResponseT::PriceYearOnYearInflationSwapResponseT(const PriceYearOnYearInflationSwapResponseT &o) {
+inline PriceYearOnYearInflationSwapResponseT::PriceYearOnYearInflationSwapResponseT(const PriceYearOnYearInflationSwapResponseT &o)
+      : npvs(o.npvs) {
   swaps.reserve(o.swaps.size());
   for (const auto &swaps_ : o.swaps) { swaps.emplace_back((swaps_) ? new quantra::YearOnYearInflationSwapResponseT(*swaps_) : nullptr); }
 }
 
 inline PriceYearOnYearInflationSwapResponseT &PriceYearOnYearInflationSwapResponseT::operator=(PriceYearOnYearInflationSwapResponseT o) FLATBUFFERS_NOEXCEPT {
   std::swap(swaps, o.swaps);
+  std::swap(npvs, o.npvs);
   return *this;
 }
 
@@ -366,6 +385,7 @@ inline void PriceYearOnYearInflationSwapResponse::UnPackTo(PriceYearOnYearInflat
   (void)_o;
   (void)_resolver;
   { auto _e = swaps(); if (_e) { _o->swaps.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->swaps[_i]) { _e->Get(_i)->UnPackTo(_o->swaps[_i].get(), _resolver); } else { _o->swaps[_i] = std::unique_ptr<quantra::YearOnYearInflationSwapResponseT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->swaps.resize(0); } }
+  { auto _e = npvs(); if (_e) { _o->npvs.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->npvs[_i] = _e->Get(_i); } } else { _o->npvs.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<PriceYearOnYearInflationSwapResponse> PriceYearOnYearInflationSwapResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceYearOnYearInflationSwapResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -377,9 +397,11 @@ inline ::flatbuffers::Offset<PriceYearOnYearInflationSwapResponse> CreatePriceYe
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceYearOnYearInflationSwapResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _swaps = _fbb.CreateVector<::flatbuffers::Offset<quantra::YearOnYearInflationSwapResponse>> (_o->swaps.size(), [](size_t i, _VectorArgs *__va) { return CreateYearOnYearInflationSwapResponse(*__va->__fbb, __va->__o->swaps[i].get(), __va->__rehasher); }, &_va );
+  auto _npvs = _o->npvs.size() ? _fbb.CreateVector(_o->npvs) : 0;
   return quantra::CreatePriceYearOnYearInflationSwapResponse(
       _fbb,
-      _swaps);
+      _swaps,
+      _npvs);
 }
 
 inline const quantra::PriceYearOnYearInflationSwapResponse *GetPriceYearOnYearInflationSwapResponse(const void *buf) {

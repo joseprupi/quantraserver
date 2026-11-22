@@ -132,6 +132,7 @@ inline ::flatbuffers::Offset<FRAResponse> CreateFRAResponseDirect(
 struct PriceFRAResponseT : public ::flatbuffers::NativeTable {
   typedef PriceFRAResponse TableType;
   std::vector<std::unique_ptr<quantra::FRAResponseT>> fras{};
+  std::vector<double> npvs{};
   PriceFRAResponseT() = default;
   PriceFRAResponseT(const PriceFRAResponseT &o);
   PriceFRAResponseT(PriceFRAResponseT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -143,16 +144,24 @@ struct PriceFRAResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceFRAResponseT NativeTableType;
   typedef PriceFRAResponseBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_FRAS = 4
+    VT_FRAS = 4,
+    VT_NPVS = 6
   };
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::FRAResponse>> *fras() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::FRAResponse>> *>(VT_FRAS);
+  }
+  /// Present only when the request set `price_only`: one NPV per trade in
+  /// request order (the per-trade list is then empty).
+  const ::flatbuffers::Vector<double> *npvs() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_NPVS);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_FRAS) &&
            verifier.VerifyVector(fras()) &&
            verifier.VerifyVectorOfTables(fras()) &&
+           VerifyOffset(verifier, VT_NPVS) &&
+           verifier.VerifyVector(npvs()) &&
            verifier.EndTable();
   }
   PriceFRAResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -166,6 +175,9 @@ struct PriceFRAResponseBuilder {
   ::flatbuffers::uoffset_t start_;
   void add_fras(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::FRAResponse>>> fras) {
     fbb_.AddOffset(PriceFRAResponse::VT_FRAS, fras);
+  }
+  void add_npvs(::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs) {
+    fbb_.AddOffset(PriceFRAResponse::VT_NPVS, npvs);
   }
   explicit PriceFRAResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -181,19 +193,24 @@ struct PriceFRAResponseBuilder {
 
 inline ::flatbuffers::Offset<PriceFRAResponse> CreatePriceFRAResponse(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::FRAResponse>>> fras = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::FRAResponse>>> fras = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs = 0) {
   PriceFRAResponseBuilder builder_(_fbb);
+  builder_.add_npvs(npvs);
   builder_.add_fras(fras);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<PriceFRAResponse> CreatePriceFRAResponseDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<::flatbuffers::Offset<quantra::FRAResponse>> *fras = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::FRAResponse>> *fras = nullptr,
+    const std::vector<double> *npvs = nullptr) {
   auto fras__ = fras ? _fbb.CreateVector<::flatbuffers::Offset<quantra::FRAResponse>>(*fras) : 0;
+  auto npvs__ = npvs ? _fbb.CreateVector<double>(*npvs) : 0;
   return quantra::CreatePriceFRAResponse(
       _fbb,
-      fras__);
+      fras__,
+      npvs__);
 }
 
 ::flatbuffers::Offset<PriceFRAResponse> CreatePriceFRAResponse(::flatbuffers::FlatBufferBuilder &_fbb, const PriceFRAResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -233,13 +250,15 @@ inline ::flatbuffers::Offset<FRAResponse> CreateFRAResponse(::flatbuffers::FlatB
       _settlement_date);
 }
 
-inline PriceFRAResponseT::PriceFRAResponseT(const PriceFRAResponseT &o) {
+inline PriceFRAResponseT::PriceFRAResponseT(const PriceFRAResponseT &o)
+      : npvs(o.npvs) {
   fras.reserve(o.fras.size());
   for (const auto &fras_ : o.fras) { fras.emplace_back((fras_) ? new quantra::FRAResponseT(*fras_) : nullptr); }
 }
 
 inline PriceFRAResponseT &PriceFRAResponseT::operator=(PriceFRAResponseT o) FLATBUFFERS_NOEXCEPT {
   std::swap(fras, o.fras);
+  std::swap(npvs, o.npvs);
   return *this;
 }
 
@@ -253,6 +272,7 @@ inline void PriceFRAResponse::UnPackTo(PriceFRAResponseT *_o, const ::flatbuffer
   (void)_o;
   (void)_resolver;
   { auto _e = fras(); if (_e) { _o->fras.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->fras[_i]) { _e->Get(_i)->UnPackTo(_o->fras[_i].get(), _resolver); } else { _o->fras[_i] = std::unique_ptr<quantra::FRAResponseT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->fras.resize(0); } }
+  { auto _e = npvs(); if (_e) { _o->npvs.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->npvs[_i] = _e->Get(_i); } } else { _o->npvs.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<PriceFRAResponse> PriceFRAResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceFRAResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -264,9 +284,11 @@ inline ::flatbuffers::Offset<PriceFRAResponse> CreatePriceFRAResponse(::flatbuff
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceFRAResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _fras = _fbb.CreateVector<::flatbuffers::Offset<quantra::FRAResponse>> (_o->fras.size(), [](size_t i, _VectorArgs *__va) { return CreateFRAResponse(*__va->__fbb, __va->__o->fras[i].get(), __va->__rehasher); }, &_va );
+  auto _npvs = _o->npvs.size() ? _fbb.CreateVector(_o->npvs) : 0;
   return quantra::CreatePriceFRAResponse(
       _fbb,
-      _fras);
+      _fras,
+      _npvs);
 }
 
 inline const quantra::PriceFRAResponse *GetPriceFRAResponse(const void *buf) {

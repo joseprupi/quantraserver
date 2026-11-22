@@ -69,8 +69,20 @@ class PriceYearOnYearInflationSwapRequest(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
+    # When true the response carries only the prices: `npvs` holds one NPV
+    # per trade in request order and the per-trade list is empty (no flows,
+    # fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+    # full response reports; a request the engine refuses is refused the
+    # same way. Absent or false: the full response.
+    # PriceYearOnYearInflationSwapRequest
+    def PriceOnly(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def PriceYearOnYearInflationSwapRequestStart(builder):
-    builder.StartObject(3)
+    builder.StartObject(4)
 
 def Start(builder):
     PriceYearOnYearInflationSwapRequestStart(builder)
@@ -99,6 +111,12 @@ def PriceYearOnYearInflationSwapRequestAddIncludeFlows(builder, includeFlows):
 def AddIncludeFlows(builder, includeFlows):
     PriceYearOnYearInflationSwapRequestAddIncludeFlows(builder, includeFlows)
 
+def PriceYearOnYearInflationSwapRequestAddPriceOnly(builder, priceOnly):
+    builder.PrependBoolSlot(3, priceOnly, 0)
+
+def AddPriceOnly(builder, priceOnly):
+    PriceYearOnYearInflationSwapRequestAddPriceOnly(builder, priceOnly)
+
 def PriceYearOnYearInflationSwapRequestEnd(builder):
     return builder.EndObject()
 
@@ -117,6 +135,7 @@ class PriceYearOnYearInflationSwapRequestT(object):
         self.pricing = None  # type: Optional[PricingT]
         self.swaps = None  # type: List[PriceYearOnYearInflationSwapT]
         self.includeFlows = False  # type: bool
+        self.priceOnly = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -152,6 +171,7 @@ class PriceYearOnYearInflationSwapRequestT(object):
                     priceYearOnYearInflationSwap_ = PriceYearOnYearInflationSwapT.InitFromObj(priceYearOnYearInflationSwapRequest.Swaps(i))
                     self.swaps.append(priceYearOnYearInflationSwap_)
         self.includeFlows = priceYearOnYearInflationSwapRequest.IncludeFlows()
+        self.priceOnly = priceYearOnYearInflationSwapRequest.PriceOnly()
 
     # PriceYearOnYearInflationSwapRequestT
     def Pack(self, builder):
@@ -171,5 +191,6 @@ class PriceYearOnYearInflationSwapRequestT(object):
         if self.swaps is not None:
             PriceYearOnYearInflationSwapRequestAddSwaps(builder, swaps)
         PriceYearOnYearInflationSwapRequestAddIncludeFlows(builder, self.includeFlows)
+        PriceYearOnYearInflationSwapRequestAddPriceOnly(builder, self.priceOnly)
         priceYearOnYearInflationSwapRequest = PriceYearOnYearInflationSwapRequestEnd(builder)
         return priceYearOnYearInflationSwapRequest

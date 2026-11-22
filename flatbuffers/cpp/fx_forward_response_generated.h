@@ -211,6 +211,7 @@ inline ::flatbuffers::Offset<FxForwardResponse> CreateFxForwardResponseDirect(
 struct PriceFxForwardResponseT : public ::flatbuffers::NativeTable {
   typedef PriceFxForwardResponse TableType;
   std::vector<std::unique_ptr<quantra::FxForwardResponseT>> fx_forwards{};
+  std::vector<double> npvs{};
   PriceFxForwardResponseT() = default;
   PriceFxForwardResponseT(const PriceFxForwardResponseT &o);
   PriceFxForwardResponseT(PriceFxForwardResponseT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -222,16 +223,24 @@ struct PriceFxForwardResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::T
   typedef PriceFxForwardResponseT NativeTableType;
   typedef PriceFxForwardResponseBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_FX_FORWARDS = 4
+    VT_FX_FORWARDS = 4,
+    VT_NPVS = 6
   };
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::FxForwardResponse>> *fx_forwards() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::FxForwardResponse>> *>(VT_FX_FORWARDS);
+  }
+  /// Present only when the request set `price_only`: one NPV per trade in
+  /// request order (the per-trade list is then empty).
+  const ::flatbuffers::Vector<double> *npvs() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_NPVS);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_FX_FORWARDS) &&
            verifier.VerifyVector(fx_forwards()) &&
            verifier.VerifyVectorOfTables(fx_forwards()) &&
+           VerifyOffset(verifier, VT_NPVS) &&
+           verifier.VerifyVector(npvs()) &&
            verifier.EndTable();
   }
   PriceFxForwardResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -245,6 +254,9 @@ struct PriceFxForwardResponseBuilder {
   ::flatbuffers::uoffset_t start_;
   void add_fx_forwards(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::FxForwardResponse>>> fx_forwards) {
     fbb_.AddOffset(PriceFxForwardResponse::VT_FX_FORWARDS, fx_forwards);
+  }
+  void add_npvs(::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs) {
+    fbb_.AddOffset(PriceFxForwardResponse::VT_NPVS, npvs);
   }
   explicit PriceFxForwardResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -260,19 +272,24 @@ struct PriceFxForwardResponseBuilder {
 
 inline ::flatbuffers::Offset<PriceFxForwardResponse> CreatePriceFxForwardResponse(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::FxForwardResponse>>> fx_forwards = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::FxForwardResponse>>> fx_forwards = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs = 0) {
   PriceFxForwardResponseBuilder builder_(_fbb);
+  builder_.add_npvs(npvs);
   builder_.add_fx_forwards(fx_forwards);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<PriceFxForwardResponse> CreatePriceFxForwardResponseDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<::flatbuffers::Offset<quantra::FxForwardResponse>> *fx_forwards = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::FxForwardResponse>> *fx_forwards = nullptr,
+    const std::vector<double> *npvs = nullptr) {
   auto fx_forwards__ = fx_forwards ? _fbb.CreateVector<::flatbuffers::Offset<quantra::FxForwardResponse>>(*fx_forwards) : 0;
+  auto npvs__ = npvs ? _fbb.CreateVector<double>(*npvs) : 0;
   return quantra::CreatePriceFxForwardResponse(
       _fbb,
-      fx_forwards__);
+      fx_forwards__,
+      npvs__);
 }
 
 ::flatbuffers::Offset<PriceFxForwardResponse> CreatePriceFxForwardResponse(::flatbuffers::FlatBufferBuilder &_fbb, const PriceFxForwardResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -324,13 +341,15 @@ inline ::flatbuffers::Offset<FxForwardResponse> CreateFxForwardResponse(::flatbu
       _fx_spot_used);
 }
 
-inline PriceFxForwardResponseT::PriceFxForwardResponseT(const PriceFxForwardResponseT &o) {
+inline PriceFxForwardResponseT::PriceFxForwardResponseT(const PriceFxForwardResponseT &o)
+      : npvs(o.npvs) {
   fx_forwards.reserve(o.fx_forwards.size());
   for (const auto &fx_forwards_ : o.fx_forwards) { fx_forwards.emplace_back((fx_forwards_) ? new quantra::FxForwardResponseT(*fx_forwards_) : nullptr); }
 }
 
 inline PriceFxForwardResponseT &PriceFxForwardResponseT::operator=(PriceFxForwardResponseT o) FLATBUFFERS_NOEXCEPT {
   std::swap(fx_forwards, o.fx_forwards);
+  std::swap(npvs, o.npvs);
   return *this;
 }
 
@@ -344,6 +363,7 @@ inline void PriceFxForwardResponse::UnPackTo(PriceFxForwardResponseT *_o, const 
   (void)_o;
   (void)_resolver;
   { auto _e = fx_forwards(); if (_e) { _o->fx_forwards.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->fx_forwards[_i]) { _e->Get(_i)->UnPackTo(_o->fx_forwards[_i].get(), _resolver); } else { _o->fx_forwards[_i] = std::unique_ptr<quantra::FxForwardResponseT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->fx_forwards.resize(0); } }
+  { auto _e = npvs(); if (_e) { _o->npvs.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->npvs[_i] = _e->Get(_i); } } else { _o->npvs.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<PriceFxForwardResponse> PriceFxForwardResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceFxForwardResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -355,9 +375,11 @@ inline ::flatbuffers::Offset<PriceFxForwardResponse> CreatePriceFxForwardRespons
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceFxForwardResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _fx_forwards = _fbb.CreateVector<::flatbuffers::Offset<quantra::FxForwardResponse>> (_o->fx_forwards.size(), [](size_t i, _VectorArgs *__va) { return CreateFxForwardResponse(*__va->__fbb, __va->__o->fx_forwards[i].get(), __va->__rehasher); }, &_va );
+  auto _npvs = _o->npvs.size() ? _fbb.CreateVector(_o->npvs) : 0;
   return quantra::CreatePriceFxForwardResponse(
       _fbb,
-      _fx_forwards);
+      _fx_forwards,
+      _npvs);
 }
 
 inline const quantra::PriceFxForwardResponse *GetPriceFxForwardResponse(const void *buf) {

@@ -2,6 +2,7 @@
 
 #include "error.h"
 #include "fx_spot_parser.h" // RequireIsoCurrency
+#include "price_only_response.h"
 #include "swap_leg_mapper.h"
 
 #include <cmath>
@@ -117,6 +118,14 @@ flatbuffers::Offset<quantra::PriceCrossCurrencySwapResponse> CrossCurrencySwapMa
     quantra::PriceCrossCurrencySwapResponseBuilder rb(builder);
     rb.add_swaps(rowsVec);
     return rb.Finish();
+}
+
+flatbuffers::Offset<quantra::PriceCrossCurrencySwapResponse> CrossCurrencySwapMapper::
+    toPriceOnlyResponse(
+        flatbuffers::grpc::MessageBuilder& builder, const CrossCurrencySwapResult& result) const {
+    return PriceOnlyResponse(
+        builder, result.swaps, [](const auto& row) { return row.npv; },
+        &quantra::PriceCrossCurrencySwapResponseBuilder::add_swaps);
 }
 
 } // namespace quantra

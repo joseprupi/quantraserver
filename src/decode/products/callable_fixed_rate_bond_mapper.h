@@ -25,6 +25,12 @@ public:
     flatbuffers::Offset<quantra::PriceCallableFixedRateBondResponse> toResponse(
         flatbuffers::grpc::MessageBuilder& builder,
         const CallableFixedRateBondResult& result) const;
+
+    /// The response of a `price_only` request: one NPV per trade
+    /// (price_only_response.h).
+    flatbuffers::Offset<quantra::PriceCallableFixedRateBondResponse> toPriceOnlyResponse(
+        flatbuffers::grpc::MessageBuilder& builder,
+        const CallableFixedRateBondResult& result) const;
 };
 
 } // namespace quantra

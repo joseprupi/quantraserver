@@ -801,6 +801,11 @@ SwaptionResult SwaptionEvaluator::evaluate(
         }
 
         // used_* diagnostics: best-effort. Failures fall back to sentinels.
+        // None under price_only (the response keeps only the NPV).
+        if (ctx.priceOnly) {
+            result.values.push_back(std::move(row));
+            continue;
+        }
         try {
             if (volEntry.handle.empty()) {
                 QUANTRA_ERROR("Swaption vol handle is empty (ATM not injected?)");

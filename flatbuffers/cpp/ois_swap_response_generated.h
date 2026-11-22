@@ -171,6 +171,7 @@ inline ::flatbuffers::Offset<OisSwapResponse> CreateOisSwapResponseDirect(
 struct PriceOisSwapResponseT : public ::flatbuffers::NativeTable {
   typedef PriceOisSwapResponse TableType;
   std::vector<std::unique_ptr<quantra::OisSwapResponseT>> swaps{};
+  std::vector<double> npvs{};
   PriceOisSwapResponseT() = default;
   PriceOisSwapResponseT(const PriceOisSwapResponseT &o);
   PriceOisSwapResponseT(PriceOisSwapResponseT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -182,16 +183,24 @@ struct PriceOisSwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
   typedef PriceOisSwapResponseT NativeTableType;
   typedef PriceOisSwapResponseBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_SWAPS = 4
+    VT_SWAPS = 4,
+    VT_NPVS = 6
   };
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::OisSwapResponse>> *swaps() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::OisSwapResponse>> *>(VT_SWAPS);
+  }
+  /// Present only when the request set `price_only`: one NPV per trade in
+  /// request order (the per-trade list is then empty).
+  const ::flatbuffers::Vector<double> *npvs() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_NPVS);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_SWAPS) &&
            verifier.VerifyVector(swaps()) &&
            verifier.VerifyVectorOfTables(swaps()) &&
+           VerifyOffset(verifier, VT_NPVS) &&
+           verifier.VerifyVector(npvs()) &&
            verifier.EndTable();
   }
   PriceOisSwapResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -205,6 +214,9 @@ struct PriceOisSwapResponseBuilder {
   ::flatbuffers::uoffset_t start_;
   void add_swaps(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::OisSwapResponse>>> swaps) {
     fbb_.AddOffset(PriceOisSwapResponse::VT_SWAPS, swaps);
+  }
+  void add_npvs(::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs) {
+    fbb_.AddOffset(PriceOisSwapResponse::VT_NPVS, npvs);
   }
   explicit PriceOisSwapResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -220,19 +232,24 @@ struct PriceOisSwapResponseBuilder {
 
 inline ::flatbuffers::Offset<PriceOisSwapResponse> CreatePriceOisSwapResponse(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::OisSwapResponse>>> swaps = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::OisSwapResponse>>> swaps = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs = 0) {
   PriceOisSwapResponseBuilder builder_(_fbb);
+  builder_.add_npvs(npvs);
   builder_.add_swaps(swaps);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<PriceOisSwapResponse> CreatePriceOisSwapResponseDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<::flatbuffers::Offset<quantra::OisSwapResponse>> *swaps = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::OisSwapResponse>> *swaps = nullptr,
+    const std::vector<double> *npvs = nullptr) {
   auto swaps__ = swaps ? _fbb.CreateVector<::flatbuffers::Offset<quantra::OisSwapResponse>>(*swaps) : 0;
+  auto npvs__ = npvs ? _fbb.CreateVector<double>(*npvs) : 0;
   return quantra::CreatePriceOisSwapResponse(
       _fbb,
-      swaps__);
+      swaps__,
+      npvs__);
 }
 
 ::flatbuffers::Offset<PriceOisSwapResponse> CreatePriceOisSwapResponse(::flatbuffers::FlatBufferBuilder &_fbb, const PriceOisSwapResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -288,13 +305,15 @@ inline ::flatbuffers::Offset<OisSwapResponse> CreateOisSwapResponse(::flatbuffer
       _legs);
 }
 
-inline PriceOisSwapResponseT::PriceOisSwapResponseT(const PriceOisSwapResponseT &o) {
+inline PriceOisSwapResponseT::PriceOisSwapResponseT(const PriceOisSwapResponseT &o)
+      : npvs(o.npvs) {
   swaps.reserve(o.swaps.size());
   for (const auto &swaps_ : o.swaps) { swaps.emplace_back((swaps_) ? new quantra::OisSwapResponseT(*swaps_) : nullptr); }
 }
 
 inline PriceOisSwapResponseT &PriceOisSwapResponseT::operator=(PriceOisSwapResponseT o) FLATBUFFERS_NOEXCEPT {
   std::swap(swaps, o.swaps);
+  std::swap(npvs, o.npvs);
   return *this;
 }
 
@@ -308,6 +327,7 @@ inline void PriceOisSwapResponse::UnPackTo(PriceOisSwapResponseT *_o, const ::fl
   (void)_o;
   (void)_resolver;
   { auto _e = swaps(); if (_e) { _o->swaps.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->swaps[_i]) { _e->Get(_i)->UnPackTo(_o->swaps[_i].get(), _resolver); } else { _o->swaps[_i] = std::unique_ptr<quantra::OisSwapResponseT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->swaps.resize(0); } }
+  { auto _e = npvs(); if (_e) { _o->npvs.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->npvs[_i] = _e->Get(_i); } } else { _o->npvs.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<PriceOisSwapResponse> PriceOisSwapResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceOisSwapResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -319,9 +339,11 @@ inline ::flatbuffers::Offset<PriceOisSwapResponse> CreatePriceOisSwapResponse(::
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceOisSwapResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _swaps = _fbb.CreateVector<::flatbuffers::Offset<quantra::OisSwapResponse>> (_o->swaps.size(), [](size_t i, _VectorArgs *__va) { return CreateOisSwapResponse(*__va->__fbb, __va->__o->swaps[i].get(), __va->__rehasher); }, &_va );
+  auto _npvs = _o->npvs.size() ? _fbb.CreateVector(_o->npvs) : 0;
   return quantra::CreatePriceOisSwapResponse(
       _fbb,
-      _swaps);
+      _swaps,
+      _npvs);
 }
 
 inline const quantra::PriceOisSwapResponse *GetPriceOisSwapResponse(const void *buf) {

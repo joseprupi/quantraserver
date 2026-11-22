@@ -4237,6 +4237,7 @@ inline ::flatbuffers::Offset<StructuredNoteResult> CreateStructuredNoteResultDir
 struct PriceStructuredNoteResponseT : public ::flatbuffers::NativeTable {
   typedef PriceStructuredNoteResponse TableType;
   std::vector<std::unique_ptr<quantra::StructuredNoteResultT>> notes{};
+  std::vector<double> npvs{};
   PriceStructuredNoteResponseT() = default;
   PriceStructuredNoteResponseT(const PriceStructuredNoteResponseT &o);
   PriceStructuredNoteResponseT(PriceStructuredNoteResponseT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -4248,16 +4249,24 @@ struct PriceStructuredNoteResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffe
   typedef PriceStructuredNoteResponseT NativeTableType;
   typedef PriceStructuredNoteResponseBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_NOTES = 4
+    VT_NOTES = 4,
+    VT_NPVS = 6
   };
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::StructuredNoteResult>> *notes() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::StructuredNoteResult>> *>(VT_NOTES);
+  }
+  /// Present only when the request set `price_only`: one NPV per trade in
+  /// request order (the per-trade list is then empty).
+  const ::flatbuffers::Vector<double> *npvs() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_NPVS);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_NOTES) &&
            verifier.VerifyVector(notes()) &&
            verifier.VerifyVectorOfTables(notes()) &&
+           VerifyOffset(verifier, VT_NPVS) &&
+           verifier.VerifyVector(npvs()) &&
            verifier.EndTable();
   }
   PriceStructuredNoteResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -4271,6 +4280,9 @@ struct PriceStructuredNoteResponseBuilder {
   ::flatbuffers::uoffset_t start_;
   void add_notes(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::StructuredNoteResult>>> notes) {
     fbb_.AddOffset(PriceStructuredNoteResponse::VT_NOTES, notes);
+  }
+  void add_npvs(::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs) {
+    fbb_.AddOffset(PriceStructuredNoteResponse::VT_NPVS, npvs);
   }
   explicit PriceStructuredNoteResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -4286,19 +4298,24 @@ struct PriceStructuredNoteResponseBuilder {
 
 inline ::flatbuffers::Offset<PriceStructuredNoteResponse> CreatePriceStructuredNoteResponse(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::StructuredNoteResult>>> notes = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::StructuredNoteResult>>> notes = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs = 0) {
   PriceStructuredNoteResponseBuilder builder_(_fbb);
+  builder_.add_npvs(npvs);
   builder_.add_notes(notes);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<PriceStructuredNoteResponse> CreatePriceStructuredNoteResponseDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<::flatbuffers::Offset<quantra::StructuredNoteResult>> *notes = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::StructuredNoteResult>> *notes = nullptr,
+    const std::vector<double> *npvs = nullptr) {
   auto notes__ = notes ? _fbb.CreateVector<::flatbuffers::Offset<quantra::StructuredNoteResult>>(*notes) : 0;
+  auto npvs__ = npvs ? _fbb.CreateVector<double>(*npvs) : 0;
   return quantra::CreatePriceStructuredNoteResponse(
       _fbb,
-      notes__);
+      notes__,
+      npvs__);
 }
 
 ::flatbuffers::Offset<PriceStructuredNoteResponse> CreatePriceStructuredNoteResponse(::flatbuffers::FlatBufferBuilder &_fbb, const PriceStructuredNoteResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -5742,13 +5759,15 @@ inline ::flatbuffers::Offset<StructuredNoteResult> CreateStructuredNoteResult(::
       _timing);
 }
 
-inline PriceStructuredNoteResponseT::PriceStructuredNoteResponseT(const PriceStructuredNoteResponseT &o) {
+inline PriceStructuredNoteResponseT::PriceStructuredNoteResponseT(const PriceStructuredNoteResponseT &o)
+      : npvs(o.npvs) {
   notes.reserve(o.notes.size());
   for (const auto &notes_ : o.notes) { notes.emplace_back((notes_) ? new quantra::StructuredNoteResultT(*notes_) : nullptr); }
 }
 
 inline PriceStructuredNoteResponseT &PriceStructuredNoteResponseT::operator=(PriceStructuredNoteResponseT o) FLATBUFFERS_NOEXCEPT {
   std::swap(notes, o.notes);
+  std::swap(npvs, o.npvs);
   return *this;
 }
 
@@ -5762,6 +5781,7 @@ inline void PriceStructuredNoteResponse::UnPackTo(PriceStructuredNoteResponseT *
   (void)_o;
   (void)_resolver;
   { auto _e = notes(); if (_e) { _o->notes.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->notes[_i]) { _e->Get(_i)->UnPackTo(_o->notes[_i].get(), _resolver); } else { _o->notes[_i] = std::unique_ptr<quantra::StructuredNoteResultT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->notes.resize(0); } }
+  { auto _e = npvs(); if (_e) { _o->npvs.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->npvs[_i] = _e->Get(_i); } } else { _o->npvs.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<PriceStructuredNoteResponse> PriceStructuredNoteResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceStructuredNoteResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -5773,9 +5793,11 @@ inline ::flatbuffers::Offset<PriceStructuredNoteResponse> CreatePriceStructuredN
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceStructuredNoteResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _notes = _fbb.CreateVector<::flatbuffers::Offset<quantra::StructuredNoteResult>> (_o->notes.size(), [](size_t i, _VectorArgs *__va) { return CreateStructuredNoteResult(*__va->__fbb, __va->__o->notes[i].get(), __va->__rehasher); }, &_va );
+  auto _npvs = _o->npvs.size() ? _fbb.CreateVector(_o->npvs) : 0;
   return quantra::CreatePriceStructuredNoteResponse(
       _fbb,
-      _notes);
+      _notes,
+      _npvs);
 }
 
 inline const quantra::PriceStructuredNoteResponse *GetPriceStructuredNoteResponse(const void *buf) {

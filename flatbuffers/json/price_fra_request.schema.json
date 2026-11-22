@@ -3191,6 +3191,10 @@
               },
         "fras" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_PriceFRA"}
+              },
+        "price_only" : {
+                "type" : "boolean",
+                "description" : "When true the response carries only the prices: `npvs` holds one NPV\nper trade in request order and the per-trade list is empty (no flows,\nfair values, greeks, echoes or diagnostics). The NPVs are the ones the\nfull response reports; a request the engine refuses is refused the\nsame way. Absent or false: the full response."
               }
       },
       "additionalProperties" : false

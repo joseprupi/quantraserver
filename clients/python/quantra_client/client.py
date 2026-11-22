@@ -18,6 +18,9 @@ Example:
     response = client.price_fixed_rate_bonds(request)
     print(f"NPV: {response.Bonds(0).Npv()}")
 
+Prices only: set `request.priceOnly = True`; the response then holds one NPV
+per trade in `Npvs(j)` (`response_npvs(response)`) and no per-trade entries.
+
 See examples/price_bonds.py for a complete, runnable request.
 """
 
@@ -562,6 +565,18 @@ def _error_details(error):
     return None
 
 
+def response_npvs(response):
+    """The `npvs` of a pricing response to a request sent with `price_only`
+    (`request.priceOnly = True`): one NPV per trade in request order, a numpy
+    array when numpy is importable, else a list of floats. The per-trade
+    list of such a response is empty."""
+    try:
+        import numpy  # noqa: F401
+    except ImportError:
+        return [response.Npvs(j) for j in range(response.NpvsLength())]
+    return response.NpvsAsNumpy() if response.NpvsLength() else numpy.zeros(0)
+
+
 # =============================================================================
 # Convenience Exports
 # =============================================================================
@@ -735,6 +750,7 @@ __all__ = [
     # Client
     'Client',
     'QuantraError',
+    'response_npvs',
     
     # Request types
     'PriceFixedRateBondRequestT',

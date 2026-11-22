@@ -3,6 +3,7 @@
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "price_only_response.h"
 #include "request_validation.h"
 
 namespace quantra {
@@ -95,6 +96,13 @@ flatbuffers::Offset<quantra::PriceFRAResponse> FraMapper::toResponse(
     quantra::PriceFRAResponseBuilder rb(builder);
     rb.add_fras(frasVec);
     return rb.Finish();
+}
+
+flatbuffers::Offset<quantra::PriceFRAResponse> FraMapper::toPriceOnlyResponse(
+    flatbuffers::grpc::MessageBuilder& builder, const FraResult& result) const {
+    return PriceOnlyResponse(
+        builder, result.trades, [](const auto& row) { return row.npv; },
+        &quantra::PriceFRAResponseBuilder::add_fras);
 }
 
 } // namespace quantra

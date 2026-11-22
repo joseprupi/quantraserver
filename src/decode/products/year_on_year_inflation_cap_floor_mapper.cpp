@@ -3,6 +3,7 @@
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "price_only_response.h"
 #include "request_validation.h"
 #include "schedule_parser.h"
 
@@ -158,6 +159,14 @@ YearOnYearInflationCapFloorMapper::toResponse(
     quantra::PriceYearOnYearInflationCapFloorResponseBuilder rb(builder);
     rb.add_cap_floors(capFloorsVec);
     return rb.Finish();
+}
+
+flatbuffers::Offset<quantra::PriceYearOnYearInflationCapFloorResponse>
+YearOnYearInflationCapFloorMapper::toPriceOnlyResponse(
+    flatbuffers::grpc::MessageBuilder& builder, const YoYInflationCapFloorResult& result) const {
+    return PriceOnlyResponse(
+        builder, result.capFloors, [](const auto& row) { return row.npv; },
+        &quantra::PriceYearOnYearInflationCapFloorResponseBuilder::add_cap_floors);
 }
 
 } // namespace quantra

@@ -46,6 +46,10 @@
       "properties" : {
         "fx_forwards" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_FxForwardResponse"}
+              },
+        "npvs" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Present only when the request set `price_only`: one NPV per trade in\nrequest order (the per-trade list is then empty)."
               }
       },
       "required" : ["fx_forwards"],

@@ -21,6 +21,11 @@ public:
 
     flatbuffers::Offset<quantra::PriceCDSResponse> toResponse(
         flatbuffers::grpc::MessageBuilder& builder, const CdsResult& result) const;
+
+    /// The response of a `price_only` request: one NPV per trade
+    /// (price_only_response.h).
+    flatbuffers::Offset<quantra::PriceCDSResponse> toPriceOnlyResponse(
+        flatbuffers::grpc::MessageBuilder& builder, const CdsResult& result) const;
 };
 
 } // namespace quantra

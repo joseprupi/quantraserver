@@ -282,6 +282,9 @@ EquityOptionPerTrade priceTrade(
     EquityOptionPerTrade out;
     out.tradeId = trade.tradeId;
     out.npv = npv * quantity;
+    if (ctx.priceOnly) {
+        return out; // no greeks, no implied volatility (a solve per option)
+    }
     out.delta = safeGreek([&]() { return oneAssetOption->delta() * quantity; });
     out.gamma = safeGreek([&]() { return oneAssetOption->gamma() * quantity; });
     out.vega = safeGreek([&]() { return oneAssetOption->vega() * quantity; });

@@ -78,6 +78,36 @@ struct has_registry_need_hook<
     std::void_t<decltype(std::declval<const Mapper&>().needsPricingRegistry(
         std::declval<const Inputs&>()))>> : std::true_type {};
 
+/// Detects a request table with a `price_only()` accessor: every pricing
+/// request with a trade list. When it is true ProductEndpoint asks the
+/// evaluator for prices only (PricingContext::priceOnly) and answers with the
+/// mapper's `toPriceOnlyResponse` (one NPV per trade, see
+/// price_only_response.h) instead of `toResponse`.
+template <class T, class = void> struct has_price_only : std::false_type {};
+
+template <class T>
+struct has_price_only<T, std::void_t<decltype(std::declval<const T&>().price_only())>>
+    : std::true_type {};
+
+/// Clears the opt-in output switches a decoded request may carry
+/// (`includeFlows`, `includeObservations`, `includeDiagnostics`): under
+/// `price_only` the response has no room for what they ask for.
+#define QUANTRA_CLEAR_INPUT_SWITCH(member)                                                         \
+    template <class T> auto clear_##member(T& inputs, int) -> decltype(inputs.member, void()) {    \
+        inputs.member = false;                                                                     \
+    }                                                                                              \
+    template <class T> void clear_##member(T&, long) {}
+QUANTRA_CLEAR_INPUT_SWITCH(includeFlows)
+QUANTRA_CLEAR_INPUT_SWITCH(includeObservations)
+QUANTRA_CLEAR_INPUT_SWITCH(includeDiagnostics)
+#undef QUANTRA_CLEAR_INPUT_SWITCH
+
+template <class Inputs> void clearOutputSwitches(Inputs& inputs) {
+    clear_includeFlows(inputs, 0);
+    clear_includeObservations(inputs, 0);
+    clear_includeDiagnostics(inputs, 0);
+}
+
 } // namespace detail
 
 /**
@@ -96,6 +126,10 @@ struct has_registry_need_hook<
  *   makeContext(pricing, reg);                // ambient: asOf/settlement/options
  *   evaluator.evaluate(inputs, reg, ctx);     // QuantLib only (no FB / no gRPC)
  *   mapper.toResponse(builder, result);       // domain -> FlatBuffers
+ *
+ * A request with `price_only` set (detail::has_price_only) runs the same
+ * steps with its output switches cleared, the pricing options reset and
+ * `ctx.priceOnly` set, and is answered by `mapper.toPriceOnlyResponse`.
  *
  * For utility endpoints whose request carries no Pricing block (e.g. the
  * calendar lookups), registry/context construction is elided; the evaluator
@@ -135,7 +169,14 @@ public:
         } else if constexpr (detail::has_calendar_overrides<Req>::value) {
             applyRequestCalendarOverrides(req->calendar_overrides(), "calendar_overrides");
         }
+        bool priceOnly = false;
+        if constexpr (detail::has_price_only<Req>::value) {
+            priceOnly = req->price_only();
+        }
         auto inputs = mapper_.toInputs(req);
+        if (priceOnly) {
+            detail::clearOutputSwitches(inputs);
+        }
         // Bail out before touching market data if the caller has already timed
         // out (curve bootstrapping is the single most expensive step).
         budget.check();
@@ -169,7 +210,19 @@ public:
         // evaluator so heavy per-trade loops can honor it too.
         budget.check();
         ctx.budget = budget;
+        if (priceOnly) {
+            // The pricing options only switch on extra outputs (bond details
+            // and flows, swaption greeks): none has a place in the response.
+            reg.options = PricingRequestOptions{};
+            ctx.options = reg.options;
+            ctx.priceOnly = true;
+        }
         auto result = evaluator_.evaluate(inputs, reg, ctx);
+        if constexpr (detail::has_price_only<Req>::value) {
+            if (priceOnly) {
+                return mapper_.toPriceOnlyResponse(*builder, result);
+            }
+        }
         return mapper_.toResponse(*builder, result);
     }
 

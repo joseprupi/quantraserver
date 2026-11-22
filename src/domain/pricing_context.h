@@ -22,12 +22,18 @@ namespace quantra {
  *   budget     - per-request CPU deadline; heavy evaluators call budget.check()
  *                at the top of the per-trade loop. Defaults to unlimited so
  *                existing makeContext callers are unaffected.
+ *   priceOnly  - the request's `price_only`: the response keeps only the
+ *                NPVs, so an evaluator may skip what feeds nothing else
+ *                (fair values, sensitivities, greeks, implied vols, detail
+ *                rows). It must not change how an NPV is computed, nor skip
+ *                a check that refuses a request. Set by ProductEndpoint.
  */
 struct PricingContext {
     QuantLib::Date asOf;
     QuantLib::Date settlement;
     PricingRequestOptions options;
     RequestBudget budget;
+    bool priceOnly = false;
 };
 
 /**

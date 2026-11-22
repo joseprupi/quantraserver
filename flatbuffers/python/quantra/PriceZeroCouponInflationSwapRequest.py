@@ -69,8 +69,20 @@ class PriceZeroCouponInflationSwapRequest(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
+    # When true the response carries only the prices: `npvs` holds one NPV
+    # per trade in request order and the per-trade list is empty (no flows,
+    # fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+    # full response reports; a request the engine refuses is refused the
+    # same way. Absent or false: the full response.
+    # PriceZeroCouponInflationSwapRequest
+    def PriceOnly(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def PriceZeroCouponInflationSwapRequestStart(builder):
-    builder.StartObject(3)
+    builder.StartObject(4)
 
 def Start(builder):
     PriceZeroCouponInflationSwapRequestStart(builder)
@@ -99,6 +111,12 @@ def PriceZeroCouponInflationSwapRequestAddIncludeFlows(builder, includeFlows):
 def AddIncludeFlows(builder, includeFlows):
     PriceZeroCouponInflationSwapRequestAddIncludeFlows(builder, includeFlows)
 
+def PriceZeroCouponInflationSwapRequestAddPriceOnly(builder, priceOnly):
+    builder.PrependBoolSlot(3, priceOnly, 0)
+
+def AddPriceOnly(builder, priceOnly):
+    PriceZeroCouponInflationSwapRequestAddPriceOnly(builder, priceOnly)
+
 def PriceZeroCouponInflationSwapRequestEnd(builder):
     return builder.EndObject()
 
@@ -117,6 +135,7 @@ class PriceZeroCouponInflationSwapRequestT(object):
         self.pricing = None  # type: Optional[PricingT]
         self.swaps = None  # type: List[PriceZeroCouponInflationSwapT]
         self.includeFlows = False  # type: bool
+        self.priceOnly = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -152,6 +171,7 @@ class PriceZeroCouponInflationSwapRequestT(object):
                     priceZeroCouponInflationSwap_ = PriceZeroCouponInflationSwapT.InitFromObj(priceZeroCouponInflationSwapRequest.Swaps(i))
                     self.swaps.append(priceZeroCouponInflationSwap_)
         self.includeFlows = priceZeroCouponInflationSwapRequest.IncludeFlows()
+        self.priceOnly = priceZeroCouponInflationSwapRequest.PriceOnly()
 
     # PriceZeroCouponInflationSwapRequestT
     def Pack(self, builder):
@@ -171,5 +191,6 @@ class PriceZeroCouponInflationSwapRequestT(object):
         if self.swaps is not None:
             PriceZeroCouponInflationSwapRequestAddSwaps(builder, swaps)
         PriceZeroCouponInflationSwapRequestAddIncludeFlows(builder, self.includeFlows)
+        PriceZeroCouponInflationSwapRequestAddPriceOnly(builder, self.priceOnly)
         priceZeroCouponInflationSwapRequest = PriceZeroCouponInflationSwapRequestEnd(builder)
         return priceZeroCouponInflationSwapRequest

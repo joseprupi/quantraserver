@@ -308,6 +308,7 @@ inline ::flatbuffers::Offset<CapFloorResponse> CreateCapFloorResponseDirect(
 struct PriceCapFloorResponseT : public ::flatbuffers::NativeTable {
   typedef PriceCapFloorResponse TableType;
   std::vector<std::unique_ptr<quantra::CapFloorResponseT>> cap_floors{};
+  std::vector<double> npvs{};
   PriceCapFloorResponseT() = default;
   PriceCapFloorResponseT(const PriceCapFloorResponseT &o);
   PriceCapFloorResponseT(PriceCapFloorResponseT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -319,16 +320,24 @@ struct PriceCapFloorResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Ta
   typedef PriceCapFloorResponseT NativeTableType;
   typedef PriceCapFloorResponseBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_CAP_FLOORS = 4
+    VT_CAP_FLOORS = 4,
+    VT_NPVS = 6
   };
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CapFloorResponse>> *cap_floors() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CapFloorResponse>> *>(VT_CAP_FLOORS);
+  }
+  /// Present only when the request set `price_only`: one NPV per trade in
+  /// request order (the per-trade list is then empty).
+  const ::flatbuffers::Vector<double> *npvs() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_NPVS);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_CAP_FLOORS) &&
            verifier.VerifyVector(cap_floors()) &&
            verifier.VerifyVectorOfTables(cap_floors()) &&
+           VerifyOffset(verifier, VT_NPVS) &&
+           verifier.VerifyVector(npvs()) &&
            verifier.EndTable();
   }
   PriceCapFloorResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -342,6 +351,9 @@ struct PriceCapFloorResponseBuilder {
   ::flatbuffers::uoffset_t start_;
   void add_cap_floors(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CapFloorResponse>>> cap_floors) {
     fbb_.AddOffset(PriceCapFloorResponse::VT_CAP_FLOORS, cap_floors);
+  }
+  void add_npvs(::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs) {
+    fbb_.AddOffset(PriceCapFloorResponse::VT_NPVS, npvs);
   }
   explicit PriceCapFloorResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -357,19 +369,24 @@ struct PriceCapFloorResponseBuilder {
 
 inline ::flatbuffers::Offset<PriceCapFloorResponse> CreatePriceCapFloorResponse(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CapFloorResponse>>> cap_floors = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CapFloorResponse>>> cap_floors = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs = 0) {
   PriceCapFloorResponseBuilder builder_(_fbb);
+  builder_.add_npvs(npvs);
   builder_.add_cap_floors(cap_floors);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<PriceCapFloorResponse> CreatePriceCapFloorResponseDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<::flatbuffers::Offset<quantra::CapFloorResponse>> *cap_floors = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::CapFloorResponse>> *cap_floors = nullptr,
+    const std::vector<double> *npvs = nullptr) {
   auto cap_floors__ = cap_floors ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CapFloorResponse>>(*cap_floors) : 0;
+  auto npvs__ = npvs ? _fbb.CreateVector<double>(*npvs) : 0;
   return quantra::CreatePriceCapFloorResponse(
       _fbb,
-      cap_floors__);
+      cap_floors__,
+      npvs__);
 }
 
 ::flatbuffers::Offset<PriceCapFloorResponse> CreatePriceCapFloorResponse(::flatbuffers::FlatBufferBuilder &_fbb, const PriceCapFloorResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -472,13 +489,15 @@ inline ::flatbuffers::Offset<CapFloorResponse> CreateCapFloorResponse(::flatbuff
       _cap_floor_lets);
 }
 
-inline PriceCapFloorResponseT::PriceCapFloorResponseT(const PriceCapFloorResponseT &o) {
+inline PriceCapFloorResponseT::PriceCapFloorResponseT(const PriceCapFloorResponseT &o)
+      : npvs(o.npvs) {
   cap_floors.reserve(o.cap_floors.size());
   for (const auto &cap_floors_ : o.cap_floors) { cap_floors.emplace_back((cap_floors_) ? new quantra::CapFloorResponseT(*cap_floors_) : nullptr); }
 }
 
 inline PriceCapFloorResponseT &PriceCapFloorResponseT::operator=(PriceCapFloorResponseT o) FLATBUFFERS_NOEXCEPT {
   std::swap(cap_floors, o.cap_floors);
+  std::swap(npvs, o.npvs);
   return *this;
 }
 
@@ -492,6 +511,7 @@ inline void PriceCapFloorResponse::UnPackTo(PriceCapFloorResponseT *_o, const ::
   (void)_o;
   (void)_resolver;
   { auto _e = cap_floors(); if (_e) { _o->cap_floors.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->cap_floors[_i]) { _e->Get(_i)->UnPackTo(_o->cap_floors[_i].get(), _resolver); } else { _o->cap_floors[_i] = std::unique_ptr<quantra::CapFloorResponseT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->cap_floors.resize(0); } }
+  { auto _e = npvs(); if (_e) { _o->npvs.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->npvs[_i] = _e->Get(_i); } } else { _o->npvs.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<PriceCapFloorResponse> PriceCapFloorResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceCapFloorResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -503,9 +523,11 @@ inline ::flatbuffers::Offset<PriceCapFloorResponse> CreatePriceCapFloorResponse(
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceCapFloorResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _cap_floors = _fbb.CreateVector<::flatbuffers::Offset<quantra::CapFloorResponse>> (_o->cap_floors.size(), [](size_t i, _VectorArgs *__va) { return CreateCapFloorResponse(*__va->__fbb, __va->__o->cap_floors[i].get(), __va->__rehasher); }, &_va );
+  auto _npvs = _o->npvs.size() ? _fbb.CreateVector(_o->npvs) : 0;
   return quantra::CreatePriceCapFloorResponse(
       _fbb,
-      _cap_floors);
+      _cap_floors,
+      _npvs);
 }
 
 inline const quantra::PriceCapFloorResponse *GetPriceCapFloorResponse(const void *buf) {

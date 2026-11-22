@@ -98,6 +98,9 @@ table PriceSwaptionResponse {
     /// referenced by the priced swaptions. Populated only when the request
     /// sets `include_diagnostics=true`. Empty/absent otherwise.
     diagnostics:[SwaptionVolDiagnostics];
+    /// Present only when the request set `price_only`: one NPV per trade in
+    /// request order (the per-trade list is then empty).
+    npvs:[double];
 }
 
 root_type PriceSwaptionResponse;

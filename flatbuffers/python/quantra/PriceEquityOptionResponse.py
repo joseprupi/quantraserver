@@ -50,8 +50,37 @@ class PriceEquityOptionResponse(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         return o == 0
 
+    # Present only when the request set `price_only`: one NPV per trade in
+    # request order (the per-trade list is then empty).
+    # PriceEquityOptionResponse
+    def Npvs(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            a = self._tab.Vector(o)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
+        return 0
+
+    # PriceEquityOptionResponse
+    def NpvsAsNumpy(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
+        return 0
+
+    # PriceEquityOptionResponse
+    def NpvsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # PriceEquityOptionResponse
+    def NpvsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        return o == 0
+
 def PriceEquityOptionResponseStart(builder):
-    builder.StartObject(1)
+    builder.StartObject(2)
 
 def Start(builder):
     PriceEquityOptionResponseStart(builder)
@@ -67,6 +96,18 @@ def PriceEquityOptionResponseStartOptionsVector(builder, numElems):
 
 def StartOptionsVector(builder, numElems):
     return PriceEquityOptionResponseStartOptionsVector(builder, numElems)
+
+def PriceEquityOptionResponseAddNpvs(builder, npvs):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(npvs), 0)
+
+def AddNpvs(builder, npvs):
+    PriceEquityOptionResponseAddNpvs(builder, npvs)
+
+def PriceEquityOptionResponseStartNpvsVector(builder, numElems):
+    return builder.StartVector(8, numElems, 8)
+
+def StartNpvsVector(builder, numElems):
+    return PriceEquityOptionResponseStartNpvsVector(builder, numElems)
 
 def PriceEquityOptionResponseEnd(builder):
     return builder.EndObject()
@@ -84,6 +125,7 @@ class PriceEquityOptionResponseT(object):
     # PriceEquityOptionResponseT
     def __init__(self):
         self.options = None  # type: List[EquityOptionResponseT]
+        self.npvs = None  # type: List[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -115,6 +157,13 @@ class PriceEquityOptionResponseT(object):
                     from quantra.EquityOptionResponse import EquityOptionResponseT
                     equityOptionResponse_ = EquityOptionResponseT.InitFromObj(priceEquityOptionResponse.Options(i))
                     self.options.append(equityOptionResponse_)
+        if not priceEquityOptionResponse.NpvsIsNone():
+            if np is None:
+                self.npvs = []
+                for i in range(priceEquityOptionResponse.NpvsLength()):
+                    self.npvs.append(priceEquityOptionResponse.Npvs(i))
+            else:
+                self.npvs = priceEquityOptionResponse.NpvsAsNumpy()
 
     # PriceEquityOptionResponseT
     def Pack(self, builder):
@@ -126,8 +175,18 @@ class PriceEquityOptionResponseT(object):
             for i in reversed(range(len(self.options))):
                 builder.PrependUOffsetTRelative(optionslist[i])
             options = builder.EndVector()
+        if self.npvs is not None:
+            if np is not None and type(self.npvs) is np.ndarray:
+                npvs = builder.CreateNumpyVector(self.npvs)
+            else:
+                PriceEquityOptionResponseStartNpvsVector(builder, len(self.npvs))
+                for i in reversed(range(len(self.npvs))):
+                    builder.PrependFloat64(self.npvs[i])
+                npvs = builder.EndVector()
         PriceEquityOptionResponseStart(builder)
         if self.options is not None:
             PriceEquityOptionResponseAddOptions(builder, options)
+        if self.npvs is not None:
+            PriceEquityOptionResponseAddNpvs(builder, npvs)
         priceEquityOptionResponse = PriceEquityOptionResponseEnd(builder)
         return priceEquityOptionResponse

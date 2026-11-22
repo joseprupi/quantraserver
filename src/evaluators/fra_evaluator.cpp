@@ -16,7 +16,6 @@ namespace {
 
 FraPerTrade priceTrade(
     const FraTrade& trade, const PricingRegistry& reg, const PricingContext& ctx) {
-    (void)ctx;
     auto discIt = reg.rates.curves.find(trade.discountingCurveId);
     if (discIt == reg.rates.curves.end()) {
         QUANTRA_NOT_FOUND("Discounting curve not found: " + trade.discountingCurveId);
@@ -43,6 +42,9 @@ FraPerTrade priceTrade(
 
     FraPerTrade out;
     out.npv = fra->NPV();
+    if (ctx.priceOnly) {
+        return out;
+    }
     out.forwardRate = fra->forwardRate();
     out.spotValue = out.npv;
     out.settlementDate = DateToIso(trade.startDate);

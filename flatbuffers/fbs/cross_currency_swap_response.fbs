@@ -56,6 +56,9 @@ table CrossCurrencySwapResponse {
 /// Response wrapper for multiple cross-currency swaps, in request order.
 table PriceCrossCurrencySwapResponse {
     swaps:[CrossCurrencySwapResponse] (required);
+    /// Present only when the request set `price_only`: one NPV per trade in
+    /// request order (the per-trade list is then empty).
+    npvs:[double];
 }
 
 root_type PriceCrossCurrencySwapResponse;

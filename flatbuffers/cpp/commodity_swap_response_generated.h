@@ -1043,6 +1043,7 @@ struct PriceCommoditySwapResponseT : public ::flatbuffers::NativeTable {
   typedef PriceCommoditySwapResponse TableType;
   std::vector<std::unique_ptr<quantra::CommoditySwapResponseT>> swaps{};
   std::vector<std::unique_ptr<quantra::CommodityBuiltCurveSummaryT>> curve_builds{};
+  std::vector<double> npvs{};
   PriceCommoditySwapResponseT() = default;
   PriceCommoditySwapResponseT(const PriceCommoditySwapResponseT &o);
   PriceCommoditySwapResponseT(PriceCommoditySwapResponseT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -1055,7 +1056,8 @@ struct PriceCommoditySwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffer
   typedef PriceCommoditySwapResponseBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_SWAPS = 4,
-    VT_CURVE_BUILDS = 6
+    VT_CURVE_BUILDS = 6,
+    VT_NPVS = 8
   };
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommoditySwapResponse>> *swaps() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommoditySwapResponse>> *>(VT_SWAPS);
@@ -1065,6 +1067,11 @@ struct PriceCommoditySwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffer
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityBuiltCurveSummary>> *curve_builds() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityBuiltCurveSummary>> *>(VT_CURVE_BUILDS);
   }
+  /// Present only when the request set `price_only`: one NPV per trade in
+  /// request order (the per-trade list is then empty).
+  const ::flatbuffers::Vector<double> *npvs() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_NPVS);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_SWAPS) &&
@@ -1073,6 +1080,8 @@ struct PriceCommoditySwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffer
            VerifyOffset(verifier, VT_CURVE_BUILDS) &&
            verifier.VerifyVector(curve_builds()) &&
            verifier.VerifyVectorOfTables(curve_builds()) &&
+           VerifyOffset(verifier, VT_NPVS) &&
+           verifier.VerifyVector(npvs()) &&
            verifier.EndTable();
   }
   PriceCommoditySwapResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -1090,6 +1099,9 @@ struct PriceCommoditySwapResponseBuilder {
   void add_curve_builds(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityBuiltCurveSummary>>> curve_builds) {
     fbb_.AddOffset(PriceCommoditySwapResponse::VT_CURVE_BUILDS, curve_builds);
   }
+  void add_npvs(::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs) {
+    fbb_.AddOffset(PriceCommoditySwapResponse::VT_NPVS, npvs);
+  }
   explicit PriceCommoditySwapResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -1105,8 +1117,10 @@ struct PriceCommoditySwapResponseBuilder {
 inline ::flatbuffers::Offset<PriceCommoditySwapResponse> CreatePriceCommoditySwapResponse(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommoditySwapResponse>>> swaps = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityBuiltCurveSummary>>> curve_builds = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CommodityBuiltCurveSummary>>> curve_builds = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs = 0) {
   PriceCommoditySwapResponseBuilder builder_(_fbb);
+  builder_.add_npvs(npvs);
   builder_.add_curve_builds(curve_builds);
   builder_.add_swaps(swaps);
   return builder_.Finish();
@@ -1115,13 +1129,16 @@ inline ::flatbuffers::Offset<PriceCommoditySwapResponse> CreatePriceCommoditySwa
 inline ::flatbuffers::Offset<PriceCommoditySwapResponse> CreatePriceCommoditySwapResponseDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const std::vector<::flatbuffers::Offset<quantra::CommoditySwapResponse>> *swaps = nullptr,
-    const std::vector<::flatbuffers::Offset<quantra::CommodityBuiltCurveSummary>> *curve_builds = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::CommodityBuiltCurveSummary>> *curve_builds = nullptr,
+    const std::vector<double> *npvs = nullptr) {
   auto swaps__ = swaps ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommoditySwapResponse>>(*swaps) : 0;
   auto curve_builds__ = curve_builds ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityBuiltCurveSummary>>(*curve_builds) : 0;
+  auto npvs__ = npvs ? _fbb.CreateVector<double>(*npvs) : 0;
   return quantra::CreatePriceCommoditySwapResponse(
       _fbb,
       swaps__,
-      curve_builds__);
+      curve_builds__,
+      npvs__);
 }
 
 ::flatbuffers::Offset<PriceCommoditySwapResponse> CreatePriceCommoditySwapResponse(::flatbuffers::FlatBufferBuilder &_fbb, const PriceCommoditySwapResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -1482,7 +1499,8 @@ inline ::flatbuffers::Offset<CommoditySwapResponse> CreateCommoditySwapResponse(
       _quote_deltas);
 }
 
-inline PriceCommoditySwapResponseT::PriceCommoditySwapResponseT(const PriceCommoditySwapResponseT &o) {
+inline PriceCommoditySwapResponseT::PriceCommoditySwapResponseT(const PriceCommoditySwapResponseT &o)
+      : npvs(o.npvs) {
   swaps.reserve(o.swaps.size());
   for (const auto &swaps_ : o.swaps) { swaps.emplace_back((swaps_) ? new quantra::CommoditySwapResponseT(*swaps_) : nullptr); }
   curve_builds.reserve(o.curve_builds.size());
@@ -1492,6 +1510,7 @@ inline PriceCommoditySwapResponseT::PriceCommoditySwapResponseT(const PriceCommo
 inline PriceCommoditySwapResponseT &PriceCommoditySwapResponseT::operator=(PriceCommoditySwapResponseT o) FLATBUFFERS_NOEXCEPT {
   std::swap(swaps, o.swaps);
   std::swap(curve_builds, o.curve_builds);
+  std::swap(npvs, o.npvs);
   return *this;
 }
 
@@ -1506,6 +1525,7 @@ inline void PriceCommoditySwapResponse::UnPackTo(PriceCommoditySwapResponseT *_o
   (void)_resolver;
   { auto _e = swaps(); if (_e) { _o->swaps.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->swaps[_i]) { _e->Get(_i)->UnPackTo(_o->swaps[_i].get(), _resolver); } else { _o->swaps[_i] = std::unique_ptr<quantra::CommoditySwapResponseT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->swaps.resize(0); } }
   { auto _e = curve_builds(); if (_e) { _o->curve_builds.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->curve_builds[_i]) { _e->Get(_i)->UnPackTo(_o->curve_builds[_i].get(), _resolver); } else { _o->curve_builds[_i] = std::unique_ptr<quantra::CommodityBuiltCurveSummaryT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->curve_builds.resize(0); } }
+  { auto _e = npvs(); if (_e) { _o->npvs.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->npvs[_i] = _e->Get(_i); } } else { _o->npvs.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<PriceCommoditySwapResponse> PriceCommoditySwapResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceCommoditySwapResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -1518,10 +1538,12 @@ inline ::flatbuffers::Offset<PriceCommoditySwapResponse> CreatePriceCommoditySwa
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceCommoditySwapResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _swaps = _fbb.CreateVector<::flatbuffers::Offset<quantra::CommoditySwapResponse>> (_o->swaps.size(), [](size_t i, _VectorArgs *__va) { return CreateCommoditySwapResponse(*__va->__fbb, __va->__o->swaps[i].get(), __va->__rehasher); }, &_va );
   auto _curve_builds = _o->curve_builds.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CommodityBuiltCurveSummary>> (_o->curve_builds.size(), [](size_t i, _VectorArgs *__va) { return CreateCommodityBuiltCurveSummary(*__va->__fbb, __va->__o->curve_builds[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _npvs = _o->npvs.size() ? _fbb.CreateVector(_o->npvs) : 0;
   return quantra::CreatePriceCommoditySwapResponse(
       _fbb,
       _swaps,
-      _curve_builds);
+      _curve_builds,
+      _npvs);
 }
 
 inline const quantra::PriceCommoditySwapResponse *GetPriceCommoditySwapResponse(const void *buf) {

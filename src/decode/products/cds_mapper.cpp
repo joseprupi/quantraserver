@@ -3,6 +3,7 @@
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "price_only_response.h"
 #include "request_validation.h"
 #include "schedule_parser.h"
 
@@ -125,6 +126,13 @@ flatbuffers::Offset<quantra::PriceCDSResponse> CdsMapper::toResponse(
     quantra::PriceCDSResponseBuilder rb(builder);
     rb.add_cds_list(cdsList);
     return rb.Finish();
+}
+
+flatbuffers::Offset<quantra::PriceCDSResponse> CdsMapper::toPriceOnlyResponse(
+    flatbuffers::grpc::MessageBuilder& builder, const CdsResult& result) const {
+    return PriceOnlyResponse(
+        builder, result.values, [](const auto& row) { return row.npv; },
+        &quantra::PriceCDSResponseBuilder::add_cds_list);
 }
 
 } // namespace quantra

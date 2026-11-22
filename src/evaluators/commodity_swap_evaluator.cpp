@@ -194,7 +194,7 @@ CommoditySwapResultSet CommoditySwapEvaluator::evaluate(
                     notFinite ? "NotFinite" : "InvalidInput", i,
                     field.empty() ? path : path + "." + field));
         }
-        if (reg.commodity.hasBuilds) {
+        if (reg.commodity.hasBuilds && !ctx.priceOnly) {
             result.quoteDeltas.push_back(quoteDeltas(result.swaps.back(), reg.commodity));
         }
     }

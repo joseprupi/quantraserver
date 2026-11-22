@@ -210,7 +210,7 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
 }
 
 CdsPerTrade priceTrade(
-    const CdsTrade& trade, const PricingRegistry& reg, const PricingContext& /*ctx*/) {
+    const CdsTrade& trade, const PricingRegistry& reg, const PricingContext& ctx) {
     auto discountIt = reg.rates.curves.find(trade.discountingCurveId);
     if (discountIt == reg.rates.curves.end()) {
         QUANTRA_NOT_FOUND("Discounting curve not found: " + trade.discountingCurveId);
@@ -249,6 +249,9 @@ CdsPerTrade priceTrade(
 
     CdsPerTrade out;
     out.npv = cds->NPV();
+    if (ctx.priceOnly) {
+        return out;
+    }
     // QuantLib cannot express a fair spread for every trade (e.g. a
     // zero-running-coupon CDS, where there is no coupon leg to scale). The
     // trade still prices; report fair_spread only when it is available.

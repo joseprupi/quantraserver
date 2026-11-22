@@ -70,8 +70,20 @@ class PriceCrossCurrencySwapRequest(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
+    # When true the response carries only the prices: `npvs` holds one NPV
+    # per trade in request order and the per-trade list is empty (no flows,
+    # fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+    # full response reports; a request the engine refuses is refused the
+    # same way. Absent or false: the full response.
+    # PriceCrossCurrencySwapRequest
+    def PriceOnly(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def PriceCrossCurrencySwapRequestStart(builder):
-    builder.StartObject(3)
+    builder.StartObject(4)
 
 def Start(builder):
     PriceCrossCurrencySwapRequestStart(builder)
@@ -100,6 +112,12 @@ def PriceCrossCurrencySwapRequestAddIncludeFlows(builder, includeFlows):
 def AddIncludeFlows(builder, includeFlows):
     PriceCrossCurrencySwapRequestAddIncludeFlows(builder, includeFlows)
 
+def PriceCrossCurrencySwapRequestAddPriceOnly(builder, priceOnly):
+    builder.PrependBoolSlot(3, priceOnly, 0)
+
+def AddPriceOnly(builder, priceOnly):
+    PriceCrossCurrencySwapRequestAddPriceOnly(builder, priceOnly)
+
 def PriceCrossCurrencySwapRequestEnd(builder):
     return builder.EndObject()
 
@@ -118,6 +136,7 @@ class PriceCrossCurrencySwapRequestT(object):
         self.pricing = None  # type: Optional[PricingT]
         self.swaps = None  # type: List[PriceCrossCurrencySwapT]
         self.includeFlows = False  # type: bool
+        self.priceOnly = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -153,6 +172,7 @@ class PriceCrossCurrencySwapRequestT(object):
                     priceCrossCurrencySwap_ = PriceCrossCurrencySwapT.InitFromObj(priceCrossCurrencySwapRequest.Swaps(i))
                     self.swaps.append(priceCrossCurrencySwap_)
         self.includeFlows = priceCrossCurrencySwapRequest.IncludeFlows()
+        self.priceOnly = priceCrossCurrencySwapRequest.PriceOnly()
 
     # PriceCrossCurrencySwapRequestT
     def Pack(self, builder):
@@ -172,5 +192,6 @@ class PriceCrossCurrencySwapRequestT(object):
         if self.swaps is not None:
             PriceCrossCurrencySwapRequestAddSwaps(builder, swaps)
         PriceCrossCurrencySwapRequestAddIncludeFlows(builder, self.includeFlows)
+        PriceCrossCurrencySwapRequestAddPriceOnly(builder, self.priceOnly)
         priceCrossCurrencySwapRequest = PriceCrossCurrencySwapRequestEnd(builder)
         return priceCrossCurrencySwapRequest

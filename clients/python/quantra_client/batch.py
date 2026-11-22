@@ -163,7 +163,11 @@ class GroupResult:
     The results of one group, in its input trade order.
 
     `entry(i)`: the response entry of trade i (a FlatBuffers reader, e.g. a
-    `PriceBasisSwapResponse.Swaps(j)`), None when it failed.
+    `PriceBasisSwapResponse.Swaps(j)`), None when it failed. A request sent
+    with `price_only` has no entries: use `npvs()`.
+    `npvs()`: the NPV of every trade in input order (NaN where it failed),
+    a numpy array when numpy is importable, else a list; from the `npvs`
+    vector of price-only responses, from each entry's `Npv()` otherwise.
     `error(i)`: the QuantraError of the call that failed trade i, else None.
     `failures`: [(start, end, QuantraError)], trades start..end-1 failed.
     `responses`: [(start, end, response reader)] of the calls that succeeded.
@@ -198,8 +202,29 @@ class GroupResult:
         row = self._find(self.responses, i)
         if row is None:
             return None
-        start, _, response = row
+        start, end, response = row
+        if _is_price_only(response, self._accessor, end - start):
+            raise ValueError(
+                f"trade {i} was priced with price_only: its response holds only the NPV; "
+                "read it with npvs()")
         return getattr(response, self._accessor)(i - start)
+
+    def npvs(self):
+        """The NPV of every trade in input order, NaN where it failed: a numpy
+        array when numpy is importable, else a list of floats."""
+        np = _numpy()
+        out = np.full(self.size, np.nan) if np is not None else [float('nan')] * self.size
+        for start, end, response in self.responses:
+            if _is_price_only(response, self._accessor, end - start):
+                if np is not None:
+                    out[start:end] = response.NpvsAsNumpy()
+                else:
+                    out[start:end] = [response.Npvs(j) for j in range(end - start)]
+            else:
+                read = getattr(response, self._accessor)
+                values = [read(j).Npv() for j in range(end - start)]
+                out[start:end] = values
+        return out
 
     def error(self, i: int) -> Optional[QuantraError]:
         """Why trade i failed, None when it priced."""
@@ -883,13 +908,31 @@ def price_batch(
     return result
 
 
+def _numpy():
+    """numpy when importable (it is optional), else None."""
+    try:
+        import numpy
+    except ImportError:
+        return None
+    return numpy
+
+
+def _is_price_only(response, accessor, count):
+    """True for the response of a `price_only` request: no entries, one
+    NPV per trade in `npvs`."""
+    return (count > 0 and getattr(response, accessor + 'Length')() == 0
+            and response.NpvsLength() == count)
+
+
 def _record(group, start, end, response_bytes):
     """Keep a successful response as a reader; refuse one whose entry count
-    does not match the chunk (it could not be mapped back to the trades).
-    True when kept."""
+    (or, for a price-only response, NPV count) does not match the chunk (it
+    could not be mapped back to the trades). True when kept."""
     _, response_class, accessor = TRADE_LISTS[group.method]
     response = response_class.GetRootAs(response_bytes, 0)
     count = getattr(response, accessor + 'Length')()
+    if count == 0 and response.NpvsLength() > 0:
+        count = response.NpvsLength()
     if count != end - start:
         group.failures.append((start, end, QuantraError(
             f"response has {count} entries for {end - start} trades")))

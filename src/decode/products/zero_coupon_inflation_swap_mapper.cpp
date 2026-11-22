@@ -3,6 +3,7 @@
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "price_only_response.h"
 #include "request_validation.h"
 
 #include <cmath>
@@ -177,6 +178,15 @@ flatbuffers::Offset<quantra::PriceZeroCouponInflationSwapResponse> ZeroCouponInf
     quantra::PriceZeroCouponInflationSwapResponseBuilder rb(builder);
     rb.add_swaps(swapsVec);
     return rb.Finish();
+}
+
+flatbuffers::Offset<quantra::PriceZeroCouponInflationSwapResponse> ZeroCouponInflationSwapMapper::
+    toPriceOnlyResponse(
+        flatbuffers::grpc::MessageBuilder& builder,
+        const ZeroCouponInflationSwapResult& result) const {
+    return PriceOnlyResponse(
+        builder, result.swaps, [](const auto& row) { return row.npv; },
+        &quantra::PriceZeroCouponInflationSwapResponseBuilder::add_swaps);
 }
 
 } // namespace quantra

@@ -16,6 +16,9 @@ table ZeroCouponInflationSwapResponse {
 /// Response wrapper for multiple ZCIIS trades.
 table PriceZeroCouponInflationSwapResponse {
     swaps:[ZeroCouponInflationSwapResponse] (required);
+    /// Present only when the request set `price_only`: one NPV per trade in
+    /// request order (the per-trade list is then empty).
+    npvs:[double];
 }
 
 root_type PriceZeroCouponInflationSwapResponse;

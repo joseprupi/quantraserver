@@ -3,6 +3,7 @@
 #include "enum_convert.h"
 #include "error.h"
 #include "fixed_rate_bond_parser.h"
+#include "price_only_response.h"
 
 namespace quantra {
 
@@ -152,6 +153,13 @@ flatbuffers::Offset<quantra::PriceFixedRateBondResponse> FixedRateBondMapper::to
     quantra::PriceFixedRateBondResponseBuilder rb(builder);
     rb.add_bonds(bonds);
     return rb.Finish();
+}
+
+flatbuffers::Offset<quantra::PriceFixedRateBondResponse> FixedRateBondMapper::toPriceOnlyResponse(
+    flatbuffers::grpc::MessageBuilder& builder, const FixedRateBondResult& result) const {
+    return PriceOnlyResponse(
+        builder, result.bonds, [](const auto& row) { return row.npv; },
+        &quantra::PriceFixedRateBondResponseBuilder::add_bonds);
 }
 
 } // namespace quantra

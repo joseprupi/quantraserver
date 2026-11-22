@@ -286,6 +286,7 @@ struct PriceStructuredNoteRequestT : public ::flatbuffers::NativeTable {
   std::vector<std::unique_ptr<quantra::StructuredNoteT>> notes{};
   std::unique_ptr<quantra::StructuredNoteGreeksSpecT> greeks{};
   std::unique_ptr<quantra::StructuredNoteDiagnosticsSpecT> diagnostics{};
+  bool price_only = false;
   PriceStructuredNoteRequestT() = default;
   PriceStructuredNoteRequestT(const PriceStructuredNoteRequestT &o);
   PriceStructuredNoteRequestT(PriceStructuredNoteRequestT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -301,7 +302,8 @@ struct PriceStructuredNoteRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffer
     VT_PRICING = 4,
     VT_NOTES = 6,
     VT_GREEKS = 8,
-    VT_DIAGNOSTICS = 10
+    VT_DIAGNOSTICS = 10,
+    VT_PRICE_ONLY = 12
   };
   const quantra::Pricing *pricing() const {
     return GetPointer<const quantra::Pricing *>(VT_PRICING);
@@ -318,6 +320,14 @@ struct PriceStructuredNoteRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffer
   const quantra::StructuredNoteDiagnosticsSpec *diagnostics() const {
     return GetPointer<const quantra::StructuredNoteDiagnosticsSpec *>(VT_DIAGNOSTICS);
   }
+  /// When true the response carries only the prices: `npvs` holds one NPV
+  /// per trade in request order and the per-trade list is empty (no flows,
+  /// fair values, greeks, echoes or diagnostics). The NPVs are the ones the
+  /// full response reports; a request the engine refuses is refused the
+  /// same way. Absent or false: the full response.
+  bool price_only() const {
+    return GetField<uint8_t>(VT_PRICE_ONLY, 0) != 0;
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_PRICING) &&
@@ -329,6 +339,7 @@ struct PriceStructuredNoteRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffer
            verifier.VerifyTable(greeks()) &&
            VerifyOffset(verifier, VT_DIAGNOSTICS) &&
            verifier.VerifyTable(diagnostics()) &&
+           VerifyField<uint8_t>(verifier, VT_PRICE_ONLY, 1) &&
            verifier.EndTable();
   }
   PriceStructuredNoteRequestT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -352,6 +363,9 @@ struct PriceStructuredNoteRequestBuilder {
   void add_diagnostics(::flatbuffers::Offset<quantra::StructuredNoteDiagnosticsSpec> diagnostics) {
     fbb_.AddOffset(PriceStructuredNoteRequest::VT_DIAGNOSTICS, diagnostics);
   }
+  void add_price_only(bool price_only) {
+    fbb_.AddElement<uint8_t>(PriceStructuredNoteRequest::VT_PRICE_ONLY, static_cast<uint8_t>(price_only), 0);
+  }
   explicit PriceStructuredNoteRequestBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -369,12 +383,14 @@ inline ::flatbuffers::Offset<PriceStructuredNoteRequest> CreatePriceStructuredNo
     ::flatbuffers::Offset<quantra::Pricing> pricing = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::StructuredNote>>> notes = 0,
     ::flatbuffers::Offset<quantra::StructuredNoteGreeksSpec> greeks = 0,
-    ::flatbuffers::Offset<quantra::StructuredNoteDiagnosticsSpec> diagnostics = 0) {
+    ::flatbuffers::Offset<quantra::StructuredNoteDiagnosticsSpec> diagnostics = 0,
+    bool price_only = false) {
   PriceStructuredNoteRequestBuilder builder_(_fbb);
   builder_.add_diagnostics(diagnostics);
   builder_.add_greeks(greeks);
   builder_.add_notes(notes);
   builder_.add_pricing(pricing);
+  builder_.add_price_only(price_only);
   return builder_.Finish();
 }
 
@@ -383,14 +399,16 @@ inline ::flatbuffers::Offset<PriceStructuredNoteRequest> CreatePriceStructuredNo
     ::flatbuffers::Offset<quantra::Pricing> pricing = 0,
     const std::vector<::flatbuffers::Offset<quantra::StructuredNote>> *notes = nullptr,
     ::flatbuffers::Offset<quantra::StructuredNoteGreeksSpec> greeks = 0,
-    ::flatbuffers::Offset<quantra::StructuredNoteDiagnosticsSpec> diagnostics = 0) {
+    ::flatbuffers::Offset<quantra::StructuredNoteDiagnosticsSpec> diagnostics = 0,
+    bool price_only = false) {
   auto notes__ = notes ? _fbb.CreateVector<::flatbuffers::Offset<quantra::StructuredNote>>(*notes) : 0;
   return quantra::CreatePriceStructuredNoteRequest(
       _fbb,
       pricing,
       notes__,
       greeks,
-      diagnostics);
+      diagnostics,
+      price_only);
 }
 
 ::flatbuffers::Offset<PriceStructuredNoteRequest> CreatePriceStructuredNoteRequest(::flatbuffers::FlatBufferBuilder &_fbb, const PriceStructuredNoteRequestT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -477,7 +495,8 @@ inline ::flatbuffers::Offset<StructuredNoteDiagnosticsSpec> CreateStructuredNote
 inline PriceStructuredNoteRequestT::PriceStructuredNoteRequestT(const PriceStructuredNoteRequestT &o)
       : pricing((o.pricing) ? new quantra::PricingT(*o.pricing) : nullptr),
         greeks((o.greeks) ? new quantra::StructuredNoteGreeksSpecT(*o.greeks) : nullptr),
-        diagnostics((o.diagnostics) ? new quantra::StructuredNoteDiagnosticsSpecT(*o.diagnostics) : nullptr) {
+        diagnostics((o.diagnostics) ? new quantra::StructuredNoteDiagnosticsSpecT(*o.diagnostics) : nullptr),
+        price_only(o.price_only) {
   notes.reserve(o.notes.size());
   for (const auto &notes_ : o.notes) { notes.emplace_back((notes_) ? new quantra::StructuredNoteT(*notes_) : nullptr); }
 }
@@ -487,6 +506,7 @@ inline PriceStructuredNoteRequestT &PriceStructuredNoteRequestT::operator=(Price
   std::swap(notes, o.notes);
   std::swap(greeks, o.greeks);
   std::swap(diagnostics, o.diagnostics);
+  std::swap(price_only, o.price_only);
   return *this;
 }
 
@@ -503,6 +523,7 @@ inline void PriceStructuredNoteRequest::UnPackTo(PriceStructuredNoteRequestT *_o
   { auto _e = notes(); if (_e) { _o->notes.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->notes[_i]) { _e->Get(_i)->UnPackTo(_o->notes[_i].get(), _resolver); } else { _o->notes[_i] = std::unique_ptr<quantra::StructuredNoteT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->notes.resize(0); } }
   { auto _e = greeks(); if (_e) { if(_o->greeks) { _e->UnPackTo(_o->greeks.get(), _resolver); } else { _o->greeks = std::unique_ptr<quantra::StructuredNoteGreeksSpecT>(_e->UnPack(_resolver)); } } else if (_o->greeks) { _o->greeks.reset(); } }
   { auto _e = diagnostics(); if (_e) { if(_o->diagnostics) { _e->UnPackTo(_o->diagnostics.get(), _resolver); } else { _o->diagnostics = std::unique_ptr<quantra::StructuredNoteDiagnosticsSpecT>(_e->UnPack(_resolver)); } } else if (_o->diagnostics) { _o->diagnostics.reset(); } }
+  { auto _e = price_only(); _o->price_only = _e; }
 }
 
 inline ::flatbuffers::Offset<PriceStructuredNoteRequest> PriceStructuredNoteRequest::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceStructuredNoteRequestT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -517,12 +538,14 @@ inline ::flatbuffers::Offset<PriceStructuredNoteRequest> CreatePriceStructuredNo
   auto _notes = _fbb.CreateVector<::flatbuffers::Offset<quantra::StructuredNote>> (_o->notes.size(), [](size_t i, _VectorArgs *__va) { return CreateStructuredNote(*__va->__fbb, __va->__o->notes[i].get(), __va->__rehasher); }, &_va );
   auto _greeks = _o->greeks ? CreateStructuredNoteGreeksSpec(_fbb, _o->greeks.get(), _rehasher) : 0;
   auto _diagnostics = _o->diagnostics ? CreateStructuredNoteDiagnosticsSpec(_fbb, _o->diagnostics.get(), _rehasher) : 0;
+  auto _price_only = _o->price_only;
   return quantra::CreatePriceStructuredNoteRequest(
       _fbb,
       _pricing,
       _notes,
       _greeks,
-      _diagnostics);
+      _diagnostics,
+      _price_only);
 }
 
 inline const quantra::PriceStructuredNoteRequest *GetPriceStructuredNoteRequest(const void *buf) {

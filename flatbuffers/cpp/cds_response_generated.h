@@ -32,11 +32,6 @@ struct CDSValuesT : public ::flatbuffers::NativeTable {
   double fair_upfront = 0.0;
   double default_leg_npv = 0.0;
   double premium_leg_npv = 0.0;
-  std::unique_ptr<quantra::ErrorT> error{};
-  CDSValuesT() = default;
-  CDSValuesT(const CDSValuesT &o);
-  CDSValuesT(CDSValuesT&&) FLATBUFFERS_NOEXCEPT = default;
-  CDSValuesT &operator=(CDSValuesT o) FLATBUFFERS_NOEXCEPT;
 };
 
 /// CDS pricing results.
@@ -48,8 +43,7 @@ struct CDSValues FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_FAIR_SPREAD = 6,
     VT_FAIR_UPFRONT = 8,
     VT_DEFAULT_LEG_NPV = 10,
-    VT_PREMIUM_LEG_NPV = 12,
-    VT_ERROR = 14
+    VT_PREMIUM_LEG_NPV = 12
   };
   double npv() const {
     return GetField<double>(VT_NPV, 0.0);
@@ -71,9 +65,6 @@ struct CDSValues FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double premium_leg_npv() const {
     return GetField<double>(VT_PREMIUM_LEG_NPV, 0.0);
   }
-  const quantra::Error *error() const {
-    return GetPointer<const quantra::Error *>(VT_ERROR);
-  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<double>(verifier, VT_NPV, 8) &&
@@ -81,8 +72,6 @@ struct CDSValues FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<double>(verifier, VT_FAIR_UPFRONT, 8) &&
            VerifyField<double>(verifier, VT_DEFAULT_LEG_NPV, 8) &&
            VerifyField<double>(verifier, VT_PREMIUM_LEG_NPV, 8) &&
-           VerifyOffset(verifier, VT_ERROR) &&
-           verifier.VerifyTable(error()) &&
            verifier.EndTable();
   }
   CDSValuesT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -109,9 +98,6 @@ struct CDSValuesBuilder {
   void add_premium_leg_npv(double premium_leg_npv) {
     fbb_.AddElement<double>(CDSValues::VT_PREMIUM_LEG_NPV, premium_leg_npv, 0.0);
   }
-  void add_error(::flatbuffers::Offset<quantra::Error> error) {
-    fbb_.AddOffset(CDSValues::VT_ERROR, error);
-  }
   explicit CDSValuesBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -129,15 +115,13 @@ inline ::flatbuffers::Offset<CDSValues> CreateCDSValues(
     ::flatbuffers::Optional<double> fair_spread = ::flatbuffers::nullopt,
     double fair_upfront = 0.0,
     double default_leg_npv = 0.0,
-    double premium_leg_npv = 0.0,
-    ::flatbuffers::Offset<quantra::Error> error = 0) {
+    double premium_leg_npv = 0.0) {
   CDSValuesBuilder builder_(_fbb);
   builder_.add_premium_leg_npv(premium_leg_npv);
   builder_.add_default_leg_npv(default_leg_npv);
   builder_.add_fair_upfront(fair_upfront);
   if(fair_spread) { builder_.add_fair_spread(*fair_spread); }
   builder_.add_npv(npv);
-  builder_.add_error(error);
   return builder_.Finish();
 }
 
@@ -146,6 +130,7 @@ inline ::flatbuffers::Offset<CDSValues> CreateCDSValues(
 struct PriceCDSResponseT : public ::flatbuffers::NativeTable {
   typedef PriceCDSResponse TableType;
   std::vector<std::unique_ptr<quantra::CDSValuesT>> cds_list{};
+  std::vector<double> npvs{};
   PriceCDSResponseT() = default;
   PriceCDSResponseT(const PriceCDSResponseT &o);
   PriceCDSResponseT(PriceCDSResponseT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -157,16 +142,24 @@ struct PriceCDSResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceCDSResponseT NativeTableType;
   typedef PriceCDSResponseBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_CDS_LIST = 4
+    VT_CDS_LIST = 4,
+    VT_NPVS = 6
   };
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CDSValues>> *cds_list() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CDSValues>> *>(VT_CDS_LIST);
+  }
+  /// Present only when the request set `price_only`: one NPV per trade in
+  /// request order (the per-trade list is then empty).
+  const ::flatbuffers::Vector<double> *npvs() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_NPVS);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_CDS_LIST) &&
            verifier.VerifyVector(cds_list()) &&
            verifier.VerifyVectorOfTables(cds_list()) &&
+           VerifyOffset(verifier, VT_NPVS) &&
+           verifier.VerifyVector(npvs()) &&
            verifier.EndTable();
   }
   PriceCDSResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -180,6 +173,9 @@ struct PriceCDSResponseBuilder {
   ::flatbuffers::uoffset_t start_;
   void add_cds_list(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CDSValues>>> cds_list) {
     fbb_.AddOffset(PriceCDSResponse::VT_CDS_LIST, cds_list);
+  }
+  void add_npvs(::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs) {
+    fbb_.AddOffset(PriceCDSResponse::VT_NPVS, npvs);
   }
   explicit PriceCDSResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -195,41 +191,27 @@ struct PriceCDSResponseBuilder {
 
 inline ::flatbuffers::Offset<PriceCDSResponse> CreatePriceCDSResponse(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CDSValues>>> cds_list = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CDSValues>>> cds_list = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> npvs = 0) {
   PriceCDSResponseBuilder builder_(_fbb);
+  builder_.add_npvs(npvs);
   builder_.add_cds_list(cds_list);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<PriceCDSResponse> CreatePriceCDSResponseDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<::flatbuffers::Offset<quantra::CDSValues>> *cds_list = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::CDSValues>> *cds_list = nullptr,
+    const std::vector<double> *npvs = nullptr) {
   auto cds_list__ = cds_list ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CDSValues>>(*cds_list) : 0;
+  auto npvs__ = npvs ? _fbb.CreateVector<double>(*npvs) : 0;
   return quantra::CreatePriceCDSResponse(
       _fbb,
-      cds_list__);
+      cds_list__,
+      npvs__);
 }
 
 ::flatbuffers::Offset<PriceCDSResponse> CreatePriceCDSResponse(::flatbuffers::FlatBufferBuilder &_fbb, const PriceCDSResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-inline CDSValuesT::CDSValuesT(const CDSValuesT &o)
-      : npv(o.npv),
-        fair_spread(o.fair_spread),
-        fair_upfront(o.fair_upfront),
-        default_leg_npv(o.default_leg_npv),
-        premium_leg_npv(o.premium_leg_npv),
-        error((o.error) ? new quantra::ErrorT(*o.error) : nullptr) {
-}
-
-inline CDSValuesT &CDSValuesT::operator=(CDSValuesT o) FLATBUFFERS_NOEXCEPT {
-  std::swap(npv, o.npv);
-  std::swap(fair_spread, o.fair_spread);
-  std::swap(fair_upfront, o.fair_upfront);
-  std::swap(default_leg_npv, o.default_leg_npv);
-  std::swap(premium_leg_npv, o.premium_leg_npv);
-  std::swap(error, o.error);
-  return *this;
-}
 
 inline CDSValuesT *CDSValues::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<CDSValuesT>(new CDSValuesT());
@@ -245,7 +227,6 @@ inline void CDSValues::UnPackTo(CDSValuesT *_o, const ::flatbuffers::resolver_fu
   { auto _e = fair_upfront(); _o->fair_upfront = _e; }
   { auto _e = default_leg_npv(); _o->default_leg_npv = _e; }
   { auto _e = premium_leg_npv(); _o->premium_leg_npv = _e; }
-  { auto _e = error(); if (_e) { if(_o->error) { _e->UnPackTo(_o->error.get(), _resolver); } else { _o->error = std::unique_ptr<quantra::ErrorT>(_e->UnPack(_resolver)); } } else if (_o->error) { _o->error.reset(); } }
 }
 
 inline ::flatbuffers::Offset<CDSValues> CDSValues::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CDSValuesT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -261,24 +242,24 @@ inline ::flatbuffers::Offset<CDSValues> CreateCDSValues(::flatbuffers::FlatBuffe
   auto _fair_upfront = _o->fair_upfront;
   auto _default_leg_npv = _o->default_leg_npv;
   auto _premium_leg_npv = _o->premium_leg_npv;
-  auto _error = _o->error ? CreateError(_fbb, _o->error.get(), _rehasher) : 0;
   return quantra::CreateCDSValues(
       _fbb,
       _npv,
       _fair_spread,
       _fair_upfront,
       _default_leg_npv,
-      _premium_leg_npv,
-      _error);
+      _premium_leg_npv);
 }
 
-inline PriceCDSResponseT::PriceCDSResponseT(const PriceCDSResponseT &o) {
+inline PriceCDSResponseT::PriceCDSResponseT(const PriceCDSResponseT &o)
+      : npvs(o.npvs) {
   cds_list.reserve(o.cds_list.size());
   for (const auto &cds_list_ : o.cds_list) { cds_list.emplace_back((cds_list_) ? new quantra::CDSValuesT(*cds_list_) : nullptr); }
 }
 
 inline PriceCDSResponseT &PriceCDSResponseT::operator=(PriceCDSResponseT o) FLATBUFFERS_NOEXCEPT {
   std::swap(cds_list, o.cds_list);
+  std::swap(npvs, o.npvs);
   return *this;
 }
 
@@ -292,6 +273,7 @@ inline void PriceCDSResponse::UnPackTo(PriceCDSResponseT *_o, const ::flatbuffer
   (void)_o;
   (void)_resolver;
   { auto _e = cds_list(); if (_e) { _o->cds_list.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->cds_list[_i]) { _e->Get(_i)->UnPackTo(_o->cds_list[_i].get(), _resolver); } else { _o->cds_list[_i] = std::unique_ptr<quantra::CDSValuesT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->cds_list.resize(0); } }
+  { auto _e = npvs(); if (_e) { _o->npvs.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->npvs[_i] = _e->Get(_i); } } else { _o->npvs.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<PriceCDSResponse> PriceCDSResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceCDSResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -303,9 +285,11 @@ inline ::flatbuffers::Offset<PriceCDSResponse> CreatePriceCDSResponse(::flatbuff
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceCDSResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _cds_list = _fbb.CreateVector<::flatbuffers::Offset<quantra::CDSValues>> (_o->cds_list.size(), [](size_t i, _VectorArgs *__va) { return CreateCDSValues(*__va->__fbb, __va->__o->cds_list[i].get(), __va->__rehasher); }, &_va );
+  auto _npvs = _o->npvs.size() ? _fbb.CreateVector(_o->npvs) : 0;
   return quantra::CreatePriceCDSResponse(
       _fbb,
-      _cds_list);
+      _cds_list,
+      _npvs);
 }
 
 inline const quantra::PriceCDSResponse *GetPriceCDSResponse(const void *buf) {
