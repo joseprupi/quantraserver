@@ -28,6 +28,66 @@ first release that promises wire stability.
 
 ## Unreleased
 
+## Version 0.17.3 (November 2026) — Python batch client: safe packing processes, budget and hooks, more methods
+
+Python client only. No engine, request or response changes, no price
+changes.
+
+- **Fixed: `price_batch` could hang.** In 0.17.2 the packing processes were
+  started with `fork` on Linux and the pool was always shut down with
+  `terminate()`. Inside a process that holds gRPC channels and runs other
+  threads (a long-running service), forked children could abort inside gRPC
+  or block in its fork handlers, the pool restarted them, and shutting the
+  pool down could wait forever on a child that had inherited the caller's
+  `SIGTERM` handler; such a child's `SIGTERM` also reached the caller's own
+  handler. Reproduced with a process making gRPC calls from four threads and
+  an asyncio loop: 4 hangs in 300 batches, and 201 batches with chunks that
+  failed to pack (a restarted child had no copy of the requests).
+  Now:
+  - the processes start with `forkserver` on Linux (`spawn` elsewhere) and
+    each chunk is pickled to them; `start_method=` chooses
+    (`'forkserver'`, `'spawn'`, `'fork'`), and `fork` is documented as unsafe
+    in a process holding gRPC channels or threads. A script using the
+    default must guard its entry point with `if __name__ == "__main__":`.
+    Same reproduction: 0 hangs and 0 failed chunks in 300 batches, also with
+    a reused pool;
+  - the pool is shut down with `close()` and `join()` when the batch ends,
+    `terminate()` only when the batch raised, every step bounded in time;
+    a pool that will not stop is left behind with a warning
+    (`result.warnings`) instead of blocking;
+  - `BatchPool`: processes started once by the caller and passed as `pool=`
+    to every batch (several batches may share it). A pool started per batch
+    with `forkserver` adds about 0.15–0.3 s to a batch;
+  - a pool is started for a batch from 1,000 trades (was 500; 500 still
+    with `fork`).
+- **`force_defaults`** on `price_batch` (default `True`) and on `Client`
+  (default `False`, unchanged): pack with `ForceDefaults(True)`. With the
+  generated classes of this repository it changes nothing (the 235 example
+  requests of the catalog get the same answers, 4 % more request bytes); it
+  matters for classes generated with a non-null default on a field the
+  engine requires.
+- **`max_trades`** (an int or `{method: int}`): most trades in one request,
+  cutting a group further than `split_above` does. No default; measurements
+  in `docs/client.md`.
+- **`deadline`**: a time budget for the whole batch; no call gets a timeout
+  beyond the time left, nothing is sent after it, and the trades left fail
+  with `DEADLINE_EXCEEDED` and details `{"reason": "BatchDeadline"}`.
+- **Hooks**: `metadata` (gRPC metadata on every call, static or per call),
+  `on_call(method, group_index, start, end, seconds, error)` after every
+  call attempt, `on_result(group_index, start, end, response_bytes)` as each
+  chunk prices, `stop` (once true nothing new is sent, the calls in flight
+  finish, the trades left fail with `CANCELLED` and details
+  `{"reason": "Cancelled"}`). They run on the caller's thread; an exception
+  in one is logged and kept in `result.callback_errors`. `result.stopped`
+  says whether a batch was stopped or ran out of time.
+- **New `Client` methods**, also accepted by `price_batch`:
+  `price_equity_options`, `price_zero_coupon_inflation_swaps`,
+  `price_year_on_year_inflation_swaps`,
+  `price_year_on_year_inflation_cap_floors`, `price_zero_coupon_bonds`,
+  `price_zero_coupon_swaps`, `price_callable_fixed_rate_bonds`.
+- `clients/python/setup.py` no longer requires `grpcio-tools` (the client
+  never used it).
+
 ## Version 0.17.2 (November 2026) — batch pricing in the Python client, configurable message size, Python unpacking fixed
 
 A batch module in the Python client, the worker's 8 MiB message limit made a

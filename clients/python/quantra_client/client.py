@@ -30,18 +30,25 @@ from typing import Union, Optional
 # =============================================================================
 from quantra.PriceFixedRateBondRequest import PriceFixedRateBondRequestT
 from quantra.PriceFloatingRateBondRequest import PriceFloatingRateBondRequestT
+from quantra.PriceZeroCouponBondRequest import PriceZeroCouponBondRequestT
+from quantra.PriceCallableFixedRateBondRequest import PriceCallableFixedRateBondRequestT
 from quantra.PriceVanillaSwapRequest import PriceVanillaSwapRequestT
 from quantra.PriceOisSwapRequest import PriceOisSwapRequestT
 from quantra.PriceBasisSwapRequest import PriceBasisSwapRequestT
+from quantra.PriceZeroCouponSwapRequest import PriceZeroCouponSwapRequestT
 from quantra.PriceFRARequest import PriceFRARequestT
 from quantra.PriceFxForwardRequest import PriceFxForwardRequestT
 from quantra.PriceCrossCurrencySwapRequest import PriceCrossCurrencySwapRequestT
 from quantra.PriceCommoditySwapRequest import PriceCommoditySwapRequestT
 from quantra.BuildCommodityCurvesRequest import BuildCommodityCurvesRequestT
 from quantra.PriceStructuredNoteRequest import PriceStructuredNoteRequestT
+from quantra.PriceEquityOptionRequest import PriceEquityOptionRequestT
 from quantra.PriceCapFloorRequest import PriceCapFloorRequestT
 from quantra.PriceSwaptionRequest import PriceSwaptionRequestT
 from quantra.PriceCDSRequest import PriceCDSRequestT
+from quantra.PriceZeroCouponInflationSwapRequest import PriceZeroCouponInflationSwapRequestT
+from quantra.PriceYearOnYearInflationSwapRequest import PriceYearOnYearInflationSwapRequestT
+from quantra.PriceYearOnYearInflationCapFloorRequest import PriceYearOnYearInflationCapFloorRequestT
 from quantra.BootstrapCurvesRequest import BootstrapCurvesRequestT
 from quantra.BootstrapInflationCurvesRequest import BootstrapInflationCurvesRequestT
 from quantra.ValidateVolSurfaceRequest import ValidateVolSurfaceRequestT
@@ -58,18 +65,25 @@ from quantra.PricingOptions import PricingOptionsT
 # =============================================================================
 from quantra.PriceFixedRateBondResponse import PriceFixedRateBondResponse
 from quantra.PriceFloatingRateBondResponse import PriceFloatingRateBondResponse
+from quantra.PriceZeroCouponBondResponse import PriceZeroCouponBondResponse
+from quantra.PriceCallableFixedRateBondResponse import PriceCallableFixedRateBondResponse
 from quantra.PriceVanillaSwapResponse import PriceVanillaSwapResponse
 from quantra.PriceOisSwapResponse import PriceOisSwapResponse
 from quantra.PriceBasisSwapResponse import PriceBasisSwapResponse
+from quantra.PriceZeroCouponSwapResponse import PriceZeroCouponSwapResponse
 from quantra.PriceFRAResponse import PriceFRAResponse
 from quantra.PriceFxForwardResponse import PriceFxForwardResponse
 from quantra.PriceCrossCurrencySwapResponse import PriceCrossCurrencySwapResponse
 from quantra.PriceCommoditySwapResponse import PriceCommoditySwapResponse
 from quantra.BuildCommodityCurvesResponse import BuildCommodityCurvesResponse
 from quantra.PriceStructuredNoteResponse import PriceStructuredNoteResponse
+from quantra.PriceEquityOptionResponse import PriceEquityOptionResponse
 from quantra.PriceCapFloorResponse import PriceCapFloorResponse
 from quantra.PriceSwaptionResponse import PriceSwaptionResponse
 from quantra.PriceCDSResponse import PriceCDSResponse
+from quantra.PriceZeroCouponInflationSwapResponse import PriceZeroCouponInflationSwapResponse
+from quantra.PriceYearOnYearInflationSwapResponse import PriceYearOnYearInflationSwapResponse
+from quantra.PriceYearOnYearInflationCapFloorResponse import PriceYearOnYearInflationCapFloorResponse
 from quantra.BootstrapCurvesResponse import BootstrapCurvesResponse
 from quantra.BootstrapInflationCurvesResponse import BootstrapInflationCurvesResponse
 from quantra.ValidateVolSurfaceResponse import ValidateVolSurfaceResponse
@@ -94,18 +108,26 @@ class Client:
     METHODS = {
         'fixed_rate_bond': '/quantra.QuantraServer/PriceFixedRateBond',
         'floating_rate_bond': '/quantra.QuantraServer/PriceFloatingRateBond',
+        'zero_coupon_bond': '/quantra.QuantraServer/PriceZeroCouponBond',
+        'callable_fixed_rate_bond': '/quantra.QuantraServer/PriceCallableFixedRateBond',
         'vanilla_swap': '/quantra.QuantraServer/PriceVanillaSwap',
         'ois_swap': '/quantra.QuantraServer/PriceOisSwap',
         'basis_swap': '/quantra.QuantraServer/PriceBasisSwap',
+        'zero_coupon_swap': '/quantra.QuantraServer/PriceZeroCouponSwap',
         'fra': '/quantra.QuantraServer/PriceFRA',
         'fx_forward': '/quantra.QuantraServer/PriceFxForward',
         'cross_currency_swap': '/quantra.QuantraServer/PriceCrossCurrencySwap',
         'commodity_swap': '/quantra.QuantraServer/PriceCommoditySwap',
         'build_commodity_curves': '/quantra.QuantraServer/BuildCommodityCurves',
         'structured_note': '/quantra.QuantraServer/PriceStructuredNote',
+        'equity_option': '/quantra.QuantraServer/PriceEquityOption',
         'cap_floor': '/quantra.QuantraServer/PriceCapFloor',
         'swaption': '/quantra.QuantraServer/PriceSwaption',
         'cds': '/quantra.QuantraServer/PriceCDS',
+        'zero_coupon_inflation_swap': '/quantra.QuantraServer/PriceZeroCouponInflationSwap',
+        'year_on_year_inflation_swap': '/quantra.QuantraServer/PriceYearOnYearInflationSwap',
+        'year_on_year_inflation_cap_floor':
+            '/quantra.QuantraServer/PriceYearOnYearInflationCapFloor',
         'bootstrap_curves': '/quantra.QuantraServer/BootstrapCurves',
         'bootstrap_inflation_curves': '/quantra.QuantraServer/BootstrapInflationCurves',
         'validate_vol_surface': '/quantra.QuantraServer/ValidateVolSurface',
@@ -117,6 +139,7 @@ class Client:
         secure: bool = False,
         credentials: Optional[grpc.ChannelCredentials] = None,
         options: Optional[list] = None,
+        force_defaults: bool = False,
     ):
         """
         Initialize the Quantra client.
@@ -126,8 +149,13 @@ class Client:
             secure: Use TLS if True
             credentials: Optional gRPC credentials for secure connection
             options: Optional gRPC channel options
+            force_defaults: pack requests with ForceDefaults(True): a scalar
+                equal to its schema default is written to the wire too
+                (needed only by request objects whose generated code gives
+                a field the engine requires a non-null schema default)
         """
         self.target = target
+        self.force_defaults = force_defaults
         
         # Default options for large messages
         default_options = [
@@ -349,6 +377,84 @@ class Client:
             PriceCDSResponse
         )
     
+    def price_zero_coupon_bonds(
+        self,
+        request: PriceZeroCouponBondRequestT
+    ) -> PriceZeroCouponBondResponse:
+        """Price zero-coupon bonds."""
+        return self._call(
+            'zero_coupon_bond',
+            request,
+            PriceZeroCouponBondResponse
+        )
+
+    def price_callable_fixed_rate_bonds(
+        self,
+        request: PriceCallableFixedRateBondRequestT
+    ) -> PriceCallableFixedRateBondResponse:
+        """Price callable (and puttable) fixed-rate bonds."""
+        return self._call(
+            'callable_fixed_rate_bond',
+            request,
+            PriceCallableFixedRateBondResponse
+        )
+
+    def price_zero_coupon_swaps(
+        self,
+        request: PriceZeroCouponSwapRequestT
+    ) -> PriceZeroCouponSwapResponse:
+        """Price zero-coupon interest rate swaps."""
+        return self._call(
+            'zero_coupon_swap',
+            request,
+            PriceZeroCouponSwapResponse
+        )
+
+    def price_equity_options(
+        self,
+        request: PriceEquityOptionRequestT
+    ) -> PriceEquityOptionResponse:
+        """Price equity options (vanilla, digital, barrier; European,
+        American or Bermudan exercise)."""
+        return self._call(
+            'equity_option',
+            request,
+            PriceEquityOptionResponse
+        )
+
+    def price_zero_coupon_inflation_swaps(
+        self,
+        request: PriceZeroCouponInflationSwapRequestT
+    ) -> PriceZeroCouponInflationSwapResponse:
+        """Price zero-coupon inflation swaps."""
+        return self._call(
+            'zero_coupon_inflation_swap',
+            request,
+            PriceZeroCouponInflationSwapResponse
+        )
+
+    def price_year_on_year_inflation_swaps(
+        self,
+        request: PriceYearOnYearInflationSwapRequestT
+    ) -> PriceYearOnYearInflationSwapResponse:
+        """Price year-on-year inflation swaps."""
+        return self._call(
+            'year_on_year_inflation_swap',
+            request,
+            PriceYearOnYearInflationSwapResponse
+        )
+
+    def price_year_on_year_inflation_cap_floors(
+        self,
+        request: PriceYearOnYearInflationCapFloorRequestT
+    ) -> PriceYearOnYearInflationCapFloorResponse:
+        """Price year-on-year inflation caps and floors."""
+        return self._call(
+            'year_on_year_inflation_cap_floor',
+            request,
+            PriceYearOnYearInflationCapFloorResponse
+        )
+
     def bootstrap_curves(
         self,
         request: BootstrapCurvesRequestT
@@ -404,6 +510,7 @@ class Client:
         """
         # 1. Serialize: Pack the Object API request into FlatBuffer bytes
         builder = flatbuffers.Builder(1024)
+        builder.ForceDefaults(self.force_defaults)
         packed = request.Pack(builder)
         builder.Finish(packed)
         request_bytes = bytes(builder.Output())
@@ -632,6 +739,13 @@ __all__ = [
     # Request types
     'PriceFixedRateBondRequestT',
     'PriceFloatingRateBondRequestT',
+    'PriceZeroCouponBondRequestT',
+    'PriceCallableFixedRateBondRequestT',
+    'PriceZeroCouponSwapRequestT',
+    'PriceEquityOptionRequestT',
+    'PriceZeroCouponInflationSwapRequestT',
+    'PriceYearOnYearInflationSwapRequestT',
+    'PriceYearOnYearInflationCapFloorRequestT',
     'PriceVanillaSwapRequestT',
     'PriceOisSwapRequestT',
     'PriceBasisSwapRequestT',
@@ -650,6 +764,13 @@ __all__ = [
     # Response types
     'PriceFixedRateBondResponse',
     'PriceFloatingRateBondResponse',
+    'PriceZeroCouponBondResponse',
+    'PriceCallableFixedRateBondResponse',
+    'PriceZeroCouponSwapResponse',
+    'PriceEquityOptionResponse',
+    'PriceZeroCouponInflationSwapResponse',
+    'PriceYearOnYearInflationSwapResponse',
+    'PriceYearOnYearInflationCapFloorResponse',
     'PriceVanillaSwapResponse',
     'PriceOisSwapResponse',
     'PriceBasisSwapResponse',

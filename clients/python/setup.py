@@ -26,9 +26,10 @@ setup(
     author="Josep Rupi",
     packages=find_packages(),
     python_requires=">=3.8",
+    # Run time only: the generated FlatBuffers classes come from flatc, not
+    # from grpcio-tools.
     install_requires=[
         "grpcio>=1.50.0",
-        "grpcio-tools>=1.50.0",
         "flatbuffers>=23.0.0",
     ],
     extras_require={

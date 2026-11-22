@@ -13,19 +13,33 @@ endpoints below:
 | --- | --- |
 | `price_fixed_rate_bonds` | `PriceFixedRateBond` |
 | `price_floating_rate_bonds` | `PriceFloatingRateBond` |
+| `price_zero_coupon_bonds` | `PriceZeroCouponBond` |
+| `price_callable_fixed_rate_bonds` | `PriceCallableFixedRateBond` |
 | `price_vanilla_swaps` | `PriceVanillaSwap` |
+| `price_ois_swaps` | `PriceOisSwap` |
+| `price_basis_swaps` | `PriceBasisSwap` |
+| `price_zero_coupon_swaps` | `PriceZeroCouponSwap` |
 | `price_fras` | `PriceFRA` |
+| `price_fx_forwards` | `PriceFxForward` |
+| `price_cross_currency_swaps` | `PriceCrossCurrencySwap` |
+| `price_commodity_swaps` | `PriceCommoditySwap` |
+| `build_commodity_curves` | `BuildCommodityCurves` |
+| `price_structured_notes` | `PriceStructuredNote` |
+| `price_equity_options` | `PriceEquityOption` |
 | `price_cap_floors` | `PriceCapFloor` |
 | `price_swaptions` | `PriceSwaption` |
 | `price_cds` | `PriceCDS` |
+| `price_zero_coupon_inflation_swaps` | `PriceZeroCouponInflationSwap` |
+| `price_year_on_year_inflation_swaps` | `PriceYearOnYearInflationSwap` |
+| `price_year_on_year_inflation_cap_floors` | `PriceYearOnYearInflationCapFloor` |
 | `bootstrap_curves` | `BootstrapCurves` |
 | `bootstrap_inflation_curves` | `BootstrapInflationCurves` |
 | `validate_vol_surface` | `ValidateVolSurface` |
 
-Everything else the server prices — zero-coupon bonds, callable bonds, OIS and
-basis swaps, zero-coupon swaps, both inflation swaps, year-on-year inflation
-caps/floors, equity options, vol-surface sampling, the calibration endpoints
-and the calendar utilities — has no wrapper here. Use one of:
+Everything else the server offers — vol-surface sampling, the calibration
+endpoints (swaption model and vol, implied forwards, vol surface,
+correlation), the calendar utilities and `Meta` — has no wrapper here. Use
+one of:
 
 - **HTTP/JSON**, against the gateway. Every endpoint is described by the
   generated OpenAPI spec in `jsonserver/openapi/`; see `docs/http-api.md` for
@@ -34,6 +48,9 @@ and the calendar utilities — has no wrapper here. Use one of:
   `flatbuffers/python/` plus a raw `grpc` channel. `quantra_client/client.py`
   shows the pattern: `Client.METHODS` maps a name to a gRPC method path, and
   `Client._call` does the pack / invoke / unpack.
+
+Many trades over many markets: `quantra_client.batch.price_batch` (see
+`docs/client.md`, "Python client: batches").
 
 ## Install
 
@@ -66,9 +83,12 @@ with Client("localhost:50051") as client:
         print(response.Bonds(i).Npv())
 ```
 
-`Client` takes `target`, `secure`, `credentials` and `options`; it defaults to
-`localhost:50051`, an insecure channel, and a 100 MiB message cap in both
-directions. Use it as a context manager or call `close()`.
+`Client` takes `target`, `secure`, `credentials`, `options` and
+`force_defaults`; it defaults to `localhost:50051`, an insecure channel, a
+100 MiB message cap in both directions, and packing without
+`ForceDefaults` (`force_defaults=True` writes every scalar equal to its schema
+default too; the generated classes of this repository do not need it). Use it
+as a context manager or call `close()`.
 
 ## Example
 
