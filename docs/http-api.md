@@ -3541,8 +3541,16 @@ default `0.0`.
 | Endpoint | Returns |
 | --- | --- |
 | `GET /health` | Liveness. Cheap; no engine round-trip. |
-| `GET /meta` | Service and version metadata: API version, build info, the product list, the endpoint list, and `capacity` (below). |
+| `GET /meta` | Service and version metadata: API version, build info, `schema_hash` (below), the product list, the endpoint list, and `capacity` (below). |
 | `GET /status` | Runtime status, including Envoy worker membership when `QUANTRA_ENVOY_ADMIN` is set. |
+
+`schema_hash` is the SHA-256 over the engine's FlatBuffers schema files
+(`flatbuffers/fbs/*.fbs`, computed by `scripts/schema_hash.py` at build
+time); the gRPC `Meta` reply carries the same value. It changes whenever a
+schema file changes, and the Python client stores the value of its own
+source tree as `quantra_client.SCHEMA_HASH`: request blocks packed by a
+client are valid for an engine reporting the same hash (`docs/client.md`,
+"Python client: request blocks").
 
 ### Load control and `capacity`
 

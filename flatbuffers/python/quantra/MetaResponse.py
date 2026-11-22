@@ -114,8 +114,18 @@ class MetaResponse(object):
             return obj
         return None
 
+    # SHA-256 over the schema files (scripts/schema_hash.py); the Python
+    # client's SCHEMA_HASH for the same source tree. Request blocks packed
+    # under another value must be packed again.
+    # MetaResponse
+    def SchemaHash(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
 def MetaResponseStart(builder):
-    builder.StartObject(8)
+    builder.StartObject(9)
 
 def Start(builder):
     MetaResponseStart(builder)
@@ -180,6 +190,12 @@ def MetaResponseAddDependencies(builder, dependencies):
 def AddDependencies(builder, dependencies):
     MetaResponseAddDependencies(builder, dependencies)
 
+def MetaResponseAddSchemaHash(builder, schemaHash):
+    builder.PrependUOffsetTRelativeSlot(8, flatbuffers.number_types.UOffsetTFlags.py_type(schemaHash), 0)
+
+def AddSchemaHash(builder, schemaHash):
+    MetaResponseAddSchemaHash(builder, schemaHash)
+
 def MetaResponseEnd(builder):
     return builder.EndObject()
 
@@ -203,6 +219,7 @@ class MetaResponseT(object):
         self.products = None  # type: List[str]
         self.rpcMethods = None  # type: List[str]
         self.dependencies = None  # type: Optional[MetaDependenciesT]
+        self.schemaHash = None  # type: str
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -241,6 +258,7 @@ class MetaResponseT(object):
         if metaResponse.Dependencies() is not None:
             from quantra.MetaDependencies import MetaDependenciesT
             self.dependencies = MetaDependenciesT.InitFromObj(metaResponse.Dependencies())
+        self.schemaHash = metaResponse.SchemaHash()
 
     # MetaResponseT
     def Pack(self, builder):
@@ -272,6 +290,8 @@ class MetaResponseT(object):
             rpcMethods = builder.EndVector()
         if self.dependencies is not None:
             dependencies = self.dependencies.Pack(builder)
+        if self.schemaHash is not None:
+            schemaHash = builder.CreateString(self.schemaHash)
         MetaResponseStart(builder)
         if self.service is not None:
             MetaResponseAddService(builder, service)
@@ -289,5 +309,7 @@ class MetaResponseT(object):
             MetaResponseAddRpcMethods(builder, rpcMethods)
         if self.dependencies is not None:
             MetaResponseAddDependencies(builder, dependencies)
+        if self.schemaHash is not None:
+            MetaResponseAddSchemaHash(builder, schemaHash)
         metaResponse = MetaResponseEnd(builder)
         return metaResponse

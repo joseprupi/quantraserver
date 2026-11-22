@@ -20,6 +20,10 @@ table MetaResponse {
     products:[string];
     rpc_methods:[string];
     dependencies:MetaDependencies;
+    /// SHA-256 over the schema files (scripts/schema_hash.py); the Python
+    /// client's SCHEMA_HASH for the same source tree. Request blocks packed
+    /// under another value must be packed again.
+    schema_hash:string;
 }
 
 root_type MetaResponse;

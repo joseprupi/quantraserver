@@ -91,6 +91,7 @@ gateway has its own `GET /meta` and `GET /health`.
 | `backend_version` | Engine build version |
 | `git_sha` | Commit the binary was built from |
 | `build_time_utc` | Build timestamp |
+| `schema_hash` | SHA-256 over the schema files (`scripts/schema_hash.py`); the Python client's `SCHEMA_HASH` for the same source tree (see "Python client: request blocks") |
 | `products` | Every product the engine serves |
 | `rpc_methods` | Every registered RPC method name, including `Meta` itself |
 | `dependencies` | Versions of QuantLib, gRPC, and FlatBuffers the engine was built against |
@@ -344,6 +345,129 @@ calibration being repeated in every request.
 
 `clients/python/examples/price_batch.py` prices a synthetic bond book over
 several markets.
+
+## Python client: request blocks
+
+`clients/python/quantra_client/blocks.py` builds requests from trades and
+markets packed once and kept as bytes, and changes market values inside a
+packed request without packing it again. A block is one table packed alone:
+a trade (the element of a request's trade list, for example a
+`PriceBasisSwapT`) or a market (`PricingT`).
+
+```python
+from quantra_client import (Client, SCHEMA_HASH, assemble_request, pack_market_block,
+                            pack_trade_block, patch_values)
+
+trades = [pack_trade_block(t) for t in request.swaps]     # once; can be stored
+market, slots = pack_market_block(request.pricing)          # once per market
+req = assemble_request("basis_swap", trades, pricing_block=market, include_flows=False)
+response = client.channel.unary_unary(Client.METHODS["basis_swap"])(req.data)
+
+# a scenario: two curve values moved in place, one of them to exactly 0.0
+bumped = patch_values(req.data, req.pricing_at, slots, {
+    "rates.curves[EUR_6M].points[3].point.rate": 0.0251,
+    "rates.curves[EUR_6M].points[4].point.rate": 0.0,
+})
+```
+
+| Function | Returns |
+| --- | --- |
+| `pack_trade_block(trade_obj, force_defaults=True)` | `Block(data, table_offset, type_name)`: one trade packed alone. |
+| `pack_market_block(pricing_obj)` | `(Block, slots)`: the market packed alone with `ForceDefaults`, and `{path: Slot(offset, kind)}` for every numeric market value. |
+| `assemble_request(method, blocks, pricing=None, pricing_block=None, **request_fields)` | `AssembledRequest(data, pricing_at)`: a finished request for the `Client.METHODS` key `method`; the market as an object (`pricing`, packed here) or as a block (`pricing_block`, copied); the request's other fields by schema or object name (`include_flows=True`). |
+| `market_slots(buffer, pricing_at)` | The slots of the Pricing table at `pricing_at` of any finished request or market block. |
+| `patch_values(buffer, pricing_at, slots, {path: value})` | The buffer with those values: a `bytearray` is changed in place and returned, `bytes` give new bytes. |
+| `verify_request(method, data)` | `None`, or `ValueError` naming the first structural problem the engine's FlatBuffers verifier would refuse (tables, vtables, strings and vectors inside the buffer and aligned, union members known). |
+| `BlockGroup(blocks, pricing=None, pricing_block=None, **request_fields)` | A `price_batch` group given as blocks: `("basis_swap", BlockGroup(trades, pricing_block=market))`. |
+| `SCHEMA_HASH` | The schema the blocks are packed for (below). |
+
+**Layout.** `Block.data` is a byte string whose length is a multiple of 8;
+`Block.table_offset` is the position of the block's table counted back from
+the end of `data` (the table starts at `len(data) - table_offset`,
+`Block.table_position`). Everything the table refers to (its vtables,
+strings, vectors, sub-tables) is inside `data`, every reference is relative,
+and every value is aligned relative to the end of `data`, so the block reads
+the same wherever it is placed with its end 8-aligned. Leading bytes before
+the packed content are zero padding. `type_name` (for example
+`"quantra.PriceBasisSwap"`) is not part of the bytes; `assemble_request`
+refuses a block of another type than the method's trades, and a block rebuilt
+from storage as `Block(data, table_offset)` has `type_name` `None`. To store
+a block, store `data` and `table_offset`.
+
+**Assembly.** The request's root table (its scalar fields, and the market
+when given as an object) is packed once per call of `assemble_request` (once
+per group in `price_batch`); the market block, the vector of trade offsets
+and the trade blocks follow it, in that order. The result is a finished,
+8-aligned buffer the engine verifies as any other request, and it prices
+byte for byte as the request packed normally (checked over every example
+request of every method). An assembled request is about 27 % larger than the
+same request packed normally (12,000 basis swaps: 5.82 MB against 4.57 MB):
+each block carries its own vtables, where a normal request shares them.
+`max_message_bytes` and the engine's message limit (8 MiB by default,
+`QUANTRA_MAX_MESSAGE_BYTES`) apply to the assembled size.
+
+**Validity.** A block is valid only for the schema it was packed with. Keep
+`SCHEMA_HASH` next to stored blocks and pack them again when it changes. The
+engine reports its own value as `schema_hash` in the JSON gateway's
+`GET /meta` and in the gRPC `Meta` reply; both come from
+`scripts/schema_hash.py` (SHA-256 over `flatbuffers/fbs/*.fbs`), which also
+writes the client's constant (`clients/python/quantra_client/_schema.py`,
+regenerated by `scripts/generate_schemas.sh`). A block may also depend on
+the market it is priced on through the ids it names (curves, indices,
+surfaces): reuse it only with a market that has them.
+
+**Market paths.** A slot's path is built from the schema, starting at the
+Pricing table:
+
+- field names joined by `.` (`rates.curves`);
+- a vector element as `name[k]` (index `k`), or as `name[ID]` when every
+  element of that vector is a table with a non-empty, unique string field
+  `id` made of characters other than `.`, `[` and `]` and not all digits;
+- a union by its field name (`points[3].point.rate`; the member type is the
+  one in the buffer);
+- a vector of numbers as `name[k]`.
+
+Examples: `rates.curves[EUR_OIS].points[3].point.rate`,
+`quotes[SPX_SPOT].value`, `credit.credit_curves[acme_ig_eur].recovery_rate`,
+`commodity.contracts[SYN_CL].months[1].price`,
+`volatility.models[hw_explicit].payload.hw_a`, `rates.indices[EUR_6M].fixing_days`.
+
+**What can be patched.** Every number of the market present in the buffer:
+doubles, floats and integers that are not enums (a curve point, a quote, a
+vol node, a spread, a recovery rate, a fixing value, a model parameter, an
+integer such as a fixing-day count). A float slot takes any real number,
+exactly `0.0` included (the market block is packed with `ForceDefaults`, so
+a value equal to the schema default is still in the buffer); an integer slot
+takes an int within its width; anything else is refused before any byte is
+written. Not patchable: strings (ids, dates such as the as-of date),
+booleans, enums, an optional value left unset (`= null` in the schema, it is
+not in the buffer), and anything whose change alters the length of the
+buffer (a pillar added or removed, a fixing appended, another union member).
+For those, pack the market again. The slots of `pack_market_block` belong to
+the block's layout: they apply to every request assembled from that block
+(`pricing_at` of the request, or `Block.table_position` for the block
+itself); for a request assembled with the market as an object, read them
+with `market_slots(req.data, req.pricing_at)`.
+
+**In `price_batch`.** A `BlockGroup` is split like any group (`split_above`,
+`max_trades`, `in_flight`) and cut by `max_message_bytes` from the block
+sizes before anything is copied; its requests are assembled on the calling
+thread, without packing processes. Retries, halving on `DEADLINE_EXCEEDED`,
+splitting on a size refusal, hooks and results are those of any group, and a
+batch may mix object groups and block groups.
+
+Measured with 12,000 basis swaps over three curves (one Python thread, a
+shared machine; FlatBuffers 24.12.23 / 25.12.19):
+
+| Step | Time | Bytes |
+| --- | --- | --- |
+| Pack the request normally | 2.26 s / 1.75 s | 4.57 MB |
+| Pack the 12,000 trade blocks (once) | 2.97 s / 2.24 s | 480 per trade |
+| Pack the market block and its 474 slots (once) | 7 ms | 10.1 KB |
+| Assemble the request from the blocks | 6 ms / 7 ms | 5.82 MB |
+| Assemble, the market given as an object | 12 ms / 19 ms | |
+| Patch 30 market values, new bytes | 2.9 ms / 1.7 ms | |
+| Patch 30 market values in place (`bytearray`) | 0.04 ms / 0.03 ms | |
 
 ## Notes
 

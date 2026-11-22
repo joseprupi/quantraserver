@@ -2189,6 +2189,14 @@ TEST_F(ServerClientTest, Meta_ReportsSingleSourcedVersionAndCatalog) {
     ASSERT_NE(meta->dependencies(), nullptr);
     ASSERT_NE(meta->dependencies()->quantlib(), nullptr);
     EXPECT_FALSE(meta->dependencies()->quantlib()->str().empty());
+
+    // The schema hash (scripts/schema_hash.py): 64 lowercase hex digits. Its
+    // value against the Python client's SCHEMA_HASH is checked by
+    // tests/contract/request_blocks_engine_test.py.
+    ASSERT_NE(meta->schema_hash(), nullptr);
+    const std::string schema_hash = meta->schema_hash()->str();
+    EXPECT_EQ(schema_hash.size(), 64u);
+    EXPECT_EQ(schema_hash.find_first_not_of("0123456789abcdef"), std::string::npos);
 }
 
 TEST_F(ServerClientTest, Health_DefaultServiceReportsServing) {

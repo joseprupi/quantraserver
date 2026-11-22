@@ -69,6 +69,7 @@ public:
         auto backend_version = b.CreateString(QUANTRA_BACKEND_VERSION);
         auto git_sha = b.CreateString(QUANTRA_GIT_SHA);
         auto build_time = b.CreateString(QUANTRA_BUILD_TIME_UTC);
+        auto schema_hash = b.CreateString(QUANTRA_SCHEMA_HASH);
 
         // Product names: the SAME source the JSON gateway's /meta uses.
         std::vector<flatbuffers::Offset<flatbuffers::String>> product_offsets;
@@ -105,6 +106,7 @@ public:
         mrb.add_products(products);
         mrb.add_rpc_methods(rpc_methods);
         mrb.add_dependencies(dependencies);
+        mrb.add_schema_hash(schema_hash);
         return mrb.Finish();
     }
 };
